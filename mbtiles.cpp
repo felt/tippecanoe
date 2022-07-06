@@ -16,7 +16,6 @@
 #include "mbtiles.hpp"
 #include "text.hpp"
 #include "milo/dtoa_milo.h"
-#include "write_json.hpp"
 #include "version.hpp"
 #include "errors.hpp"
 
