@@ -383,6 +383,7 @@ zoom level | precision (ft) | precision (m) | map scale
  * `-d` _detail_ or `--full-detail=`_detail_: Detail at max zoom level (default 12, for tile resolution of 2^12=4096)
  * `-D` _detail_ or `--low-detail=`_detail_: Detail at lower zoom levels (default 12, for tile resolution of 2^12=4096)
  * `-m` _detail_ or `--minimum-detail=`_detail_: Minimum detail that it will try if tiles are too big at regular detail (default 7)
+ * `-aE` or `--extra-detail`: Generate tiles with even more detail than the "full" detail at the max zoom level, to maximize location precision. These tiles may not work with some rendering software that internally limits detail to 12 or 13. The extra detail does not affect the choice of maxzoom guessing, the amount of simplification, or the "tiny polygon" threshold as `--full-detail` does. The tiles should look the same as they did without it, except that they will be more precise when overzoomed.
 
 All internal math is done in terms of a 32-bit tile coordinate system, so 1/(2^32) of the size of Earth,
 or about 1cm, is the smallest distinguishable distance. If _maxzoom_ + _detail_ > 32, no additional

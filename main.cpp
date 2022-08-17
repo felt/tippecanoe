@@ -2653,6 +2653,7 @@ int main(int argc, char **argv) {
 		{"full-detail", required_argument, 0, 'd'},
 		{"low-detail", required_argument, 0, 'D'},
 		{"minimum-detail", required_argument, 0, 'm'},
+		{"extra-detail", no_argument, &additional[A_EXTRA_DETAIL], 1},
 
 		{"Filtering feature attributes", 0, 0, 0},
 		{"exclude", required_argument, 0, 'x'},
