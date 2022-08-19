@@ -3266,12 +3266,16 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	geometry_scale = 32 - (full_detail + maxzoom);
-	if (geometry_scale < 0) {
+	if (additional[A_EXTRA_DETAIL]) {
 		geometry_scale = 0;
-		if (!guess_maxzoom) {
-			// This shouldn't be able to happen any more. Can it still?
-			fprintf(stderr, "Full detail + maxzoom > 32, so you are asking for more detail than is available.\n");
+	} else {
+		geometry_scale = 32 - (full_detail + maxzoom);
+		if (geometry_scale < 0) {
+			geometry_scale = 0;
+			if (!guess_maxzoom) {
+				// This shouldn't be able to happen any more. Can it still?
+				fprintf(stderr, "Full detail + maxzoom > 32, so you are asking for more detail than is available.\n");
+			}
 		}
 	}
 
