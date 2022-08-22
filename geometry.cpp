@@ -950,14 +950,60 @@ drawvec fix_polygon(drawvec &geom) {
 				ring = tmp;
 			}
 
+			// calculate centroid
+			// a + 1 < size() because point 0 is duplicated at the end
+			long long xtotal = 0;
+			long long ytotal = 0;
+			long long count = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				xtotal += ring[a].x;
+				ytotal += ring[a].y;
+				count++;
+			}
+			xtotal /= count;
+			ytotal /= count;
+
+			// figure out which point is furthest from the centroid
+			long long dist2 = 0;
+			long long furthest = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				long long xd = ring[a].x - xtotal;
+				long long yd = ring[a].y - ytotal;
+				long long d2 = xd * xd + yd * yd;
+				if (d2 > dist2) {
+					dist2 = d2;
+					furthest = a;
+				}
+			}
+
+			// then figure out which point is furthest from *that*
+			long long dist2b = 0;
+			long long furthestb = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				long long xd = ring[a].x - ring[furthest].x;
+				long long yd = ring[a].y - ring[furthest].y;
+				long long d2 = xd * xd + yd * yd;
+				if (d2 > dist2b) {
+					dist2b = d2;
+					furthestb = a;
+				}
+			}
+
+			// rotate ring so the furthest point is the duplicated one.
+			// the idea is that simplification will then be more efficient,
+			// never wasting the start and end points, which are always retained,
+			// on a point that has little impact on the shape.
+
 			// Copy ring into output, fixing the moveto/lineto ops if necessary because of
 			// reversal or closing
 
 			for (size_t a = 0; a < ring.size(); a++) {
+				size_t a2 = (a + furthestb) % (ring.size() - 1);
+
 				if (a == 0) {
-					out.push_back(draw(VT_MOVETO, ring[a].x, ring[a].y));
+					out.push_back(draw(VT_MOVETO, ring[a2].x, ring[a2].y));
 				} else {
-					out.push_back(draw(VT_LINETO, ring[a].x, ring[a].y));
+					out.push_back(draw(VT_LINETO, ring[a2].x, ring[a2].y));
 				}
 			}
 
