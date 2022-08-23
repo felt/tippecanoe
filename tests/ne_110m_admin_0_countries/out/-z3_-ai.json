@@ -8,6 +8,7 @@
 "maxzoom": "3",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z3_-ai.json.check.mbtiles",
+"strategies": "[ {  }, { \"tiny_polygons\": 2 }, { \"tiny_polygons\": 3 }, { \"tiny_polygons\": 12 } ]",
 "type": "overlay",
 "version": "2"
 }, "features": [

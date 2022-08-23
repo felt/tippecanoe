@@ -300,13 +300,13 @@ struct sorted_value {
 	std::string val;
 	size_t orig;
 
-        bool operator<(const sorted_value &sv) const {
+	bool operator<(const sorted_value &sv) const {
 		if (val < sv.val) {
-                        return true;
-                } else {
-                        return false;
-                }
-        }
+			return true;
+		} else {
+			return false;
+		}
+	}
 };
 
 std::string mvt_tile::encode() {

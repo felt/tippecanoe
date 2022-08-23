@@ -1983,6 +1983,9 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			if (sf.t == VT_POLYGON) {
 				if (!prevent[P_TINY_POLYGON_REDUCTION] && !additional[A_GRID_LOW_ZOOMS]) {
 					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area);
+					if (reduced) {
+						strategy->tiny_polygons++;
+					}
 				}
 				has_polygons = true;
 			}

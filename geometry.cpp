@@ -517,7 +517,7 @@ drawvec simple_clip_poly(drawvec &geom, int z, int buffer) {
 
 drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area) {
 	drawvec out;
-	long long pixel = (1 << (32 - detail - z)) * 2;
+	const long long pixel = (1 << (32 - detail - z)) * tiny_polygon_size;
 
 	*reduced = true;
 	bool included_last_outer = false;
@@ -552,9 +552,9 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 						// XXX use centroid;
 
 						out.push_back(draw(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x + pixel / 2, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x + pixel / 2, geom[i].y + pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y + pixel / 2));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel));
 						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
 
 						*accum_area -= pixel * pixel;

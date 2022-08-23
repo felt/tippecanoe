@@ -8,7 +8,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z5_-M5000_--coalesce-smallest-as-needed.json.check.mbtiles",
-"strategies": "[ { \"coalesced_as_needed\": 1431, \"tile_size_desired\": 39238 }, { \"coalesced_as_needed\": 1040, \"tile_size_desired\": 25142 }, { \"coalesced_as_needed\": 800, \"tile_size_desired\": 21224 }, { \"coalesced_as_needed\": 190, \"tile_size_desired\": 10751 }, { \"coalesced_as_needed\": 72, \"tile_size_desired\": 6595 }, {  } ]",
+"strategies": "[ { \"coalesced_as_needed\": 1431, \"tile_size_desired\": 39238 }, { \"coalesced_as_needed\": 1040, \"tiny_polygons\": 1, \"tile_size_desired\": 25142 }, { \"coalesced_as_needed\": 800, \"tiny_polygons\": 2, \"tile_size_desired\": 21224 }, { \"coalesced_as_needed\": 190, \"tiny_polygons\": 8, \"tile_size_desired\": 10751 }, { \"coalesced_as_needed\": 72, \"tiny_polygons\": 21, \"tile_size_desired\": 6595 }, { \"tiny_polygons\": 48 } ]",
 "type": "overlay",
 "version": "2"
 }, "features": [

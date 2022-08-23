@@ -77,6 +77,7 @@ double simplification = 1;
 size_t max_tile_size = 500000;
 size_t max_tile_features = 200000;
 int cluster_distance = 0;
+int tiny_polygon_size = 2;
 long justx = -1, justy = -1;
 std::string attribute_for_id = "";
 
@@ -2699,6 +2700,7 @@ int main(int argc, char **argv) {
 		{"no-line-simplification", no_argument, &prevent[P_SIMPLIFY], 1},
 		{"simplify-only-low-zooms", no_argument, &prevent[P_SIMPLIFY_LOW], 1},
 		{"no-tiny-polygon-reduction", no_argument, &prevent[P_TINY_POLYGON_REDUCTION], 1},
+		{"tiny-polygon-size", required_argument, 0, '~'},
 		{"no-simplification-of-shared-nodes", no_argument, &prevent[P_SIMPLIFY_SHARED_NODES], 1},
 
 		{"Attempts to improve shared polygon boundaries", 0, 0, 0},
@@ -2836,6 +2838,8 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "%s: %s: minimum maxzoom can be at most %d\n", argv[0], optarg, MAX_ZOOM);
 					exit(EXIT_FAILURE);
 				}
+			} else if (strcmp(opt, "tiny-polygon-size") == 0) {
+				tiny_polygon_size = atoi(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_FAILURE);

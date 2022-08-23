@@ -51,6 +51,7 @@ extern size_t max_tile_size;
 extern size_t max_tile_features;
 extern int cluster_distance;
 extern std::string attribute_for_id;
+extern int tiny_polygon_size;
 
 int mkstemp_cloexec(char *name);
 FILE *fopen_oflag(const char *name, const char *mode, int oflag);

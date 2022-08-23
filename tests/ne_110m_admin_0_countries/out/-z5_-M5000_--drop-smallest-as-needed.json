@@ -8,7 +8,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z5_-M5000_--drop-smallest-as-needed.json.check.mbtiles",
-"strategies": "[ { \"dropped_as_needed\": 173, \"tile_size_desired\": 39238 }, { \"dropped_as_needed\": 197, \"tile_size_desired\": 25142 }, { \"dropped_as_needed\": 189, \"tile_size_desired\": 21224 }, { \"dropped_as_needed\": 155, \"tile_size_desired\": 10751 }, { \"dropped_as_needed\": 62, \"tile_size_desired\": 6595 }, {  } ]",
+"strategies": "[ { \"dropped_as_needed\": 173, \"tile_size_desired\": 39238 }, { \"dropped_as_needed\": 197, \"tiny_polygons\": 1, \"tile_size_desired\": 25142 }, { \"dropped_as_needed\": 189, \"tiny_polygons\": 2, \"tile_size_desired\": 21224 }, { \"dropped_as_needed\": 155, \"tiny_polygons\": 12, \"tile_size_desired\": 10751 }, { \"dropped_as_needed\": 62, \"tiny_polygons\": 21, \"tile_size_desired\": 6595 }, { \"tiny_polygons\": 48 } ]",
 "type": "overlay",
 "version": "2"
 }, "features": [
