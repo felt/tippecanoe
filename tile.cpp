@@ -466,7 +466,11 @@ void *partial_feature_worker(void *v) {
 		}
 
 		if ((t == VT_LINE || t == VT_POLYGON) && !(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
-			if (1 /* !reduced */) {	 // XXX why did this not simplify if reduced?
+			// Now I finally remember why it doesn't simplify if the feature was reduced:
+			// because it makes square placeholders look like weird triangular placeholders.
+			// Only matters if simplification is set higher than the tiny polygon size.
+			// Tiny polygons that are part of a tiny multipolygon will still get simplified.
+			if (!(*partials)[i].reduced) {
 				if (t == VT_LINE) {
 					// continues to deduplicate to line_detail even if we have extra detail
 					geom = remove_noop(geom, t, 32 - z - line_detail);

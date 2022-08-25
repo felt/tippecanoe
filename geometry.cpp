@@ -544,6 +544,11 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 				// inner rings must just have their area de-accumulated rather
 				// than being drawn since we don't really know where they are.
 
+				// i.e., this ring (inner or outer) is small enough that we are including it
+				// in a tiny polygon rather than letting it represent itself,
+				// OR it is an inner ring and we haven't output an outer ring for it to be
+				// cut out of, so we are just subtracting its area from the tiny polygon
+				// rather than trying to deal with it geometrically
 				if (std::fabs(area) <= pixel * pixel || (area < 0 && !included_last_outer)) {
 					// printf("area is only %f vs %lld so using square\n", area, pixel * pixel);
 
@@ -563,13 +568,17 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 					if (area > 0) {
 						included_last_outer = false;
 					}
-				} else {
+				}
+				// i.e., this ring is large enough that it gets to represent itself
+				else {
 					// printf("area is %f so keeping instead of %lld\n", area, pixel * pixel);
 
 					for (size_t k = i; k <= j && k < geom.size(); k++) {
 						out.push_back(geom[k]);
 					}
 
+					// which means that the overall polygon has a real geometry,
+					// which means that it gets to be simplified.
 					*reduced = false;
 
 					if (area > 0) {
