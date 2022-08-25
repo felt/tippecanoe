@@ -1876,8 +1876,15 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (sf.t == VT_POINT) {
-				double radius = sqrt(sf.index - extent_previndex) / 4.0;
-				sf.extent = M_PI * radius * radius;
+				if (extent_previndex >= sf.index) {
+					sf.extent = 1;
+				} else {
+					double radius = sqrt(sf.index - extent_previndex) / 4.0;
+					sf.extent = M_PI * radius * radius;
+					if (sf.extent < 1) {
+						sf.extent = 1;
+					}
+				}
 
 				extent_previndex = sf.index;
 			}
