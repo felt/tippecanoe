@@ -43,6 +43,7 @@ extern int quiet_progress;
 extern json_logger logger;
 extern double progress_interval;
 extern std::atomic<double> last_progress;
+extern int extra_detail;
 
 extern size_t CPUS;
 extern size_t TEMP_FILES;

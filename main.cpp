@@ -66,6 +66,7 @@
 static int low_detail = 12;
 static int full_detail = -1;
 static int min_detail = 7;
+int extra_detail = -1;
 
 int quiet = 0;
 int quiet_progress = 0;
@@ -2654,7 +2655,7 @@ int main(int argc, char **argv) {
 		{"full-detail", required_argument, 0, 'd'},
 		{"low-detail", required_argument, 0, 'D'},
 		{"minimum-detail", required_argument, 0, 'm'},
-		{"extra-detail", no_argument, &additional[A_EXTRA_DETAIL], 1},
+		{"extra-detail", required_argument, 0, '~'},
 
 		{"Filtering feature attributes", 0, 0, 0},
 		{"exclude", required_argument, 0, 'x'},
@@ -2840,6 +2841,15 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(opt, "tiny-polygon-size") == 0) {
 				tiny_polygon_size = atoi(optarg);
+			} else if (strcmp(opt, "extra-detail") == 0) {
+				extra_detail = atoi_require(optarg, "Extra detail");
+				if (extra_detail > 30) {
+					// So the maximum geometry delta of just under 2 tile extents
+					// is less than 2^31
+
+					fprintf(stderr, "%s: --extra-detail can be at most 30\n", argv[0]);
+					exit(EXIT_FAILURE);
+				}
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_FAILURE);
@@ -3271,7 +3281,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (additional[A_EXTRA_DETAIL]) {
+	if (extra_detail >= 0) {
 		geometry_scale = 0;
 	} else {
 		geometry_scale = 32 - (full_detail + maxzoom);

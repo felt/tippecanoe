@@ -453,7 +453,7 @@ void *partial_feature_worker(void *v) {
 		signed char t = (*partials)[i].t;
 		int z = (*partials)[i].z;
 		int line_detail = (*partials)[i].line_detail;
-		int extra_detail = (*partials)[i].extra_detail;
+		int out_detail = (*partials)[i].extra_detail;
 		int maxzoom = (*partials)[i].maxzoom;
 
 		if (additional[A_GRID_LOW_ZOOMS] && z < maxzoom) {
@@ -496,7 +496,7 @@ void *partial_feature_worker(void *v) {
 			geom = reorder_lines(geom);
 		}
 
-		to_tile_scale(geom, z, extra_detail);
+		to_tile_scale(geom, z, out_detail);
 
 		std::vector<drawvec> geoms;
 		geoms.push_back(geom);
@@ -514,7 +514,7 @@ void *partial_feature_worker(void *v) {
 				if (geoms[g].size() < 3) {
 					if (area > 0) {
 						// area is in world coordinates, calculated before scaling down
-						geoms[g] = revive_polygon(before, area / geoms.size(), z, extra_detail);
+						geoms[g] = revive_polygon(before, area / geoms.size(), z, out_detail);
 					} else {
 						geoms[g].clear();
 					}
@@ -2037,10 +2037,13 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				p.extent = sf.extent;
 				p.clustered = 0;
 
-				if (line_detail == detail && additional[A_EXTRA_DETAIL] && z == maxzoom) {
+				if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
+					p.extra_detail = extra_detail;
 					// maximum allowed coordinate delta in geometries is 2^31 - 1
 					// so we need to stay under that, including the buffer
-					p.extra_detail = 30 - z;
+					if (p.extra_detail >= 30 - z) {
+						p.extra_detail = 30 - z;
+					}
 					tile_detail = p.extra_detail;
 				}
 
