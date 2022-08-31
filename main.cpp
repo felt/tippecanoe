@@ -2210,6 +2210,10 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			}
 		}
 
+		if (obasezoom < 0 && basezoom > maxzoom && prevent[P_BASEZOOM_ABOVE_MAXZOOM]) {
+			basezoom = maxzoom;
+		}
+
 		if (obasezoom < 0 && basezoom > maxzoom) {
 			fprintf(stderr, "Couldn't find a suitable base zoom. Working from the other direction.\n");
 			if (gamma == 0) {
@@ -2233,10 +2237,6 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				if (zoomdiff + z > basezoom) {
 					basezoom = ceil(zoomdiff + z);
 				}
-			}
-
-			if (basezoom > maxzoom && prevent[P_BASEZOOM_ABOVE_MAXZOOM]) {
-				basezoom = maxzoom;
 			}
 
 			if (!quiet) {
