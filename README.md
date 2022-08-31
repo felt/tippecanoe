@@ -451,6 +451,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
    If you use `-Bg`, it will guess a zoom level that will keep at most 50,000 features in the densest tile.
    You can also specify a marker-width with `-Bg`*width* to allow fewer features in the densest tile to
    compensate for the larger marker, or `-Bf`*number* to allow at most *number* features in the densest tile.
+ * `--limit-base-zoom-to-maximum-zoom` or `-Pb`: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
  * `-al` or `--drop-lines`: Let "dot" dropping at lower zooms apply to lines too
  * `-ap` or `--drop-polygons`: Let "dot" dropping at lower zooms apply to polygons too
  * `-K` _distance_ or `--cluster-distance=`_distance_: Cluster points (as with `--cluster-densest-as-needed`, but without the experimental discovery process) that are approximately within _distance_ of each other. The units are tile coordinates within a nominally 256-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See `--cluster-densest-as-needed` below for behavior.

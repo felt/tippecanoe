@@ -2235,6 +2235,10 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				}
 			}
 
+			if (basezoom > maxzoom && prevent[P_BASEZOOM_ABOVE_MAXZOOM]) {
+				basezoom = maxzoom;
+			}
+
 			if (!quiet) {
 				fprintf(stderr, "Choosing a base zoom of -B%d to keep %f features in tile %d/%u/%u.\n", basezoom, max[maxzoom].count * exp(log(droprate) * (maxzoom - basezoom)), maxzoom, max[maxzoom].x, max[maxzoom].y);
 			}
@@ -2636,6 +2640,7 @@ int main(int argc, char **argv) {
 		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 		{"drop-rate", required_argument, 0, 'r'},
 		{"base-zoom", required_argument, 0, 'B'},
+		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
 		{"drop-lines", no_argument, &additional[A_LINE_DROP], 1},
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
 		{"cluster-distance", required_argument, 0, 'K'},

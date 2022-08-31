@@ -7,6 +7,7 @@
 * Improve polygon simplification by choosing a better start/end point
 * Sort attribute values in tiles to make them compress a little better
 * Fix dropping of "largest" points when there are duplicate points
+* Add an option to prevent guessing a basezoom higher than the maxzoom
 
 ## 2.4.1
 

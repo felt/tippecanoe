@@ -43,6 +43,7 @@
 #define P_USE_SOURCE_POLYGON_WINDING ((int) 'w')
 #define P_REVERSE_SOURCE_POLYGON_WINDING ((int) 'W')
 #define P_EMPTY_CSV_COLUMNS ((int) 'e')
+#define P_BASEZOOM_ABOVE_MAXZOOM ((int) 'b')
 
 extern int prevent[256];
 extern int additional[256];
