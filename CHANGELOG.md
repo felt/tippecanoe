@@ -1,6 +1,5 @@
 ## 2.5.0
 
-* Restore previous maxzoom guessing logic, since the new one guesses too deeply too often
 * Add an option to add extra detail at maxzoom that does not factor into guessing
 * Restore the intended behavior that tiny polygons don't get further simplified
 * Add an option to use single-precision floating point in tiles
