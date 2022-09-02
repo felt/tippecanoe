@@ -54,6 +54,9 @@ extern int cluster_distance;
 extern std::string attribute_for_id;
 extern int tiny_polygon_size;
 
+extern std::string order_by;
+extern bool order_reverse;
+
 int mkstemp_cloexec(char *name);
 FILE *fopen_oflag(const char *name, const char *mode, int oflag);
 bool progress_time();

@@ -82,6 +82,9 @@ int tiny_polygon_size = 2;
 long justx = -1, justy = -1;
 std::string attribute_for_id = "";
 
+std::string order_by;
+bool order_reverse;
+
 int prevent[256];
 int additional[256];
 
@@ -2724,6 +2727,8 @@ int main(int argc, char **argv) {
 		{"coalesce", no_argument, &additional[A_COALESCE], 1},
 		{"reverse", no_argument, &additional[A_REVERSE], 1},
 		{"hilbert", no_argument, &additional[A_HILBERT], 1},
+		{"order-by", required_argument, 0, '~'},
+		{"order-descending", no_argument, 0, '~'},
 
 		{"Adding calculated attributes", 0, 0, 0},
 		{"calculate-feature-density", no_argument, &additional[A_CALCULATE_FEATURE_DENSITY], 1},
@@ -2855,6 +2860,10 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "%s: --extra-detail can be at most 30\n", argv[0]);
 					exit(EXIT_FAILURE);
 				}
+			} else if (strcmp(opt, "order-by") == 0) {
+				order_by = optarg;
+			} else if (strcmp(opt, "order-descending") == 0) {
+				order_reverse = true;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_FAILURE);

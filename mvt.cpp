@@ -490,7 +490,7 @@ static std::string quote(std::string const &s) {
 	return buf;
 }
 
-std::string mvt_value::toString() {
+std::string mvt_value::toString() const {
 	if (type == mvt_string) {
 		return quote(string_value);
 	} else if (type == mvt_int) {

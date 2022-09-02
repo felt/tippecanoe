@@ -188,9 +188,9 @@ int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2) {
 	return cmp;
 }
 
-mvt_value retrieve_string(long long off, char *stringpool, int *otype) {
+mvt_value retrieve_string(long long off, const char *stringpool, int *otype) {
 	int type = stringpool[off];
-	char *s = stringpool + off + 1;
+	const char *s = stringpool + off + 1;
 
 	if (otype != NULL) {
 		*otype = type;
@@ -247,6 +247,61 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 		return 0;
 	}
 }
+
+static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
+	const std::vector<long long> &keys1 = c1->keys;
+	const std::vector<long long> &values1 = c1->values;
+	const char *stringpool1 = c1->stringpool;
+
+	for (size_t i = 0; i < keys1.size(); i++) {
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
+		if (key == key1.string_value) {
+			return retrieve_string(values1[i], stringpool1, NULL);
+		}
+	}
+
+	for (size_t i = 0; i < c1->full_keys.size(); i++) {
+		if (c1->full_keys[i] == key) {
+			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
+		}
+	}
+
+	mvt_value v;
+	v.type = mvt_null;
+	v.numeric_value.null_value = 0;
+	return v;
+}
+
+static mvt_value coerce_double(mvt_value v) {
+	if (v.type == mvt_int) {
+		v.type = mvt_double;
+		v.numeric_value.double_value = v.numeric_value.int_value;
+	} else if (v.type == mvt_uint) {
+		v.type = mvt_double;
+		v.numeric_value.double_value = v.numeric_value.uint_value;
+	} else if (v.type == mvt_sint) {
+		v.type = mvt_double;
+		v.numeric_value.double_value = v.numeric_value.sint_value;
+	} else if (v.type == mvt_float) {
+		v.type = mvt_double;
+		v.numeric_value.double_value = v.numeric_value.float_value;
+	}
+
+	return v;
+}
+
+struct ordercmp {
+	bool operator()(const struct coalesce &a, const struct coalesce &b) {
+		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by));
+		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by));
+
+		if (order_reverse) {
+			return v2 < v1;
+		} else {
+			return v1 < v2;
+		}
+	}
+} ordercmp;
 
 void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
@@ -2288,6 +2343,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			if (prevent[P_INPUT_ORDER]) {
 				std::sort(layer_features.begin(), layer_features.end(), preservecmp);
+			}
+
+			if (order_by.size() != 0) {
+				std::sort(layer_features.begin(), layer_features.end(), ordercmp);
 			}
 		}
 
