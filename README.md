@@ -500,6 +500,8 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-ao` or `--reorder`: Reorder features to put ones with the same attributes in sequence (instead of ones that are approximately spatially adjacent), to try to get them to coalesce. You probably want to use this if you use `--coalesce`.
  * `-ar` or `--reverse`: Try reversing the directions of lines to make them coalesce and compress better. You probably don't want to use this.
  * `-ah` or `--hilbert`: Put features in Hilbert Curve order instead of the usual Z-Order. This improves the odds that spatially adjacent features will be sequentially adjacent, and should improve density calculations and spatial coalescing. It should be the default eventually.
+ * `--order-by=`_attribute_: Order features by the specified _attribute_, in alphabetical or numerical order. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
+ * `--order-descending-by=`_attribute_: Order features by the specified _attribute_, in reverse alphabetical or numerical order. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
 
 ### Adding calculated attributes
 

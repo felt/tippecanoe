@@ -54,8 +54,17 @@ extern int cluster_distance;
 extern std::string attribute_for_id;
 extern int tiny_polygon_size;
 
-extern std::string order_by;
-extern bool order_reverse;
+struct order_field {
+	std::string name;
+	bool descending;
+
+	order_field(std::string _name, bool _descending)
+	    : name(_name),
+	      descending(_descending) {
+	}
+};
+
+extern std::vector<order_field> order_by;
 
 int mkstemp_cloexec(char *name);
 FILE *fopen_oflag(const char *name, const char *mode, int oflag);

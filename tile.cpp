@@ -292,14 +292,26 @@ static mvt_value coerce_double(mvt_value v) {
 
 struct ordercmp {
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
-		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by));
-		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by));
+		for (size_t i = 0; i < order_by.size(); i++) {
+			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
+			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
 
-		if (order_reverse) {
-			return v2 < v1;
-		} else {
-			return v1 < v2;
+			if (order_by[i].descending) {
+				if (v2 < v1) {
+					return true;
+				} else if (v1 < v2) {
+					return false;
+				}  // else they are equal, so continue to the next attribute
+			} else {
+				if (v1 < v2) {
+					return true;
+				} else if (v2 < v1) {
+					return false;
+				}  // else they are equal, so continue to the next attribute
+			}
 		}
+
+		return false;  // greater than or equal
 	}
 } ordercmp;
 
