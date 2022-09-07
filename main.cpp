@@ -2074,7 +2074,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			// are typically lognormally distributed. Two standard deviations
 			// below the mean should be enough to distinguish most features.
 			double avg = exp(mean);
-			double nearby = exp(mean - 2 * stddev);
+			double nearby = exp(mean - 1.5 * stddev);
 
 			// Convert approximately from tile units to feet.
 			// See empirical data above for source
