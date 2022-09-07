@@ -2117,6 +2117,18 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			if (changed) {
 				printf("Choosing a maxzoom of -z%d to keep most features distinct with cluster distance %d\n", maxzoom, cluster_distance);
 			}
+
+			if (droprate == -3) {
+				droprate = exp(-0.7681 * log(stddev) + 1.582);
+
+				if (droprate < 0) {
+					droprate = 0;
+				}
+
+				if (!quiet) {
+					fprintf(stderr, "Choosing a pragmatic drop rate of %f from stddev of %f\n", droprate, log(stddev));
+				}
+			}
 		}
 
 		if (dist_count != 0) {
@@ -3044,6 +3056,8 @@ int main(int argc, char **argv) {
 		case 'r':
 			if (strcmp(optarg, "g") == 0) {
 				droprate = -2;
+			} else if (strcmp(optarg, "p") == 0) {
+				droprate = -3;
 			} else if (optarg[0] == 'g' || optarg[0] == 'f') {
 				droprate = -2;
 				if (optarg[0] == 'g') {
