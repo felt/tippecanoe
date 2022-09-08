@@ -2119,6 +2119,12 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			}
 
 			if (droprate == -3) {
+				// This mysterious formula is the result of eyeballing the appropriate drop rate
+				// for several point tilesets using -zg and then fitting a curve to the pattern
+				// that emerged. It appears that if the standard deviation of the distances between
+				// features is small, the drop rate should be large because the features are evenly
+				// spaced, and if the standard deviation is large, the drop rate can be small because
+				// the features are in clumps.
 				droprate = exp(-0.7681 * log(stddev) + 1.582);
 
 				if (droprate < 0) {
@@ -2126,7 +2132,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				}
 
 				if (!quiet) {
-					fprintf(stderr, "Choosing a pragmatic drop rate of %f from stddev of %f\n", droprate, log(stddev));
+					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
 				}
 			}
 		}
@@ -3266,6 +3272,11 @@ int main(int argc, char **argv) {
 
 	if (full_detail <= 0) {
 		full_detail = 12;
+	}
+
+	if (droprate == -3 && !guess_maxzoom) {
+		fprintf(stderr, "Can't use -rp without either -zg or --smallest-maximum-zoom-guess\n");
+		exit(EXIT_FAILURE);
 	}
 
 	if (maxzoom > MAX_ZOOM) {
