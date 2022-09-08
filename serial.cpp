@@ -527,7 +527,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						}
 					}
 
-					extent += get_area(sf.geometry, i, j);
+					extent += get_area(sf.geometry, i, j) * SHIFT_LEFT(1) * SHIFT_LEFT(1);
 					i = j - 1;
 				}
 			}
@@ -535,8 +535,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 			double dist = 0;
 			for (size_t i = 1; i < sf.geometry.size(); i++) {
 				if (sf.geometry[i].op == VT_LINETO) {
-					double xd = sf.geometry[i].x - sf.geometry[i - 1].x;
-					double yd = sf.geometry[i].y - sf.geometry[i - 1].y;
+					double xd = SHIFT_LEFT(sf.geometry[i].x - sf.geometry[i - 1].x);
+					double yd = SHIFT_LEFT(sf.geometry[i].y - sf.geometry[i - 1].y);
 					dist += sqrt(xd * xd + yd * yd);
 				}
 			}

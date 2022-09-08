@@ -1946,6 +1946,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				break;
 			}
 
+			long long feature_size = sf.extent;
 			if (sf.t == VT_POINT) {
 				if (extent_previndex >= sf.index) {
 					sf.extent = 1;
@@ -1956,9 +1957,19 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 						sf.extent = 1;
 					}
 				}
+				feature_size = sf.extent;
+			} else if (additional[A_TINY_FEATURE_DENSITY_AS_SIZE]) {
+				const long long pixel = (1 << (32 - detail - z)) * tiny_polygon_size;
 
-				extent_previndex = sf.index;
+				if (extent_previndex < sf.index && sf.extent < pixel * pixel) {
+					double radius = sqrt(sf.index - extent_previndex) / 4.0;
+					long long nextent = M_PI * radius * radius;
+					if (nextent >= 1 && nextent <= pixel * pixel) {
+						feature_size = nextent;
+					}
+				}
 			}
+			extent_previndex = sf.index;
 
 			if (sf.dropped) {
 				if (find_partial(partials, sf, which_partial, layer_unmaps)) {
@@ -2008,23 +2019,23 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				indices.push_back(sf.index);
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
-					coalesced_area += sf.extent;
+					coalesced_area += feature_size;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
 			} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
-				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				extents.push_back(feature_size);
+				if (feature_size + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				extents.push_back(feature_size);
+				if (feature_size + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
-					coalesced_area += sf.extent;
+					coalesced_area += feature_size;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
@@ -2047,7 +2058,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					partials[which_partial].geoms.push_back(sf.geometry);
-					coalesced_area += sf.extent;
+					coalesced_area += feature_size;
 					strategy->coalesced_as_needed++;
 				} else {
 					strategy->dropped_as_needed++;
@@ -2101,7 +2112,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				p.has_id = sf.has_id;
 				p.index = sf.index;
 				p.renamed = -1;
-				p.extent = sf.extent;
+				p.extent = feature_size;
 				p.clustered = 0;
 
 				if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
