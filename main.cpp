@@ -468,7 +468,7 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, run_parse_json, &pja[i]) != 0) {
+		if (pthread_create_wrap(&pthreads[i], NULL, run_parse_json, &pja[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_FAILURE);
 		}
@@ -682,7 +682,7 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	rpa->want_dist = want_dist;
 	rpa->filters = filters;
 
-	if (pthread_create(parallel_parser, NULL, run_read_parallel, rpa) != 0) {
+	if (pthread_create_wrap(parallel_parser, NULL, run_read_parallel, rpa) != 0) {
 		perror("pthread_create");
 		exit(EXIT_FAILURE);
 	}
@@ -877,7 +877,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				}
 
 				for (size_t a = 0; a < CPUS; a++) {
-					if (pthread_create(&pthreads[a], NULL, run_sort, &args[a]) != 0) {
+					if (pthread_create_wrap(&pthreads[a], NULL, run_sort, &args[a]) != 0) {
 						perror("pthread_create");
 						exit(EXIT_FAILURE);
 					}
@@ -2789,6 +2789,7 @@ int main(int argc, char **argv) {
 		{"check-polygons", no_argument, &additional[A_DEBUG_POLYGON], 1},
 		{"no-polygon-splitting", no_argument, &prevent[P_POLYGON_SPLIT], 1},
 		{"prefer-radix-sort", no_argument, &additional[A_PREFER_RADIX_SORT], 1},
+		{"single-threaded", no_argument, &prevent[P_THREADS], 1},
 		{"help", no_argument, 0, 'H'},
 
 		{0, 0, 0, 0},
@@ -3449,5 +3450,18 @@ bool progress_time() {
 		return true;
 	} else {
 		return false;
+	}
+}
+
+static void *donothing(void *arg) {
+	return arg;
+}
+
+int pthread_create_wrap(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg) {
+	if (prevent[P_THREADS]) {
+		void *ret = start_routine(arg);
+		return pthread_create(thread, attr, donothing, ret);
+	} else {
+		return pthread_create(thread, attr, start_routine, arg);
 	}
 }

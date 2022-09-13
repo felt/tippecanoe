@@ -2225,8 +2225,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			args[i].shared_nodes = &shared_nodes;
 
 			if (tasks > 1) {
-				if (pthread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
-					perror("pthread_create");
+				if (pthread_create_wrap(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
+					perror("pthread_create_wrap");
 					exit(EXIT_FAILURE);
 				}
 			} else {
@@ -2980,8 +2980,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 				args[thread].still_dropping = false;
 				args[thread].strategy = &strategy;
 
-				if (pthread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
-					perror("pthread_create");
+				if (pthread_create_wrap(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
+					perror("pthread_create_wrap");
 					exit(EXIT_FAILURE);
 				}
 			}

@@ -464,7 +464,7 @@ void runQueue() {
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, run_parse_feature, &qra[i]) != 0) {
+		if (pthread_create_wrap(&pthreads[i], NULL, run_parse_feature, &qra[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_FAILURE);
 		}

@@ -72,4 +72,6 @@ bool progress_time();
 
 #define MAX_ZOOM 24
 
+int pthread_create_wrap(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);
+
 #endif

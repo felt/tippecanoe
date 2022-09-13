@@ -141,6 +141,10 @@ std::string format_commandline(int argc, char **argv) {
 	std::string out;
 
 	for (int i = 0; i < argc; i++) {
+		if (std::string(argv[i]) == "-pT") {
+			continue;
+		}
+
 		bool need_quote = false;
 		for (char *cp = argv[i]; *cp != '\0'; cp++) {
 			if (!isalpha(*cp) && !isdigit(*cp) &&
