@@ -160,7 +160,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 }
 
 double get_area(drawvec &geom, size_t i, size_t j) {
-	double area = 0;
+	long double area = 0;
 	for (size_t k = i; k < j; k++) {
 		area += (long double) geom[k].x * (long double) geom[i + ((k - i + 1) % (j - i))].y;
 		area -= (long double) geom[k].y * (long double) geom[i + ((k - i + 1) % (j - i))].x;
