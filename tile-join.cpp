@@ -54,6 +54,7 @@ struct stats {
 	int maxzoom;
 	double midlat, midlon;
 	double minlat, minlon, maxlat, maxlon;
+	std::vector<struct strategy> strategies;
 };
 
 void aprintf(std::string *buf, const char *format, ...) {
@@ -582,6 +583,54 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 	}
 }
 
+void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
+	json_pull *jp = json_begin_string((const char *) s);
+	json_object *o = json_read_tree(jp);
+
+	if (o != NULL && o->type == JSON_ARRAY) {
+		for (size_t i = 0; i < o->value.array.length; i++) {
+			json_object *h = o->value.array.array[i];
+			if (h->type == JSON_HASH) {
+				for (size_t j = 0; j < h->value.object.length; j++) {
+					json_object *k = h->value.object.keys[j];
+					json_object *v = h->value.object.values[j];
+
+					if (k->type != JSON_STRING) {
+						fprintf(stderr, "Key %zu of %zu is not a string: %s\n", j, i, s);
+					} else if (v->type != JSON_NUMBER) {
+						fprintf(stderr, "Value %zu of %zu is not a number: %s\n", j, i, s);
+					} else {
+						if (i <= st->size()) {
+							st->resize(i + 1);
+						}
+
+						if (strcmp(k->value.string.string, "dropped_by_rate") == 0) {
+							(*st)[i].dropped_by_rate += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "dropped_by_gamma") == 0) {
+							(*st)[i].dropped_by_gamma += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "dropped_as_needed") == 0) {
+							(*st)[i].dropped_as_needed += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "coalesced_as_needed") == 0) {
+							(*st)[i].coalesced_as_needed += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "detail_reduced") == 0) {
+							(*st)[i].detail_reduced += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "tiny_polygons") == 0) {
+							(*st)[i].tiny_polygons += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "tile_size_desired") == 0) {
+							(*st)[i].tile_size += v->value.number.number;
+						}
+					}
+				}
+			} else {
+				fprintf(stderr, "Element %zu is not a hash: %s\n", i, s);
+			}
+		}
+		json_free(o);
+	}
+
+	json_end(jp);
+}
+
 void handle_vector_layers(json_object *vector_layers, std::map<std::string, layermap_entry> &layermap, std::map<std::string, std::string> &attribute_descriptions) {
 	if (vector_layers != NULL && vector_layers->type == JSON_ARRAY) {
 		for (size_t i = 0; i < vector_layers->value.array.length; i++) {
@@ -621,7 +670,7 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 	}
 }
 
-void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options) {
+void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
 	std::vector<std::map<std::string, layermap_entry>> layermaps;
 	for (size_t i = 0; i < CPUS; i++) {
 		layermaps.push_back(std::map<std::string, layermap_entry>());
@@ -837,6 +886,13 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 						generator_options = (const char *) s;
 					}
 				}
+			}
+			sqlite3_finalize(r->stmt);
+		}
+		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'strategies'", -1, &r->stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+				handle_strategies(s, strategies);
 			}
 			sqlite3_finalize(r->stmt);
 		}
@@ -1117,8 +1173,9 @@ int main(int argc, char **argv) {
 
 	std::map<std::string, std::string> attribute_descriptions;
 	std::string generator_options;
+	std::vector<strategy> strategies;
 
-	decode(readers, layermap, outdb, out_dir, &st, header, mapping, exclude, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options);
+	decode(readers, layermap, outdb, out_dir, &st, header, mapping, exclude, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
 
 	if (set_attribution.size() != 0) {
 		attribution = set_attribution;
@@ -1143,8 +1200,6 @@ int main(int argc, char **argv) {
 			st.maxzoom = l.second.maxzoom;
 		}
 	}
-
-	std::vector<strategy> strategies;
 
 	mbtiles_write_metadata(outdb, out_dir, name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.midlat, st.midlon, 0, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
 
