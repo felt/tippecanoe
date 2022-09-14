@@ -947,10 +947,10 @@ $ tippecanoe-json-tool -c in_wac_S000_JT00_2015.csv tl_2010_18157_tabblock10.sor
 Error returns
 =============
 
-* 101: CSV file not found
-* 102: UTF-8 decoding error in CSV file header
-* 103: UTF-8 decoding error in CSV file body
-* 104: Error closing CSV file
+* 101: Attribute CSV file not found
+* 102: UTF-8 decoding error in attribute CSV file header
+* 103: UTF-8 decoding error in attribute file body
+* 104: Error closing attribute CSV file
 * 105: Error decoding vector tile
 * 106: Error decoding protocol buffer while decoding vector tile
 * 107: Impossible (<= 0) extent in vector tile
