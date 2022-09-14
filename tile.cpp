@@ -1848,6 +1848,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		drawvec shared_nodes;
 
 		int tile_detail = line_detail;
+		size_t skipped = 0;
+		size_t kept = 0;
 
 		int within[child_shards];
 		std::atomic<long long> geompos[child_shards];
@@ -2074,47 +2076,55 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (sf.geometry.size() > 0) {
-				if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-					for (auto &g : sf.geometry) {
-						shared_nodes.push_back(g);
+				if (partials.size() > max_tile_size) {
+					// Even being maximally conservative, each feature is still going to be
+					// at least one byte in the output tile, so this can't possibly work.
+					skipped++;
+				} else {
+					kept++;
+
+					if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+						for (auto &g : sf.geometry) {
+							shared_nodes.push_back(g);
+						}
 					}
-				}
 
-				partial p;
-				p.geoms.push_back(sf.geometry);
-				p.layer = sf.layer;
-				p.t = sf.t;
-				p.segment = sf.segment;
-				p.original_seq = sf.seq;
-				p.reduced = reduced;
-				p.z = z;
-				p.line_detail = line_detail;
-				p.extra_detail = line_detail;
-				p.maxzoom = maxzoom;
-				p.keys = sf.keys;
-				p.values = sf.values;
-				p.full_keys = sf.full_keys;
-				p.full_values = sf.full_values;
-				p.spacing = spacing;
-				p.simplification = simplification;
-				p.id = sf.id;
-				p.has_id = sf.has_id;
-				p.index = sf.index;
-				p.renamed = -1;
-				p.extent = sf.extent;
-				p.clustered = 0;
+					partial p;
+					p.geoms.push_back(sf.geometry);
+					p.layer = sf.layer;
+					p.t = sf.t;
+					p.segment = sf.segment;
+					p.original_seq = sf.seq;
+					p.reduced = reduced;
+					p.z = z;
+					p.line_detail = line_detail;
+					p.extra_detail = line_detail;
+					p.maxzoom = maxzoom;
+					p.keys = sf.keys;
+					p.values = sf.values;
+					p.full_keys = sf.full_keys;
+					p.full_values = sf.full_values;
+					p.spacing = spacing;
+					p.simplification = simplification;
+					p.id = sf.id;
+					p.has_id = sf.has_id;
+					p.index = sf.index;
+					p.renamed = -1;
+					p.extent = sf.extent;
+					p.clustered = 0;
 
-				if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
-					p.extra_detail = extra_detail;
-					// maximum allowed coordinate delta in geometries is 2^31 - 1
-					// so we need to stay under that, including the buffer
-					if (p.extra_detail >= 30 - z) {
-						p.extra_detail = 30 - z;
+					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
+						p.extra_detail = extra_detail;
+						// maximum allowed coordinate delta in geometries is 2^31 - 1
+						// so we need to stay under that, including the buffer
+						if (p.extra_detail >= 30 - z) {
+							p.extra_detail = 30 - z;
+						}
+						tile_detail = p.extra_detail;
 					}
-					tile_detail = p.extra_detail;
-				}
 
-				partials.push_back(p);
+					partials.push_back(p);
+				}
 			}
 
 			merge_previndex = sf.index;
@@ -2550,16 +2560,26 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (compressed.size() > max_tile_size && !prevent[P_KILOBYTE_LIMIT]) {
+				// Estimate how big it really should have been compressed
+				// from how many features were kept vs skipped for already being
+				// over the threshold
+
+				double kept_adjust = (skipped + kept) / (double) kept;
+
 				if (compressed.size() > arg->tile_size_out) {
-					arg->tile_size_out = compressed.size();
+					arg->tile_size_out = compressed.size() * kept_adjust;
 				}
 
 				if (!quiet) {
-					fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, max_tile_size);
+					if (skipped > 0) {
+						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %lld) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), (long long) (compressed.size() * kept_adjust), line_detail, max_tile_size);
+					} else {
+						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, max_tile_size);
+					}
 				}
 
 				if (has_polygons && additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction > .05 && merge_successful) {
-					merge_fraction = merge_fraction * max_tile_size / compressed.size() * 0.95;
+					merge_fraction = merge_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.95;
 					if (!quiet) {
 						fprintf(stderr, "Going to try merging %0.2f%% of the polygons to make it fit\n", 100 - merge_fraction * 100);
 					}
@@ -2581,7 +2601,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * max_tile_size / compressed.size() * 0.90;
+					mingap_fraction = mingap_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.90;
 					unsigned long long mg = choose_mingap(indices, mingap_fraction);
 					if (mg <= mingap) {
 						double nmg = (mingap + 1) * 1.5;
@@ -2606,7 +2626,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 					line_detail++;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * max_tile_size / compressed.size() * 0.90;
+					minextent_fraction = minextent_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.90;
 					long long m = choose_minextent(extents, minextent_fraction);
 					if (m != minextent) {
 						minextent = m;
@@ -2624,7 +2644,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					fraction = fraction * max_tile_size / compressed.size() * 0.95;
+					fraction = fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.95;
 					if (!quiet) {
 						fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", fraction * 100);
 					}
