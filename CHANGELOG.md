@@ -1,6 +1,7 @@
 ## 2.6.2
 
 * Stop adding features to a tile if it can't possibly work, to limit memory use
+* Add --integer and --fraction options to tippecanoe-decode
 
 ## 2.6.1
 

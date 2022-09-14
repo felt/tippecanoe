@@ -85,7 +85,7 @@ void do_stats(mvt_tile &tile, size_t size, bool compressed, int z, unsigned x, u
 	state.json_write_newline();
 }
 
-void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::string> const &to_decode, bool pipeline, bool stats, json_writer &state) {
+void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::string> const &to_decode, bool pipeline, bool stats, json_writer &state, int coordinate_mode) {
 	mvt_tile tile;
 	bool was_compressed;
 
@@ -205,7 +205,13 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 			exit(EXIT_FAILURE);
 		}
 
-		layer_to_geojson(layer, z, x, y, !pipeline, pipeline, pipeline, false, 0, 0, 0, !force, state);
+		double scale = 0;
+		if (coordinate_mode == 1) { // fraction
+			scale = layer.extent;
+		} else if (coordinate_mode == 2) { // integer
+			scale = 1;
+		}
+		layer_to_geojson(layer, z, x, y, !pipeline, pipeline, pipeline, false, 0, 0, 0, !force, state, scale);
 
 		if (!pipeline) {
 			if (true) {
@@ -223,7 +229,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 	}
 }
 
-void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> const &to_decode, bool pipeline, bool stats, std::set<std::string> const &exclude_meta) {
+void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> const &to_decode, bool pipeline, bool stats, std::set<std::string> const &exclude_meta, int coordinate_mode) {
 	sqlite3 *db = NULL;
 	bool isdir = false;
 	int oz = z;
@@ -240,7 +246,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 					if (strcmp(map, "SQLite format 3") != 0) {
 						if (z >= 0) {
 							std::string s = std::string(map, st.st_size);
-							handle(s, z, x, y, to_decode, pipeline, stats, state);
+							handle(s, z, x, y, to_decode, pipeline, stats, state, coordinate_mode);
 							munmap(map, st.st_size);
 							return;
 						} else {
@@ -372,7 +378,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 				}
 				fclose(f);
 
-				handle(s, tiles[i].z, tiles[i].x, tiles[i].y, to_decode, pipeline, stats, state);
+				handle(s, tiles[i].z, tiles[i].x, tiles[i].y, to_decode, pipeline, stats, state, coordinate_mode);
 			}
 		} else {
 			const char *sql = "SELECT tile_data, zoom_level, tile_column, tile_row from tiles where zoom_level between ? and ? order by zoom_level, tile_column, tile_row;";
@@ -418,7 +424,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 					exit(EXIT_FAILURE);
 				}
 
-				handle(std::string(s, len), tz, tx, ty, to_decode, pipeline, stats, state);
+				handle(std::string(s, len), tz, tx, ty, to_decode, pipeline, stats, state, coordinate_mode);
 			}
 
 			sqlite3_finalize(stmt);
@@ -463,7 +469,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 					fprintf(stderr, "%s: Warning: using tile %d/%u/%u instead of %d/%u/%u\n", fname, z, x, y, oz, ox, oy);
 				}
 
-				handle(std::string(s, len), z, x, y, to_decode, pipeline, stats, state);
+				handle(std::string(s, len), z, x, y, to_decode, pipeline, stats, state, coordinate_mode);
 				handled = 1;
 			}
 
@@ -494,9 +500,12 @@ int main(int argc, char **argv) {
 	bool pipeline = false;
 	bool stats = false;
 	std::set<std::string> exclude_meta;
+	int coordinate_mode = 0;
 
 	struct option long_options[] = {
 		{"projection", required_argument, 0, 's'},
+		{"fractional-coordinates", no_argument, 0, 'F'},
+		{"integer-coordinates", no_argument, 0, 'I'},
 		{"maximum-zoom", required_argument, 0, 'z'},
 		{"minimum-zoom", required_argument, 0, 'Z'},
 		{"layer", required_argument, 0, 'l'},
@@ -525,6 +534,14 @@ int main(int argc, char **argv) {
 
 		case 's':
 			set_projection_or_exit(optarg);
+			break;
+
+		case 'F':
+			coordinate_mode = 1;
+			break;
+
+		case 'I':
+			coordinate_mode = 2;
 			break;
 
 		case 'z':
@@ -561,9 +578,9 @@ int main(int argc, char **argv) {
 	}
 
 	if (argc == optind + 4) {
-		decode(argv[optind], atoi(argv[optind + 1]), atoi(argv[optind + 2]), atoi(argv[optind + 3]), to_decode, pipeline, stats, exclude_meta);
+		decode(argv[optind], atoi(argv[optind + 1]), atoi(argv[optind + 2]), atoi(argv[optind + 3]), to_decode, pipeline, stats, exclude_meta, coordinate_mode);
 	} else if (argc == optind + 1) {
-		decode(argv[optind], -1, -1, -1, to_decode, pipeline, stats, exclude_meta);
+		decode(argv[optind], -1, -1, -1, to_decode, pipeline, stats, exclude_meta, coordinate_mode);
 	} else {
 		usage(argv);
 	}
