@@ -22,6 +22,7 @@
 #include "write_json.hpp"
 #include "jsonpull/jsonpull.h"
 #include "dirtiles.hpp"
+#include "errors.hpp"
 
 int minzoom = 0;
 int maxzoom = 32;
@@ -92,11 +93,11 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 	try {
 		if (!tile.decode(message, was_compressed)) {
 			fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", z, x, y);
-			exit(EXIT_FAILURE);
+			exit(EXIT_MVT);
 		}
 	} catch (std::exception const &e) {
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
-		exit(EXIT_FAILURE);
+		exit(EXIT_PROTOBUF);
 	}
 
 	if (stats) {
@@ -159,7 +160,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 
 		if (layer.extent <= 0) {
 			fprintf(stderr, "Impossible layer extent %lld in mbtiles\n", layer.extent);
-			exit(EXIT_FAILURE);
+			exit(EXIT_IMPOSSIBLE);
 		}
 
 		if (to_decode.size() != 0 && !to_decode.count(layer.name)) {
@@ -202,7 +203,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 		// X and Y are unsigned, so no need to check <0
 		if (x > (1ULL << z) || y > (1ULL << z)) {
 			fprintf(stderr, "Impossible tile %d/%u/%u\n", z, x, y);
-			exit(EXIT_FAILURE);
+			exit(EXIT_IMPOSSIBLE);
 		}
 
 		double scale = 0;
@@ -251,7 +252,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 							return;
 						} else {
 							fprintf(stderr, "Must specify zoom/x/y to decode a single pbf file\n");
-							exit(EXIT_FAILURE);
+							exit(EXIT_ARGS);
 						}
 					}
 				}
@@ -262,7 +263,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 		}
 		if (close(fd) != 0) {
 			perror("close");
-			exit(EXIT_FAILURE);
+			exit(EXIT_CLOSE);
 		}
 	} else {
 		perror(fname);
@@ -278,13 +279,13 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 	} else {
 		if (sqlite3_open(fname, &db) != SQLITE_OK) {
 			fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
-			exit(EXIT_FAILURE);
+			exit(EXIT_OPEN);
 		}
 
 		char *err = NULL;
 		if (sqlite3_exec(db, "PRAGMA integrity_check;", NULL, NULL, &err) != SQLITE_OK) {
 			fprintf(stderr, "%s: integrity_check: %s\n", fname, err);
-			exit(EXIT_FAILURE);
+			exit(EXIT_SQLITE);
 		}
 	}
 
@@ -305,7 +306,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 			sqlite3_stmt *stmt2;
 			if (sqlite3_prepare_v2(db, sql2, -1, &stmt2, NULL) != SQLITE_OK) {
 				fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
-				exit(EXIT_FAILURE);
+				exit(EXIT_SQLITE);
 			}
 
 			while (sqlite3_step(stmt2) == SQLITE_ROW) {
@@ -314,7 +315,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 				if (name == NULL || value == NULL) {
 					fprintf(stderr, "Corrupt mbtiles file: null metadata\n");
-					exit(EXIT_FAILURE);
+					exit(EXIT_SQLITE);
 				}
 
 				if (exclude_meta.count((char *) name) == 0) {
@@ -367,7 +368,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 				FILE *f = fopen(fn.c_str(), "rb");
 				if (f == NULL) {
 					perror(fn.c_str());
-					exit(EXIT_FAILURE);
+					exit(EXIT_OPEN);
 				}
 
 				std::string s;
@@ -385,7 +386,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 			sqlite3_stmt *stmt;
 			if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
 				fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
-				exit(EXIT_FAILURE);
+				exit(EXIT_SQLITE);
 			}
 
 			sqlite3_bind_int(stmt, 1, minzoom);
@@ -413,7 +414,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 				if (tz < 0 || tz >= 32) {
 					fprintf(stderr, "Impossible zoom level %d in mbtiles\n", tz);
-					exit(EXIT_FAILURE);
+					exit(EXIT_IMPOSSIBLE);
 				}
 
 				ty = (1LL << tz) - 1 - ty;
@@ -421,7 +422,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 				if (s == NULL) {
 					fprintf(stderr, "Corrupt mbtiles file: null entry in tiles table\n");
-					exit(EXIT_FAILURE);
+					exit(EXIT_SQLITE);
 				}
 
 				handle(std::string(s, len), tz, tx, ty, to_decode, pipeline, stats, state, coordinate_mode);
@@ -449,7 +450,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 			sqlite3_stmt *stmt;
 			if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
 				fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
-				exit(EXIT_FAILURE);
+				exit(EXIT_SQLITE);
 			}
 
 			sqlite3_bind_int(stmt, 1, z);
@@ -462,7 +463,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 				if (s == NULL) {
 					fprintf(stderr, "Corrupt mbtiles file: null entry in tiles table\n");
-					exit(EXIT_FAILURE);
+					exit(EXIT_SQLITE);
 				}
 
 				if (z != oz) {
@@ -483,13 +484,13 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 	if (sqlite3_close(db) != SQLITE_OK) {
 		fprintf(stderr, "%s: could not close database: %s\n", fname, sqlite3_errmsg(db));
-		exit(EXIT_FAILURE);
+		exit(EXIT_CLOSE);
 	}
 }
 
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s [-s projection] [-Z minzoom] [-z maxzoom] [-l layer ...] file.mbtiles [zoom x y]\n", argv[0]);
-	exit(EXIT_FAILURE);
+	exit(EXIT_ARGS);
 }
 
 int main(int argc, char **argv) {

@@ -37,6 +37,7 @@
 #include <functional>
 #include "jsonpull/jsonpull.h"
 #include "milo/dtoa_milo.h"
+#include "errors.hpp"
 
 int pk = false;
 int pC = false;
@@ -64,7 +65,7 @@ void aprintf(std::string *buf, const char *format, ...) {
 	va_start(ap, format);
 	if (vasprintf(&tmp, format, ap) < 0) {
 		fprintf(stderr, "memory allocation failure\n");
-		exit(EXIT_FAILURE);
+		exit(EXIT_MEMORY);
 	}
 	va_end(ap);
 
@@ -79,7 +80,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::st
 
 	if (!tile.decode(message, was_compressed)) {
 		fprintf(stderr, "Couldn't decompress tile %d/%u/%u\n", z, x, y);
-		exit(EXIT_FAILURE);
+		exit(EXIT_MVT);
 	}
 
 	for (size_t l = 0; l < tile.layers.size(); l++) {
@@ -431,13 +432,13 @@ struct reader *begin_reading(char *fname) {
 
 		if (sqlite3_open(fname, &db) != SQLITE_OK) {
 			fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
-			exit(EXIT_FAILURE);
+			exit(EXIT_SQLITE);
 		}
 
 		char *err = NULL;
 		if (sqlite3_exec(db, "PRAGMA integrity_check;", NULL, NULL, &err) != SQLITE_OK) {
 			fprintf(stderr, "%s: integrity_check: %s\n", fname, err);
-			exit(EXIT_FAILURE);
+			exit(EXIT_SQLITE);
 		}
 
 		const char *sql = "SELECT zoom_level, tile_column, tile_row, tile_data from tiles order by zoom_level, tile_column, tile_row;";
@@ -445,7 +446,7 @@ struct reader *begin_reading(char *fname) {
 
 		if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
 			fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
-			exit(EXIT_FAILURE);
+			exit(EXIT_SQLITE);
 		}
 
 		r->db = db;
@@ -562,7 +563,7 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 	for (size_t i = 0; i < CPUS; i++) {
 		if (pthread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
 			perror("pthread_create");
-			exit(EXIT_FAILURE);
+			exit(EXIT_PTHREAD);
 		}
 	}
 
@@ -900,7 +901,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		// Closes either real db or temp mirror of metadata.json
 		if (sqlite3_close(db) != SQLITE_OK) {
 			fprintf(stderr, "Could not close database: %s\n", sqlite3_errmsg(db));
-			exit(EXIT_FAILURE);
+			exit(EXIT_CLOSE);
 		}
 
 		delete r;
@@ -909,7 +910,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s [-f] [-i] [-pk] [-pC] [-c joins.csv] [-X] [-x exclude ...] -o new.mbtiles source.mbtiles ...\n", argv[0]);
-	exit(EXIT_FAILURE);
+	exit(EXIT_ARGS);
 }
 
 int main(int argc, char **argv) {
@@ -1050,14 +1051,14 @@ int main(int argc, char **argv) {
 				pe = true;
 			} else {
 				fprintf(stderr, "%s: Unknown option for -p%s\n", argv[0], optarg);
-				exit(EXIT_FAILURE);
+				exit(EXIT_ARGS);
 			}
 			break;
 
 		case 'c':
 			if (csv != NULL) {
 				fprintf(stderr, "Only one -c for now\n");
-				exit(EXIT_FAILURE);
+				exit(EXIT_ARGS);
 			}
 
 			csv = optarg;
@@ -1084,7 +1085,7 @@ int main(int argc, char **argv) {
 			char *cp = strchr(optarg, ':');
 			if (cp == NULL || cp == optarg) {
 				fprintf(stderr, "%s: -R requires old:new\n", argv[0]);
-				exit(EXIT_FAILURE);
+				exit(EXIT_ARGS);
 			}
 			std::string before = std::string(optarg).substr(0, cp - optarg);
 			std::string after = std::string(cp + 1);
@@ -1106,7 +1107,7 @@ int main(int argc, char **argv) {
 				max_tilestats_values = atoi(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
-				exit(EXIT_FAILURE);
+				exit(EXIT_ARGS);
 			}
 			break;
 		}
@@ -1132,7 +1133,7 @@ int main(int argc, char **argv) {
 
 	if (minzoom > maxzoom) {
 		fprintf(stderr, "%s: Minimum zoom -Z%d cannot be greater than maxzoom -z%d\n", argv[0], minzoom, maxzoom);
-		exit(EXIT_FAILURE);
+		exit(EXIT_ARGS);
 	}
 
 	if (out_mbtiles != NULL) {
