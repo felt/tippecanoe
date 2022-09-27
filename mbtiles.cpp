@@ -89,6 +89,25 @@ void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data,
 
 	if (sqlite3_step(stmt) != SQLITE_DONE) {
 		fprintf(stderr, "sqlite3 insert failed: %s\n", sqlite3_errmsg(outdb));
+		printf("%d/%d/%d\n", z, tx, ty);
+	}
+	if (sqlite3_finalize(stmt) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 finalize failed: %s\n", sqlite3_errmsg(outdb));
+	}
+}
+
+void mbtiles_erase_zoom(sqlite3 *outdb, int z) {
+	printf("delete zoom %d\n", z);
+	sqlite3_stmt *stmt;
+	const char *query = "delete from tiles where zoom_level = ?";
+	if (sqlite3_prepare_v2(outdb, query, -1, &stmt, NULL) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 insert prep failed\n");
+		exit(EXIT_SQLITE);
+	}
+
+	sqlite3_bind_int(stmt, 1, z);
+	if (sqlite3_step(stmt) != SQLITE_DONE) {
+		fprintf(stderr, "sqlite3 delete failed: %s\n", sqlite3_errmsg(outdb));
 	}
 	if (sqlite3_finalize(stmt) != SQLITE_OK) {
 		fprintf(stderr, "sqlite3 finalize failed: %s\n", sqlite3_errmsg(outdb));

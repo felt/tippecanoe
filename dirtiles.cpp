@@ -160,6 +160,54 @@ std::vector<zxy> enumerate_dirtiles(const char *fname, int minzoom, int maxzoom)
 	return tiles;
 }
 
+void dir_erase_zoom(const char *fname, int zoom) {
+	DIR *d1 = opendir(fname);
+	if (d1 != NULL) {
+		struct dirent *dp;
+		while ((dp = readdir(d1)) != NULL) {
+			if (numeric(dp->d_name) && atoi(dp->d_name) == zoom) {
+				std::string z = std::string(fname) + "/" + dp->d_name;
+
+				DIR *d2 = opendir(z.c_str());
+				if (d2 == NULL) {
+					perror(z.c_str());
+					exit(EXIT_OPEN);
+				}
+
+				struct dirent *dp2;
+				while ((dp2 = readdir(d2)) != NULL) {
+					if (numeric(dp2->d_name)) {
+						std::string x = z + "/" + dp2->d_name;
+
+						DIR *d3 = opendir(x.c_str());
+						if (d3 == NULL) {
+							perror(x.c_str());
+							exit(EXIT_OPEN);
+						}
+
+						struct dirent *dp3;
+						while ((dp3 = readdir(d3)) != NULL) {
+							if (pbfname(dp3->d_name)) {
+								std::string y = x + "/" + dp3->d_name;
+								if (unlink(y.c_str()) != 0) {
+									perror(y.c_str());
+									exit(EXIT_UNLINK);
+								}
+							}
+						}
+
+						closedir(d3);
+					}
+				}
+
+				closedir(d2);
+			}
+		}
+
+		closedir(d1);
+	}
+}
+
 sqlite3 *dirmeta2tmp(const char *fname) {
 	sqlite3 *db;
 	char *err = NULL;
