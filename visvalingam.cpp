@@ -102,8 +102,8 @@ struct minHeap {
 	void down(int i) {
 		visItem *object = h[i];
 		while (1) {
-			int right = (i + 1) << 1;
-			int left = right - 1;
+			size_t right = (i + 1) << 1;
+			size_t left = right - 1;
 
 			int down = i;
 			visItem *child = h[down];
@@ -144,7 +144,7 @@ static double doubleTriangleArea(drawvec const &ls, int i1, int i2, int i3) {
 	return std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }
 
-drawvec visvalingam(drawvec ls, double threshold) {
+drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 	// edge cases checked, get on with it
 	int removed = 0;
 	threshold *= 2;
@@ -161,32 +161,34 @@ drawvec visvalingam(drawvec ls, double threshold) {
 	std::vector<visItem> items;
 	items.resize(ls.size());
 
-	visItem *previous = &linkedListStart;
-	for (int i = 1; i < ls.size() - 1; i++) {
-		visItem *item = &items[i];
+	{
+		visItem *previous = &linkedListStart;
+		for (size_t i = 1; i < ls.size() - 1; i++) {
+			visItem *item = &items[i];
 
-		item->area = doubleTriangleArea(ls, i - 1, i, i + 1);
-		item->pointIndex = i;
-		item->previous = previous;
+			item->area = doubleTriangleArea(ls, i - 1, i, i + 1);
+			item->pointIndex = i;
+			item->previous = previous;
 
-		heap.Push(item);
-		previous->next = item;
-		previous = item;
+			heap.Push(item);
+			previous->next = item;
+			previous = item;
+		}
+
+		// final item
+		visItem *endItem = &items[ls.size() - 1];
+		endItem->area = INFINITY;
+		endItem->pointIndex = ls.size() - 1;
+		endItem->previous = previous;
+
+		previous->next = endItem;
+		heap.Push(endItem);
 	}
-
-	// final item
-	visItem *endItem = &items[ls.size() - 1];
-	endItem->area = INFINITY;
-	endItem->pointIndex = ls.size() - 1;
-	endItem->previous = previous;
-
-	previous->next = endItem;
-	heap.Push(endItem);
 
 	// run through the reduction process
 	while (heap.h.size() > 0) {
 		visItem *current = heap.Pop();
-		if (current->area > threshold) /* || ls.size()-removed <= s.ToKeep */ {
+		if (current->area > threshold || ls.size() - removed <= retain) {
 			break;
 		}
 
@@ -231,5 +233,6 @@ drawvec visvalingam(drawvec ls, double threshold) {
 		item = item->next;
 	}
 
+	printf("removed %d\n", removed);
 	return out;
 }
