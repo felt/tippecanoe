@@ -2,9 +2,9 @@
 // https://github.com/paulmach/orb/blob/dcade4901baea0727377ccf7c4aab2addd92d152/simplify/visvalingam.go
 
 // The MIT License (MIT)
-// 
+//
 // Copyright (c) 2017 Paul Mach
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
 // "Software"), to deal in the Software without restriction, including
@@ -12,10 +12,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject
 // to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -32,14 +32,14 @@
 // Rewriting it here, vs using the std lib, resulted in a 50% performance bump!
 
 struct visItem {
-	double area = 0; // triangle area
-	int pointIndex = 0; // index of point in original path
+	double area = 0;     // triangle area
+	int pointIndex = 0;  // index of point in original path
 
 	// to keep a virtual linked list to help rebuild the triangle areas as we remove points.
 	visItem *next = NULL;
 	visItem *previous = NULL;
 
-	int index = 0; // interal index in heap, for removal and update
+	int index = 0;	// interal index in heap, for removal and update
 };
 
 struct minHeap {
@@ -53,7 +53,7 @@ struct minHeap {
 
 	visItem *Pop() {
 		visItem *removed = h[0];
-		visItem *lastItem = h[h.size()-1];
+		visItem *lastItem = h[h.size() - 1];
 		h.pop_back();
 
 		if (h.size() > 0) {
@@ -141,7 +141,7 @@ static double doubleTriangleArea(drawvec const &ls, int i1, int i2, int i3) {
 	draw b = ls[i2];
 	draw c = ls[i3];
 
-	return std::abs((b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x));
+	return std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }
 
 drawvec visvalingam(drawvec ls, double threshold) {
@@ -165,7 +165,7 @@ drawvec visvalingam(drawvec ls, double threshold) {
 	for (int i = 1; i < ls.size() - 1; i++) {
 		visItem *item = &items[i];
 
-		item->area = doubleTriangleArea(ls, i-1, i, i+1);
+		item->area = doubleTriangleArea(ls, i - 1, i, i + 1);
 		item->pointIndex = i;
 		item->previous = previous;
 
@@ -175,7 +175,7 @@ drawvec visvalingam(drawvec ls, double threshold) {
 	}
 
 	// final item
-	visItem *endItem = &items[ls.size()-1];
+	visItem *endItem = &items[ls.size() - 1];
 	endItem->area = INFINITY;
 	endItem->pointIndex = ls.size() - 1;
 	endItem->previous = previous;
@@ -201,10 +201,9 @@ drawvec visvalingam(drawvec ls, double threshold) {
 		// figure out the new areas
 		if (previous->previous != NULL) {
 			double area = doubleTriangleArea(ls,
-				previous->previous->pointIndex,
-				previous->pointIndex,
-				next->pointIndex
-			);
+							 previous->previous->pointIndex,
+							 previous->pointIndex,
+							 next->pointIndex);
 
 			area = std::max(area, current->area);
 			heap.Update(previous, area);
@@ -212,10 +211,9 @@ drawvec visvalingam(drawvec ls, double threshold) {
 
 		if (next->next != NULL) {
 			double area = doubleTriangleArea(ls,
-				previous->pointIndex,
-				next->pointIndex,
-				next->next->pointIndex
-			);
+							 previous->pointIndex,
+							 next->pointIndex,
+							 next->next->pointIndex);
 
 			area = std::max(area, current->area);
 			heap.Update(next, area);
@@ -235,4 +233,3 @@ drawvec visvalingam(drawvec ls, double threshold) {
 
 	return out;
 }
-
