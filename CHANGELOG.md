@@ -1,4 +1,4 @@
-## 2.6.5
+## 2.7.0
 
 * Add the option to use the Visvalingam simplification algorithm
 

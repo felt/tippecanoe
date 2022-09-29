@@ -875,7 +875,6 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 	}
 
 	return out;
-	return out;
 }
 
 drawvec reorder_lines(drawvec &geom) {
