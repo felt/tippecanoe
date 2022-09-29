@@ -79,6 +79,6 @@ double get_mp_area(drawvec &geom);
 drawvec simple_clip_poly(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 drawvec clip_lines(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 drawvec clip_point(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
-drawvec visvalingam(drawvec ls, double threshold, size_t retain);
+void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain);
 
 #endif

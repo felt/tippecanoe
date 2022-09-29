@@ -891,8 +891,6 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 		geom = impose_tile_boundaries(geom, area);
 	}
 
-	drawvec out;
-
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
 			size_t j;
@@ -905,26 +903,28 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 			geom[i].necessary = 1;
 			geom[j - 1].necessary = 1;
 
-			drawvec tmp;
-			for (size_t k = i; k < j; k++) {
-				tmp.push_back(geom[k]);
-			}
-
 			// empirical mapping from douglas-peucker simplifications
 			// to visvalingam simplifications that yield similar
 			// output sizes
 			double sim = simplification * (0.1596 * z + 0.878);
 			double scale = (res * sim) * (res * sim);
 			scale = exp(1.002 * log(scale) + 0.3043);
-			tmp = visvalingam(tmp, scale, retain);
-			for (size_t k = 0; k < tmp.size(); k++) {
-				out.push_back(tmp[k]);
-			}
 
+			if (j - i > 1) {
+				visvalingam(geom, i, j, scale, retain);
+			}
 			i = j - 1;
 		}
 	}
 
+	drawvec out;
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].necessary) {
+			out.push_back(geom[i]);
+		}
+	}
+
+	return out;
 	return out;
 }
 

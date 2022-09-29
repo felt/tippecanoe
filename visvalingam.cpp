@@ -136,15 +136,15 @@ struct minHeap {
 	}
 };
 
-static double doubleTriangleArea(drawvec const &ls, int i1, int i2, int i3) {
-	draw a = ls[i1];
-	draw b = ls[i2];
-	draw c = ls[i3];
+static double doubleTriangleArea(drawvec const &ls, int start, int i1, int i2, int i3) {
+	draw a = ls[i1 + start];
+	draw b = ls[i2 + start];
+	draw c = ls[i3 + start];
 
 	return std::abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
 }
 
-drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
+void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain) {
 	// edge cases checked, get on with it
 	int removed = 0;
 	threshold *= 2;
@@ -159,14 +159,14 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 
 	// internal path items
 	std::vector<visItem> items;
-	items.resize(ls.size());
+	items.resize((end - start));
 
 	{
 		visItem *previous = &linkedListStart;
-		for (size_t i = 1; i < ls.size() - 1; i++) {
+		for (size_t i = 1; i < (end - start) - 1; i++) {
 			visItem *item = &items[i];
 
-			item->area = doubleTriangleArea(ls, i - 1, i, i + 1);
+			item->area = doubleTriangleArea(ls, start, i - 1, i, i + 1);
 			item->pointIndex = i;
 			item->previous = previous;
 
@@ -176,9 +176,9 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 		}
 
 		// final item
-		visItem *endItem = &items[ls.size() - 1];
+		visItem *endItem = &items[(end - start) - 1];
 		endItem->area = INFINITY;
-		endItem->pointIndex = ls.size() - 1;
+		endItem->pointIndex = (end - start) - 1;
 		endItem->previous = previous;
 
 		previous->next = endItem;
@@ -188,7 +188,7 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 	// run through the reduction process
 	while (heap.h.size() > 0) {
 		visItem *current = heap.Pop();
-		if (current->area > threshold || ls.size() - removed <= retain) {
+		if (current->area > threshold || (end - start) - removed <= retain) {
 			break;
 		}
 
@@ -202,7 +202,7 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 
 		// figure out the new areas
 		if (previous->previous != NULL) {
-			double area = doubleTriangleArea(ls,
+			double area = doubleTriangleArea(ls, start,
 							 previous->previous->pointIndex,
 							 previous->pointIndex,
 							 next->pointIndex);
@@ -212,7 +212,7 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 		}
 
 		if (next->next != NULL) {
-			double area = doubleTriangleArea(ls,
+			double area = doubleTriangleArea(ls, start,
 							 previous->pointIndex,
 							 next->pointIndex,
 							 next->next->pointIndex);
@@ -223,15 +223,8 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 	}
 
 	visItem *item = &linkedListStart;
-	drawvec out;
-
-	int count = 0;
 	while (item != NULL) {
-		out.push_back(ls[item->pointIndex]);
-		count++;
-
+		ls[item->pointIndex + start].necessary = 1;
 		item = item->next;
 	}
-
-	return out;
 }
