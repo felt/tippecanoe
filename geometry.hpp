@@ -4,6 +4,7 @@
 #include <vector>
 #include <atomic>
 #include <sqlite3.h>
+#include <stdio.h>
 
 #define VT_POINT 1
 #define VT_LINE 2
