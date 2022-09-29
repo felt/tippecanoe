@@ -812,60 +812,6 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 	return out;
 }
 
-drawvec simplify_lines_doug(drawvec &geom, int z, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes) {
-	int res = 1 << (32 - detail - z);
-	long long area = 1LL << (32 - z);
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			geom[i].necessary = 1;
-		} else if (geom[i].op == VT_LINETO) {
-			geom[i].necessary = 0;
-		} else {
-			geom[i].necessary = 1;
-		}
-
-		if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
-			if (pt != shared_nodes.end() && *pt == geom[i]) {
-				geom[i].necessary = true;
-			}
-		}
-	}
-
-	if (mark_tile_bounds) {
-		geom = impose_tile_boundaries(geom, area);
-	}
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			geom[i].necessary = 1;
-			geom[j - 1].necessary = 1;
-
-			if (j - i > 1) {
-				douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
-			}
-			i = j - 1;
-		}
-	}
-
-	drawvec out;
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].necessary) {
-			out.push_back(geom[i]);
-		}
-	}
-
-	return out;
-}
-
 drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
@@ -911,7 +857,11 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 			scale = exp(1.002 * log(scale) + 0.3043);
 
 			if (j - i > 1) {
-				visvalingam(geom, i, j, scale, retain);
+				if (additional[A_VISVALINGAM]) {
+					visvalingam(geom, i, j, scale, retain);
+				} else {
+					douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
+				}
 			}
 			i = j - 1;
 		}
