@@ -910,7 +910,13 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 				tmp.push_back(geom[k]);
 			}
 
-			tmp = visvalingam(tmp, res * simplification, retain);
+			// empirical mapping from douglas-peucker simplifications
+			// to visvalingam simplifications that yield similar
+			// output sizes
+			double sim = simplification * (0.1596 * z + 0.878);
+			double scale = (res * sim) * (res * sim);
+			scale = exp(1.002 * log(scale) + 0.3043);
+			tmp = visvalingam(tmp, scale, retain);
 			for (size_t k = 0; k < tmp.size(); k++) {
 				out.push_back(tmp[k]);
 			}

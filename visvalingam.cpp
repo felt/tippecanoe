@@ -233,6 +233,5 @@ drawvec visvalingam(drawvec ls, double threshold, size_t retain) {
 		item = item->next;
 	}
 
-	printf("removed %d\n", removed);
 	return out;
 }
