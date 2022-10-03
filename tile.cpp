@@ -528,7 +528,7 @@ void *partial_feature_worker(void *v) {
 			geom = stairstep(geom, z, line_detail);
 		}
 
-		double area = 0;
+		long double area = 0;
 		if (t == VT_POLYGON) {
 			area = get_mp_area(geom);
 		}
@@ -1828,7 +1828,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 	int line_detail;
 	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
 		long long count = 0;
-		double accum_area = 0;
+		long double accum_area = 0;
 
 		double fraction_accum = 0;
 

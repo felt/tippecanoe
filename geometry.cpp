@@ -160,7 +160,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	return out;
 }
 
-double get_area(drawvec &geom, size_t i, size_t j) {
+long double get_area(drawvec &geom, size_t i, size_t j) {
 	long double area = 0;
 	for (size_t k = i; k < j; k++) {
 		area += (long double) geom[k].x * (long double) geom[i + ((k - i + 1) % (j - i))].y;
@@ -170,8 +170,8 @@ double get_area(drawvec &geom, size_t i, size_t j) {
 	return area;
 }
 
-double get_mp_area(drawvec &geom) {
-	double ret = 0;
+long double get_mp_area(drawvec &geom) {
+	long double ret = 0;
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
@@ -207,10 +207,10 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 				ring.push_back(draw(VT_LINETO, ring[0].x, ring[0].y));
 			}
 
-			double area = get_area(ring, 0, ring.size());
+			long double area = get_area(ring, 0, ring.size());
 
 			if ((j == 0 && area < 0) || (j != 0 && area > 0)) {
-				fprintf(stderr, "Ring area has wrong sign: %f for %zu\n", area, j);
+				fprintf(stderr, "Ring area has wrong sign: %Lf for %zu\n", area, j);
 				exit(EXIT_IMPOSSIBLE);
 			}
 
@@ -395,7 +395,7 @@ void check_polygon(drawvec &geom) {
 				}
 			}
 
-			double area = get_area(geom, i, j);
+			long double area = get_area(geom, i, j);
 
 #if 0
 			fprintf(stderr, "looking at %lld to %lld, area %f\n", (long long) i, (long long) j, area);
@@ -516,7 +516,7 @@ drawvec simple_clip_poly(drawvec &geom, int z, int buffer) {
 	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer);
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area) {
+drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, long double *accum_area) {
 	drawvec out;
 	const long long pixel = (1 << (32 - detail - z)) * tiny_polygon_size;
 
@@ -532,7 +532,7 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 				}
 			}
 
-			double area = get_area(geom, i, j);
+			long double area = get_area(geom, i, j);
 
 			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
 			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
@@ -957,7 +957,7 @@ drawvec fix_polygon(drawvec &geom) {
 				// GeoJSON winding is reversed from vector winding
 				reverse_ring = false;
 			} else {
-				double area = get_area(ring, 0, ring.size());
+				long double area = get_area(ring, 0, ring.size());
 				if ((area > 0) != outer) {
 					reverse_ring = true;
 				}
