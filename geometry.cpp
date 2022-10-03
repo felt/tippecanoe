@@ -161,10 +161,17 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 }
 
 long double get_area(drawvec &geom, size_t i, size_t j) {
+	// Coordinates in `geom` are 40-bit integers, so there is no good way
+	// to multiply them without possible precision loss. Since they probably
+	// do not use the full precision, shift them nearer to the origin so
+	// their product is more likely to be exactly representable as a long double.
+	long long bx = geom[i].x;
+	long long by = geom[i].y;
+
 	long double area = 0;
 	for (size_t k = i; k < j; k++) {
-		area += (long double) geom[k].x * (long double) geom[i + ((k - i + 1) % (j - i))].y;
-		area -= (long double) geom[k].y * (long double) geom[i + ((k - i + 1) % (j - i))].x;
+		area += ((long double) (geom[k].x - bx) * (long double) (geom[i + ((k - i + 1) % (j - i))].y - by)) -
+		        ((long double) (geom[k].y - by) * (long double) (geom[i + ((k - i + 1) % (j - i))].x - bx));
 	}
 	area /= 2;
 	return area;
@@ -518,7 +525,7 @@ drawvec simple_clip_poly(drawvec &geom, int z, int buffer) {
 
 drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, long double *accum_area) {
 	drawvec out;
-	const long long pixel = (1 << (32 - detail - z)) * tiny_polygon_size;
+	const long double pixel = (1LL << (32 - detail - z)) * (long double) tiny_polygon_size;
 
 	*reduced = true;
 	bool included_last_outer = false;
