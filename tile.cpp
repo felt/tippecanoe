@@ -316,7 +316,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, long long area) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -406,7 +406,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.metapos = metastart;
 					sf.geometry = geom2;
 					sf.index = index;
-					sf.extent = extent;
+					sf.area = area;
 					sf.feature_minzoom = feature_minzoom;
 
 					if (metastart < 0) {
@@ -450,7 +450,7 @@ struct partial {
 	unsigned long long id = 0;
 	bool has_id = 0;
 	ssize_t renamed = 0;
-	long long extent = 0;
+	long long area = 0;
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
@@ -1422,7 +1422,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 
 		if (*first_time && pass == 1) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.extent);
+				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.area);
 			}
 		}
 
@@ -1597,7 +1597,7 @@ void *run_prefilter(void *v) {
 		decode_meta(sf.keys, sf.values, rpa->stringpool + rpa->pool_off[sf.segment], tmp_layer, tmp_feature);
 		tmp_layer.features.push_back(tmp_feature);
 
-		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0);
+		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.area, true, state, 0);
 	}
 
 	if (fclose(rpa->prefilter_fp) != 0) {
@@ -1951,12 +1951,12 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			if (sf.t == VT_POINT) {
 				if (extent_previndex >= sf.index) {
-					sf.extent = 1;
+					sf.area = 1;
 				} else {
 					double radius = sqrt(sf.index - extent_previndex) / 4.0;
-					sf.extent = M_PI * radius * radius;
-					if (sf.extent < 1) {
-						sf.extent = 1;
+					sf.area = M_PI * radius * radius;
+					if (sf.area < 1) {
+						sf.area = 1;
 					}
 				}
 
@@ -2011,23 +2011,23 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				indices.push_back(sf.index);
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
-					coalesced_area += sf.extent;
+					coalesced_area += sf.area;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
 			} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
-				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				extents.push_back(sf.area);
+				if (sf.area + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				extents.push_back(sf.area);
+				if (sf.area + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
-					coalesced_area += sf.extent;
+					coalesced_area += sf.area;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
@@ -2050,7 +2050,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					partials[which_partial].geoms.push_back(sf.geometry);
-					coalesced_area += sf.extent;
+					coalesced_area += sf.area;
 					strategy->coalesced_as_needed++;
 				} else {
 					strategy->dropped_as_needed++;
@@ -2116,7 +2116,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					p.has_id = sf.has_id;
 					p.index = sf.index;
 					p.renamed = -1;
-					p.extent = sf.extent;
+					p.area = sf.area;
 					p.clustered = 0;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {

@@ -400,7 +400,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 			sf.index = 0;
 			sf.bbox[0] = sf.bbox[1] = LLONG_MAX;
 			sf.bbox[2] = sf.bbox[3] = LLONG_MIN;
-			sf.extent = 0;
+			sf.area = 0;
 			sf.metapos = 0;
 			sf.has_id = false;
 
@@ -422,9 +422,9 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 					sf.seq = sequence->value.number.number;
 				}
 
-				json_object *extent = json_hash_get(tippecanoe, "extent");
-				if (extent != NULL && extent->type == JSON_NUMBER) {
-					sf.extent = extent->value.number.number;
+				json_object *area = json_hash_get(tippecanoe, "extent");
+				if (area != NULL && area->type == JSON_NUMBER) {
+					sf.area = area->value.number.number;
 				}
 
 				json_object *dropped = json_hash_get(tippecanoe, "dropped");

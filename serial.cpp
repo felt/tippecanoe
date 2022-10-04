@@ -196,7 +196,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	layer |= sf->layer << 6;
 	layer |= (sf->seq != 0) << 5;
 	layer |= (sf->index != 0) << 4;
-	layer |= (sf->extent != 0) << 3;
+	layer |= (sf->area != 0) << 3;
 	layer |= sf->has_id << 2;
 	layer |= sf->has_tippecanoe_minzoom << 1;
 	layer |= sf->has_tippecanoe_maxzoom << 0;
@@ -222,8 +222,8 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	if (sf->index != 0) {
 		serialize_ulong_long(geomfile, sf->index, geompos, fname);
 	}
-	if (sf->extent != 0) {
-		serialize_long_long(geomfile, sf->extent, geompos, fname);
+	if (sf->area != 0) {
+		serialize_long_long(geomfile, sf->area, geompos, fname);
 	}
 
 	serialize_long_long(geomfile, sf->metapos, geompos, fname);
@@ -275,14 +275,14 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	deserialize_int_io(geoms, &sf.segment, geompos_in);
 
 	sf.index = 0;
-	sf.extent = 0;
+	sf.area = 0;
 
 	sf.geometry = decode_geometry(geoms, geompos_in, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 	if (sf.layer & (1 << 4)) {
 		deserialize_ulong_long_io(geoms, &sf.index, geompos_in);
 	}
 	if (sf.layer & (1 << 3)) {
-		deserialize_long_long_io(geoms, &sf.extent, geompos_in);
+		deserialize_long_long_io(geoms, &sf.area, geompos_in);
 	}
 
 	sf.layer >>= 6;
@@ -503,12 +503,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 		if (prevent[P_CLIPPING]) {
 			static std::atomic<long long> warned(0);
-			long long extent = ((sf.bbox[2] - sf.bbox[0]) / ((1LL << (32 - sst->maxzoom)) + 1)) * ((sf.bbox[3] - sf.bbox[1]) / ((1LL << (32 - sst->maxzoom)) + 1));
-			if (extent > warned) {
-				fprintf(stderr, "Warning: %s:%d: Large unclipped (-pc) feature may be duplicated across %lld tiles\n", sst->fname, sst->line, extent);
-				warned = extent;
+			long long area = ((sf.bbox[2] - sf.bbox[0]) / ((1LL << (32 - sst->maxzoom)) + 1)) * ((sf.bbox[3] - sf.bbox[1]) / ((1LL << (32 - sst->maxzoom)) + 1));
+			if (area > warned) {
+				fprintf(stderr, "Warning: %s:%d: Large unclipped (-pc) feature may be duplicated across %lld tiles\n", sst->fname, sst->line, area);
+				warned = area;
 
-				if (extent > 10000) {
+				if (area > 10000) {
 					fprintf(stderr, "Exiting because this can't be right.\n");
 					exit(EXIT_IMPOSSIBLE);
 				}
@@ -516,7 +516,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		}
 	}
 
-	double extent = 0;
+	double area = 0;
 	if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 		if (sf.t == VT_POLYGON) {
 			for (size_t i = 0; i < sf.geometry.size(); i++) {
@@ -528,7 +528,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						}
 					}
 
-					extent += get_area(sf.geometry, i, j);
+					area += get_area(sf.geometry, i, j);
 					i = j - 1;
 				}
 			}
@@ -542,16 +542,16 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 				}
 			}
 			// treat lines as having the area of a circle with the line as diameter
-			extent = M_PI * (dist / 2) * (dist / 2);
+			area = M_PI * (dist / 2) * (dist / 2);
 		}
 
-		// VT_POINT extent will be calculated in write_tile from the distance between adjacent features.
+		// VT_POINT area will be calculated in write_tile from the distance between adjacent features.
 	}
 
-	if (extent <= LLONG_MAX) {
-		sf.extent = (long long) extent;
+	if (area <= LLONG_MAX) {
+		sf.area = (long long) area;
 	} else {
-		sf.extent = LLONG_MAX;
+		sf.area = LLONG_MAX;
 	}
 
 	if (!prevent[P_INPUT_ORDER]) {
