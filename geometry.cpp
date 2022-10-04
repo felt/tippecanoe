@@ -161,10 +161,10 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 }
 
 double get_area_scaled(const drawvec &geom, size_t i, size_t j) {
-	const double max_exact_double = (double) (1LL << 53);
+	const double max_exact_double = (double) ((1LL << 53) - 1);
 
 	// keep scaling the geometry down until we can calculate its area without overflow
-	for (long long scale = 2; ; scale *= 2) {
+	for (long long scale = 2; scale < (1LL << 30); scale *= 2) {
 		long long bx = geom[i].x;
 		long long by = geom[i].y;
 		bool again = false;
@@ -188,13 +188,16 @@ double get_area_scaled(const drawvec &geom, size_t i, size_t j) {
 			continue;
 		} else {
 			area /= 2;
-			return area * scale;
+			return area * scale * scale;
 		}
 	}
+
+	fprintf(stderr, "get_area_scaled: can't happen\n");
+	exit(EXIT_IMPOSSIBLE);
 }
 
-double get_area(drawvec &geom, size_t i, size_t j) {
-	const double max_exact_double = (double) (1LL << 53);
+double get_area(const drawvec &geom, size_t i, size_t j) {
+	const double max_exact_double = (double) ((1LL << 53) - 1);
 
 	// Coordinates in `geom` are 40-bit integers, so there is no good way
 	// to multiply them without possible precision loss. Since they probably
