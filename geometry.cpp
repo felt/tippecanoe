@@ -1364,3 +1364,65 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 
 	return out;
 }
+
+struct polygon_label {
+	long long size;
+	draw point;
+
+	bool operator<(const polygon_label &o) const {
+		return size > o.size; // reverse sort, largest first
+	}
+};
+
+// Generate a label point for a polygon feature, currently at the centroid of its largest-area
+// outer ring within the tile.
+drawvec polygon_to_anchor(const drawvec &geom) {
+	std::vector<polygon_label> labels;
+	drawvec dv;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			long long xsum = 0;
+			long long ysum = 0;
+			size_t count = 0;
+
+			double area = get_area(geom, i, j);
+			if (area > 0) {  // don't generate anchors for holes
+				// i + 1 to exclude the first point, which is duplicated as the last
+				for (size_t k = i + 1; k < j; k++) {
+					xsum += geom[k].x;
+					ysum += geom[k].y;
+					count++;
+				}
+
+				if (count > 0) {
+					draw d(VT_MOVETO, xsum / count, ysum / count);
+
+					polygon_label pl;
+					pl.size = area;
+					pl.point = d;
+
+					labels.push_back(pl);
+				}
+			}
+
+			i = j - 1;
+		}
+	}
+
+	std::sort(labels.begin(), labels.end());
+
+	if (labels.size() > 0) {
+		dv.push_back(labels[0].point);
+	}
+
+	return dv;
+}
+

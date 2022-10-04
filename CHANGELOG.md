@@ -1,3 +1,7 @@
+## 2.9.0
+
+* Add an option to generate label points in place of polygons
+
 ## 2.8.1
 
 * Improve precision of polygon ring area calculations

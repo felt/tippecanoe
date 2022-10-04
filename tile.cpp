@@ -2076,6 +2076,11 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 			}
 
+			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				sf.t = VT_POINT;
+				sf.geometry = polygon_to_anchor(sf.geometry);
+			}
+
 			if (sf.geometry.size() > 0) {
 				if (partials.size() > max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
