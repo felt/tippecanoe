@@ -56,7 +56,7 @@ struct serial_feature {
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
-	long long area = 0;
+	long long extent = 0;
 
 	std::vector<long long> keys{};
 	std::vector<long long> values{};
