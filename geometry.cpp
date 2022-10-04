@@ -212,26 +212,36 @@ double get_area(const drawvec &geom, size_t i, size_t j) {
 	//
 	// If the intermediate calculation still exceeds 2^53, start trying to
 	// recalculate the area by scaling down the geometry. This will not
-	// produce as accurate an area, but it will still be close, and the
+	// produce as precise an area, but it will still be close, and the
 	// sign will be correct, which is more important, since the sign
-	// determines the winding order of the rings.
+	// determines the winding order of the rings. We can then use that
+	// sign with this generally more precise area calculation.
 
 	long long bx = geom[i].x;
 	long long by = geom[i].y;
 
 	// https://en.wikipedia.org/wiki/Shoelace_formula
 	double area = 0;
+	bool overflow = false;
 	for (size_t k = i; k < j; k++) {
 		area += (double) (geom[k].x - bx) * (double) (geom[i + ((k - i + 1) % (j - i))].y - by);
 		if (std::fabs(area) >= max_exact_double) {
-			return get_area_scaled(geom, i, j);
+			overflow = true;
 		}
 		area -= (double) (geom[k].y - by) * (double) (geom[i + ((k - i + 1) % (j - i))].x - bx);
 		if (std::fabs(area) >= max_exact_double) {
-			return get_area_scaled(geom, i, j);
+			overflow = true;
 		}
 	}
 	area /= 2;
+
+	if (overflow) {
+		double scaled_area = get_area_scaled(geom, i, j);
+		if ((area < 0 && scaled_area > 0) || (area > 0 && scaled_area < 0)) {
+			area = -area;
+		}
+	}
+
 	return area;
 }
 
