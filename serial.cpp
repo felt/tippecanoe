@@ -197,7 +197,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 #define FLAG_LABEL_POINT 6
 #define FLAG_SEQ 5
 #define FLAG_INDEX 4
-#define FLAG_EXTENT 3
+#define FLAG_AREA 3
 #define FLAG_ID 2
 #define FLAG_MINZOOM 1
 #define FLAG_MAXZOOM 0
@@ -207,7 +207,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	layer |= (sf->label_point != 0) << FLAG_LABEL_POINT;
 	layer |= (sf->seq != 0) << FLAG_SEQ;
 	layer |= (sf->index != 0) << FLAG_INDEX;
-	layer |= (sf->extent != 0) << FLAG_EXTENT;
+	layer |= (sf->area != 0) << FLAG_AREA;
 	layer |= sf->has_id << FLAG_ID;
 	layer |= sf->has_tippecanoe_minzoom << FLAG_MINZOOM;
 	layer |= sf->has_tippecanoe_maxzoom << FLAG_MAXZOOM;
@@ -236,8 +236,8 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	if (sf->label_point != 0) {
 		serialize_ulong_long(geomfile, sf->label_point, geompos, fname);
 	}
-	if (sf->extent != 0) {
-		serialize_long_long(geomfile, sf->extent, geompos, fname);
+	if (sf->area != 0) {
+		serialize_long_long(geomfile, sf->area, geompos, fname);
 	}
 
 	serialize_long_long(geomfile, sf->metapos, geompos, fname);
@@ -290,7 +290,7 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 
 	sf.index = 0;
 	sf.label_point = 0;
-	sf.extent = 0;
+	sf.area = 0;
 
 	sf.geometry = decode_geometry(geoms, geompos_in, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 	if (sf.layer & (1 << FLAG_INDEX)) {
@@ -299,8 +299,8 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
 		deserialize_ulong_long_io(geoms, &sf.label_point, geompos_in);
 	}
-	if (sf.layer & (1 << FLAG_EXTENT)) {
-		deserialize_long_long_io(geoms, &sf.extent, geompos_in);
+	if (sf.layer & (1 << FLAG_AREA)) {
+		deserialize_long_long_io(geoms, &sf.area, geompos_in);
 	}
 
 	sf.layer >>= FLAG_LAYER;
@@ -525,12 +525,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 		if (prevent[P_CLIPPING]) {
 			static std::atomic<long long> warned(0);
-			long long extent = ((sf.bbox[2] - sf.bbox[0]) / ((1LL << (32 - sst->maxzoom)) + 1)) * ((sf.bbox[3] - sf.bbox[1]) / ((1LL << (32 - sst->maxzoom)) + 1));
-			if (extent > warned) {
-				fprintf(stderr, "Warning: %s:%d: Large unclipped (-pc) feature may be duplicated across %lld tiles\n", sst->fname, sst->line, extent);
-				warned = extent;
+			long long area = ((sf.bbox[2] - sf.bbox[0]) / ((1LL << (32 - sst->maxzoom)) + 1)) * ((sf.bbox[3] - sf.bbox[1]) / ((1LL << (32 - sst->maxzoom)) + 1));
+			if (area > warned) {
+				fprintf(stderr, "Warning: %s:%d: Large unclipped (-pc) feature may be duplicated across %lld tiles\n", sst->fname, sst->line, area);
+				warned = area;
 
-				if (extent > 10000) {
+				if (area > 10000) {
 					fprintf(stderr, "Exiting because this can't be right.\n");
 					exit(EXIT_IMPOSSIBLE);
 				}
@@ -538,7 +538,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		}
 	}
 
-	double extent = 0;
+	double area = 0;
 	if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED] || order_by_size) {
 		if (sf.t == VT_POLYGON) {
 			for (size_t i = 0; i < scaled_geometry.size(); i++) {
@@ -550,7 +550,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						}
 					}
 
-					extent += SHIFT_LEFT(SHIFT_LEFT(1LL)) * get_area(scaled_geometry, i, j);
+					area += SHIFT_LEFT(SHIFT_LEFT(1LL)) * get_area(scaled_geometry, i, j);
 					i = j - 1;
 				}
 			}
@@ -564,16 +564,16 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 				}
 			}
 			// treat lines as having the area of a circle with the line as diameter
-			extent = M_PI * (dist / 2) * (dist / 2);
+			area = M_PI * (dist / 2) * (dist / 2);
 		}
 
-		// VT_POINT extent will be calculated in write_tile from the distance between adjacent features.
+		// VT_POINT area will be calculated in write_tile from the distance between adjacent features.
 	}
 
-	if (extent <= LLONG_MAX) {
-		sf.extent = (long long) extent;
+	if (area <= LLONG_MAX) {
+		sf.area = (long long) area;
 	} else {
-		sf.extent = LLONG_MAX;
+		sf.area = LLONG_MAX;
 	}
 
 	if (!prevent[P_INPUT_ORDER]) {
