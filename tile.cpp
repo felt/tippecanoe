@@ -96,6 +96,7 @@ struct coalesce {
 	double spacing = 0;
 	bool has_id = false;
 	unsigned long long id = 0;
+	long long extent = 0;
 
 	bool operator<(const coalesce &o) const {
 		int cmp = coalindexcmp(this, &o);
@@ -250,6 +251,13 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 }
 
 static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
+	if (key == ORDER_BY_SIZE) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+
 	const std::vector<long long> &keys1 = c1->keys;
 	const std::vector<long long> &values1 = c1->values;
 	const char *stringpool1 = c1->stringpool;
@@ -2285,6 +2293,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					c.spacing = partials[i].spacing;
 					c.id = partials[i].id;
 					c.has_id = partials[i].has_id;
+					c.extent = partials[i].extent;
 
 					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 

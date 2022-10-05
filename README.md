@@ -506,6 +506,8 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-ah` or `--hilbert`: Put features in Hilbert Curve order instead of the usual Z-Order. This improves the odds that spatially adjacent features will be sequentially adjacent, and should improve density calculations and spatial coalescing. It should be the default eventually.
  * `--order-by=`_attribute_: Order features by the specified _attribute_, in alphabetical or numerical order. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
  * `--order-descending-by=`_attribute_: Order features by the specified _attribute_, in reverse alphabetical or numerical order. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
+ * `--order-smallest-first`: Order features so the smallest geometry comes first in each tile. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
+ * `--order-largest-first`: Order features so the largest geometry comes first in each tile. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
 
 ### Adding calculated attributes
 

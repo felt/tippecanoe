@@ -1,6 +1,7 @@
 ## 2.9.0
 
 * Add an option to generate label points in place of polygons
+* Add --order-smallest-first and --order-largest-first options
 
 ## 2.8.1
 
