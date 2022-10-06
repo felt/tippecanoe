@@ -22,7 +22,7 @@
 #include "options.hpp"
 #include "errors.hpp"
 
-static int pnpoly(drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
+static int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
 static int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 
 drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
@@ -411,7 +411,7 @@ The name of W. Randolph Franklin may not be used to endorse or promote products 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-static int pnpoly(drawvec &vert, size_t start, size_t nvert, long long testx, long long testy) {
+static int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy) {
 	size_t i, j;
 	bool c = false;
 	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
@@ -1483,6 +1483,40 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 					draw d(VT_MOVETO, xsum / count, ysum / count);
 					d = centerOfMass(geom, i, j, d);
 
+					if (!pnpoly(geom, i, j - i - 1, d.x, d.y)) {
+						// Center of mass is not actually within the polygon,
+						// so just start trying to subdivide the bounding box
+						// until something works.
+
+						long long xmin = LLONG_MAX, ymin = LLONG_MAX, xmax = LLONG_MIN, ymax = LLONG_MIN;
+						for (size_t k = i + 1; k < j; k++) {
+							xmin = std::min(xmin, geom[k].x);
+							ymin = std::min(ymin, geom[k].y);
+							xmax = std::max(xmax, geom[k].x);
+							ymax = std::max(ymax, geom[k].y);
+						}
+
+						for (long long sub = 2;
+                                                    sub < 128 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
+                                                    sub *= 2) {
+							for (long long x = 1; x < sub; x++) {
+								for (long long y = 1; y < sub; y++) {
+									printf("try %lld,%lld / %lld\n", x, y, sub);
+									draw maybe(VT_MOVETO,
+									           xmin + x * (xmax - xmin) / sub,
+									           ymin + y * (ymax - ymin) / sub);
+									if (pnpoly(geom, i, j - 1, maybe.x, maybe.y)) {
+										d = maybe;
+										printf("ok!\n");
+										goto found;
+									}
+								}
+							}
+						}
+						printf("fail! %lld,%lld %lld,%lld\n", xmin, ymin, xmax, ymax);
+					}
+
+found:
 					polygon_label pl;
 					pl.size = area;
 					pl.point = d;
