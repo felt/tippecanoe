@@ -1368,19 +1368,19 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 // https://github.com/Turfjs/turf/blob/master/packages/turf-center-of-mass/index.ts
 //
 // The MIT License (MIT)
-// 
+//
 // Copyright (c) 2019 Morgan Herlocker
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in
 // the Software without restriction, including without limitation the rights to
 // use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
 // the Software, and to permit persons to whom the Software is furnished to do so,
 // subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
 // FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
@@ -1451,30 +1451,43 @@ struct polygon_label {
 	}
 };
 
-bool acceptable(const drawvec &dv, size_t start, size_t count, long long x, long long y, long long xmin, long long ymin, long long xmax, long long ymax) {
+double label_goodness(const drawvec &dv, size_t start, size_t count, long long x, long long y) {
 	if (!pnpoly(dv, start, count, x, y)) {
-		return false;
+		return 0;  // outside the polygon is as bad as it gets
 	}
 
-	// minimal acceptable distance from border:
-	double min = ceil(sqrt((xmax - xmin) * (xmax - xmin) + (ymax - ymin) * (ymax - ymin)) * 0.05);
-	double squaremin = min * min;
+	double closest = INFINITY;  // square of closest distance to the border
 
 	for (size_t i = start; i < start + count; i++) {
 		double dx = dv[i].x - x;
 		double dy = dv[i].y - y;
 		double squared = dx * dx + dy * dy;
-		if (squared < squaremin) {
-			printf("within but too close to the border\n");
-			return false;
+		if (squared < closest) {
+			closest = squared;
 		}
 	}
 
-	return true;
+	return sqrt(closest);
 }
 
-// Generate a label point for a polygon feature, currently at the centroid of its largest-area
-// outer ring within the tile.
+// Generate a label point for a polygon feature.
+//
+// A good label point will be near the center of the feature and far from any border.
+//
+// Polylabel is supposed to be able to do this optimally, but can be quite slow
+// and sometimes still produces some odd results.
+//
+// The centroid is often off-center because edges with many curves will be
+// weighted higher than edges with straight lines.
+//
+// Turf's center-of-mass algorithm generally does a good job, but can sometimes
+// find a point that is outside the bounds of the polygon or quite close to the edge.
+//
+// So prefer the center of mass, but if it produces something too close to the border
+// or outside the polygon, try a series of gridded points within the feature's bounding box
+// until something works well, or if nothing does after several iterations, use the
+// least-bad option.
+
 drawvec polygon_to_anchor(const drawvec &geom) {
 	std::vector<polygon_label> labels;
 	drawvec dv;
@@ -1495,6 +1508,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 			double area = get_area(geom, i, j);
 			if (area > 0) {	 // don't generate anchors for holes
+				// Calculate centroid and bounding box.
 				// i + 1 to exclude the first point, which is duplicated as the last
 				for (size_t k = i + 1; k < j; k++) {
 					xsum += geom[k].x;
@@ -1508,35 +1522,47 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				}
 
 				if (count > 0) {
-					draw d(VT_MOVETO, xsum / count, ysum / count);
-					d = centerOfMass(geom, i, j, d);
+					draw centroid(VT_MOVETO, xsum / count, ysum / count);
+					draw d = centerOfMass(geom, i, j, centroid);
 
-					if (!acceptable(geom, i, j - i - 1, d.x, d.y, xmin, ymin, xmax, ymax)) {
-						// Center of mass is not actually within the polygon,
-						// so just start trying to subdivide the bounding box
-						// until something works.
+					double radius = sqrt(area / M_PI);
+					double goodness_threshold = radius / 5;
+
+					double goodness = label_goodness(geom, i, j - i - 1, d.x, d.y);
+					if (goodness < goodness_threshold) {
+						// Label is too close to the border or outside it,
+						// so try some other possible points
 
 						for (long long sub = 2;
-                                                    sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
-                                                    sub *= 2) {
+						     sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
+						     sub *= 2) {
 							for (long long x = 1; x < sub; x++) {
 								for (long long y = 1; y < sub; y++) {
-									printf("try %lld,%lld / %lld\n", x, y, sub);
 									draw maybe(VT_MOVETO,
-									           xmin + x * (xmax - xmin) / sub,
-									           ymin + y * (ymax - ymin) / sub);
-									if (acceptable(geom, i, j - 1, maybe.x, maybe.y, xmin, ymin, xmax, ymax)) {
+										   xmin + x * (xmax - xmin) / sub,
+										   ymin + y * (ymax - ymin) / sub);
+
+									double maybe_goodness = label_goodness(geom, i, j - i, maybe.x, maybe.y);
+									if (maybe_goodness > goodness) {
+										// better than the previous
 										d = maybe;
-										printf("ok!\n");
-										goto found;
+										goodness = maybe_goodness;
 									}
 								}
 							}
+
+							if (goodness > goodness_threshold) {
+								break;
+							}
 						}
-						printf("fail! %lld,%lld %lld,%lld\n", xmin, ymin, xmax, ymax);
+
+						// There is nothing really good. Is the centroid maybe better?
+						// If not, we're stuck with whatever the best we found was.
+						if (label_goodness(geom, i, j - i, centroid.x, centroid.y) > goodness) {
+							d = centroid;
+						}
 					}
 
-found:
 					polygon_label pl;
 					pl.size = area;
 					pl.point = d;
