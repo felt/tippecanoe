@@ -1451,6 +1451,28 @@ struct polygon_label {
 	}
 };
 
+bool acceptable(const drawvec &dv, size_t start, size_t count, long long x, long long y, long long xmin, long long ymin, long long xmax, long long ymax) {
+	if (!pnpoly(dv, start, count, x, y)) {
+		return false;
+	}
+
+	// minimal acceptable distance from border:
+	double min = ceil(sqrt((xmax - xmin) * (xmax - xmin) + (ymax - ymin) * (ymax - ymin)) * 0.05);
+	double squaremin = min * min;
+
+	for (size_t i = start; i < start + count; i++) {
+		double dx = dv[i].x - x;
+		double dy = dv[i].y - y;
+		double squared = dx * dx + dy * dy;
+		if (squared < squaremin) {
+			printf("within but too close to the border\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
 // Generate a label point for a polygon feature, currently at the centroid of its largest-area
 // outer ring within the tile.
 drawvec polygon_to_anchor(const drawvec &geom) {
@@ -1469,6 +1491,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			long long xsum = 0;
 			long long ysum = 0;
 			size_t count = 0;
+			long long xmin = LLONG_MAX, ymin = LLONG_MAX, xmax = LLONG_MIN, ymax = LLONG_MIN;
 
 			double area = get_area(geom, i, j);
 			if (area > 0) {	 // don't generate anchors for holes
@@ -1477,27 +1500,24 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 					xsum += geom[k].x;
 					ysum += geom[k].y;
 					count++;
+
+					xmin = std::min(xmin, geom[k].x);
+					ymin = std::min(ymin, geom[k].y);
+					xmax = std::max(xmax, geom[k].x);
+					ymax = std::max(ymax, geom[k].y);
 				}
 
 				if (count > 0) {
 					draw d(VT_MOVETO, xsum / count, ysum / count);
 					d = centerOfMass(geom, i, j, d);
 
-					if (!pnpoly(geom, i, j - i - 1, d.x, d.y)) {
+					if (!acceptable(geom, i, j - i - 1, d.x, d.y, xmin, ymin, xmax, ymax)) {
 						// Center of mass is not actually within the polygon,
 						// so just start trying to subdivide the bounding box
 						// until something works.
 
-						long long xmin = LLONG_MAX, ymin = LLONG_MAX, xmax = LLONG_MIN, ymax = LLONG_MIN;
-						for (size_t k = i + 1; k < j; k++) {
-							xmin = std::min(xmin, geom[k].x);
-							ymin = std::min(ymin, geom[k].y);
-							xmax = std::max(xmax, geom[k].x);
-							ymax = std::max(ymax, geom[k].y);
-						}
-
 						for (long long sub = 2;
-                                                    sub < 128 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
+                                                    sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
                                                     sub *= 2) {
 							for (long long x = 1; x < sub; x++) {
 								for (long long y = 1; y < sub; y++) {
@@ -1505,7 +1525,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 									draw maybe(VT_MOVETO,
 									           xmin + x * (xmax - xmin) / sub,
 									           ymin + y * (ymax - ymin) / sub);
-									if (pnpoly(geom, i, j - 1, maybe.x, maybe.y)) {
+									if (acceptable(geom, i, j - 1, maybe.x, maybe.y, xmin, ymin, xmax, ymax)) {
 										d = maybe;
 										printf("ok!\n");
 										goto found;
