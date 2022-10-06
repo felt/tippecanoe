@@ -1365,12 +1365,89 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 	return out;
 }
 
+// https://github.com/Turfjs/turf/blob/master/packages/turf-center-of-mass/index.ts
+//
+// The MIT License (MIT)
+// 
+// Copyright (c) 2019 Morgan Herlocker
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+draw centerOfMass(const drawvec &dv, size_t start, size_t end, draw centre) {
+	std::vector<draw> coords;
+	for (size_t i = start; i < end; i++) {
+		coords.push_back(dv[i]);
+	}
+
+	// First, we neutralize the feature (set it around coordinates [0,0]) to prevent rounding errors
+	// We take any point to translate all the points around 0
+	draw translation = centre;
+	double sx = 0;
+	double sy = 0;
+	double sArea = 0;
+	draw pi, pj;
+	double xi, xj, yi, yj, a;
+
+	std::vector<draw> neutralizedPoints;
+	for (size_t i = 0; i < coords.size(); i++) {
+		neutralizedPoints.push_back(draw(coords[i].op, coords[i].x - translation.x, coords[i].y - translation.y));
+	}
+
+	for (size_t i = 0; i < coords.size() - 1; i++) {
+		// pi is the current point
+		pi = neutralizedPoints[i];
+		xi = pi.x;
+		yi = pi.y;
+
+		// pj is the next point (pi+1)
+		pj = neutralizedPoints[i + 1];
+		xj = pj.x;
+		yj = pj.y;
+
+		// a is the common factor to compute the signed area and the final coordinates
+		a = xi * yj - xj * yi;
+
+		// sArea is the sum used to compute the signed area
+		sArea += a;
+
+		// sx and sy are the sums used to compute the final coordinates
+		sx += (xi + xj) * a;
+		sy += (yi + yj) * a;
+	}
+
+	// Shape has no area: fallback on turf.centroid
+	if (sArea == 0) {
+		return centre;
+	} else {
+		// Compute the signed area, and factorize 1/6A
+		double area = sArea * 0.5;
+		double areaFactor = 1 / (6 * area);
+
+		// Compute the final coordinates, adding back the values that have been neutralized
+		return draw(VT_MOVETO, translation.x + areaFactor * sx, translation.y + areaFactor * sy);
+	}
+}
+
 struct polygon_label {
 	long long size;
 	draw point;
 
 	bool operator<(const polygon_label &o) const {
-		return size > o.size; // reverse sort, largest first
+		return size > o.size;  // reverse sort, largest first
 	}
 };
 
@@ -1394,7 +1471,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			size_t count = 0;
 
 			double area = get_area(geom, i, j);
-			if (area > 0) {  // don't generate anchors for holes
+			if (area > 0) {	 // don't generate anchors for holes
 				// i + 1 to exclude the first point, which is duplicated as the last
 				for (size_t k = i + 1; k < j; k++) {
 					xsum += geom[k].x;
@@ -1404,6 +1481,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 				if (count > 0) {
 					draw d(VT_MOVETO, xsum / count, ysum / count);
+					d = centerOfMass(geom, i, j, d);
 
 					polygon_label pl;
 					pl.size = area;
@@ -1425,4 +1503,3 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 	return dv;
 }
-
