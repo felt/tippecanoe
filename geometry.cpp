@@ -1488,7 +1488,7 @@ double label_goodness(const drawvec &dv, size_t start, size_t count, long long x
 // until something works well, or if nothing does after several iterations, use the
 // least-bad option.
 
-drawvec polygon_to_anchor(const drawvec &geom, bool good) {
+drawvec polygon_to_anchor(const drawvec &geom) {
 	std::vector<polygon_label> labels;
 	drawvec dv;
 
@@ -1525,43 +1525,41 @@ drawvec polygon_to_anchor(const drawvec &geom, bool good) {
 					draw centroid(VT_MOVETO, xsum / count, ysum / count);
 					draw d = centerOfMass(geom, i, j, centroid);
 
-					if (good) {
-						double radius = sqrt(area / M_PI);
-						double goodness_threshold = radius / 5;
+					double radius = sqrt(area / M_PI);
+					double goodness_threshold = radius / 5;
 
-						double goodness = label_goodness(geom, i, j - i - 1, d.x, d.y);
-						if (goodness < goodness_threshold) {
-							// Label is too close to the border or outside it,
-							// so try some other possible points
+					double goodness = label_goodness(geom, i, j - i - 1, d.x, d.y);
+					if (goodness < goodness_threshold) {
+						// Label is too close to the border or outside it,
+						// so try some other possible points
 
-							for (long long sub = 2;
-							     sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
-							     sub *= 2) {
-								for (long long x = 1; x < sub; x++) {
-									for (long long y = 1; y < sub; y++) {
-										draw maybe(VT_MOVETO,
-											   xmin + x * (xmax - xmin) / sub,
-											   ymin + y * (ymax - ymin) / sub);
+						for (long long sub = 2;
+						     sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
+						     sub *= 2) {
+							for (long long x = 1; x < sub; x++) {
+								for (long long y = 1; y < sub; y++) {
+									draw maybe(VT_MOVETO,
+										   xmin + x * (xmax - xmin) / sub,
+										   ymin + y * (ymax - ymin) / sub);
 
-										double maybe_goodness = label_goodness(geom, i, j - i, maybe.x, maybe.y);
-										if (maybe_goodness > goodness) {
-											// better than the previous
-											d = maybe;
-											goodness = maybe_goodness;
-										}
+									double maybe_goodness = label_goodness(geom, i, j - i, maybe.x, maybe.y);
+									if (maybe_goodness > goodness) {
+										// better than the previous
+										d = maybe;
+										goodness = maybe_goodness;
 									}
 								}
-
-								if (goodness > goodness_threshold) {
-									break;
-								}
 							}
 
-							// There is nothing really good. Is the centroid maybe better?
-							// If not, we're stuck with whatever the best we found was.
-							if (label_goodness(geom, i, j - i, centroid.x, centroid.y) > goodness) {
-								d = centroid;
+							if (goodness > goodness_threshold) {
+								break;
 							}
+						}
+
+						// There is nothing really good. Is the centroid maybe better?
+						// If not, we're stuck with whatever the best we found was.
+						if (label_goodness(geom, i, j - i, centroid.x, centroid.y) > goodness) {
+							d = centroid;
 						}
 					}
 

@@ -2105,7 +2105,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 
 				sf.t = VT_POINT;
-				sf.geometry = polygon_to_anchor(sf.geometry, true);
+				sf.geometry = polygon_to_anchor(sf.geometry);
 			}
 
 			if (sf.geometry.size() > 0) {
