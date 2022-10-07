@@ -13,9 +13,9 @@
 }, "features": [
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "layer1359089124", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "rule": "type: 2, [\"in\", \"$type\", \"LineString\", \"Polygon\"]" }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] } }
-,
 { "type": "Feature", "properties": { "rule": "type: 3, [\"in\", \"$type\", \"LineString\", \"Polygon\"]" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 0.966797, 1.054628 ], [ 0.966797, 0.000000 ], [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "rule": "type: 2, [\"in\", \"$type\", \"LineString\", \"Polygon\"]" }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] } }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "layer1392333553", "version": 2, "extent": 4096 }, "features": [
@@ -123,9 +123,9 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "layer3115744778", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "rule": "type: 2, [\"in\", \"$type\", \"Polygon\", \"LineString\", \"Point\"]" }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] } }
-,
 { "type": "Feature", "properties": { "rule": "type: 3, [\"in\", \"$type\", \"Polygon\", \"LineString\", \"Point\"]" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 0.966797, 1.054628 ], [ 0.966797, 0.000000 ], [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "rule": "type: 2, [\"in\", \"$type\", \"Polygon\", \"LineString\", \"Point\"]" }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] } }
 ,
 { "type": "Feature", "properties": { "rule": "type: 1, [\"in\", \"$type\", \"Polygon\", \"LineString\", \"Point\"]" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
 ] }
@@ -293,9 +293,9 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "notlayer2275670193", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "rule": "not type: 2, [\"!in\", \"$type\", \"LineString\", \"Polygon\"]" }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] } }
-,
 { "type": "Feature", "properties": { "rule": "not type: 3, [\"!in\", \"$type\", \"LineString\", \"Polygon\"]" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 0.966797, 1.054628 ], [ 0.966797, 0.000000 ], [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "rule": "not type: 2, [\"!in\", \"$type\", \"LineString\", \"Polygon\"]" }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.966797, 1.054628 ] ] } }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "notlayer2333214707", "version": 2, "extent": 4096 }, "features": [

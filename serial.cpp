@@ -565,8 +565,24 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		// keep old behavior, which loses one bit of precision at the bottom
 		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
 		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+	} else if (sf.t == VT_POLYGON) {
+		// generate a label point, but without doing the extra work to find one
+		// that is as far as possible from the borders
+		drawvec dv = polygon_to_anchor(sf.geometry, false);
+		if (dv.size() > 0) {
+			midx = dv[0].x;
+			midy = dv[0].y;
+		} else {
+			// shouldn't happen, but just in case
+			midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
+			midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+		}
+
+		// If off the edge of the plane, mask to bring it back into the addressable area
+		midx = midx & ((1LL << 32) - 1);
+		midy = midy & ((1LL << 32) - 1);
 	} else {
-		// To reduce the chances of giving multiple polygons or linestrings
+		// To reduce the chances of giving multiple linestrings
 		// the same index, use an arbitrary but predictable point from the
 		// geometry as the index point rather than the bounding box center
 		// as was previously used. The index point chosen comes from a hash
