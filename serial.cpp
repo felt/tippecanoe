@@ -589,7 +589,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	bbox_index = encode_index(midx, midy);
 
-	if (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED] || additional[A_CALCULATE_FEATURE_DENSITY] || additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED] || additional[A_INCREASE_GAMMA_AS_NEEDED] || sst->uses_gamma || cluster_distance != 0) {
+	if (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED] || additional[A_CALCULATE_FEATURE_DENSITY] || additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED] || additional[A_INCREASE_GAMMA_AS_NEEDED] || additional[A_GENERATE_POLYGON_LABEL_POINTS]|| sst->uses_gamma || cluster_distance != 0) {
 		sf.index = bbox_index;
 	} else {
 		sf.index = 0;

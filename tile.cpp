@@ -1800,7 +1800,7 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 	return true;
 }
 
-long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, char *stringpool, int z, unsigned tx, unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, size_t passes, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
+long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, size_t passes, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -2085,6 +2085,25 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				// Checkerboard which tiles labels are generated for this polygon in,
+				// so we don't end up with multiple labels right next to each other.
+				// There is a label in the tile that the polygon nominally belongs to,
+				// and in other tiles reachable diagonally from there, but not in
+				// the ones directly on either side.
+
+				unsigned wx, wy;
+				decode_index(sf.index, &wx, &wy);
+
+				unsigned poly_tx = 0, poly_ty = 0;
+				if (z != 0) {
+					poly_tx = wx >> (32 - z);
+					poly_ty = wy >> (32 - z);
+
+					if (((tx - poly_tx + ty - poly_ty) & 1) != 0) {
+						continue;
+					}
+				}
+
 				sf.t = VT_POINT;
 				sf.geometry = polygon_to_anchor(sf.geometry);
 			}
