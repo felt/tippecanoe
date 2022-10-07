@@ -324,7 +324,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -414,6 +414,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.metapos = metastart;
 					sf.geometry = geom2;
 					sf.index = index;
+					sf.label_point = label_point;
 					sf.extent = extent;
 					sf.feature_minzoom = feature_minzoom;
 
@@ -1430,7 +1431,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 
 		if (*first_time && pass == 1) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.extent);
+				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
 			}
 		}
 
@@ -1812,7 +1813,6 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 	// anchor point in world coordinates
 	unsigned wx, wy;
 	decode_index(label_point, &wx, &wy);
-	printf("point %u,%u\n", wx, wy);
 
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
@@ -1825,7 +1825,6 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 		tx2 = (long long) (tx + 1) << (32 - z);
 		ty2 = (long long) (ty + 1) << (32 - z);
 	}
-	printf("tile %lld,%lld to %lld,%lld\n", tx1, ty1, tx2, ty2);
 
 	// min and max distance of corners of this tile from the label point
 	double min_radius, max_radius;
@@ -1845,16 +1844,12 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 				       std::max(dist(wx, wy, tx2, ty2),
 						dist(wx, wy, tx1, ty2))));
 
-	printf("radius (world) %f to %f\n", min_radius, max_radius);
-
 	// from world coordinates to tiles
 	min_radius /= 1LL << (32 - z);
 	max_radius /= 1LL << (32 - z);
 
-	printf("radius (tiles) %f to %f\n", min_radius, max_radius);
-
-	// labels complete a circle every 0.02 tiles of radius
-	const double spiral_dist = 0.02;
+	// labels complete a circle every 0.4 tiles of radius
+	const double spiral_dist = 0.4;
 
 	size_t min_i = pow(min_radius / spiral_dist, 2);
 	size_t max_i = pow(max_radius / spiral_dist, 2);
@@ -1862,7 +1857,6 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 	// https://craftofcoding.wordpress.com/tag/sunflower-spiral/
 	double angle = M_PI * (3.0 - sqrt(5.0));  // 137.5 in radians
 
-	printf("making points %zu to %zu\n", min_i, max_i);
 	for (size_t i = min_i; i <= max_i; i++) {
 		double r = sqrt(i) * spiral_dist;
 		double theta = i * angle;
@@ -1871,7 +1865,25 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 		long long y = r * sin(theta) * (1LL << (32 - z)) + wy;
 
 		if (x >= tx1 && x <= tx2 && y >= ty1 && y <= ty2) {
-			out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+			// is it actually inside the bounding box of the feature? then keep it.
+
+			for (size_t a = 0; a < geom.size(); a++) {
+				if (geom[a].op == VT_MOVETO) {
+					size_t b;
+					for (b = a + 1; b < geom.size(); b++) {
+						if (geom[b].op != VT_LINETO) {
+							break;
+						}
+					}
+
+					if (pnpoly(geom, a, b - a, x - tx1, y - ty1)) {
+						out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+						break;
+					}
+
+					a = b - 1;
+				}
+			}
 		}
 	}
 
