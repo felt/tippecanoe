@@ -77,6 +77,7 @@ void check_polygon(drawvec &geom);
 double get_area(const drawvec &geom, size_t i, size_t j);
 double get_mp_area(drawvec &geom);
 drawvec polygon_to_anchor(const drawvec &geom);
+drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point);
 
 drawvec simple_clip_poly(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 drawvec clip_lines(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
