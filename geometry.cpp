@@ -1659,15 +1659,11 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 						out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
 						break;
 					} else {
-						double area = get_area(geom, a, b);
-
-						if (area > 0) {
-							double radius = sqrt(area / M_PI);
-							double goodness_threshold = radius / 5;
-							if (label_goodness(geom, a, b - a, x - tx1, y - ty1) > goodness_threshold) {
-								out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
-								break;
-							}
+						double tilesize = 1LL << (32 - z);
+						double goodness_threshold = tilesize / 100;
+						if (label_goodness(geom, a, b - a, x - tx1, y - ty1) > goodness_threshold) {
+							out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+							break;
 						}
 					}
 
