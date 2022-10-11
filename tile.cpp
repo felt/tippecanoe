@@ -1884,6 +1884,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		FILE *prefilter_read_fp = NULL;
 		json_pull *prefilter_jp = NULL;
 
+		serial_feature tiny_feature;
+
 		if (z < minzoom) {
 			prefilter = NULL;
 			postfilter = NULL;
@@ -2072,7 +2074,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			bool reduced = false;
 			if (sf.t == VT_POLYGON) {
 				if (!prevent[P_TINY_POLYGON_REDUCTION] && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area);
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
 					if (reduced) {
 						strategy->tiny_polygons++;
 					}

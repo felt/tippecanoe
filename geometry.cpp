@@ -590,9 +590,11 @@ drawvec simple_clip_poly(drawvec &geom, int z, int buffer) {
 	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer);
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area) {
+drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
+	bool includes_real = false;
+	bool includes_dust = false;
 
 	*reduced = true;
 	bool included_last_outer = false;
@@ -636,6 +638,7 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
 						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel));
 						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
+						includes_dust = true;
 
 						*accum_area -= pixel * pixel;
 					}
@@ -655,6 +658,7 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 					// which means that the overall polygon has a real geometry,
 					// which means that it gets to be simplified.
 					*reduced = false;
+					includes_real = true;
 
 					if (area > 0) {
 						included_last_outer = true;
@@ -672,6 +676,28 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 			fprintf(stderr, "\n");
 
 			out.push_back(geom[i]);
+			includes_real = true;
+		}
+	}
+
+	if (!includes_real) {
+		if (includes_dust) {
+			// this geometry is just dust, so if there is another feature that
+			// contributed to the dust that is larger than this feature,
+			// keep its attributes instead of this one that just happened to be
+			// the one that hit the threshold of survival.
+
+			if (tiny_feature->extent > this_feature->extent) {
+				*this_feature = *tiny_feature;
+				tiny_feature->extent = 0;
+			}
+		} else {
+			// this is a feature that we are throwing away, so hang on to it
+			// attributes if it is bigger than the biggest one we threw away so far
+
+			if (this_feature->extent > tiny_feature->extent) {
+				*tiny_feature = *this_feature;
+			}
 		}
 	}
 
