@@ -40,7 +40,6 @@ unit
 # Tests
 tests/**/*.mbtiles
 tests/**/*.check
-tests/**/*.geobuf
 
 # Vim
 *.swp

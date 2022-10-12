@@ -19,7 +19,7 @@ def lambda_handler(event, context):
         'body': json.dumps('Done!')
     }
 
-# input formats: "geojsonseq", "fgb", "geobuf", "geojson", "csv"
+# input formats: "geojsonseq", "fgb", "geojson", "csv"
 def split_key(key):
     if key.endswith(".gz"):
         root, ext = os.path.splitext(key[0:-3])

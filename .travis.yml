@@ -103,8 +103,7 @@ install:
  - BUILDTYPE=${BUILDTYPE} make -j
 
 script:
- - npm install geobuf
  - if [ -n "${FEWER}" ]; then
        BUILDTYPE=${BUILDTYPE} make fewer-tests; else
-       BUILDTYPE=${BUILDTYPE} make test geobuf-test;
+       BUILDTYPE=${BUILDTYPE} make test;
    fi
