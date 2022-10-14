@@ -1,6 +1,7 @@
 ## 2.10.0
 
 * Change sqlite3 schema to deduplicate identical tiles
+* Limit guessed maxzoom to avoid spending too many tiles on polygon fill
 
 ## 2.9.0
 
