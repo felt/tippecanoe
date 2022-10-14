@@ -1,3 +1,7 @@
+## 2.10.0
+
+* Change sqlite3 schema to deduplicate identical tiles
+
 ## 2.9.0
 
 * Add an option to generate label points in place of polygons
