@@ -2900,10 +2900,10 @@ int main(int argc, char **argv) {
 				order_by.push_back(order_field(ORDER_BY_SIZE, true));
 				order_by_size = true;
 			} else if (strcmp(opt, "order-prominent-first") == 0) {
-				order_by.push_back(order_field(ORDER_BY_PROMINENCE, false));
+				order_by.push_back(order_field(ORDER_BY_PROMINENCE, true));
 				order_by_prominence = true;
 			} else if (strcmp(opt, "order-prominent-last") == 0) {
-				order_by.push_back(order_field(ORDER_BY_PROMINENCE, true));
+				order_by.push_back(order_field(ORDER_BY_PROMINENCE, false));
 				order_by_prominence = true;
 			} else if (strcmp(opt, "simplification-at-maximum-zoom") == 0) {
 				maxzoom_simplification = atof_require(optarg, "Mazoom simplification");
