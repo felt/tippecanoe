@@ -192,8 +192,9 @@ static void write_geometry(drawvec const &dv, std::atomic<long long> *fpos, FILE
 void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long> *geompos, const char *fname, long long wx, long long wy, bool include_minzoom) {
 	serialize_byte(geomfile, sf->t, geompos, fname);
 
-#define FLAG_LAYER 7
+#define FLAG_LAYER 8
 
+#define FLAG_PROMINENCE 7
 #define FLAG_LABEL_POINT 6
 #define FLAG_SEQ 5
 #define FLAG_INDEX 4
@@ -208,6 +209,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	layer |= (sf->seq != 0) << FLAG_SEQ;
 	layer |= (sf->index != 0) << FLAG_INDEX;
 	layer |= (sf->area != 0) << FLAG_AREA;
+	layer |= (sf->prominence != 0) << FLAG_PROMINENCE;
 	layer |= sf->has_id << FLAG_ID;
 	layer |= sf->has_tippecanoe_minzoom << FLAG_MINZOOM;
 	layer |= sf->has_tippecanoe_maxzoom << FLAG_MAXZOOM;
@@ -238,6 +240,9 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	}
 	if (sf->area != 0) {
 		serialize_long_long(geomfile, sf->area, geompos, fname);
+	}
+	if (sf->prominence != 0) {
+		serialize_long_long(geomfile, sf->prominence, geompos, fname);
 	}
 
 	serialize_long_long(geomfile, sf->metapos, geompos, fname);
@@ -291,6 +296,7 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	sf.index = 0;
 	sf.label_point = 0;
 	sf.area = 0;
+	sf.prominence = 0;
 
 	sf.geometry = decode_geometry(geoms, geompos_in, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 	if (sf.layer & (1 << FLAG_INDEX)) {
@@ -301,6 +307,9 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	}
 	if (sf.layer & (1 << FLAG_AREA)) {
 		deserialize_long_long_io(geoms, &sf.area, geompos_in);
+	}
+	if (sf.layer & (1 << FLAG_PROMINENCE)) {
+		deserialize_long_long_io(geoms, &sf.prominence, geompos_in);
 	}
 
 	sf.layer >>= FLAG_LAYER;
@@ -539,7 +548,16 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	}
 
 	double area = 0;
-	if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED] || order_by_size) {
+	if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED] || order_by_size || order_by_prominence) {
+		double dist = 0;
+		for (size_t i = 1; i < scaled_geometry.size(); i++) {
+			if (scaled_geometry[i].op == VT_LINETO) {
+				double xd = SHIFT_LEFT(scaled_geometry[i].x - scaled_geometry[i - 1].x);
+				double yd = SHIFT_LEFT(scaled_geometry[i].y - scaled_geometry[i - 1].y);
+				dist += sqrt(xd * xd + yd * yd);
+			}
+		}
+
 		if (sf.t == VT_POLYGON) {
 			for (size_t i = 0; i < scaled_geometry.size(); i++) {
 				if (scaled_geometry[i].op == VT_MOVETO) {
@@ -555,17 +573,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 				}
 			}
 		} else if (sf.t == VT_LINE) {
-			double dist = 0;
-			for (size_t i = 1; i < scaled_geometry.size(); i++) {
-				if (scaled_geometry[i].op == VT_LINETO) {
-					double xd = SHIFT_LEFT(scaled_geometry[i].x - scaled_geometry[i - 1].x);
-					double yd = SHIFT_LEFT(scaled_geometry[i].y - scaled_geometry[i - 1].y);
-					dist += sqrt(xd * xd + yd * yd);
-				}
-			}
 			// treat lines as having the area of a circle with the line as diameter
 			area = M_PI * (dist / 2) * (dist / 2);
 		}
+
+		sf.prominence = sqrt(dist * dist * area);
 
 		// VT_POINT area will be calculated in write_tile from the distance between adjacent features.
 	}

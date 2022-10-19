@@ -508,6 +508,8 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `--order-descending-by=`_attribute_: Order features by the specified _attribute_, in reverse alphabetical or numerical order. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
  * `--order-smallest-first`: Order features so the smallest geometry comes first in each tile. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
  * `--order-largest-first`: Order features so the largest geometry comes first in each tile. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
+ * `--order-prominent-first`: Order features so the most prominent geometry (a combination of size and complexity) comes first in each tile. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
+ * `--order-prominent-last`: Order features so the most prominent geometry (a combination of size and complexity) comes last in each tile. Multiple `--order-by` and `--order-descending-by` options may be specified, the first being the primary sort key.
 
 ### Adding calculated attributes
 

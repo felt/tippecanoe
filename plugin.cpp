@@ -54,7 +54,7 @@ void *run_writer(void *a) {
 
 	json_writer state(fp);
 	for (size_t i = 0; i < wa->layers->size(); i++) {
-		layer_to_geojson((*(wa->layers))[i], wa->z, wa->x, wa->y, false, true, false, true, 0, 0, 0, true, state, 0);
+		layer_to_geojson((*(wa->layers))[i], wa->z, wa->x, wa->y, false, true, false, true, 0, 0, 0, 0, true, state, 0);
 	}
 
 	if (fclose(fp) != 0) {

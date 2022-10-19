@@ -258,7 +258,7 @@ void write_coords(json_writer &state, lonlat const &ll, double scale) {
 	}
 }
 
-void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool dropped, unsigned long long index, long long sequence, long long extent, bool complain, json_writer &state, double scale) {
+void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool dropped, unsigned long long index, long long sequence, long long area, long long prominence, bool complain, json_writer &state, double scale) {
 	for (size_t f = 0; f < layer.features.size(); f++) {
 		mvt_feature const &feat = layer.features[f];
 
@@ -271,7 +271,7 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 			state.json_write_unsigned(feat.id);
 		}
 
-		if (name || zoom || index != 0 || sequence != 0 || extent != 0) {
+		if (name || zoom || index != 0 || sequence != 0 || area != 0 || prominence != 0) {
 			state.json_write_string("tippecanoe");
 			state.json_write_hash();
 
@@ -303,9 +303,13 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 				state.json_write_signed(sequence);
 			}
 
-			if (extent != 0) {
-				state.json_write_string("extent");
-				state.json_write_signed(extent);
+			if (area != 0) {
+				state.json_write_string("extent");  // keep misleading terminology for compatibility
+				state.json_write_signed(area);
+			}
+			if (prominence != 0) {
+				state.json_write_string("prominence");
+				state.json_write_signed(prominence);
 			}
 
 			state.json_end_hash();
@@ -505,16 +509,16 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 			int outer = 0;
 
 			for (size_t i = 0; i < rings.size(); i++) {
-				double area = 0;
+				double poly_area = 0;
 				for (size_t k = 0; k < rings[i].size(); k++) {
 					if (rings[i][k].op != VT_CLOSEPATH) {
-						area += (double) rings[i][k].x * (double) rings[i][(k + 1) % rings[i].size()].y;
-						area -= (double) rings[i][k].y * (double) rings[i][(k + 1) % rings[i].size()].x;
+						poly_area += (double) rings[i][k].x * (double) rings[i][(k + 1) % rings[i].size()].y;
+						poly_area -= (double) rings[i][k].y * (double) rings[i][(k + 1) % rings[i].size()].x;
 					}
 				}
-				area /= 2;
+				poly_area /= 2;
 
-				areas[i] = area;
+				areas[i] = poly_area;
 				if (areas[i] >= 0 || i == 0) {
 					outer++;
 				}

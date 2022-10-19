@@ -58,6 +58,7 @@ struct serial_feature {
 	unsigned long long index = 0;
 	unsigned long long label_point = 0;
 	long long area = 0;
+	long long prominence = 0;
 
 	std::vector<long long> keys{};
 	std::vector<long long> values{};

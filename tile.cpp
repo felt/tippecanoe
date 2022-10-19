@@ -97,6 +97,7 @@ struct coalesce {
 	bool has_id = false;
 	unsigned long long id = 0;
 	long long area = 0;
+	long long prominence = 0;
 
 	bool operator<(const coalesce &o) const {
 		int cmp = coalindexcmp(this, &o);
@@ -256,6 +257,11 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 		v.type = mvt_double;
 		v.numeric_value.double_value = c1->area;
 		return v;
+	} else if (key == ORDER_BY_PROMINENCE) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = c1->prominence;
+		return v;
 	}
 
 	const std::vector<long long> &keys1 = c1->keys;
@@ -324,7 +330,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long area) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long area, long long prominence) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -416,6 +422,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.index = index;
 					sf.label_point = label_point;
 					sf.area = area;
+					sf.prominence = prominence;
 					sf.feature_minzoom = feature_minzoom;
 
 					if (metastart < 0) {
@@ -460,6 +467,7 @@ struct partial {
 	bool has_id = 0;
 	ssize_t renamed = 0;
 	long long area = 0;
+	long long prominence = 0;
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
@@ -1431,7 +1439,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 
 		if (*first_time && pass == 1) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.area);
+				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.area, sf.prominence);
 			}
 		}
 
@@ -1606,7 +1614,7 @@ void *run_prefilter(void *v) {
 		decode_meta(sf.keys, sf.values, rpa->stringpool + rpa->pool_off[sf.segment], tmp_layer, tmp_feature);
 		tmp_layer.features.push_back(tmp_feature);
 
-		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.area, true, state, 0);
+		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.area, sf.prominence, true, state, 0);
 	}
 
 	if (fclose(rpa->prefilter_fp) != 0) {
@@ -1963,12 +1971,14 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			if (sf.t == VT_POINT) {
 				if (area_previndex >= sf.index) {
 					sf.area = 1;
+					sf.prominence = 1;
 				} else {
 					double radius = sqrt(sf.index - area_previndex) / 4.0;
 					sf.area = M_PI * radius * radius;
 					if (sf.area < 1) {
 						sf.area = 1;
 					}
+					sf.prominence = sf.area;
 				}
 
 				area_previndex = sf.index;
@@ -2128,6 +2138,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					p.index = sf.index;
 					p.renamed = -1;
 					p.area = sf.area;
+					p.prominence = sf.prominence;
 					p.clustered = 0;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
@@ -2297,6 +2308,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					c.id = partials[i].id;
 					c.has_id = partials[i].has_id;
 					c.area = partials[i].area;
+					c.prominence = partials[i].prominence;
 
 					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 
