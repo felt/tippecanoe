@@ -687,16 +687,29 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 			// keep its attributes instead of this one that just happened to be
 			// the one that hit the threshold of survival.
 
-			if (tiny_feature->area > this_feature->area) {
-				*this_feature = *tiny_feature;
-				tiny_feature->area = 0;
+			if (order_by_prominence) {
+				if (tiny_feature->prominence > this_feature->prominence) {
+					*this_feature = *tiny_feature;
+					tiny_feature->prominence = 0;
+				}
+			} else if (order_by_size) {
+				if (tiny_feature->area > this_feature->area) {
+					*this_feature = *tiny_feature;
+					tiny_feature->area = 0;
+				}
 			}
 		} else {
 			// this is a feature that we are throwing away, so hang on to it
 			// attributes if it is bigger than the biggest one we threw away so far
 
-			if (this_feature->area > tiny_feature->area) {
-				*tiny_feature = *this_feature;
+			if (order_by_prominence) {
+				if (this_feature->prominence > tiny_feature->prominence) {
+					*tiny_feature = *this_feature;
+				}
+			} else if (order_by_size) {
+				if (this_feature->area > tiny_feature->area) {
+					*tiny_feature = *this_feature;
+				}
 			}
 		}
 	}
