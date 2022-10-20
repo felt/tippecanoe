@@ -44,15 +44,19 @@ struct strategy {
 	size_t coalesced_as_needed = 0;
 	size_t detail_reduced = 0;
 	size_t tile_size = 0;
+	size_t feature_count = 0;
+	size_t geometry_size = 0;
 	size_t tiny_polygons = 0;
 
-	strategy(const atomic_strategy &s, size_t ts) {
+	strategy(const atomic_strategy &s, size_t ts, size_t fc, size_t gs) {
 		dropped_by_rate = s.dropped_by_rate;
 		dropped_by_gamma = s.dropped_by_gamma;
 		dropped_as_needed = s.dropped_as_needed;
 		coalesced_as_needed = s.coalesced_as_needed;
 		detail_reduced = s.detail_reduced;
 		tile_size = ts;
+		feature_count = fc;
+		geometry_size = gs;
 		tiny_polygons = s.tiny_polygons;
 	}
 
