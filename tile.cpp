@@ -1831,8 +1831,6 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		}
 	}
 
-	bool has_polygons = false;
-
 	bool first_time = true;
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
@@ -2081,7 +2079,6 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 						strategy->tiny_polygons++;
 					}
 				}
-				has_polygons = true;
 			}
 			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
 				if (line_is_too_small(sf.geometry, z, line_detail)) {
@@ -2233,10 +2230,9 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		}
 
 		first_time = false;
-		bool merge_successful = true;
 
-		if (additional[A_DETECT_SHARED_BORDERS] || (additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction < 1)) {
-			merge_successful = find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
+		if (additional[A_DETECT_SHARED_BORDERS]) {
+			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
 		}
 
 		int tasks = ceil((double) CPUS / *running);
@@ -2493,14 +2489,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					fprintf(stderr, "tile %d/%u/%u has %lld vertices, >%zu    \n", z, tx, ty, total_geom_size, max_geometry_size);
 				}
 
-				if (has_polygons && additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction > .05 && merge_successful) {
-					merge_fraction = merge_fraction * max_geometry_size / total_geom_size * 0.95;
-					if (!quiet) {
-						fprintf(stderr, "Going to try merging %0.2f%% of the polygons to make it fit\n", 100 - merge_fraction * 100);
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-					continue;
-				} else if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
+				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
 					if (gamma < 1) {
 						gamma = 1;
 					} else {
@@ -2583,14 +2572,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, totalsize, max_tile_features);
 				}
 
-				if (has_polygons && additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction > .05 && merge_successful) {
-					merge_fraction = merge_fraction * max_tile_features / tile.layers.size() * 0.95;
-					if (!quiet) {
-						fprintf(stderr, "Going to try merging %0.2f%% of the polygons to make it fit\n", 100 - merge_fraction * 100);
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-					continue;
-				} else if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
+				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
 					if (gamma < 1) {
 						gamma = 1;
 					} else {
@@ -2692,13 +2674,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 				}
 
-				if (has_polygons && additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction > .05 && merge_successful) {
-					merge_fraction = merge_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.95;
-					if (!quiet) {
-						fprintf(stderr, "Going to try merging %0.2f%% of the polygons to make it fit\n", 100 - merge_fraction * 100);
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-				} else if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
+				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
 					if (gamma < 1) {
 						gamma = 1;
 					} else {
