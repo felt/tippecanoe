@@ -1,6 +1,6 @@
 ## 2.10.0
 
-* Add --maximum-geometry-size option to limit by vertex count
+* Add --maximum-tile-geometry option to limit by vertex count
 
 ## 2.9.0
 
