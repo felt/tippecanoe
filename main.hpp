@@ -53,6 +53,7 @@ extern size_t max_tile_features;
 extern int cluster_distance;
 extern std::string attribute_for_id;
 extern int tiny_polygon_size;
+extern size_t max_geometry_size;
 
 struct order_field {
 	std::string name;

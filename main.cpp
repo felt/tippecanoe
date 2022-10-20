@@ -83,6 +83,7 @@ int cluster_distance = 0;
 int tiny_polygon_size = 2;
 long justx = -1, justy = -1;
 std::string attribute_for_id = "";
+size_t max_geometry_size = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2773,6 +2774,7 @@ int main(int argc, char **argv) {
 		{"Setting or disabling tile size limits", 0, 0, 0},
 		{"maximum-tile-bytes", required_argument, 0, 'M'},
 		{"maximum-tile-features", required_argument, 0, 'O'},
+		{"maximum-tile-geometry", required_argument, 0, '~'},
 		{"no-feature-limit", no_argument, &prevent[P_FEATURE_LIMIT], 1},
 		{"no-tile-size-limit", no_argument, &prevent[P_KILOBYTE_LIMIT], 1},
 		{"no-tile-compression", no_argument, &prevent[P_TILE_COMPRESSION], 1},
@@ -2897,12 +2899,14 @@ int main(int argc, char **argv) {
 				order_by.push_back(order_field(ORDER_BY_SIZE, true));
 				order_by_size = true;
 			} else if (strcmp(opt, "simplification-at-maximum-zoom") == 0) {
-				maxzoom_simplification = atof_require(optarg, "Mazoom simplification");
+				maxzoom_simplification = atof_require(optarg, "Maxzoom simplification");
 				if (maxzoom_simplification <= 0) {
 					fprintf(stderr, "%s: --simplification-at-maximum-zoom must be > 0\n", argv[0]);
 					exit(EXIT_ARGS);
 				}
 				break;
+			} else if (strcmp(opt, "maximum-tile-geometry") == 0) {
+				max_geometry_size = atoll_require(optarg, "Max tile geometry");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
