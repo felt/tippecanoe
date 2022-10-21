@@ -576,11 +576,6 @@ void *partial_feature_worker(void *v) {
 			geom = reorder_lines(geom);
 		}
 
-		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-			t = (*partials)[i].t = VT_POINT;
-			geom = spiral_anchors(geom, (*partials)[i].tx, (*partials)[i].ty, z, (*partials)[i].label_point);
-		}
-
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -602,6 +597,12 @@ void *partial_feature_worker(void *v) {
 					}
 				}
 			}
+		}
+
+		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+			t = (*partials)[i].t = VT_POINT;
+			geom = spiral_anchors(from_tile_scale(geom, z, out_detail), (*partials)[i].tx, (*partials)[i].ty, z, (*partials)[i].label_point);
+			to_tile_scale(geom, z, out_detail);
 		}
 
 		(*partials)[i].index = i;
