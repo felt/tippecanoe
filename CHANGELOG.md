@@ -1,6 +1,10 @@
-## 2.10.0
+## 2.11.0
 
 * Add --maximum-tile-geometry option to limit by vertex count
+
+## 2.10.1
+
+* Upgrade flatbuffers version
 
 ## 2.9.1
 
