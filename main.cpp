@@ -2184,7 +2184,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 
 		for (int i = 1; i < maxzoom; i++) {
 			double tile_count = area_sum / ((1LL << (32 - i)) * (1LL << (32 - i)));
-			if (tile_count > 262144) {
+			if (tile_count > 1048576) {
 				printf("Limiting maxzoom to -z%d to keep from generating %lld tiles\n", i - 1, (long long) tile_count);
 				maxzoom = i - 1;
 				break;
