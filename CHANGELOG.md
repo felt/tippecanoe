@@ -3,6 +3,10 @@
 * Change sqlite3 schema to deduplicate identical tiles
 * Limit guessed maxzoom to avoid spending too many tiles on polygon fill
 
+## 2.9.1
+
+* Do label generation after simplification, not before.
+
 ## 2.9.0
 
 * Add an option to generate label points in place of polygons
