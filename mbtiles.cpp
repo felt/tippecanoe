@@ -100,13 +100,17 @@ sqlite3 *mbtiles_open(char *dbname, char **argv, int forcetable) {
 }
 
 void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data, int size) {
-	// following https://github.com/mapbox/node-mbtiles/blob/master/lib/mbtiles.js
-
+	// Store tiles by a hash of their contents. node-mbtiles uses MD5,
+	// but I am resisting adding the dependency, so instead here is
+	// everybody's first hash function. It is the same as Java's String.hashCode(),
+	// https://docs.oracle.com/javase/6/docs/api/java/lang/String.html#hashCode()
 	unsigned long long h = 0;
 	for (int i = 0; i < size; i++) {
-		h = h * 37 + data[i];
+		h = h * 31 + data[i];
 	}
 	std::string hash = std::to_string(h);
+
+	// following https://github.com/mapbox/node-mbtiles/blob/master/lib/mbtiles.js
 
 	sqlite3_stmt *stmt;
 	const char *images = "replace into images (tile_id, tile_data) values (?, ?)";
