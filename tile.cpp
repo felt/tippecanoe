@@ -450,6 +450,7 @@ struct partial {
 	unsigned long long label_point = 0;
 	int segment = 0;
 	bool reduced = 0;
+	bool coalesced = 0;
 	int z = 0;
 	int tx = 0;
 	int ty = 0;
@@ -562,6 +563,13 @@ void *partial_feature_worker(void *v) {
 				}
 
 				if (!already_marked) {
+					if ((*partials)[i].coalesced && t == VT_POLYGON) {
+						// clean coalesced polygons before simplification to avoid
+						// introducing shards between shapes that otherwise would have
+						// unioned exactly
+						geom = clean_or_clip_poly(geom, 0, 0, false);
+					}
+
 					// continues to simplify to line_detail even if we have extra detail
 					drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), (*partials)[i].simplification, t == VT_POLYGON ? 4 : 0, *(a->shared_nodes));
 
@@ -2031,6 +2039,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				indices.push_back(sf.index);
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
@@ -2047,6 +2056,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				extents.push_back(sf.extent);
 				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
@@ -2070,6 +2080,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
 				} else {
@@ -2116,6 +2127,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					p.segment = sf.segment;
 					p.original_seq = sf.seq;
 					p.reduced = reduced;
+					p.coalesced = false;
 					p.z = z;
 					p.tx = tx;
 					p.ty = ty;
