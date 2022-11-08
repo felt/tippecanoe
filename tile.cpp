@@ -2582,7 +2582,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 			}
 
-			if (totalsize > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+			if (totalsize > max_tile_features && !(prevent[P_FEATURE_LIMIT] ||
+							       (z == maxzoom && prevent[P_FEATURE_LIMIT_MAXZOOM]))) {
 				if (totalsize > arg->feature_count_out) {
 					arg->feature_count_out = totalsize;
 				}

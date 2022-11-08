@@ -2813,6 +2813,7 @@ int main(int argc, char **argv) {
 		{"maximum-tile-features", required_argument, 0, 'O'},
 		{"maximum-tile-geometry", required_argument, 0, '~'},
 		{"no-feature-limit", no_argument, &prevent[P_FEATURE_LIMIT], 1},
+		{"no-feature-limit-at-maximum-zoom", no_argument, &prevent[P_FEATURE_LIMIT_MAXZOOM], 1},
 		{"no-tile-size-limit", no_argument, &prevent[P_KILOBYTE_LIMIT], 1},
 		{"no-tile-compression", no_argument, &prevent[P_TILE_COMPRESSION], 1},
 		{"no-tile-stats", no_argument, &prevent[P_TILE_STATS], 1},
