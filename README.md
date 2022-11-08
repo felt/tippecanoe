@@ -526,6 +526,8 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
 
  * `-M` _bytes_ or `--maximum-tile-bytes=`_bytes_: Use the specified number of _bytes_ as the maximum compressed tile size instead of 500K.
  * `-O` _features_ or `--maximum-tile-features=`_features_: Use the specified number of _features_ as the maximum in a tile instead of 200,000.
+ * `--limit-tile-feature-count=`_features_: Abruptly limit each tile to the specified number of _features_, after ordering them if specified.
+ * `--limit-tile-feature-count-at-maximum-zoom=`_features_: Abruptly limit each tile at the maximum zoom level to the specified number of _features_, after ordering them if specified.
  * `--maximum-tile-geometry=`_vertices_: Use the specified number of _vertices_ as the maximum in a tile.
  * `-pf` or `--no-feature-limit`: Don't limit tiles to 200,000 features
  * `-pF` or `--no-feature-limit-at-maximum-zoom`: Don't limit tiles to 200,000 features at the maximum zoom level, but do limit them at other zoom levels

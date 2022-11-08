@@ -2405,6 +2405,16 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			if (order_by.size() != 0) {
 				std::sort(layer_features.begin(), layer_features.end(), ordercmp);
 			}
+
+			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
+				if (layer_features.size() > limit_tile_feature_count_at_maxzoom) {
+					layer_features.resize(limit_tile_feature_count_at_maxzoom);
+				}
+			} else if (limit_tile_feature_count != 0) {
+				if (layer_features.size() > limit_tile_feature_count) {
+					layer_features.resize(limit_tile_feature_count);
+				}
+			}
 		}
 
 		mvt_tile tile;
