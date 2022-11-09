@@ -530,7 +530,6 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `--limit-tile-feature-count-at-maximum-zoom=`_features_: Abruptly limit each tile at the maximum zoom level to the specified number of _features_, after ordering them if specified.
  * `--maximum-tile-geometry=`_vertices_: Use the specified number of _vertices_ as the maximum in a tile.
  * `-pf` or `--no-feature-limit`: Don't limit tiles to 200,000 features
- * `-pF` or `--no-feature-limit-at-maximum-zoom`: Don't limit tiles to 200,000 features at the maximum zoom level, but do limit them at other zoom levels
  * `-pk` or `--no-tile-size-limit`: Don't limit tiles to 500K bytes
  * `-pC` or `--no-tile-compression`: Don't compress the PBF vector tile data. If you are getting "Unimplemented type 3" error messages from a renderer, it is probably because it expects uncompressed tiles using this option rather than the normal gzip-compressed tiles.
  * `-pg` or `--no-tile-stats`: Don't generate the `tilestats` row in the tileset metadata. Uploads without [tilestats](https://github.com/mapbox/mapbox-geostats) will take longer to process.
