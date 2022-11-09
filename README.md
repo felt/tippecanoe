@@ -528,7 +528,6 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-O` _features_ or `--maximum-tile-features=`_features_: Use the specified number of _features_ as the maximum in a tile instead of 200,000.
  * `--limit-tile-feature-count=`_features_: Abruptly limit each tile to the specified number of _features_, after ordering them if specified.
  * `--limit-tile-feature-count-at-maximum-zoom=`_features_: Abruptly limit each tile at the maximum zoom level to the specified number of _features_, after ordering them if specified.
- * `--maximum-tile-geometry=`_vertices_: Use the specified number of _vertices_ as the maximum in a tile.
  * `-pf` or `--no-feature-limit`: Don't limit tiles to 200,000 features
  * `-pk` or `--no-tile-size-limit`: Don't limit tiles to 500K bytes
  * `-pC` or `--no-tile-compression`: Don't compress the PBF vector tile data. If you are getting "Unimplemented type 3" error messages from a renderer, it is probably because it expects uncompressed tiles using this option rather than the normal gzip-compressed tiles.

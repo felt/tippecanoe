@@ -378,12 +378,6 @@ std::string stringify_strategies(std::vector<strategy> const &strategies) {
 			any = true;
 		}
 
-		if (strategies[i].geometry_size > 0) {
-			state.json_write_string("geometry_size_desired");
-			state.json_write_number(strategies[i].geometry_size);
-			any = true;
-		}
-
 		state.json_end_hash();
 	}
 	state.json_end_array();
