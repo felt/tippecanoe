@@ -1853,7 +1853,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 	// goes down and the progress indicator goes backward for the next try.
 	int line_detail;
 	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
-		long long total_geom_size = 0;
+		long long count = 0;
 		double accum_area = 0;
 
 		double fraction_accum = 0;
@@ -2440,7 +2440,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 				feature.type = layer_features[x].type;
 				feature.geometry = to_feature(layer_features[x].geom);
-				total_geom_size += layer_features[x].geom.size();
+				count += layer_features[x].geom.size();
 				layer_features[x].geom.clear();
 
 				feature.id = layer_features[x].id;
@@ -2509,89 +2509,6 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		}
 
 		if (totalsize > 0 && tile.layers.size() > 0) {
-			if (max_geometry_size > 0 && (size_t) total_geom_size > max_geometry_size) {
-				if ((size_t) total_geom_size > arg->geometry_size_out) {
-					arg->geometry_size_out = total_geom_size;
-				}
-
-				if (!quiet) {
-					fprintf(stderr, "tile %d/%u/%u has %lld vertices, >%zu    \n", z, tx, ty, total_geom_size, max_geometry_size);
-				}
-
-				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
-					if (gamma < 1) {
-						gamma = 1;
-					} else {
-						gamma = gamma * 1.25;
-					}
-
-					if (gamma > arg->gamma_out) {
-						arg->gamma_out = gamma;
-						arg->still_dropping = true;
-					}
-
-					if (!quiet) {
-						fprintf(stderr, "Going to try gamma of %0.3f to make it fit\n", gamma);
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-					continue;
-				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * max_geometry_size / total_geom_size * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
-					if (mg <= mingap) {
-						mg = (mingap + 1) * 1.5;
-
-						if (mg <= mingap) {
-							mg = ULONG_MAX;
-						}
-					}
-					mingap = mg;
-					if (mingap > arg->mingap_out) {
-						arg->mingap_out = mingap;
-						arg->still_dropping = true;
-					}
-					if (!quiet) {
-						fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
-					}
-					line_detail++;
-					continue;
-				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * max_geometry_size / total_geom_size * 0.75;
-					long long m = choose_minextent(extents, minextent_fraction);
-					if (m != minextent) {
-						minextent = m;
-						if (minextent > arg->minextent_out) {
-							arg->minextent_out = minextent;
-							arg->still_dropping = true;
-						}
-						if (!quiet) {
-							fprintf(stderr, "Going to try keeping the biggest %0.2f%% of the features to make it fit\n", minextent_fraction * 100.0);
-						}
-						line_detail++;
-						continue;
-					}
-				} else if (totalsize > layers.size() && (prevent[P_DYNAMIC_DROP] || additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED])) {
-					// The 95% is a guess to avoid too many retries
-					// and probably actually varies based on how much duplicated metadata there is
-
-					fraction = fraction * max_geometry_size / total_geom_size * 0.95;
-					if (!quiet) {
-						fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", fraction * 100);
-					}
-					if ((additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED]) && fraction < arg->fraction_out) {
-						arg->fraction_out = fraction;
-						arg->still_dropping = true;
-					} else if (prevent[P_DYNAMIC_DROP]) {
-						arg->still_dropping = true;
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-					continue;
-				} else {
-					fprintf(stderr, "Try using --drop-fraction-as-needed or --drop-densest-as-needed.\n");
-					return -1;
-				}
-			}
-
 			if (totalsize > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
 				if (totalsize > arg->feature_count_out) {
 					arg->feature_count_out = totalsize;
@@ -2796,10 +2713,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 				}
 
-				return total_geom_size;
+				return count;
 			}
 		} else {
-			return total_geom_size;
+			return count;
 		}
 	}
 
