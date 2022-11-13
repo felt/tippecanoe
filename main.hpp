@@ -53,6 +53,7 @@ extern size_t memsize;
 extern size_t max_tile_size;
 extern size_t max_tile_features;
 extern int cluster_distance;
+extern int cluster_maxzoom;
 extern std::string attribute_for_id;
 extern int tiny_polygon_size;
 extern size_t limit_tile_feature_count;

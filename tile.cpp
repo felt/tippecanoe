@@ -2088,7 +2088,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// representative of the other features in the tile.
 			const size_t MAX_INDICES = 100000;
 
-			if (additional[A_CLUSTER_DENSEST_AS_NEEDED] || cluster_distance != 0) {
+			if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED] || cluster_distance != 0)) {
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
