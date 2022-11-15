@@ -2423,12 +2423,16 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			unsigned long long previndex = 0;
 
 			for (long long ip = 0; ip < indices; ip++) {
-				drop_densest dd;
-				dd.gap = map[ip].ix - previndex;
-				dd.seq = ip;
-				ddv.push_back(dd);
+				if (map[ip].t == VT_POINT ||
+				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
+				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
+					drop_densest dd;
+					dd.gap = map[ip].ix - previndex;
+					dd.seq = ip;
+					ddv.push_back(dd);
 
-				previndex = map[ip].ix;
+					previndex = map[ip].ix;
+				}
 			}
 
 			std::sort(ddv.begin(), ddv.end());
