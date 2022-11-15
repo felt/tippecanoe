@@ -2401,7 +2401,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 		fix_dropping = true;
 	}
 
-	if (fix_dropping || additional[A_DROP_DENSEST]) {
+	if (fix_dropping || additional[A_DROP_DENSER]) {
 		// Fix up the minzooms for features, now that we really know the base zoom
 		// and drop rate.
 
@@ -2418,7 +2418,10 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
 
-		if (additional[A_DROP_DENSEST]) {
+		struct drop_state ds[maxzoom + 1];
+		prep_drop_states(ds, maxzoom, basezoom, droprate);
+
+		if (additional[A_DROP_DENSER]) {
 			std::vector<drop_densest> ddv;
 			unsigned long long previndex = 0;
 
@@ -2426,12 +2429,17 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				if (map[ip].t == VT_POINT ||
 				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
 				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
-					drop_densest dd;
-					dd.gap = map[ip].ix - previndex;
-					dd.seq = ip;
-					ddv.push_back(dd);
+					if (ip % 2 == 0) {
+						drop_densest dd;
+						dd.gap = map[ip].ix - previndex;
+						dd.seq = ip;
+						ddv.push_back(dd);
 
-					previndex = map[ip].ix;
+						previndex = map[ip].ix;
+					} else {
+						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+						geom[map[ip].end - 1] = feature_minzoom;
+					}
 				}
 			}
 
@@ -2440,7 +2448,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			size_t i = 0;
 			for (int z = 0; z <= basezoom; z++) {
 				double keep_fraction = 1.0 / std::exp(std::log(droprate) * (basezoom - z));
-				size_t keep_count = indices * keep_fraction;
+				size_t keep_count = ddv.size() * keep_fraction;
 
 				for (; i < keep_count && i < ddv.size(); i++) {
 					geom[map[ddv[i].seq].end - 1] = z;
@@ -2450,9 +2458,6 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				geom[map[ddv[i].seq].end - 1] = basezoom;
 			}
 		} else {
-			struct drop_state ds[maxzoom + 1];
-			prep_drop_states(ds, maxzoom, basezoom, droprate);
-
 			for (long long ip = 0; ip < indices; ip++) {
 				if (ip > 0 && map[ip].start != map[ip - 1].end) {
 					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
@@ -2777,7 +2782,7 @@ int main(int argc, char **argv) {
 		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 		{"drop-rate", required_argument, 0, 'r'},
 		{"base-zoom", required_argument, 0, 'B'},
-		{"drop-densest", no_argument, &additional[A_DROP_DENSEST], 1},
+		{"drop-denser", no_argument, &additional[A_DROP_DENSER], 1},
 		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
 		{"drop-lines", no_argument, &additional[A_LINE_DROP], 1},
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
