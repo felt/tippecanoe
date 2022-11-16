@@ -2429,7 +2429,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				if (map[ip].t == VT_POINT ||
 				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
 				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
-					if (ip % 2 == 0) {
+					if (ip % 10 < 6) {
 						drop_densest dd;
 						dd.gap = map[ip].ix - previndex;
 						dd.seq = ip;
