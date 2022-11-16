@@ -1,6 +1,11 @@
-## 2.12.0
+## 2.13.0
 
 * Add --limit-tile-feature-count and --limit-tile-feature-count-at-maximum-zoom
+
+## 2.12.0
+
+* Add `--drop-denser` option to drop points in dense clusters in preference
+  to those in sparse areas.
 
 ## 2.11.0
 
