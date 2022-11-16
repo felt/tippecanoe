@@ -83,6 +83,7 @@ int cluster_distance = 0;
 int tiny_polygon_size = 2;
 long justx = -1, justy = -1;
 std::string attribute_for_id = "";
+unsigned int drop_denser = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2401,7 +2402,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 		fix_dropping = true;
 	}
 
-	if (fix_dropping || additional[A_DROP_DENSER]) {
+	if (fix_dropping || drop_denser > 0) {
 		// Fix up the minzooms for features, now that we really know the base zoom
 		// and drop rate.
 
@@ -2421,7 +2422,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 		struct drop_state ds[maxzoom + 1];
 		prep_drop_states(ds, maxzoom, basezoom, droprate);
 
-		if (additional[A_DROP_DENSER]) {
+		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
 			unsigned long long previndex = 0;
 
@@ -2429,7 +2430,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				if (map[ip].t == VT_POINT ||
 				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
 				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
-					if (ip % 5 < 3) {
+					if (map[ip].ix % 100 < drop_denser) {
 						drop_densest dd;
 						dd.gap = map[ip].ix - previndex;
 						dd.seq = ip;
@@ -2782,7 +2783,7 @@ int main(int argc, char **argv) {
 		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 		{"drop-rate", required_argument, 0, 'r'},
 		{"base-zoom", required_argument, 0, 'B'},
-		{"drop-denser", no_argument, &additional[A_DROP_DENSER], 1},
+		{"drop-denser", required_argument, 0, '~'},
 		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
 		{"drop-lines", no_argument, &additional[A_LINE_DROP], 1},
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
@@ -2980,6 +2981,12 @@ int main(int argc, char **argv) {
 					exit(EXIT_ARGS);
 				}
 				break;
+			} else if (strcmp(opt, "drop-denser") == 0) {
+				drop_denser = atoi_require(optarg, "Drop denser rate");
+				if (drop_denser > 100) {
+					fprintf(stderr, "%s: --drop-denser can be at most 100\n", argv[0]);
+					exit(EXIT_ARGS);
+				}
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
