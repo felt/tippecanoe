@@ -891,6 +891,8 @@ resolutions.
  * `-f` or `--force`: Decode tiles even if polygon ring order or closure problems are detected
  * `-I` or `--integer`: Report coordinates in integer tile coordinates
  * `-F` or `--fraction`: Report coordinates as a fraction of the tile extent
+ * `-m` _lat_,_lon_ or `--containing-lat-lon`=_lat_,_lon_: Decode only tiles containing the specified point
+ * `-M` _lon_,_lat_ or `--containing-lon-lat`=_lon_,_lat_: Decode only tiles containing the specified point
 
 tippecanoe-json-tool
 ====================
