@@ -28,6 +28,9 @@ int minzoom = 0;
 int maxzoom = 32;
 bool force = false;
 
+double containing_lon = -500;
+double containing_lat = -500;
+
 void do_stats(mvt_tile &tile, size_t size, bool compressed, int z, unsigned x, unsigned y, json_writer &state) {
 	state.json_write_hash();
 
@@ -425,7 +428,18 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 					exit(EXIT_SQLITE);
 				}
 
-				handle(std::string(s, len), tz, tx, ty, to_decode, pipeline, stats, state, coordinate_mode);
+				bool contains = true;
+				if (containing_lat > -500 && containing_lon > -500) {
+					long long ctx, cty;
+					lonlat2tile(containing_lon, containing_lat, tz, &ctx, &cty);
+					if (tx != ctx || ty != cty) {
+						contains = false;
+					}
+				}
+
+				if (contains) {
+					handle(std::string(s, len), tz, tx, ty, to_decode, pipeline, stats, state, coordinate_mode);
+				}
 			}
 
 			sqlite3_finalize(stmt);
@@ -514,6 +528,8 @@ int main(int argc, char **argv) {
 		{"stats", no_argument, 0, 'S'},
 		{"force", no_argument, 0, 'f'},
 		{"exclude-metadata-row", required_argument, 0, 'x'},
+		{"containing-lat-lon", required_argument, 0, 'm'},
+		{"containing-lon-lat", required_argument, 0, 'M'},
 		{0, 0, 0, 0},
 	};
 
@@ -571,6 +587,20 @@ int main(int argc, char **argv) {
 
 		case 'x':
 			exclude_meta.insert(optarg);
+			break;
+
+		case 'm':
+			if (sscanf(optarg, "%lf,%lf", &containing_lat, &containing_lon) != 2) {
+				fprintf(stderr, "-m option is lat,lon\n");
+				exit(EXIT_FAILURE);
+			}
+			break;
+
+		case 'M':
+			if (sscanf(optarg, "%lf,%lf", &containing_lon, &containing_lat) != 2) {
+				fprintf(stderr, "-m option is lon,lat\n");
+				exit(EXIT_FAILURE);
+			}
 			break;
 
 		default:

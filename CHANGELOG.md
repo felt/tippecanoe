@@ -1,3 +1,7 @@
+## 2.14.0
+
+* Add --containing-lat-lon and --containing-lon-lat options to tippecanoe-decode
+
 ## 2.13.0
 
 * Add --limit-tile-feature-count and --limit-tile-feature-count-at-maximum-zoom

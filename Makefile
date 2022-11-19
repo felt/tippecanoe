@@ -164,12 +164,16 @@ decode-test:
 	./tippecanoe-decode -x generator -l subway --fraction tests/muni/decode/multi.mbtiles > tests/muni/decode/multi.mbtiles.fraction.json.check
 	./tippecanoe-decode -x generator -c tests/muni/decode/multi.mbtiles > tests/muni/decode/multi.mbtiles.pipeline.json.check
 	./tippecanoe-decode -x generator tests/muni/decode/multi.mbtiles 11 327 791 > tests/muni/decode/multi.mbtiles.onetile.json.check
+	./tippecanoe-decode -x generator --containing-lat-lon 37.7615594,-122.421015 tests/muni/decode/multi.mbtiles > tests/muni/decode/multi.mbtiles.containing-lat.json.check
+	./tippecanoe-decode -x generator --containing-lon-lat=-122.421015,37.7615594 tests/muni/decode/multi.mbtiles > tests/muni/decode/multi.mbtiles.containing-lon.json.check
 	./tippecanoe-decode -x generator --stats tests/muni/decode/multi.mbtiles > tests/muni/decode/multi.mbtiles.stats.json.check
 	cmp tests/muni/decode/multi.mbtiles.json.check tests/muni/decode/multi.mbtiles.json
 	cmp tests/muni/decode/multi.mbtiles.integer.json.check tests/muni/decode/multi.mbtiles.integer.json
 	cmp tests/muni/decode/multi.mbtiles.fraction.json.check tests/muni/decode/multi.mbtiles.fraction.json
 	cmp tests/muni/decode/multi.mbtiles.pipeline.json.check tests/muni/decode/multi.mbtiles.pipeline.json
 	cmp tests/muni/decode/multi.mbtiles.onetile.json.check tests/muni/decode/multi.mbtiles.onetile.json
+	cmp tests/muni/decode/multi.mbtiles.containing-lat.json.check tests/muni/decode/multi.mbtiles.containing.json
+	cmp tests/muni/decode/multi.mbtiles.containing-lon.json.check tests/muni/decode/multi.mbtiles.containing.json
 	cmp tests/muni/decode/multi.mbtiles.stats.json.check tests/muni/decode/multi.mbtiles.stats.json
 	rm -f tests/muni/decode/multi.mbtiles.json.check tests/muni/decode/multi.mbtiles tests/muni/decode/multi.mbtiles.pipeline.json.check tests/muni/decode/multi.mbtiles.stats.json.check tests/muni/decode/multi.mbtiles.onetile.json.check
 
