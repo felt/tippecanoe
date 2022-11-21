@@ -1288,6 +1288,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			std::vector<std::string> trim = {
 				".json",
 				".geojson",
+				".fgb",
 				".geobuf",
 				".mbtiles",
 				".csv",

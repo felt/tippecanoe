@@ -98,9 +98,10 @@ suffixes = json json.gz
 # Don't test stringids with geobuf, because it fails
 nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
+flatgeobuf-test: tippecanoe-json-tool $(addsuffix .checkflatbuf,$(filter-out $(nogeobuf),$(TESTS)))
 
 # For quicker address sanitizer build, hope that regular JSON parsing is tested enough by parallel and join tests
-fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
+fewer-tests: tippecanoe tippecanoe-decode flatgeobuf-test geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
 
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkbuf:
@@ -109,6 +110,15 @@ fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-te
 	./tippecanoe -q -a@ -f -o $@.mbtiles $(subst @,:,$(subst %,/,$(subst _, ,$(patsubst %.json.checkbuf,%,$(word 4,$(subst /, ,$@)))))) $(foreach suffix,$(suffixes),$(addsuffix .geobuf,$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix))))) < /dev/null
 	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkbuf/check/g' | sed 's/\.geobuf//g' > $@.out
 	cmp $@.out $(patsubst %.checkbuf,%,$@)
+	rm $@.out $@.mbtiles
+
+# XXX Use proper makefile rules instead of a for loop
+%.json.checkflatbuf:
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json); do rm -f $$i.fgb; ogr2ogr -preserve_fid $$i.fgb $$i; done
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json.gz); do rm -f $$i.fgb; gzip -dc $$i > /tmp/$$.json && ogr2ogr -preserve_fid $$i.fgb /tmp/$$i.json; done
+	./tippecanoe -q -a@ -f -o $@.mbtiles $(subst @,:,$(subst %,/,$(subst _, ,$(patsubst %.json.checkflatbuf,%,$(word 4,$(subst /, ,$@)))))) $(foreach suffix,$(suffixes),$(addsuffix .fgb,$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix))))) < /dev/null
+	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkflatbuf/check/g' | sed 's/\.fgb//g' > $@.out
+	cmp $@.out $(patsubst %.checkflatbuf,%,$@)
 	rm $@.out $@.mbtiles
 
 parallel-test:
