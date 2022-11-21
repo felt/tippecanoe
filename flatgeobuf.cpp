@@ -381,11 +381,7 @@ void parse_flatgeobuf(std::vector<struct serialization_state> *sst, const char *
 	long long feature_sequence_id = -1;
 	int index_size = 0;
 	if (node_size > 0) {
-		if (!quiet) {
-			fprintf(stderr, "detected indexed FlatGeobuf: assigning feature IDs by sequence\n");
-		}
 		index_size = PackedRTreeSize(features_count, node_size);
-		feature_sequence_id = 0;
 	}
 	const char *start = src + sizeof(magicbytes) + sizeof(uint32_t) + header_size + index_size;
 
@@ -403,8 +399,6 @@ void parse_flatgeobuf(std::vector<struct serialization_state> *sst, const char *
 
 		queueFeature(feature, feature_sequence_id, h_geometry_type, h_column_names, h_column_types, sst, layer, layername);
 
-		if (feature_sequence_id >= 0)
-			feature_sequence_id++;
 		start += sizeof(uint32_t) + feature_size;
 	}
 
