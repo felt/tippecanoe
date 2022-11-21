@@ -8,43 +8,42 @@
 #include "main.hpp"
 #include "errors.hpp"
 
-static constexpr uint8_t magicbytes[8] = { 0x66, 0x67, 0x62, 0x03, 0x66, 0x67, 0x62, 0x01 };
+static constexpr uint8_t magicbytes[8] = {0x66, 0x67, 0x62, 0x03, 0x66, 0x67, 0x62, 0x01};
 
 struct NodeItem {
-    double minX;
-    double minY;
-    double maxX;
-    double maxY;
-    uint64_t offset;
+	double minX;
+	double minY;
+	double maxX;
+	double maxY;
+	uint64_t offset;
 };
 
 // copied from https://github.com/flatgeobuf/flatgeobuf/blob/master/src/cpp/packedrtree.cpp#L365
-uint64_t PackedRTreeSize(const uint64_t numItems, const uint16_t nodeSize)
-{
-    if (nodeSize < 2)
-        throw std::invalid_argument("Node size must be at least 2");
-    if (numItems == 0)
-        throw std::invalid_argument("Number of items must be greater than 0");
-    const uint16_t nodeSizeMin = std::min(std::max(nodeSize, static_cast<uint16_t>(2)), static_cast<uint16_t>(65535));
-    // limit so that resulting size in bytes can be represented by uint64_t
-    if (numItems > static_cast<uint64_t>(1) << 56)
-        throw std::overflow_error("Number of items must be less than 2^56");
-    uint64_t n = numItems;
-    uint64_t numNodes = n;
-    do {
-        n = (n + nodeSizeMin - 1) / nodeSizeMin;
-        numNodes += n;
-    } while (n != 1);
-    return numNodes * sizeof(NodeItem);
+uint64_t PackedRTreeSize(const uint64_t numItems, const uint16_t nodeSize) {
+	if (nodeSize < 2)
+		throw std::invalid_argument("Node size must be at least 2");
+	if (numItems == 0)
+		throw std::invalid_argument("Number of items must be greater than 0");
+	const uint16_t nodeSizeMin = std::min(std::max(nodeSize, static_cast<uint16_t>(2)), static_cast<uint16_t>(65535));
+	// limit so that resulting size in bytes can be represented by uint64_t
+	if (numItems > static_cast<uint64_t>(1) << 56)
+		throw std::overflow_error("Number of items must be less than 2^56");
+	uint64_t n = numItems;
+	uint64_t numNodes = n;
+	do {
+		n = (n + nodeSizeMin - 1) / nodeSizeMin;
+		numNodes += n;
+	} while (n != 1);
+	return numNodes * sizeof(NodeItem);
 }
 
 drawvec readPoints(const FlatGeobuf::Geometry *geometry) {
 	auto xy = geometry->xy();
 	drawvec dv;
 
-	for (unsigned int i = 0; i < xy->size(); i+=2) {
+	for (unsigned int i = 0; i < xy->size(); i += 2) {
 		long long x, y;
-		projection->project(xy->Get(i), xy->Get(i+1), 32, &x, &y);
+		projection->project(xy->Get(i), xy->Get(i + 1), 32, &x, &y);
 		dv.push_back(draw(VT_MOVETO, x, y));
 	}
 	return dv;
@@ -56,12 +55,13 @@ drawvec readLinePart(const FlatGeobuf::Geometry *geometry) {
 	size_t current_end = 0;
 	drawvec dv;
 
-	for (unsigned int i = 0; i < xy->size(); i+=2) {
+	for (unsigned int i = 0; i < xy->size(); i += 2) {
 		long long x, y;
-		projection->project(xy->Get(i), xy->Get(i+1), 32, &x, &y);
-		if (i == 0 || (ends != NULL && current_end < ends->size() && i == ends->Get(current_end)*2)) {
+		projection->project(xy->Get(i), xy->Get(i + 1), 32, &x, &y);
+		if (i == 0 || (ends != NULL && current_end < ends->size() && i == ends->Get(current_end) * 2)) {
 			dv.push_back(draw(VT_MOVETO, x, y));
-			if (i > 0) current_end++;
+			if (i > 0)
+				current_end++;
 		} else {
 			dv.push_back(draw(VT_LINETO, x, y));
 		}
@@ -71,20 +71,24 @@ drawvec readLinePart(const FlatGeobuf::Geometry *geometry) {
 
 drawvec readGeometry(const FlatGeobuf::Geometry *geometry, FlatGeobuf::GeometryType h_geometry_type) {
 	FlatGeobuf::GeometryType geometry_type = h_geometry_type;
-	if (h_geometry_type == FlatGeobuf::GeometryType_Unknown) geometry_type = geometry->type();
+	if (h_geometry_type == FlatGeobuf::GeometryType_Unknown)
+		geometry_type = geometry->type();
 
 	if (geometry_type == FlatGeobuf::GeometryType_Point) {
 		return readPoints(geometry);
-	} if (geometry_type == FlatGeobuf::GeometryType_MultiPoint) {
-		return readPoints(geometry);	
-	} if (geometry_type == FlatGeobuf::GeometryType_LineString) {
+	}
+	if (geometry_type == FlatGeobuf::GeometryType_MultiPoint) {
+		return readPoints(geometry);
+	}
+	if (geometry_type == FlatGeobuf::GeometryType_LineString) {
 		return readLinePart(geometry);
 	} else if (h_geometry_type == FlatGeobuf::GeometryType_MultiLineString) {
 		return readLinePart(geometry);
-	} if (geometry_type == FlatGeobuf::GeometryType_Polygon) {
+	}
+	if (geometry_type == FlatGeobuf::GeometryType_Polygon) {
 		return readLinePart(geometry);
 	} else if (geometry_type == FlatGeobuf::GeometryType_MultiPolygon) {
-	// if it is a GeometryCollection, parse Parts, ignore XY
+		// if it is a GeometryCollection, parse Parts, ignore XY
 		drawvec dv;
 		for (size_t part = 0; part < geometry->parts()->size(); part++) {
 			drawvec dv2 = readLinePart(geometry->parts()->Get(part));
@@ -95,7 +99,7 @@ drawvec readGeometry(const FlatGeobuf::Geometry *geometry, FlatGeobuf::GeometryT
 		}
 		return dv;
 	} else {
-		fprintf(stderr, "flatgeobuf has unsupported geometry type %u\n", (unsigned int)h_geometry_type);
+		fprintf(stderr, "flatgeobuf has unsupported geometry type %u\n", (unsigned int) h_geometry_type);
 		exit(EXIT_IMPOSSIBLE);
 	}
 }
@@ -106,26 +110,27 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 	int drawvec_type = -1;
 
 	FlatGeobuf::GeometryType geometry_type = h_geometry_type;
-	if (h_geometry_type == FlatGeobuf::GeometryType_Unknown) geometry_type = feature->geometry()->type();
+	if (h_geometry_type == FlatGeobuf::GeometryType_Unknown)
+		geometry_type = feature->geometry()->type();
 
 	switch (geometry_type) {
-		case FlatGeobuf::GeometryType_Point :
-		case FlatGeobuf::GeometryType_MultiPoint :
-			drawvec_type = 1;
-			break;
-		case FlatGeobuf::GeometryType_LineString :
-		case FlatGeobuf::GeometryType_MultiLineString :
-			drawvec_type = 2;
-			break;
-		case FlatGeobuf::GeometryType_Polygon :
-		case FlatGeobuf::GeometryType_MultiPolygon :
-			drawvec_type = 3;
-			break;
-		case FlatGeobuf::GeometryType_Unknown :
-		case FlatGeobuf::GeometryType_GeometryCollection :
-		default:
-			fprintf(stderr, "flatgeobuf has unsupported geometry type %u\n", (unsigned int)h_geometry_type);
-			exit(EXIT_IMPOSSIBLE);
+	case FlatGeobuf::GeometryType_Point:
+	case FlatGeobuf::GeometryType_MultiPoint:
+		drawvec_type = 1;
+		break;
+	case FlatGeobuf::GeometryType_LineString:
+	case FlatGeobuf::GeometryType_MultiLineString:
+		drawvec_type = 2;
+		break;
+	case FlatGeobuf::GeometryType_Polygon:
+	case FlatGeobuf::GeometryType_MultiPolygon:
+		drawvec_type = 3;
+		break;
+	case FlatGeobuf::GeometryType_Unknown:
+	case FlatGeobuf::GeometryType_GeometryCollection:
+	default:
+		fprintf(stderr, "flatgeobuf has unsupported geometry type %u\n", (unsigned int) h_geometry_type);
+		exit(EXIT_IMPOSSIBLE);
 	}
 
 	serial_feature sf;
@@ -231,12 +236,12 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 			sv.type = mvt_string;
 			uint32_t val_len;
 			memcpy(&val_len, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(val_len));
-			std::string s{reinterpret_cast<const char*>(feature->properties()->data() + p_pos + sizeof(uint16_t) + sizeof(uint32_t)), val_len};
+			std::string s{reinterpret_cast<const char *>(feature->properties()->data() + p_pos + sizeof(uint16_t) + sizeof(uint32_t)), val_len};
 			sv.s = s;
 			p_pos += sizeof(uint16_t) + sizeof(uint32_t) + val_len;
 		} else {
 			// Binary is not representable in MVT
-			fprintf(stderr, "flatgeobuf has unsupported column type %u\n", (unsigned int)col_type);
+			fprintf(stderr, "flatgeobuf has unsupported column type %u\n", (unsigned int) col_type);
 			exit(EXIT_IMPOSSIBLE);
 		}
 		full_keys.push_back(h_column_names[col_idx]);
@@ -342,9 +347,9 @@ void queueFeature(const FlatGeobuf::Feature *feature, long long feature_sequence
 }
 
 void parse_flatgeobuf(std::vector<struct serialization_state> *sst, const char *src, size_t len, int layer, std::string layername) {
-	auto header_size = flatbuffers::GetPrefixedSize((const uint8_t *)src + sizeof(magicbytes));
+	auto header_size = flatbuffers::GetPrefixedSize((const uint8_t *) src + sizeof(magicbytes));
 
-	flatbuffers::Verifier v((const uint8_t *)src+sizeof(magicbytes),header_size+sizeof(uint32_t));
+	flatbuffers::Verifier v((const uint8_t *) src + sizeof(magicbytes), header_size + sizeof(uint32_t));
 	const auto ok = FlatGeobuf::VerifySizePrefixedHeaderBuffer(v);
 	if (!ok) {
 		fprintf(stderr, "flatgeobuf header verification failed\n");
@@ -373,15 +378,15 @@ void parse_flatgeobuf(std::vector<struct serialization_state> *sst, const char *
 		if (!quiet) {
 			fprintf(stderr, "detected indexed FlatGeobuf: assigning feature IDs by sequence\n");
 		}
-		index_size = PackedRTreeSize(features_count,node_size);
+		index_size = PackedRTreeSize(features_count, node_size);
 		feature_sequence_id = 0;
 	}
-	const char* start = src + sizeof(magicbytes) + sizeof(uint32_t) + header_size + index_size;
+	const char *start = src + sizeof(magicbytes) + sizeof(uint32_t) + header_size + index_size;
 
 	while (start < src + len) {
-		auto feature_size = flatbuffers::GetPrefixedSize((const uint8_t *)start);
+		auto feature_size = flatbuffers::GetPrefixedSize((const uint8_t *) start);
 
-		flatbuffers::Verifier v2((const uint8_t *)start,feature_size+sizeof(uint32_t));
+		flatbuffers::Verifier v2((const uint8_t *) start, feature_size + sizeof(uint32_t));
 		const auto ok2 = FlatGeobuf::VerifySizePrefixedFeatureBuffer(v2);
 		if (!ok2) {
 			fprintf(stderr, "flatgeobuf feature buffer verification failed\n");
@@ -392,7 +397,8 @@ void parse_flatgeobuf(std::vector<struct serialization_state> *sst, const char *
 
 		queueFeature(feature, feature_sequence_id, h_geometry_type, h_column_names, h_column_types, sst, layer, layername);
 
-		if (feature_sequence_id >= 0) feature_sequence_id ++;
+		if (feature_sequence_id >= 0)
+			feature_sequence_id++;
 		start += sizeof(uint32_t) + feature_size;
 	}
 
