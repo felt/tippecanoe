@@ -159,7 +159,6 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 		exit(EXIT_IMPOSSIBLE);
 	}
 	if (feature->properties() != NULL) {
-		// assume tabular schema with columns in header
 		size_t p_pos = 0;
 		while (p_pos < feature->properties()->size()) {
 			uint16_t col_idx;
@@ -168,17 +167,24 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 			// https://github.com/protomaps/tippecanoe/issues/7
 			// check if column name is tippecanoe:minzoom, tippecanoe:maxzoom or tippecanoe:layer
 
-			FlatGeobuf::ColumnType col_type = h_column_types[col_idx];
+			FlatGeobuf::ColumnType col_type;
+			if (feature->columns() != NULL) {
+				col_type = feature->columns()->Get(col_idx)->type();
+			} else {
+				col_type = h_column_types[col_idx];
+			}
 
 			serial_val sv;
+			// All of the numeric types are tagged as mvt_double rather than with their true type
+			// because tippecanoe expects values in the string pool to be tagged that way. Sorry!
 			if (col_type == FlatGeobuf::ColumnType_Byte) {
-				sv.type = mvt_sint;
+				sv.type = mvt_double;
 				int8_t byte_val;
 				memcpy(&byte_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(byte_val));
 				sv.s = std::to_string(byte_val);
 				p_pos += sizeof(uint16_t) + sizeof(byte_val);
 			} else if (col_type == FlatGeobuf::ColumnType_UByte) {
-				sv.type = mvt_uint;
+				sv.type = mvt_double;
 				uint8_t ubyte_val;
 				memcpy(&ubyte_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(ubyte_val));
 				sv.s = std::to_string(ubyte_val);
@@ -187,46 +193,47 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 				sv.type = mvt_bool;
 				uint8_t bool_val;
 				memcpy(&bool_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(bool_val));
-				sv.s = std::to_string(bool_val);
+				sv.s = bool_val ? "true" : "false";
+				sv.type = mvt_string;
 				p_pos += sizeof(uint16_t) + sizeof(bool_val);
 			} else if (col_type == FlatGeobuf::ColumnType_Short) {
-				sv.type = mvt_sint;
+				sv.type = mvt_double;
 				int16_t short_val;
 				memcpy(&short_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(short_val));
 				sv.s = std::to_string(short_val);
 				p_pos += sizeof(uint16_t) + sizeof(short_val);
 			} else if (col_type == FlatGeobuf::ColumnType_UShort) {
-				sv.type = mvt_uint;
+				sv.type = mvt_double;
 				uint16_t ushort_val;
 				memcpy(&ushort_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(ushort_val));
 				sv.s = std::to_string(ushort_val);
 				p_pos += sizeof(uint16_t) + sizeof(ushort_val);
 			} else if (col_type == FlatGeobuf::ColumnType_Int) {
-				sv.type = mvt_sint;
+				sv.type = mvt_double;
 				int32_t int_val;
 				memcpy(&int_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(int_val));
 				sv.s = std::to_string(int_val);
 				p_pos += sizeof(uint16_t) + sizeof(int_val);
 			} else if (col_type == FlatGeobuf::ColumnType_UInt) {
-				sv.type = mvt_uint;
+				sv.type = mvt_double;
 				uint32_t uint_val;
 				memcpy(&uint_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(uint_val));
 				sv.s = std::to_string(uint_val);
 				p_pos += sizeof(uint16_t) + sizeof(uint_val);
 			} else if (col_type == FlatGeobuf::ColumnType_Long) {
-				sv.type = mvt_sint;
+				sv.type = mvt_double;
 				int64_t long_val;
 				memcpy(&long_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(long_val));
 				sv.s = std::to_string(long_val);
 				p_pos += sizeof(uint16_t) + sizeof(long_val);
 			} else if (col_type == FlatGeobuf::ColumnType_ULong) {
-				sv.type = mvt_uint;
+				sv.type = mvt_double;
 				int64_t ulong_val;
 				memcpy(&ulong_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(ulong_val));
 				sv.s = std::to_string(ulong_val);
 				p_pos += sizeof(uint16_t) + sizeof(ulong_val);
 			} else if (col_type == FlatGeobuf::ColumnType_Float) {
-				sv.type = mvt_float;
+				sv.type = mvt_double;
 				float float_val;
 				memcpy(&float_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(float_val));
 				sv.s = milo::dtoa_milo(float_val);
@@ -249,7 +256,13 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 				fprintf(stderr, "flatgeobuf has unsupported column type %u\n", (unsigned int) col_type);
 				exit(EXIT_IMPOSSIBLE);
 			}
-			full_keys.push_back(h_column_names[col_idx]);
+
+			if (feature->columns() != NULL) {
+				full_keys.push_back(feature->columns()->Get(col_idx)->name()->c_str());
+			} else {
+				full_keys.push_back(h_column_names[col_idx]);
+			}
+
 			full_values.push_back(sv);
 		}
 	}
