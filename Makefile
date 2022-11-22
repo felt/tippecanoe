@@ -100,6 +100,12 @@ nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
 
 # Don't test attribute-type with geobuf, because ogr2ogr doesn't support different types for the same attribute between features
 noflatgeobuf = $(wildcard tests/attribute-type/out/*.json)
+# These inputs all have feature IDs, which aren't supported by flatgeobuf
+noflatgeobuf += $(foreach dir,coalesce-id feature-filter id overflow stringid wyalkatchem,$(wildcard tests/$(dir)/out/*.json))
+# These inputs all have null attributes, which aren't supported by flatgeobuf
+noflatgeobuf += $(foreach dir,attribute-type border dateline epsg-3857 feature-filter islands ne_110m_admin_1_states_provinces_lines ne_110m_populated_places tl_2018_51685_roads wraparound,$(wildcard tests/$(dir)/out/*.json))
+# These inputs have weird GeoJSON geometry types, which aren't supported by flatgeobuf
+noflatgeobuf += $(foreach dir,geometry,$(wildcard tests/$(dir)/out/*.json))
 
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
 flatgeobuf-test: tippecanoe-json-tool $(addsuffix .checkflatbuf,$(filter-out $(noflatgeobuf),$(TESTS)))
