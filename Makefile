@@ -97,8 +97,12 @@ suffixes = json json.gz
 # Don't test overflow with geobuf, because it fails (https://github.com/mapbox/geobuf/issues/87)
 # Don't test stringids with geobuf, because it fails
 nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
+
+# Don't test attribute-type with geobuf, because ogr2ogr doesn't support different types for the same attribute between features
+noflatgeobuf = $(wildcard tests/attribute-type/out/*.json)
+
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
-flatgeobuf-test: tippecanoe-json-tool $(addsuffix .checkflatbuf,$(filter-out $(nogeobuf),$(TESTS)))
+flatgeobuf-test: tippecanoe-json-tool $(addsuffix .checkflatbuf,$(filter-out $(noflatgeobuf),$(TESTS)))
 
 # For quicker address sanitizer build, hope that regular JSON parsing is tested enough by parallel and join tests
 fewer-tests: tippecanoe tippecanoe-decode flatgeobuf-test geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
@@ -114,8 +118,8 @@ fewer-tests: tippecanoe tippecanoe-decode flatgeobuf-test geobuf-test raw-tiles-
 
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkflatbuf:
-	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json); do rm -f $$i.fgb; ogr2ogr -preserve_fid $$i.fgb $$i; done
-	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json.gz); do rm -f $$i.fgb; gzip -dc $$i > /tmp/$$.json && ogr2ogr -preserve_fid $$i.fgb /tmp/$$i.json; done
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json); do rm -f $$i.fgb; ./tippecanoe-json-tool -w $$i > $$i.clean && ogr2ogr -preserve_fid $$i.fgb $$i.clean; done
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json.gz); do rm -f $$i.fgb; gzip -dc $$i | ./tippecanoe-json-tool -w > $$i.clean && ogr2ogr -preserve_fid $$i.fgb /tmp/$$i.clean; done
 	./tippecanoe -q -a@ -f -o $@.mbtiles $(subst @,:,$(subst %,/,$(subst _, ,$(patsubst %.json.checkflatbuf,%,$(word 4,$(subst /, ,$@)))))) $(foreach suffix,$(suffixes),$(addsuffix .fgb,$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix))))) < /dev/null
 	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkflatbuf/check/g' | sed 's/\.fgb//g' > $@.out
 	cmp $@.out $(patsubst %.checkflatbuf,%,$@)
