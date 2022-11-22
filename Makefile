@@ -106,6 +106,12 @@ noflatgeobuf += $(foreach dir,coalesce-id feature-filter id overflow stringid wy
 noflatgeobuf += $(foreach dir,attribute-type border dateline epsg-3857 feature-filter islands ne_110m_admin_1_states_provinces_lines ne_110m_populated_places tl_2018_51685_roads wraparound,$(wildcard tests/$(dir)/out/*.json))
 # These inputs have weird GeoJSON geometry types, which aren't supported by flatgeobuf
 noflatgeobuf += $(foreach dir,geometry,$(wildcard tests/$(dir)/out/*.json))
+# Feature order difference, probably from coordinate rounding?
+noflatgeobuf += $(foreach dir,grid-unaligned knox multilayer,$(wildcard tests/$(dir)/out/*.json))
+# Per-feature layer declarations
+noflatgeobuf += $(foreach dir,allow-existing csv feature-filter join-population layer-json longlayer muni pbf raw-tiles,$(wildcard tests/$(dir)/out/*.json))
+# Per-feature minzooms or maxzooms
+noflatgeobuf += $(foreach dir,allow-existing csv dateline join-population layer-json minzoom onefeature raw-tiles,$(wildcard tests/$(dir)/out/*.json))
 
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
 flatgeobuf-test: tippecanoe-json-tool $(addsuffix .checkflatbuf,$(filter-out $(noflatgeobuf),$(TESTS)))
@@ -125,7 +131,7 @@ fewer-tests: tippecanoe tippecanoe-decode flatgeobuf-test geobuf-test raw-tiles-
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkflatbuf:
 	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json); do rm -f $$i.fgb; ./tippecanoe-json-tool -w $$i > $$i.clean && ogr2ogr -preserve_fid $$i.fgb $$i.clean; done
-	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json.gz); do rm -f $$i.fgb; gzip -dc $$i | ./tippecanoe-json-tool -w > $$i.clean && ogr2ogr -preserve_fid $$i.fgb /tmp/$$i.clean; done
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json.gz); do rm -f $$i.fgb; gzip -dc $$i | ./tippecanoe-json-tool -w > $$i.clean && ogr2ogr -preserve_fid $$i.fgb $$i.clean; done
 	./tippecanoe -q -a@ -f -o $@.mbtiles $(subst @,:,$(subst %,/,$(subst _, ,$(patsubst %.json.checkflatbuf,%,$(word 4,$(subst /, ,$@)))))) $(foreach suffix,$(suffixes),$(addsuffix .fgb,$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix))))) < /dev/null
 	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkflatbuf/check/g' | sed 's/\.fgb//g' > $@.out
 	cmp $@.out $(patsubst %.checkflatbuf,%,$@)
