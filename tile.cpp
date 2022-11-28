@@ -1429,7 +1429,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, long long *meta_off, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, FILE **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps) {
+serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, long long *meta_off, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, FILE **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time) {
 	while (1) {
 		serial_feature sf = deserialize_feature(geoms, geompos_in, metabase, meta_off, z, tx, ty, initial_x, initial_y);
 		if (sf.t < 0) {
@@ -1458,7 +1458,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 			(*unclipped_features)++;
 		}
 
-		if (pass == 0) { /* only write out the next zoom once, even if we retry */
+		if (pass == 0 && first_time) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
 				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
 			}
@@ -1592,6 +1592,7 @@ struct run_prefilter_args {
 	long long *pool_off = NULL;
 	FILE *prefilter_fp = NULL;
 	struct json_object *filter = NULL;
+	bool first_time = false;
 };
 
 void *run_prefilter(void *v) {
@@ -1599,7 +1600,7 @@ void *run_prefilter(void *v) {
 	json_writer state(rpa->prefilter_fp);
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->metabase, rpa->meta_off, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->metabase, rpa->meta_off, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1856,11 +1857,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		}
 	}
 
-	bool first_time = true;
-
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
 	int line_detail;
+	bool first_time = true;
 	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
 		long long count = 0;
 		double accum_area = 0;
@@ -1959,6 +1959,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			rpa.stringpool = stringpool;
 			rpa.pool_off = pool_off;
 			rpa.filter = filter;
+			rpa.first_time = first_time;
 
 			if (pthread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
 				perror("pthread_create (prefilter writer)");
@@ -1978,7 +1979,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, metabase, meta_off, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps);
+				sf = next_feature(geoms, geompos_in, metabase, meta_off, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2193,6 +2194,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			coalesced_area = 0;
 		}
 
+		first_time = false;
+
 		{
 			drawvec just_shared_nodes;
 			std::sort(shared_nodes.begin(), shared_nodes.end());
@@ -2274,8 +2277,6 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				exit(EXIT_PTHREAD);
 			}
 		}
-
-		first_time = false;
 
 		if (additional[A_DETECT_SHARED_BORDERS]) {
 			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
@@ -3099,7 +3100,6 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 				}
 				if (args[thread].tile_size_out > zoom_tile_size) {
 					zoom_tile_size = args[thread].tile_size_out;
-					again = true;
 				}
 				if (args[thread].feature_count_out > zoom_feature_count) {
 					zoom_feature_count = args[thread].feature_count_out;

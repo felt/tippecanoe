@@ -154,25 +154,9 @@ void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data,
 }
 
 void mbtiles_erase_zoom(sqlite3 *outdb, int z) {
-	printf("delete zoom %d\n", z);
 	sqlite3_stmt *stmt;
-	const char *query = "delete from images where zoom_level = ?";
-	if (sqlite3_prepare_v2(outdb, query, -1, &stmt, NULL) != SQLITE_OK) {
-		fprintf(stderr, "sqlite3 delete images prep failed\n");
-		exit(EXIT_SQLITE);
-	}
 
-	sqlite3_bind_int(stmt, 1, z);
-	if (sqlite3_step(stmt) != SQLITE_DONE) {
-		fprintf(stderr, "sqlite3 delete images failed: %s\n", sqlite3_errmsg(outdb));
-		exit(EXIT_SQLITE);
-	}
-	if (sqlite3_finalize(stmt) != SQLITE_OK) {
-		fprintf(stderr, "sqlite3 delete images finalize failed: %s\n", sqlite3_errmsg(outdb));
-		exit(EXIT_SQLITE);
-	}
-
-	query = "delete from map where zoom_level = ?";
+	const char *query = "delete from map where zoom_level = ?";
 	if (sqlite3_prepare_v2(outdb, query, -1, &stmt, NULL) != SQLITE_OK) {
 		fprintf(stderr, "sqlite3 delete map prep failed\n");
 		exit(EXIT_SQLITE);
@@ -185,6 +169,22 @@ void mbtiles_erase_zoom(sqlite3 *outdb, int z) {
 	}
 	if (sqlite3_finalize(stmt) != SQLITE_OK) {
 		fprintf(stderr, "sqlite3 delete map finalize failed: %s\n", sqlite3_errmsg(outdb));
+		exit(EXIT_SQLITE);
+	}
+
+	query = "delete from images where zoom_level = ?";
+	if (sqlite3_prepare_v2(outdb, query, -1, &stmt, NULL) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 delete images prep failed\n");
+		exit(EXIT_SQLITE);
+	}
+
+	sqlite3_bind_int(stmt, 1, z);
+	if (sqlite3_step(stmt) != SQLITE_DONE) {
+		fprintf(stderr, "sqlite3 delete images failed: %s\n", sqlite3_errmsg(outdb));
+		exit(EXIT_SQLITE);
+	}
+	if (sqlite3_finalize(stmt) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 delete images finalize failed: %s\n", sqlite3_errmsg(outdb));
 		exit(EXIT_SQLITE);
 	}
 }
