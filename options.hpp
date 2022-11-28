@@ -11,7 +11,6 @@
 #define A_PREFER_RADIX_SORT ((int) 'R')
 #define A_CALCULATE_FEATURE_DENSITY ((int) 'g')
 #define A_INCREASE_GAMMA_AS_NEEDED ((int) 'G')
-#define A_MERGE_POLYGONS_AS_NEEDED ((int) 'm')
 #define A_DROP_DENSEST_AS_NEEDED ((int) 's')
 #define A_DROP_FRACTION_AS_NEEDED ((int) 'd')
 #define A_DROP_SMALLEST_AS_NEEDED ((int) 'n')
@@ -25,6 +24,8 @@
 #define A_GENERATE_IDS ((int) 'i')
 #define A_CONVERT_NUMERIC_IDS ((int) 'I')
 #define A_HILBERT ((int) 'h')
+#define A_VISVALINGAM ((int) 'v')
+#define A_GENERATE_POLYGON_LABEL_POINTS ((int) 'P')
 
 #define P_SIMPLIFY ((int) 's')
 #define P_SIMPLIFY_LOW ((int) 'S')

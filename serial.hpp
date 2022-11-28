@@ -56,6 +56,7 @@ struct serial_feature {
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
+	unsigned long long label_point = 0;
 	long long extent = 0;
 
 	std::vector<long long> keys{};
@@ -149,6 +150,7 @@ struct serialization_state {
 
 	double *dist_sum = NULL;  // running tally for calculation of resolution within features
 	size_t *dist_count = NULL;
+	double *area_sum = NULL;
 	bool want_dist = false;
 
 	int maxzoom = 0;

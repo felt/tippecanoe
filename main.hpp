@@ -53,6 +53,8 @@ extern size_t max_tile_features;
 extern int cluster_distance;
 extern std::string attribute_for_id;
 extern int tiny_polygon_size;
+extern size_t limit_tile_feature_count;
+extern size_t limit_tile_feature_count_at_maxzoom;
 
 struct order_field {
 	std::string name;
@@ -65,6 +67,10 @@ struct order_field {
 };
 
 extern std::vector<order_field> order_by;
+
+// not legal UTF-8, so can't appear as a real attribute name
+#define ORDER_BY_SIZE "\200size"
+extern bool order_by_size;
 
 int mkstemp_cloexec(char *name);
 FILE *fopen_oflag(const char *name, const char *mode, int oflag);

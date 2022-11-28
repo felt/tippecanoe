@@ -96,6 +96,7 @@ struct coalesce {
 	double spacing = 0;
 	bool has_id = false;
 	unsigned long long id = 0;
+	long long extent = 0;
 
 	bool operator<(const coalesce &o) const {
 		int cmp = coalindexcmp(this, &o);
@@ -250,6 +251,13 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 }
 
 static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
+	if (key == ORDER_BY_SIZE) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+
 	const std::vector<long long> &keys1 = c1->keys;
 	const std::vector<long long> &values1 = c1->values;
 	const char *stringpool1 = c1->stringpool;
@@ -316,7 +324,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, long long metastart, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -406,6 +414,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.metapos = metastart;
 					sf.geometry = geom2;
 					sf.index = index;
+					sf.label_point = label_point;
 					sf.extent = extent;
 					sf.feature_minzoom = feature_minzoom;
 
@@ -438,9 +447,13 @@ struct partial {
 	long long layer = 0;
 	long long original_seq = 0;
 	unsigned long long index = 0;
+	unsigned long long label_point = 0;
 	int segment = 0;
 	bool reduced = 0;
+	bool coalesced = 0;
 	int z = 0;
+	int tx = 0;
+	int ty = 0;
 	int line_detail = 0;
 	int extra_detail = 0;
 	int maxzoom = 0;
@@ -504,93 +517,117 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	}
 }
 
+double simplify_partial(partial *p, drawvec &shared_nodes) {
+	drawvec geom;
+
+	for (size_t j = 0; j < p->geoms.size(); j++) {
+		for (size_t k = 0; k < p->geoms[j].size(); k++) {
+			geom.push_back(p->geoms[j][k]);
+		}
+	}
+
+	p->geoms.clear();  // avoid keeping two copies in memory
+	signed char t = p->t;
+	int z = p->z;
+	int line_detail = p->line_detail;
+	int maxzoom = p->maxzoom;
+
+	if (additional[A_GRID_LOW_ZOOMS] && z < maxzoom) {
+		geom = stairstep(geom, z, line_detail);
+	}
+
+	double area = 0;
+	if (t == VT_POLYGON) {
+		area = get_mp_area(geom);
+	}
+
+	if ((t == VT_LINE || t == VT_POLYGON) && !(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
+		// Now I finally remember why it doesn't simplify if the feature was reduced:
+		// because it makes square placeholders look like weird triangular placeholders.
+		// Only matters if simplification is set higher than the tiny polygon size.
+		// Tiny polygons that are part of a tiny multipolygon will still get simplified.
+		if (!p->reduced) {
+			if (t == VT_LINE) {
+				// continues to deduplicate to line_detail even if we have extra detail
+				geom = remove_noop(geom, t, 32 - z - line_detail);
+			}
+
+			bool already_marked = false;
+			if (additional[A_DETECT_SHARED_BORDERS] && t == VT_POLYGON) {
+				already_marked = true;
+			}
+
+			if (!already_marked) {
+				if (p->coalesced && t == VT_POLYGON) {
+					// clean coalesced polygons before simplification to avoid
+					// introducing shards between shapes that otherwise would have
+					// unioned exactly
+					geom = clean_or_clip_poly(geom, 0, 0, false);
+				}
+
+				// continues to simplify to line_detail even if we have extra detail
+				drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes);
+
+				if (t != VT_POLYGON || ngeom.size() >= 3) {
+					geom = ngeom;
+				}
+			}
+		}
+	}
+
+	if (t == VT_LINE && additional[A_REVERSE]) {
+		geom = reorder_lines(geom);
+	}
+
+	p->geoms.push_back(geom);
+	return area;
+}
+
 void *partial_feature_worker(void *v) {
 	struct partial_arg *a = (struct partial_arg *) v;
 	std::vector<struct partial> *partials = a->partials;
 
 	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
-		drawvec geom;
+		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes));
 
-		for (size_t j = 0; j < (*partials)[i].geoms.size(); j++) {
-			for (size_t k = 0; k < (*partials)[i].geoms[j].size(); k++) {
-				geom.push_back((*partials)[i].geoms[j][k]);
-			}
-		}
-
-		(*partials)[i].geoms.clear();  // avoid keeping two copies in memory
 		signed char t = (*partials)[i].t;
 		int z = (*partials)[i].z;
-		int line_detail = (*partials)[i].line_detail;
 		int out_detail = (*partials)[i].extra_detail;
-		int maxzoom = (*partials)[i].maxzoom;
 
-		if (additional[A_GRID_LOW_ZOOMS] && z < maxzoom) {
-			geom = stairstep(geom, z, line_detail);
-		}
-
-		double area = 0;
-		if (t == VT_POLYGON) {
-			area = get_mp_area(geom);
-		}
-
-		if ((t == VT_LINE || t == VT_POLYGON) && !(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
-			// Now I finally remember why it doesn't simplify if the feature was reduced:
-			// because it makes square placeholders look like weird triangular placeholders.
-			// Only matters if simplification is set higher than the tiny polygon size.
-			// Tiny polygons that are part of a tiny multipolygon will still get simplified.
-			if (!(*partials)[i].reduced) {
-				if (t == VT_LINE) {
-					// continues to deduplicate to line_detail even if we have extra detail
-					geom = remove_noop(geom, t, 32 - z - line_detail);
-				}
-
-				bool already_marked = false;
-				if (additional[A_DETECT_SHARED_BORDERS] && t == VT_POLYGON) {
-					already_marked = true;
-				}
-
-				if (!already_marked) {
-					// continues to simplify to line_detail even if we have extra detail
-					drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), (*partials)[i].simplification, t == VT_POLYGON ? 4 : 0, *(a->shared_nodes));
-
-					if (t != VT_POLYGON || ngeom.size() >= 3) {
-						geom = ngeom;
-					}
-				}
-			}
-		}
-
-		if (t == VT_LINE && additional[A_REVERSE]) {
-			geom = reorder_lines(geom);
-		}
-
+		drawvec geom = (*partials)[i].geoms[0];
 		to_tile_scale(geom, z, out_detail);
-
-		std::vector<drawvec> geoms;
-		geoms.push_back(geom);
 
 		if (t == VT_POLYGON) {
 			// Scaling may have made the polygon degenerate.
 			// Give Clipper a chance to try to fix it.
-			for (size_t g = 0; g < geoms.size(); g++) {
-				drawvec before = geoms[g];
-				geoms[g] = clean_or_clip_poly(geoms[g], 0, 0, false);
+			{
+				drawvec before = geom;
+				geom = clean_or_clip_poly(geom, 0, 0, false);
 				if (additional[A_DEBUG_POLYGON]) {
-					check_polygon(geoms[g]);
+					check_polygon(geom);
 				}
 
-				if (geoms[g].size() < 3) {
+				if (geom.size() < 3) {
 					if (area > 0) {
 						// area is in world coordinates, calculated before scaling down
-						geoms[g] = revive_polygon(before, area / geoms.size(), z, out_detail);
+						geom = revive_polygon(before, area, z, out_detail);
 					} else {
-						geoms[g].clear();
+						geom.clear();
 					}
 				}
 			}
 		}
 
+		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+			t = (*partials)[i].t = VT_POINT;
+			geom = spiral_anchors(from_tile_scale(geom, z, out_detail), (*partials)[i].tx, (*partials)[i].ty, z, (*partials)[i].label_point);
+			to_tile_scale(geom, z, out_detail);
+		}
+
 		(*partials)[i].index = i;
+
+		std::vector<drawvec> geoms;  // artifact of former polygon-splitting to reduce geometric complexity
+		geoms.push_back(geom);
 		(*partials)[i].geoms = geoms;
 	}
 
@@ -1285,6 +1322,7 @@ struct write_tile_args {
 	double fraction = 0;
 	double fraction_out = 0;
 	size_t tile_size_out = 0;
+	size_t feature_count_out = 0;
 	const char *prefilter = NULL;
 	const char *postfilter = NULL;
 	std::map<std::string, attribute_op> const *attribute_accum = NULL;
@@ -1422,7 +1460,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 
 		if (pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.extent);
+				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
 			}
 		}
 
@@ -1754,13 +1792,13 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 	}
 }
 
-bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps) {
+bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent) {
 	for (size_t i = partials.size(); i > 0; i--) {
 		if (partials[i - 1].t == sf.t) {
 			std::string &layername1 = (*layer_unmaps)[partials[i - 1].segment][partials[i - 1].layer];
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
-			if (layername1 == layername2) {
+			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
 				out = i - 1;
 				return true;
 			}
@@ -1790,7 +1828,7 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 	return true;
 }
 
-long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, char *stringpool, int z, unsigned tx, unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
+long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1818,7 +1856,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		}
 	}
 
-	bool has_polygons = false;
+	bool first_time = true;
 
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
@@ -1849,6 +1887,9 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		size_t skipped = 0;
 		size_t kept = 0;
 
+		size_t unsimplified_geometry_size = 0;
+		size_t simplified_geometry_through = 0;
+
 		int within[child_shards];
 		std::atomic<long long> geompos[child_shards];
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
@@ -1871,6 +1912,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		run_prefilter_args rpa;	 // here so it stays in scope until joined
 		FILE *prefilter_read_fp = NULL;
 		json_pull *prefilter_jp = NULL;
+
+		serial_feature tiny_feature;
 
 		if (z < minzoom) {
 			prefilter = NULL;
@@ -1959,7 +2002,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (sf.dropped) {
-				if (find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_by_rate++;
 					continue;
@@ -1967,7 +2010,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (gamma > 0) {
-				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_by_gamma++;
 					continue;
@@ -1976,7 +2019,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			if (additional[A_CLUSTER_DENSEST_AS_NEEDED] || cluster_distance != 0) {
 				indices.push_back(sf.index);
-				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].clustered++;
 
 					if (partials[which_partial].t == VT_POINT &&
@@ -1997,15 +2040,16 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 			} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
 				indices.push_back(sf.index);
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
 				indices.push_back(sf.index);
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
@@ -2013,15 +2057,16 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 			} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
 				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps)) {
+				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->coalesced_as_needed++;
@@ -2042,9 +2087,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			fraction_accum += fraction;
-			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps)) {
+			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
 				} else {
@@ -2058,12 +2104,11 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			bool reduced = false;
 			if (sf.t == VT_POLYGON) {
 				if (!prevent[P_TINY_POLYGON_REDUCTION] && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area);
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
 					if (reduced) {
 						strategy->tiny_polygons++;
 					}
 				}
-				has_polygons = true;
 			}
 			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
 				if (line_is_too_small(sf.geometry, z, line_detail)) {
@@ -2092,7 +2137,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					p.segment = sf.segment;
 					p.original_seq = sf.seq;
 					p.reduced = reduced;
+					p.coalesced = false;
 					p.z = z;
+					p.tx = tx;
+					p.ty = ty;
 					p.line_detail = line_detail;
 					p.extra_detail = line_detail;
 					p.maxzoom = maxzoom;
@@ -2105,6 +2153,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					p.id = sf.id;
 					p.has_id = sf.has_id;
 					p.index = sf.index;
+					p.label_point = sf.label_point;
 					p.renamed = -1;
 					p.extent = sf.extent;
 					p.clustered = 0;
@@ -2120,6 +2169,23 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 
 					partials.push_back(p);
+
+					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
+					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
+						drawvec dv;
+
+						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
+							simplify_partial(&partials[simplified_geometry_through], dv);
+
+							for (auto &g : partials[simplified_geometry_through].geoms) {
+								if (partials[simplified_geometry_through].t == VT_POLYGON) {
+									g = clean_or_clip_poly(g, 0, 0, false);
+								}
+							}
+						}
+
+						unsimplified_geometry_size = 0;
+					}
 				}
 			}
 
@@ -2209,10 +2275,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 		}
 
-		bool merge_successful = true;
+		first_time = false;
 
-		if (additional[A_DETECT_SHARED_BORDERS] || (additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction < 1)) {
-			merge_successful = find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
+		if (additional[A_DETECT_SHARED_BORDERS]) {
+			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
 		}
 
 		int tasks = ceil((double) CPUS / *running);
@@ -2274,6 +2340,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					c.spacing = partials[i].spacing;
 					c.id = partials[i].id;
 					c.has_id = partials[i].has_id;
+					c.extent = partials[i].extent;
 
 					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 
@@ -2364,6 +2431,16 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			if (order_by.size() != 0) {
 				std::sort(layer_features.begin(), layer_features.end(), ordercmp);
+			}
+
+			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
+				if (layer_features.size() > limit_tile_feature_count_at_maxzoom) {
+					layer_features.resize(limit_tile_feature_count_at_maxzoom);
+				}
+			} else if (limit_tile_feature_count != 0) {
+				if (layer_features.size() > limit_tile_feature_count) {
+					layer_features.resize(limit_tile_feature_count);
+				}
 			}
 		}
 
@@ -2461,18 +2538,15 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 		if (totalsize > 0 && tile.layers.size() > 0) {
 			if (totalsize > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+				if (totalsize > arg->feature_count_out) {
+					arg->feature_count_out = totalsize;
+				}
+
 				if (!quiet) {
 					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, totalsize, max_tile_features);
 				}
 
-				if (has_polygons && additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction > .05 && merge_successful) {
-					merge_fraction = merge_fraction * max_tile_features / tile.layers.size() * 0.95;
-					if (!quiet) {
-						fprintf(stderr, "Going to try merging %0.2f%% of the polygons to make it fit\n", 100 - merge_fraction * 100);
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-					continue;
-				} else if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
+				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
 					if (gamma < 1) {
 						gamma = 1;
 					} else {
@@ -2574,13 +2648,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 				}
 
-				if (has_polygons && additional[A_MERGE_POLYGONS_AS_NEEDED] && merge_fraction > .05 && merge_successful) {
-					merge_fraction = merge_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.95;
-					if (!quiet) {
-						fprintf(stderr, "Going to try merging %0.2f%% of the polygons to make it fit\n", 100 - merge_fraction * 100);
-					}
-					line_detail++;	// to keep it the same when the loop decrements it
-				} else if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
+				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
 					if (gamma < 1) {
 						gamma = 1;
 					} else {
@@ -2792,7 +2860,7 @@ void *run_thread(void *vargs) {
 	return NULL;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -2928,6 +2996,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 		long long zoom_minextent = 0;
 		double zoom_fraction = 1;
 		size_t zoom_tile_size = 0;
+		size_t zoom_feature_count = 0;
 
 		for (size_t pass = 0; ; pass++) {
 			pthread_t pthreads[threads];
@@ -2957,8 +3026,14 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 				args[thread].fraction = zoom_fraction;
 				args[thread].fraction_out = zoom_fraction;
 				args[thread].tile_size_out = 0;
+				args[thread].feature_count_out = 0;
 				args[thread].child_shards = TEMP_FILES / threads;
-				args[thread].simplification = simplification;
+
+				if (z == maxzoom && maxzoom_simplification > 0) {
+					args[thread].simplification = maxzoom_simplification;
+				} else {
+					args[thread].simplification = simplification;
+				}
 
 				args[thread].geomfd = geomfd;
 				args[thread].geom_size = geom_size;
@@ -3026,6 +3101,9 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 					zoom_tile_size = args[thread].tile_size_out;
 					again = true;
 				}
+				if (args[thread].feature_count_out > zoom_feature_count) {
+					zoom_feature_count = args[thread].feature_count_out;
+				}
 
 				// Zoom counter might be lower than reality if zooms are being skipped
 				if (args[thread].wrote_zoom > z) {
@@ -3040,7 +3118,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 			if ((size_t) z >= strategies.size()) {
 				strategies.resize(z + 1);
 			}
-			struct strategy s(strategy, zoom_tile_size);
+
+			struct strategy s(strategy, zoom_tile_size, zoom_feature_count);
 			strategies[z] = s;
 
 			if (again) {

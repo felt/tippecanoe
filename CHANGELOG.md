@@ -1,3 +1,57 @@
+## 2.13.1
+
+* Simplify geometry earlier when the in-memory representation of a tile gets large, to reduce peak memory usage
+
+## 2.13.0
+
+* Add --limit-tile-feature-count and --limit-tile-feature-count-at-maximum-zoom
+* Coalesce small features only onto other small features with `--coalesce-smallest-as-needed`, never to large features
+* Clean coalesced-as-needed features before simplifying them, to improve simplification quality
+
+## 2.12.0
+
+* Add `--drop-denser` option to drop points in dense clusters in preference
+  to those in sparse areas.
+
+## 2.11.0
+
+* Change sqlite3 schema to deduplicate identical tiles
+* Limit guessed maxzoom to avoid spending too many tiles on polygon fill
+
+## 2.10.0
+
+* Upgrade flatbuffers version
+
+## 2.9.1
+
+* Do label generation after simplification, not before.
+
+## 2.9.0
+
+* Add an option to generate label points in place of polygons
+* Add --order-smallest-first and --order-largest-first options
+* When tiny polygons are being aggregated into dust, keep the attributes of the largest.
+
+## 2.8.1
+
+* Improve precision of polygon ring area calculations
+
+## 2.8.0
+
+* Add the option to use a different simplification level at maxzoom
+
+## 2.7.0
+
+* Add the option to use the Visvalingam simplification algorithm
+
+## 2.6.4
+
+* Update tests that should have been updated in 2.6.2
+
+## 2.6.3
+
+* Fix crash in tile-join caused by wrong-way comparison
+
 ## 2.6.2
 
 * Stop adding features to a tile if it can't possibly work, to limit memory use

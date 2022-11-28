@@ -601,7 +601,7 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 					} else if (v->type != JSON_NUMBER) {
 						fprintf(stderr, "Value %zu of %zu is not a number: %s\n", j, i, s);
 					} else {
-						if (i <= st->size()) {
+						if (i >= st->size()) {
 							st->resize(i + 1);
 						}
 
@@ -619,6 +619,8 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 							(*st)[i].tiny_polygons += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "tile_size_desired") == 0) {
 							(*st)[i].tile_size += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "feature_count_desired") == 0) {
+							(*st)[i].feature_count += v->value.number.number;
 						}
 					}
 				}
