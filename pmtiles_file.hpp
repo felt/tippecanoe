@@ -1,9 +1,10 @@
-#ifndef PMTILES_HPP
-#define PMTILES_HPP
+#ifndef PMTILES_FILE_HPP
+#define PMTILES_FILE_HPP
 
 #include <vector>
 #include <fstream>
 #include <map>
+#include "pmtiles/pmtiles.hpp"
 
 struct pmtiles_file {
 	uint64_t offset = 0;
@@ -12,6 +13,8 @@ struct pmtiles_file {
 	std::string tmp_name;
 	std::string json_metadata;
 	pthread_mutex_t lock;
+	std::vector<pmtiles::entryv3> entries;
+	pmtiles::headerv3 header;
 };
 
 #include "mbtiles.hpp"

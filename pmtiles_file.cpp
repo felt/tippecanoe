@@ -45,9 +45,10 @@ void pmtiles_write_tile(pmtiles_file  *outfile, int z, int tx, int ty, const cha
 		exit(EXIT_PTHREAD);
 	}
 
-	fprintf(stderr, "%d %d %d\n", z, tx, ty);
-	// TODO: add entry to entries
 	outfile->tmp_ostream.write(data, size);
+
+	auto tile_id = pmtiles::zxy_to_tileid(z,tx,ty);
+	outfile->entries.emplace_back(tile_id, outfile->offset, size, 1);
 	outfile->offset += size;
 
 	if (pthread_mutex_unlock(&outfile->lock) != 0) {
@@ -183,18 +184,99 @@ void pmtiles_write_metadata(pmtiles_file *outfile, const char *fname, int minzoo
 	// set header fields
 	outfile->json_metadata = pmtiles_metadata_json(fname, attribution, layermap, vector, description, do_tilestats, attribute_descriptions, program, commandline);
 
-	fprintf(stderr, "%d %d %f %f %f %f %f %f\n", minzoom, maxzoom, minlon, minlat, maxlon, maxlat, midlon, midlat);
+	pmtiles::headerv3 *header = &outfile->header;
+
+	header->clustered = 0x0;
+	header->internal_compression = 0x2; // gzip
+	header->tile_compression = 0x2; // gzip
+	header->tile_type = 0x1; // mvt
+	header->min_zoom = minzoom;
+	header->max_zoom = maxzoom;
+	header->min_lon_e7 = minlon * 10000000;
+	header->min_lat_e7 = minlat * 10000000;
+	header->max_lon_e7 = maxlon * 10000000;
+	header->max_lat_e7 = maxlat * 10000000;
+	header->center_zoom = minzoom; // can be improved 
+	header->center_lon_e7 = midlon * 10000000;
+	header->center_lat_e7 = midlat * 10000000;
+}
+
+std::tuple<std::string,std::string, int> build_root_leaves(const std::vector<pmtiles::entryv3> &entries, int leaf_size) {
+		std::vector<pmtiles::entryv3> root_entries;
+		std::string leaves_bytes;
+		int num_leaves = 0;
+		for (size_t i = 0; i <= entries.size(); i+= leaf_size) {
+				num_leaves++;
+				int end = i + leaf_size;
+				if (i + leaf_size > entries.size()) {
+						end = entries.size();
+				}
+				std::vector<pmtiles::entryv3> subentries = {entries.begin() + i, entries.begin() + end};
+				auto uncompressed_leaf = pmtiles::serialize_directory(subentries);
+				std::string compressed_leaf;
+				 compress(uncompressed_leaf, compressed_leaf);
+				root_entries.emplace_back(entries[i].tile_id, leaves_bytes.size(), compressed_leaf.size(), 0);
+				leaves_bytes += compressed_leaf;
+		}
+		auto uncompressed_root = pmtiles::serialize_directory(root_entries);
+		std::string compressed_root;
+		compress(uncompressed_root, compressed_root);
+		return std::make_tuple(compressed_root, leaves_bytes, num_leaves);
+}
+
+std::tuple<std::string,std::string, int> make_root_leaves(const std::vector<pmtiles::entryv3> &entries) {
+		auto test_bytes = pmtiles::serialize_directory(entries);
+		std::string compressed;
+		compress(test_bytes, compressed);
+		if (compressed.size() <= 16384 - 127) {
+				return std::make_tuple(compressed,"",0); 
+		}
+		int leaf_size = 4096;
+		while (true) {
+				std::string root_bytes;
+				std::string leaves_bytes;
+				int num_leaves;
+				std::tie(root_bytes, leaves_bytes, num_leaves) = build_root_leaves(entries, leaf_size);
+				if (root_bytes.length() < 16384 - 127) {
+						return std::make_tuple(root_bytes, leaves_bytes, num_leaves);
+				}
+				leaf_size *= 2;
+		}
 }
 
 void pmtiles_finalize(pmtiles_file *outfile) {
 	outfile->tmp_ostream.close();
 
-	// TODO: serialize sorted directories and set header fields
+	std::sort(outfile->entries.begin(), outfile->entries.end(), pmtiles::entryv3_cmp);
+
+	std::string root_bytes;
+	std::string leaves_bytes;
+	int num_leaves;
+	std::tie(root_bytes, leaves_bytes, num_leaves) = make_root_leaves(outfile->entries);
+
+	pmtiles::headerv3 *header = &outfile->header;
+
+	header->root_dir_offset = 127;
+	header->root_dir_bytes = root_bytes.size();
+
+	header->json_metadata_offset = header->root_dir_offset + header->root_dir_bytes;
+	header->json_metadata_bytes = outfile->json_metadata.size();
+	header->leaf_dirs_offset = header->json_metadata_offset + header->json_metadata_bytes;
+	header->leaf_dirs_bytes = leaves_bytes.size();
+	header->tile_data_offset = header->leaf_dirs_offset + header->leaf_dirs_bytes;
+	header->tile_data_bytes = outfile->offset;
+
+	header->addressed_tiles_count = outfile->entries.size();
+	header->tile_entries_count = outfile->entries.size();
+	header->tile_contents_count = outfile->entries.size();
 
 	std::ifstream tmp_istream(outfile->tmp_name, std::ios::in | std::ios_base::binary);
 
+	auto header_str = header->serialize();
+	outfile->ostream.write(header_str.data(), header_str.length());
+	outfile->ostream.write(root_bytes.data(), root_bytes.length());
 	outfile->ostream.write(outfile->json_metadata.data(), outfile->json_metadata.size());
-	// TODO: write leaf dirs
+	outfile->ostream.write(leaves_bytes.data(), leaves_bytes.length());
 	outfile->ostream << tmp_istream.rdbuf();
 
 	tmp_istream.close();
