@@ -25,6 +25,7 @@
 #include "projection.hpp"
 #include "pool.hpp"
 #include "mbtiles.hpp"
+#include "pmtiles_file.hpp"
 #include "geometry.hpp"
 #include "dirtiles.hpp"
 #include "evaluator.hpp"
@@ -528,7 +529,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter) {
+void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, pmtiles_file *outfile, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -579,6 +580,8 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 				mbtiles_write_tile(outdb, ai->first.z, ai->first.x, ai->first.y, ai->second.data(), ai->second.size());
 			} else if (outdir != NULL) {
 				dir_write_tile(outdir, ai->first.z, ai->first.x, ai->first.y, ai->second);
+			} else if (outfile != NULL) {
+				pmtiles_write_tile(outfile, ai->first.z, ai->first.x, ai->first.y, ai->second.data(), ai->second.size());
 			}
 		}
 	}
@@ -673,7 +676,7 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 	}
 }
 
-void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
+void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, pmtiles_file *outfile, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
 	std::vector<std::map<std::string, layermap_entry>> layermaps;
 	for (size_t i = 0; i < CPUS; i++) {
 		layermaps.push_back(std::map<std::string, layermap_entry>());
@@ -718,7 +721,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 
 		if (readers == NULL || readers->zoom != r->zoom || readers->x != r->x || readers->y != r->y) {
 			if (tasks.size() > 100 * CPUS) {
-				handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
+				handle_tasks(tasks, layermaps, outdb, outfile, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
 				tasks.clear();
 			}
 		}
@@ -767,7 +770,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	st->minlat = min(minlat, st->minlat);
 	st->maxlat = max(maxlat, st->maxlat);
 
-	handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
+	handle_tasks(tasks, layermaps, outdb, outfile, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
 	layermap = merge_layermaps(layermaps);
 
 	struct reader *next;
@@ -916,9 +919,10 @@ void usage(char **argv) {
 }
 
 int main(int argc, char **argv) {
-	char *out_mbtiles = NULL;
+	char *out_archive = NULL;
 	char *out_dir = NULL;
 	sqlite3 *outdb = NULL;
+	pmtiles_file *outfile = NULL;
 	char *csv = NULL;
 	int force = 0;
 	int ifmatched = 0;
@@ -999,7 +1003,7 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'o':
-			out_mbtiles = optarg;
+			out_archive = optarg;
 			break;
 
 		case 'e':
@@ -1123,12 +1127,12 @@ int main(int argc, char **argv) {
 		usage(argv);
 	}
 
-	if (out_mbtiles == NULL && out_dir == NULL) {
-		fprintf(stderr, "%s: must specify -o out.mbtiles or -e directory\n", argv[0]);
+	if (out_archive == NULL && out_dir == NULL) {
+		fprintf(stderr, "%s: must specify -o out.mbtiles, -o out.pmtiles or -e directory\n", argv[0]);
 		usage(argv);
 	}
 
-	if (out_mbtiles != NULL && out_dir != NULL) {
+	if (out_archive != NULL && out_dir != NULL) {
 		fprintf(stderr, "%s: Options -o and -e cannot be used together\n", argv[0]);
 		usage(argv);
 	}
@@ -1138,11 +1142,16 @@ int main(int argc, char **argv) {
 		exit(EXIT_ARGS);
 	}
 
-	if (out_mbtiles != NULL) {
+	if (out_archive != NULL) {
 		if (force) {
-			unlink(out_mbtiles);
+			unlink(out_archive);
 		}
-		outdb = mbtiles_open(out_mbtiles, argv, 0);
+
+		if (pmtiles_has_suffix(out_archive)) {
+			outfile = pmtiles_open(out_archive, argv, 0);
+		} else {
+			outdb = mbtiles_open(out_archive, argv, 0);
+		}
 	}
 	if (out_dir != NULL) {
 		check_dir(out_dir, argv, force, false);
@@ -1178,7 +1187,7 @@ int main(int argc, char **argv) {
 	std::string generator_options;
 	std::vector<strategy> strategies;
 
-	decode(readers, layermap, outdb, out_dir, &st, header, mapping, exclude, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
+	decode(readers, layermap, outdb, outfile, out_dir, &st, header, mapping, exclude, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
 
 	if (set_attribution.size() != 0) {
 		attribution = set_attribution;

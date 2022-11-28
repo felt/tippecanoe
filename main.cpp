@@ -3136,18 +3136,10 @@ int main(int argc, char **argv) {
 				exit(EXIT_ARGS);
 			}
 			{
-				size_t lenstr = strlen(optarg);
-				if (lenstr < 8) {
-					fprintf(stderr, "%s: Invalid -o: %s \n", argv[0], optarg);
-					exit(EXIT_FAILURE);
-				}
-				if (strncmp(optarg+(lenstr-8),".mbtiles",8) == 0) {
-					out_mbtiles = optarg;
-				} else if (strncmp(optarg+(lenstr-8),".pmtiles",8) == 0) {
+				if (pmtiles_has_suffix(optarg)) {
 					out_pmtiles = optarg;
 				} else {
-					fprintf(stderr, "%s: Invalid -o: %s \n", argv[0], optarg);
-					exit(EXIT_FAILURE);
+					out_mbtiles = optarg;
 				}
 			}
 			break;
@@ -3499,7 +3491,7 @@ int main(int argc, char **argv) {
 			unlink(out_pmtiles);
 		}
 
-		outfile = pmtiles_open(out_pmtiles, argv, forcetable, tmpdir);
+		outfile = pmtiles_open(out_pmtiles, argv, forcetable);
 	}
 	if (out_dir != NULL) {
 		check_dir(out_dir, argv, force, forcetable);

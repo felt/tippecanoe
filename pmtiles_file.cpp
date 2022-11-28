@@ -3,8 +3,22 @@
 #include "pmtiles_file.hpp"
 #include "write_json.hpp"
 #include "version.hpp"
+#include "errors.hpp"
 
-pmtiles_file *pmtiles_open(const char *filename, char **argv, int force, const char* tmpdir) {
+bool pmtiles_has_suffix(const char *filename) {
+	size_t lenstr = strlen(filename);
+	if (lenstr < 8) {
+		fprintf(stderr, "Archive name missing suffix: %s\n", filename);
+		exit(EXIT_ARGS);
+	}
+	if (strncmp(filename+(lenstr-8),".pmtiles",8) == 0) {
+		return true;
+	}
+	return false;
+}
+
+pmtiles_file *pmtiles_open(const char *filename, char **argv, int force) {
+
 	pmtiles_file *outfile = new pmtiles_file;
 
 	struct stat st;
@@ -13,27 +27,33 @@ pmtiles_file *pmtiles_open(const char *filename, char **argv, int force, const c
 	} else {
 		if (stat(filename, &st) == 0) {
 			fprintf(stderr, "%s: %s: file exists\n", argv[0], filename);
-			exit(EXIT_FAILURE);
+			exit(EXIT_ARGS);
 		}
 	}
 	outfile->ostream.open(filename,std::ios::out | std::ios::binary);
-
-	char tmpname[strlen(tmpdir) + strlen("/pmtiles.XXXXXX") + 1];
-	sprintf(tmpname, "%s%s", tmpdir, "/pmtiles.XXXXXX");
-	int tmpfd = mkstemp(tmpname);
-	close(tmpfd);
-
-	outfile->tmptilesname = tmpname;
-	outfile->tilestmp.open(tmpname,std::ios::out | std::ios::binary);
+	outfile->tmp_name = std::string(filename) + ".tmp";
+	outfile->tmp_ostream.open(outfile->tmp_name,std::ios::out | std::ios::binary);
 	outfile->offset = 0;
+
+	outfile->lock = PTHREAD_MUTEX_INITIALIZER;
 	return outfile;
 }
 
 void pmtiles_write_tile(pmtiles_file  *outfile, int z, int tx, int ty, const char *data, int size) {
+	if (pthread_mutex_lock(&outfile->lock) != 0) {
+		perror("pthread_mutex_lock");
+		exit(EXIT_PTHREAD);
+	}
+
 	fprintf(stderr, "%d %d %d\n", z, tx, ty);
 	// TODO: add entry to entries
-	outfile->tilestmp.write(data, size);
+	outfile->tmp_ostream.write(data, size);
 	outfile->offset += size;
+
+	if (pthread_mutex_unlock(&outfile->lock) != 0) {
+		perror("pthread_mutex_unlock");
+		exit(EXIT_PTHREAD);
+	}
 }
 
 std::string pmtiles_metadata_json(const char *fname, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline) {
@@ -167,18 +187,18 @@ void pmtiles_write_metadata(pmtiles_file *outfile, const char *fname, int minzoo
 }
 
 void pmtiles_finalize(pmtiles_file *outfile) {
-	outfile->tilestmp.close();
+	outfile->tmp_ostream.close();
 
 	// TODO: serialize sorted directories and set header fields
 
-	std::ifstream tilestmp(outfile->tmptilesname, std::ios::in | std::ios_base::binary);
+	std::ifstream tmp_istream(outfile->tmp_name, std::ios::in | std::ios_base::binary);
 
 	outfile->ostream.write(outfile->json_metadata.data(), outfile->json_metadata.size());
 	// TODO: write leaf dirs
-	outfile->ostream << tilestmp.rdbuf();
+	outfile->ostream << tmp_istream.rdbuf();
 
-	tilestmp.close();
-	unlink(outfile->tmptilesname.c_str());
+	tmp_istream.close();
+	unlink(outfile->tmp_name.c_str());
 
 	outfile->ostream.close();
 
