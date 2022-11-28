@@ -24,13 +24,19 @@ std::string dir_read_tile(std::string base, struct zxy tile) {
 }
 
 void dir_write_tile(const char *outdir, int z, int tx, int ty, std::string const &pbf) {
+	// Don't check mkdir error returns, since most of these calls to
+	// mkdir will be creating directories that already exist.
 	mkdir(outdir, S_IRWXU | S_IRWXG | S_IRWXO);
+
 	std::string curdir(outdir);
 	std::string slash("/");
+
 	std::string newdir = curdir + slash + std::to_string(z);
 	mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+
 	newdir = newdir + "/" + std::to_string(tx);
 	mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+
 	newdir = newdir + "/" + std::to_string(ty) + ".pbf";
 
 	struct stat st;
@@ -39,9 +45,20 @@ void dir_write_tile(const char *outdir, int z, int tx, int ty, std::string const
 		exit(EXIT_EXISTS);
 	}
 
-	std::ofstream pbfFile(newdir, std::ios::out | std::ios::binary);
-	pbfFile.write(pbf.data(), pbf.size());
-	pbfFile.close();
+	FILE *fp = fopen(newdir.c_str(), "wb");
+	if (fp == NULL) {
+		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+		exit(EXIT_WRITE);
+	}
+
+	if (fwrite(pbf.c_str(), sizeof(char), pbf.size(), fp) != pbf.size()) {
+		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+	}
+
+	if (fclose(fp) != 0) {
+		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+		exit(EXIT_CLOSE);
+	}
 }
 
 static bool numeric(const char *s) {
