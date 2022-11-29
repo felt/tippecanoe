@@ -1458,7 +1458,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 			(*unclipped_features)++;
 		}
 
-		if (pass == 0 && first_time) { /* only write out the next zoom once, even if we retry */
+		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
 				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.metapos, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
 			}
@@ -1857,10 +1857,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		}
 	}
 
+	bool first_time = true;
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
 	int line_detail;
-	bool first_time = true;
 	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
 		long long count = 0;
 		double accum_area = 0;
@@ -2194,8 +2194,6 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			coalesced_area = 0;
 		}
 
-		first_time = false;
-
 		{
 			drawvec just_shared_nodes;
 			std::sort(shared_nodes.begin(), shared_nodes.end());
@@ -2277,6 +2275,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				exit(EXIT_PTHREAD);
 			}
 		}
+
+		first_time = false;
 
 		if (additional[A_DETECT_SHARED_BORDERS]) {
 			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
