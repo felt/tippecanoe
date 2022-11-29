@@ -53,6 +53,7 @@ void dir_write_tile(const char *outdir, int z, int tx, int ty, std::string const
 
 	if (fwrite(pbf.c_str(), sizeof(char), pbf.size(), fp) != pbf.size()) {
 		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+		exit(EXIT_WRITE);
 	}
 
 	if (fclose(fp) != 0) {
