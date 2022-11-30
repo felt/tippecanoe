@@ -11,14 +11,13 @@ bool pmtiles_has_suffix(const char *filename) {
 		fprintf(stderr, "Archive name missing suffix: %s\n", filename);
 		exit(EXIT_ARGS);
 	}
-	if (strncmp(filename+(lenstr-8),".pmtiles",8) == 0) {
+	if (strncmp(filename + (lenstr - 8), ".pmtiles", 8) == 0) {
 		return true;
 	}
 	return false;
 }
 
 pmtiles_file *pmtiles_open(const char *filename, char **argv, int force) {
-
 	pmtiles_file *outfile = new pmtiles_file;
 
 	struct stat st;
@@ -30,16 +29,16 @@ pmtiles_file *pmtiles_open(const char *filename, char **argv, int force) {
 			exit(EXIT_ARGS);
 		}
 	}
-	outfile->ostream.open(filename,std::ios::out | std::ios::binary);
+	outfile->ostream.open(filename, std::ios::out | std::ios::binary);
 	outfile->tmp_name = std::string(filename) + ".tmp";
-	outfile->tmp_ostream.open(outfile->tmp_name,std::ios::out | std::ios::binary);
+	outfile->tmp_ostream.open(outfile->tmp_name, std::ios::out | std::ios::binary);
 	outfile->offset = 0;
 
 	outfile->lock = PTHREAD_MUTEX_INITIALIZER;
 	return outfile;
 }
 
-void pmtiles_write_tile(pmtiles_file  *outfile, int z, int tx, int ty, const char *data, int size) {
+void pmtiles_write_tile(pmtiles_file *outfile, int z, int tx, int ty, const char *data, int size) {
 	if (pthread_mutex_lock(&outfile->lock) != 0) {
 		perror("pthread_mutex_lock");
 		exit(EXIT_PTHREAD);
@@ -47,7 +46,7 @@ void pmtiles_write_tile(pmtiles_file  *outfile, int z, int tx, int ty, const cha
 
 	outfile->tmp_ostream.write(data, size);
 
-	auto tile_id = pmtiles::zxy_to_tileid(z,tx,ty);
+	auto tile_id = pmtiles::zxy_to_tileid(z, tx, ty);
 	outfile->entries.emplace_back(tile_id, outfile->offset, size, 1);
 	outfile->offset += size;
 
@@ -176,7 +175,7 @@ std::string pmtiles_metadata_json(const char *fname, const char *attribution, st
 	state.json_end_hash();
 
 	std::string compressed;
-	compress(buf,compressed);
+	compress(buf, compressed);
 	return compressed;
 }
 
@@ -187,61 +186,61 @@ void pmtiles_write_metadata(pmtiles_file *outfile, const char *fname, int minzoo
 	pmtiles::headerv3 *header = &outfile->header;
 
 	header->clustered = 0x0;
-	header->internal_compression = 0x2; // gzip
-	header->tile_compression = 0x2; // gzip
-	header->tile_type = 0x1; // mvt
+	header->internal_compression = 0x2;  // gzip
+	header->tile_compression = 0x2;	     // gzip
+	header->tile_type = 0x1;	     // mvt
 	header->min_zoom = minzoom;
 	header->max_zoom = maxzoom;
 	header->min_lon_e7 = minlon * 10000000;
 	header->min_lat_e7 = minlat * 10000000;
 	header->max_lon_e7 = maxlon * 10000000;
 	header->max_lat_e7 = maxlat * 10000000;
-	header->center_zoom = minzoom; // can be improved 
+	header->center_zoom = minzoom;	// can be improved
 	header->center_lon_e7 = midlon * 10000000;
 	header->center_lat_e7 = midlat * 10000000;
 }
 
-std::tuple<std::string,std::string, int> build_root_leaves(const std::vector<pmtiles::entryv3> &entries, int leaf_size) {
-		std::vector<pmtiles::entryv3> root_entries;
-		std::string leaves_bytes;
-		int num_leaves = 0;
-		for (size_t i = 0; i <= entries.size(); i+= leaf_size) {
-				num_leaves++;
-				int end = i + leaf_size;
-				if (i + leaf_size > entries.size()) {
-						end = entries.size();
-				}
-				std::vector<pmtiles::entryv3> subentries = {entries.begin() + i, entries.begin() + end};
-				auto uncompressed_leaf = pmtiles::serialize_directory(subentries);
-				std::string compressed_leaf;
-				 compress(uncompressed_leaf, compressed_leaf);
-				root_entries.emplace_back(entries[i].tile_id, leaves_bytes.size(), compressed_leaf.size(), 0);
-				leaves_bytes += compressed_leaf;
+std::tuple<std::string, std::string, int> build_root_leaves(const std::vector<pmtiles::entryv3> &entries, int leaf_size) {
+	std::vector<pmtiles::entryv3> root_entries;
+	std::string leaves_bytes;
+	int num_leaves = 0;
+	for (size_t i = 0; i <= entries.size(); i += leaf_size) {
+		num_leaves++;
+		int end = i + leaf_size;
+		if (i + leaf_size > entries.size()) {
+			end = entries.size();
 		}
-		auto uncompressed_root = pmtiles::serialize_directory(root_entries);
-		std::string compressed_root;
-		compress(uncompressed_root, compressed_root);
-		return std::make_tuple(compressed_root, leaves_bytes, num_leaves);
+		std::vector<pmtiles::entryv3> subentries = {entries.begin() + i, entries.begin() + end};
+		auto uncompressed_leaf = pmtiles::serialize_directory(subentries);
+		std::string compressed_leaf;
+		compress(uncompressed_leaf, compressed_leaf);
+		root_entries.emplace_back(entries[i].tile_id, leaves_bytes.size(), compressed_leaf.size(), 0);
+		leaves_bytes += compressed_leaf;
+	}
+	auto uncompressed_root = pmtiles::serialize_directory(root_entries);
+	std::string compressed_root;
+	compress(uncompressed_root, compressed_root);
+	return std::make_tuple(compressed_root, leaves_bytes, num_leaves);
 }
 
-std::tuple<std::string,std::string, int> make_root_leaves(const std::vector<pmtiles::entryv3> &entries) {
-		auto test_bytes = pmtiles::serialize_directory(entries);
-		std::string compressed;
-		compress(test_bytes, compressed);
-		if (compressed.size() <= 16384 - 127) {
-				return std::make_tuple(compressed,"",0); 
+std::tuple<std::string, std::string, int> make_root_leaves(const std::vector<pmtiles::entryv3> &entries) {
+	auto test_bytes = pmtiles::serialize_directory(entries);
+	std::string compressed;
+	compress(test_bytes, compressed);
+	if (compressed.size() <= 16384 - 127) {
+		return std::make_tuple(compressed, "", 0);
+	}
+	int leaf_size = 4096;
+	while (true) {
+		std::string root_bytes;
+		std::string leaves_bytes;
+		int num_leaves;
+		std::tie(root_bytes, leaves_bytes, num_leaves) = build_root_leaves(entries, leaf_size);
+		if (root_bytes.length() < 16384 - 127) {
+			return std::make_tuple(root_bytes, leaves_bytes, num_leaves);
 		}
-		int leaf_size = 4096;
-		while (true) {
-				std::string root_bytes;
-				std::string leaves_bytes;
-				int num_leaves;
-				std::tie(root_bytes, leaves_bytes, num_leaves) = build_root_leaves(entries, leaf_size);
-				if (root_bytes.length() < 16384 - 127) {
-						return std::make_tuple(root_bytes, leaves_bytes, num_leaves);
-				}
-				leaf_size *= 2;
-		}
+		leaf_size *= 2;
+	}
 }
 
 void pmtiles_finalize(pmtiles_file *outfile) {
@@ -286,3 +285,45 @@ void pmtiles_finalize(pmtiles_file *outfile) {
 
 	delete outfile;
 };
+
+void collect_tile_entries(std::vector<pmtiles_zxy_entry> &tile_entries, const char *pmtiles_map, uint64_t dir_offset, uint64_t dir_len, uint64_t leaf_offset) {
+	std::string dir_s{pmtiles_map + dir_offset, dir_len};
+	std::string decompressed_dir;
+	decompress(dir_s, decompressed_dir);
+	auto dir_entries = pmtiles::deserialize_directory(decompressed_dir);
+	for (auto const &entry : dir_entries) {
+		if (entry.run_length == 0) {
+			collect_tile_entries(tile_entries, pmtiles_map, leaf_offset + entry.offset, leaf_offset + entry.length, leaf_offset);
+		} else {
+			for (uint64_t i = entry.tile_id; i < entry.tile_id + entry.run_length; i++) {
+				pmtiles::zxy zxy = pmtiles::tileid_to_zxy(entry.tile_id);
+				tile_entries.emplace_back(zxy.z, zxy.x, zxy.y, entry.offset, entry.length);
+			}
+		}
+	}
+}
+
+struct {
+	bool operator()(pmtiles_zxy_entry a, pmtiles_zxy_entry b) const {
+		if (a.z != b.z) {
+			return a.z < b.z;
+		}
+		if (a.x != b.x) {
+			return a.x < b.x;
+		}
+		return a.y < b.y;
+	}
+} colmajor_cmp;
+
+std::vector<pmtiles_zxy_entry> pmtiles_entries_colmajor(const char *pmtiles_map) {
+	std::string header_s{pmtiles_map, 127};
+	auto header = pmtiles::deserialize_header(header_s);
+
+	std::vector<pmtiles_zxy_entry> tile_entries;
+
+	collect_tile_entries(tile_entries, pmtiles_map, header.root_dir_offset, header.root_dir_bytes, header.leaf_dirs_offset);
+
+	std::sort(tile_entries.begin(), tile_entries.end(), colmajor_cmp);
+
+	return tile_entries;
+}

@@ -374,6 +374,9 @@ struct reader {
 	sqlite3_stmt *stmt = NULL;
 	struct reader *next = NULL;
 
+	std::vector<pmtiles_zxy_entry> entries;
+	char *pmtiles_map;
+
 	bool operator<(const struct reader &r) const {
 		if (zoom < r.zoom) {
 			return true;
@@ -428,6 +431,20 @@ struct reader *begin_reading(char *fname) {
 
 			r->dirtiles.erase(r->dirtiles.begin());
 		}
+	} else if (pmtiles_has_suffix(fname)) {
+		FILE *pmtiles_fd = fopen(fname, "rb");
+		if (pmtiles_fd == NULL) {
+			exit(EXIT_OPEN);
+		}
+
+		struct stat pmtiles_st;
+		if (fstat(fileno(pmtiles_fd), &pmtiles_st) < 0) {
+			fprintf(stderr, "%s: fstat failed\n", fname);
+			exit(EXIT_STAT);
+		}
+
+		r->pmtiles_map = (char *) mmap(NULL, pmtiles_st.st_size, PROT_READ, MAP_PRIVATE, fileno(pmtiles_fd), 0);
+		r->entries = pmtiles_entries_colmajor(r->pmtiles_map);
 	} else {
 		sqlite3 *db;
 
@@ -739,6 +756,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			} else {
 				r->zoom = 32;
 			}
+		} else if (r->pmtiles_map != NULL) {
 		} else {
 			if (r->dirtiles.size() == 0) {
 				r->zoom = 32;
