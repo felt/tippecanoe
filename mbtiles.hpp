@@ -22,6 +22,11 @@ struct type_and_string_stats {
 	double min = INFINITY;
 	double max = -INFINITY;
 	int type = 0;
+
+	// for circular mean of value hashes
+	double xsum = 0;
+	double ysum = 0;
+	size_t count = 0;
 };
 
 struct layermap_entry {
