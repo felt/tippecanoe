@@ -2095,7 +2095,12 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			exit(EXIT_NODATA);
 		}
 
-		if (count > 0) {
+		if (count == 0 && dist_count == 0) {
+			maxzoom = minimum_maxzoom;
+			if (droprate < 0) {
+				droprate = 1;
+			}
+		} else if (count > 0) {
 			double stddev = sqrt(m2 / count);
 
 			// Geometric mean is appropriate because distances between features

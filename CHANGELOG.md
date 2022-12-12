@@ -1,3 +1,8 @@
+## 2.18.0
+
+* Round coordinates instead of truncating them, for better precision when overzooming
+* Don't guess an excessively large maxzoom when there is only one feature
+
 ## 2.17.0
 
 * Add pmtiles output format
