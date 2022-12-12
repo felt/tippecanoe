@@ -1,3 +1,7 @@
+## ??
+
+* Don't guess an excessively large maxzoom when there is only one feature
+
 ## 2.18.0
 
 * Fix crash when using tile-join to join an empty pmtiles tileset
