@@ -1,3 +1,8 @@
+## 2.15.1
+
+* Correct mbtiles inserts to use text instead of blob
+* Add an internal data structure to represent tileset metadata
+
 ## 2.15.0
 
 * Generate label points in a more straightforward checkerboard, and fewer of them at high zoom levels.
