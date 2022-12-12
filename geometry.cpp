@@ -1612,13 +1612,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 	return drawvec();
 }
 
-static double dist(long long x1, long long y1, long long x2, long long y2) {
-	double dx = x2 - x1;
-	double dy = y2 - y1;
-	return sqrt(dx * dx + dy * dy);
-}
-
-drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point) {
+drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point) {
 	drawvec out;
 
 	// anchor point in world coordinates
@@ -1628,48 +1622,59 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
 	// lower right of tile in world coordinates;
-	long long tx2 = 1LL << 32, ty2 = 1LL << 32;
+	long long tx2 = 1LL << 32; // , ty2 = 1LL << 32;
 	if (z != 0) {
 		tx1 = (long long) tx << (32 - z);
 		ty1 = (long long) ty << (32 - z);
 
 		tx2 = (long long) (tx + 1) << (32 - z);
-		ty2 = (long long) (ty + 1) << (32 - z);
+		// ty2 = (long long) (ty + 1) << (32 - z);
 	}
 
-	// min and max distance of corners of this tile from the label point
-	double min_radius, max_radius;
-	if (wx >= tx1 && wx <= tx2 && wy >= ty1 && wy <= ty2) {
-		// center is in this tile,
-		// so min is 0, max can't be more than sqrt(2) tiles
-		min_radius = 0;
-		max_radius = sqrt(2);
-	} else {
-		// center is elsewhere,
-		// so min is at most sqrt(2)/2 tiles short of the center of the tile
-		// and max is at most sqrt(2)/2 tiles past the center of the tile
-		min_radius = std::max(0.0, dist(wx, wy, (tx1 + tx2) / 2, (ty1 + ty2) / 2) / (1LL << (32 - z)) - sqrt(2) / 2);
-		max_radius = min_radius + sqrt(2);
+	// upper left of feature in world coordinates
+	long long bx1 = LLONG_MAX, by1 = LLONG_MAX;
+	// lower right of feature in world coordinates;
+	long long bx2 = LLONG_MIN, by2 = LLONG_MIN;
+
+	for (auto const &g : geom) {
+		bx1 = std::min(bx1, g.x + tx1);
+		by1 = std::min(by1, g.y + ty1);
+
+		bx2 = std::max(bx2, g.x + tx1);
+		by2 = std::max(by2, g.y + ty1);
 	}
 
-	// labels complete a circle every 0.4 tiles of radius
-	const double spiral_dist = 0.4;
+	if (bx1 > bx2 || by1 > by2) {
+		return out;
+	}
 
-	size_t min_i = pow(min_radius / spiral_dist, 2);
-	size_t max_i = pow(max_radius / spiral_dist, 2);
+	// labels repeat every 0.3 tiles at z0
+	double spiral_dist = 0.3;
+	if (z > 0) {
+		// only every ~6 tiles by the time we get to z15
+		spiral_dist = spiral_dist * exp(log(z) * 1.2);
+	}
 
-	// https://craftofcoding.wordpress.com/tag/sunflower-spiral/
-	double angle = M_PI * (3.0 - sqrt(5.0));  // 137.5 in radians
+	const long long label_spacing = spiral_dist * (tx2 - tx1);
 
-	for (size_t i = min_i; i <= max_i; i++) {
-		double r = sqrt(i) * spiral_dist;
-		double theta = i * angle;
-		// Convert polar to cartesian
-		long long x = r * cos(theta) * (1LL << (32 - z)) + wx;
-		long long y = r * sin(theta) * (1LL << (32 - z)) + wy;
+	long long x1 = floor(std::min(bx1 - wx, bx2 - wx) / label_spacing);
+	long long x2 = ceil(std::max(bx1 - wx, bx2 - wx) / label_spacing);
 
-		if (x >= tx1 && x <= tx2 && y >= ty1 && y <= ty2) {
-			// is it actually inside the bounding box of the feature? then keep it.
+	long long y1 = floor(std::min(by1 - wy, by2 - wy) / label_spacing - 0.5);
+	long long y2 = ceil(std::max(by1 - wy, by2 - wy) / label_spacing);
+
+	for (long long lx = x1; lx <= x2; lx++) {
+		for (long long ly = y1; ly <= y2; ly++) {
+			long long x = lx * label_spacing + wx;
+			long long y = ly * label_spacing + wy;
+
+			if (((unsigned long long) lx & 1) == 1) {
+				y += label_spacing / 2;
+			}
+
+			if (x < bx1 || x > bx2 || y < by1 || y > by2) {
+				continue;
+			}
 
 			for (size_t a = 0; a < geom.size(); a++) {
 				if (geom[a].op == VT_MOVETO) {
@@ -1683,7 +1688,7 @@ drawvec spiral_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long
 					// If it's the central label, it's the best we've got,
 					// so accept it in any case. If it's from the outer spiral,
 					// don't use it if it's too close to a border.
-					if (i == 0) {
+					if (lx == 0 && ly == 0) {
 						out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
 						break;
 					} else {

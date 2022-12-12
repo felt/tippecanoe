@@ -120,7 +120,7 @@ void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data,
 	}
 
 	sqlite3_bind_int(stmt, 1, z);
-	sqlite3_bind_blob(stmt, 2, hash.c_str(), hash.size(), NULL);
+	sqlite3_bind_text(stmt, 2, hash.c_str(), hash.size(), NULL);
 	sqlite3_bind_blob(stmt, 3, data, size, NULL);
 
 	if (sqlite3_step(stmt) != SQLITE_DONE) {
@@ -141,7 +141,7 @@ void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data,
 	sqlite3_bind_int(stmt, 1, z);
 	sqlite3_bind_int(stmt, 2, tx);
 	sqlite3_bind_int(stmt, 3, (1 << z) - 1 - ty);
-	sqlite3_bind_blob(stmt, 4, hash.c_str(), hash.size(), NULL);
+	sqlite3_bind_text(stmt, 4, hash.c_str(), hash.size(), NULL);
 
 	if (sqlite3_step(stmt) != SQLITE_DONE) {
 		fprintf(stderr, "sqlite3 map insert failed: %s\n", sqlite3_errmsg(outdb));
