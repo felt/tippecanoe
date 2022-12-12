@@ -100,13 +100,14 @@ sqlite3 *mbtiles_open(char *dbname, char **argv, int forcetable) {
 }
 
 void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data, int size) {
-	// Store tiles by a hash of their contents. node-mbtiles uses MD5,
-	// but I am resisting adding the dependency, so instead here is
-	// everybody's first hash function. It is the same as Java's String.hashCode(),
-	// https://docs.oracle.com/javase/6/docs/api/java/lang/String.html#hashCode()
-	unsigned long long h = 0;
+	// Store tiles by a hash of their contents (fnv1a 64-bit)
+	// http://www.isthe.com/chongo/tech/comp/fnv/
+	const unsigned long long fnv_offset_basis = 14695981039346656037u;
+	const unsigned long long fnv_prime = 1099511628211u;
+	unsigned long long h = fnv_offset_basis;
 	for (int i = 0; i < size; i++) {
-		h = h * 31 + data[i];
+		h ^= (unsigned char) data[i];
+		h *= fnv_prime;
 	}
 	std::string hash = std::to_string(h);
 
