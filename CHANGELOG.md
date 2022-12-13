@@ -1,3 +1,8 @@
+## 2.15.2
+
+* Change tile hash function to fnv1a
+* Report JSON object context on the same line as the error message
+
 ## 2.15.1
 
 * Correct mbtiles inserts to use text instead of blob
