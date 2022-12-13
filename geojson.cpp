@@ -46,7 +46,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	if (geometry_type == NULL) {
 		static int warned = 0;
 		if (!warned) {
-			fprintf(stderr, "%s:%d: null geometry (additional not reported)\n", sst->fname, sst->line);
+			fprintf(stderr, "%s:%d: null geometry (additional not reported): ", sst->fname, sst->line);
 			json_context(feature);
 			warned = 1;
 		}
@@ -55,14 +55,14 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	}
 
 	if (geometry_type->type != JSON_STRING) {
-		fprintf(stderr, "%s:%d: geometry type is not a string\n", sst->fname, sst->line);
+		fprintf(stderr, "%s:%d: geometry type is not a string: ", sst->fname, sst->line);
 		json_context(feature);
 		return 0;
 	}
 
 	json_object *coordinates = json_hash_get(geometry, "coordinates");
 	if (coordinates == NULL || coordinates->type != JSON_ARRAY) {
-		fprintf(stderr, "%s:%d: feature without coordinates array\n", sst->fname, sst->line);
+		fprintf(stderr, "%s:%d: feature without coordinates array: ", sst->fname, sst->line);
 		json_context(feature);
 		return 0;
 	}
@@ -74,7 +74,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		}
 	}
 	if (t >= GEOM_TYPES) {
-		fprintf(stderr, "%s:%d: Can't handle geometry type %s\n", sst->fname, sst->line, geometry_type->value.string.string);
+		fprintf(stderr, "%s:%d: Can't handle geometry type %s: ", sst->fname, sst->line, geometry_type->value.string.string);
 		json_context(feature);
 		return 0;
 	}
