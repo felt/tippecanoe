@@ -2,6 +2,7 @@
 
 * Make as-needed dropping and coalescing much faster: Don't keep scanning through the whole layer looking for another small feature.
 * Don't guess an excessively large maxzoom when there is only one feature
+* Add an option to adjust the -rp drop rate
 
 ## 2.15.2
 

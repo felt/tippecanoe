@@ -86,6 +86,7 @@ std::string attribute_for_id = "";
 size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
+double drop_rate_multiplier = 1;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2165,6 +2166,12 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				if (!quiet) {
 					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
 				}
+
+				droprate /= exp(log(drop_rate_multiplier) / maxzoom);
+
+				if (drop_rate_multiplier != 1 && !quiet) {
+					fprintf(stderr, "Adjusting drop rate to %f with multiplier\n", droprate);
+				}
 			}
 		}
 
@@ -3185,8 +3192,16 @@ int main(int argc, char **argv) {
 		case 'r':
 			if (strcmp(optarg, "g") == 0) {
 				droprate = -2;
-			} else if (strcmp(optarg, "p") == 0) {
+			} else if (optarg[0] == 'p') {
 				droprate = -3;
+
+				if (optarg[1] != '\0') {
+					drop_rate_multiplier = atof_require(optarg + 1, "Drop rate multiplier");
+					if (drop_rate_multiplier <= 0) {
+						fprintf(stderr, "%s: Must specify positive multiplier >0 with -r%c\n", argv[0], optarg[0]);
+						exit(EXIT_ARGS);
+					}
+				}
 			} else if (optarg[0] == 'g' || optarg[0] == 'f') {
 				droprate = -2;
 				if (optarg[0] == 'g') {
