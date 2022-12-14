@@ -2166,12 +2166,6 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				if (!quiet) {
 					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
 				}
-
-				droprate /= exp(log(drop_rate_multiplier) / maxzoom);
-
-				if (drop_rate_multiplier != 1 && !quiet) {
-					fprintf(stderr, "Adjusting drop rate to %f with multiplier\n", droprate);
-				}
 			}
 		}
 
@@ -2210,7 +2204,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			// or the United States to z13.
 
 			if (total_tile_count > 2 * 1024 * 1024) {
-				printf("Limiting maxzoom to -z%d to keep from generating %lld tiles\n", i - 1, (long long) total_tile_count);
+				fprintf(stderr, "Limiting maxzoom to -z%d to keep from generating %lld tiles\n", i - 1, (long long) total_tile_count);
 				maxzoom = i - 1;
 				break;
 			}
@@ -2228,6 +2222,14 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				fprintf(stderr, "Can't use %d for maxzoom because minzoom is %d\n", maxzoom, minzoom);
 			}
 			maxzoom = minzoom;
+		}
+
+		if (drop_rate_multiplier != 1 && maxzoom != 0) {
+			droprate /= exp(log(drop_rate_multiplier) / maxzoom);
+
+			if (!quiet) {
+				fprintf(stderr, "Adjusting drop rate to %f with multiplier %f\n", droprate, drop_rate_multiplier);
+			}
 		}
 
 		fix_dropping = true;
