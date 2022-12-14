@@ -48,13 +48,13 @@ void json_context(json_object *j) {
 		sprintf(s + 497, "...");
 	}
 
-	fprintf(stderr, "In JSON object %s\n", s);
+	fprintf(stderr, "in JSON object %s\n", s);
 	free(s);  // stringify
 }
 
 void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fname, int line, json_object *feature) {
 	if (j == NULL || j->type != JSON_ARRAY) {
-		fprintf(stderr, "%s:%d: expected array for type %d\n", fname, line, t);
+		fprintf(stderr, "%s:%d: expected array for geometry type %d: ", fname, line, t);
 		json_context(feature);
 		return;
 	}
@@ -84,8 +84,9 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 				static int warned = 0;
 
 				if (!warned) {
-					fprintf(stderr, "%s:%d: ignoring dimensions beyond two\n", fname, line);
+					fprintf(stderr, "%s:%d: ignoring dimensions beyond two: ", fname, line);
 					json_context(j);
+					fprintf(stderr, "%s:%d: ignoring dimensions beyond two: ", fname, line);
 					json_context(feature);
 					warned = 1;
 				}
@@ -93,8 +94,9 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 
 			out.push_back(draw(op, x, y));
 		} else {
-			fprintf(stderr, "%s:%d: malformed point\n", fname, line);
+			fprintf(stderr, "%s:%d: malformed point: ", fname, line);
 			json_context(j);
+			fprintf(stderr, "%s:%d: malformed point: ", fname, line);
 			json_context(feature);
 			exit(EXIT_JSON);
 		}
@@ -146,7 +148,7 @@ void stringify_value(json_object *value, int &type, std::string &stringified, co
 			stringified = val;
 			std::string err = check_utf8(val);
 			if (err != "") {
-				fprintf(stderr, "%s:%d: %s\n", reading, line, err.c_str());
+				fprintf(stderr, "%s:%d: %s: ", reading, line, err.c_str());
 				json_context(feature);
 				exit(EXIT_UTF8);
 			}

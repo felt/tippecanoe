@@ -99,9 +99,11 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 		json_object *j = json_read(jp);
 		if (j == NULL) {
 			if (jp->error != NULL) {
-				fprintf(stderr, "Filter output:%d: %s\n", jp->line, jp->error);
+				fprintf(stderr, "Filter output:%d: %s: ", jp->line, jp->error);
 				if (jp->root != NULL) {
 					json_context(jp->root);
+				} else {
+					fprintf(stderr, "\n");
 				}
 				exit(EXIT_JSON);
 			}
@@ -120,7 +122,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 
 		json_object *geometry = json_hash_get(j, "geometry");
 		if (geometry == NULL) {
-			fprintf(stderr, "Filter output:%d: filtered feature with no geometry\n", jp->line);
+			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
 			json_context(j);
 			json_free(j);
 			exit(EXIT_JSON);
@@ -128,7 +130,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 
 		json_object *properties = json_hash_get(j, "properties");
 		if (properties == NULL || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
-			fprintf(stderr, "Filter output:%d: feature without properties hash\n", jp->line);
+			fprintf(stderr, "Filter output:%d: feature without properties hash: ", jp->line);
 			json_context(j);
 			json_free(j);
 			exit(EXIT_JSON);
@@ -136,20 +138,20 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 
 		json_object *geometry_type = json_hash_get(geometry, "type");
 		if (geometry_type == NULL) {
-			fprintf(stderr, "Filter output:%d: null geometry (additional not reported)\n", jp->line);
+			fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
 
 		if (geometry_type->type != JSON_STRING) {
-			fprintf(stderr, "Filter output:%d: geometry type is not a string\n", jp->line);
+			fprintf(stderr, "Filter output:%d: geometry type is not a string: ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
 
 		json_object *coordinates = json_hash_get(geometry, "coordinates");
 		if (coordinates == NULL || coordinates->type != JSON_ARRAY) {
-			fprintf(stderr, "Filter output:%d: feature without coordinates array\n", jp->line);
+			fprintf(stderr, "Filter output:%d: feature without coordinates array: ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
@@ -161,7 +163,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 			}
 		}
 		if (t >= GEOM_TYPES) {
-			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s\n", jp->line, geometry_type->value.string.string);
+			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
@@ -306,9 +308,11 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 		json_object *j = json_read(jp);
 		if (j == NULL) {
 			if (jp->error != NULL) {
-				fprintf(stderr, "Filter output:%d: %s\n", jp->line, jp->error);
+				fprintf(stderr, "Filter output:%d: %s: ", jp->line, jp->error);
 				if (jp->root != NULL) {
 					json_context(jp->root);
+				} else {
+					fprintf(stderr, "\n");
 				}
 				exit(EXIT_JSON);
 			}
@@ -328,7 +332,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 
 		json_object *geometry = json_hash_get(j, "geometry");
 		if (geometry == NULL) {
-			fprintf(stderr, "Filter output:%d: filtered feature with no geometry\n", jp->line);
+			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
 			json_context(j);
 			json_free(j);
 			exit(EXIT_JSON);
@@ -336,7 +340,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 
 		json_object *properties = json_hash_get(j, "properties");
 		if (properties == NULL || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
-			fprintf(stderr, "Filter output:%d: feature without properties hash\n", jp->line);
+			fprintf(stderr, "Filter output:%d: feature without properties hash: ", jp->line);
 			json_context(j);
 			json_free(j);
 			exit(EXIT_JSON);
@@ -344,20 +348,20 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 
 		json_object *geometry_type = json_hash_get(geometry, "type");
 		if (geometry_type == NULL) {
-			fprintf(stderr, "Filter output:%d: null geometry (additional not reported)\n", jp->line);
+			fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
 
 		if (geometry_type->type != JSON_STRING) {
-			fprintf(stderr, "Filter output:%d: geometry type is not a string\n", jp->line);
+			fprintf(stderr, "Filter output:%d: geometry type is not a string: ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
 
 		json_object *coordinates = json_hash_get(geometry, "coordinates");
 		if (coordinates == NULL || coordinates->type != JSON_ARRAY) {
-			fprintf(stderr, "Filter output:%d: feature without coordinates array\n", jp->line);
+			fprintf(stderr, "Filter output:%d: feature without coordinates array: ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
@@ -369,7 +373,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 			}
 		}
 		if (t >= GEOM_TYPES) {
-			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s\n", jp->line, geometry_type->value.string.string);
+			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string);
 			json_context(j);
 			exit(EXIT_JSON);
 		}

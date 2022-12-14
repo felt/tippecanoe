@@ -5,7 +5,8 @@
 
 ## 2.15.2
 
-* Change hash function to fnv1a
+* Change tile hash function to fnv1a
+* Report JSON object context on the same line as the error message
 
 ## 2.15.1
 
