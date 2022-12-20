@@ -1829,7 +1829,7 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 	return true;
 }
 
-// Keep only a sample of 100K extents or indices for feature dropping,
+// Keep only a sample of 100K extents for feature dropping,
 // to avoid spending lots of memory on a complete list when there are
 // hundreds of millions of features.
 template <class T>
@@ -1901,7 +1901,6 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		std::map<std::string, std::vector<coalesce>> layers;
 
 		std::vector<unsigned long long> indices;
-		size_t indices_increment = 1;
 		std::vector<long long> extents;
 		size_t extents_increment = 1;
 
@@ -2043,8 +2042,18 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 			}
 
+			// Cap the indices, rather than sampling them like extents (areas),
+			// because choose_mingap cares about the distance between *surviving*
+			// features, not between *original* features, so we can't just store
+			// gaps rather than indices to be able to downsample them fairly.
+			// Hopefully the first 100K features in the tile are reasonably
+			// representative of the other features in the tile.
+			const size_t MAX_INDICES = 100000;
+
 			if (additional[A_CLUSTER_DENSEST_AS_NEEDED] || cluster_distance != 0) {
-				add_sample_to(indices, sf.index, indices_increment, seq);
+				if (indices.size() < MAX_INDICES) {
+					indices.push_back(sf.index);
+				}
 				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].clustered++;
 
@@ -2065,14 +2074,18 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					continue;
 				}
 			} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
-				add_sample_to(indices, sf.index, indices_increment, seq);
+				if (indices.size() < MAX_INDICES) {
+					indices.push_back(sf.index);
+				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
-				add_sample_to(indices, sf.index, indices_increment, seq);
+				if (indices.size() < MAX_INDICES) {
+					indices.push_back(sf.index);
+				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
