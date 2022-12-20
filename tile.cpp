@@ -9,6 +9,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <list>
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1850,6 +1851,69 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
+struct next_feature_args {
+	FILE *geoms;
+	std::atomic<long long> *geompos_in;
+	char *metabase;
+	long long *meta_off;
+	int z;
+	unsigned tx;
+	unsigned ty;
+	unsigned *initial_x;
+	unsigned *initial_y;
+	long long *original_features;
+	long long *unclipped_features;
+	int nextzoom;
+	int maxzoom;
+	int minzoom;
+	int max_zoom_increment;
+	size_t pass;
+	std::atomic<long long> *along;
+	long long alongminus;
+	int buffer;
+	int *within;
+	FILE **geomfile;
+	std::atomic<long long> *geompos;
+	std::atomic<double> *oprogress;
+	double todo;
+	const char *fname;
+	int child_shards;
+	struct json_object *filter;
+	const char *stringpool;
+	long long *pool_off;
+	std::vector<std::vector<std::string>> *layer_unmaps;
+	bool first_time;
+
+	std::list<serial_feature> *feature_queue;
+	pthread_mutex_t *next_feature_lock;
+};
+
+void *run_next_feature(void *arg) {
+	next_feature_args *nfa = (next_feature_args *) arg;
+
+	while (true) {
+		serial_feature sf = next_feature(nfa->geoms, nfa->geompos_in, nfa->metabase, nfa->meta_off, nfa->z, nfa->tx, nfa->ty, nfa->initial_x, nfa->initial_y, nfa->original_features, nfa->unclipped_features, nfa->nextzoom, nfa->maxzoom, nfa->minzoom, nfa->max_zoom_increment, nfa->pass, nfa->along, nfa->alongminus, nfa->buffer, nfa->within, nfa->geomfile, nfa->geompos, nfa->oprogress, nfa->todo, nfa->fname, nfa->child_shards, nfa->filter, nfa->stringpool, nfa->pool_off, nfa->layer_unmaps, nfa->first_time);
+
+		if (pthread_mutex_lock(nfa->next_feature_lock) != 0) {
+			perror("pthread_mutex_lock next_feature_lock");
+			exit(EXIT_PTHREAD);
+		}
+
+		nfa->feature_queue->push_front(sf);
+
+		if (pthread_mutex_unlock(nfa->next_feature_lock) != 0) {
+			perror("pthread_mutex_unlock next_feature_lock");
+			exit(EXIT_PTHREAD);
+		}
+
+		if (sf.t < 0) {
+			break;
+		}
+	}
+
+	return NULL;
+}
+
 long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1998,12 +2062,85 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
-		for (size_t seq = 0; ; seq++) {
+		std::list<serial_feature> feature_queue;
+		pthread_t next_feature_thread;
+		pthread_mutex_t next_feature_lock = PTHREAD_MUTEX_INITIALIZER;
+		next_feature_args nfa;
+
+		nfa.geoms = geoms;
+		nfa.geompos_in = geompos_in;
+		nfa.metabase = metabase;
+		nfa.meta_off = meta_off;
+		nfa.z = z;
+		nfa.tx = tx;
+		nfa.ty = ty;
+		nfa.initial_x = initial_x;
+		nfa.initial_y = initial_y;
+		nfa.original_features = &original_features;
+		nfa.unclipped_features = &unclipped_features;
+		nfa.nextzoom = nextzoom;
+		nfa.maxzoom = maxzoom;
+		nfa.minzoom = minzoom;
+		nfa.max_zoom_increment = max_zoom_increment;
+		nfa.pass = pass;
+		nfa.along = along;
+		nfa.alongminus = alongminus;
+		nfa.buffer = buffer;
+		nfa.within = within;
+		nfa.geomfile = geomfile;
+		nfa.geompos = geompos;
+		nfa.oprogress = &oprogress;
+		nfa.todo = todo;
+		nfa.fname = fname;
+		nfa.child_shards = child_shards;
+		nfa.filter = filter;
+		nfa.stringpool = stringpool;
+		nfa.pool_off = pool_off;
+		nfa.layer_unmaps = layer_unmaps;
+		nfa.first_time = first_time;
+		nfa.feature_queue = &feature_queue;
+		nfa.next_feature_lock = &next_feature_lock;
+
+		if (prefilter == NULL) {
+			if (pthread_create(&next_feature_thread, NULL, run_next_feature, &nfa) != 0) {
+				perror("pthread_create (next_feature)");
+				exit(EXIT_PTHREAD);
+			}
+		}
+
+		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, metabase, meta_off, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time);
+				while (true) {
+					if (pthread_mutex_lock(&next_feature_lock) != 0) {
+						perror("pthread_mutex_lock next_feature_lock");
+						exit(EXIT_PTHREAD);
+					}
+
+					// XXX I should have paid more attention in my
+					// operating systems class
+					if (feature_queue.size() == 0) {
+						if (pthread_mutex_unlock(&next_feature_lock) != 0) {
+							perror("pthread_mutex_unlock next_feature_lock");
+							exit(EXIT_PTHREAD);
+						}
+
+						usleep(100);
+						continue;
+					}
+
+					sf = feature_queue.back();
+					feature_queue.pop_back();
+
+					if (pthread_mutex_unlock(&next_feature_lock) != 0) {
+						perror("pthread_mutex_unlock next_feature_lock");
+						exit(EXIT_PTHREAD);
+					}
+
+					break;
+				}
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2233,6 +2370,14 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			merge_previndex = sf.index;
 			coalesced_area = 0;
+		}
+
+		if (prefilter == NULL) {
+			void *ret;
+			if (pthread_join(next_feature_thread, &ret) != 0) {
+				perror("pthread_join (next_feature)");
+				exit(EXIT_PTHREAD);
+			}
 		}
 
 		{
@@ -3040,7 +3185,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
 
-		for (size_t pass = 0; ; pass++) {
+		for (size_t pass = 0;; pass++) {
 			pthread_t pthreads[threads];
 			std::vector<write_tile_args> args;
 			args.resize(threads);
