@@ -145,6 +145,11 @@ void json_writer::json_write_string(std::string const &str) {
 	addc('"');
 }
 
+void json_writer::json_write_json(std::string const &str) {
+	json_adjust();
+	adds(str);
+}
+
 void json_writer::json_write_number(double d) {
 	json_adjust();
 
