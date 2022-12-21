@@ -82,7 +82,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test
 	./unit
 
 suffixes = json json.gz
@@ -156,6 +156,26 @@ raw-tiles-test:
 	cmp tests/raw-tiles/nothing.json.check tests/raw-tiles/nothing.json
 	rm -r tests/raw-tiles/nothing tests/raw-tiles/nothing.json.check
 
+pmtiles-test:
+	./tippecanoe -q -f -o tests/pmtiles/hackspots.pmtiles -r1 -pC tests/raw-tiles/hackspots.geojson
+	./tippecanoe-decode -x generator tests/pmtiles/hackspots.pmtiles > tests/pmtiles/hackspots.json.check
+	cmp tests/pmtiles/hackspots.json.check tests/pmtiles/hackspots.json
+	# Test generating pmtiles first and then converting to mbtiles with tile-join.
+	./tile-join -q -f -pC -o tests/pmtiles/joined.mbtiles tests/pmtiles/hackspots.pmtiles
+	./tippecanoe-decode -x generator tests/pmtiles/joined.mbtiles > tests/pmtiles/joined.json.check
+	cmp tests/pmtiles/joined.json.check tests/pmtiles/joined.json
+	rm -r tests/pmtiles/hackspots.json.check tests/pmtiles/hackspots.pmtiles
+
+	# Test generating mbtiles first and then converting to pmtiles with tile-join. (Changes bounds)
+	./tippecanoe -q -f -o tests/pmtiles/hackspots.mbtiles -r1 -pC tests/raw-tiles/hackspots.geojson
+	./tile-join -q -f -pC -o tests/pmtiles/joined.pmtiles tests/pmtiles/hackspots.mbtiles
+
+	# decode changes order (ZXY vs TMS order)
+	./tippecanoe-decode -x generator tests/pmtiles/joined.pmtiles > tests/pmtiles/joined_reordered.json.check
+	cmp tests/pmtiles/joined_reordered.json.check tests/pmtiles/joined_reordered.json
+	rm -r tests/pmtiles/joined_reordered.json.check tests/pmtiles/hackspots.mbtiles tests/pmtiles/joined.pmtiles
+
+
 decode-test:
 	mkdir -p tests/muni/decode
 	./tippecanoe -q -z11 -Z11 -f -o tests/muni/decode/multi.mbtiles tests/muni/*.json
@@ -172,6 +192,23 @@ decode-test:
 	cmp tests/muni/decode/multi.mbtiles.onetile.json.check tests/muni/decode/multi.mbtiles.onetile.json
 	cmp tests/muni/decode/multi.mbtiles.stats.json.check tests/muni/decode/multi.mbtiles.stats.json
 	rm -f tests/muni/decode/multi.mbtiles.json.check tests/muni/decode/multi.mbtiles tests/muni/decode/multi.mbtiles.pipeline.json.check tests/muni/decode/multi.mbtiles.stats.json.check tests/muni/decode/multi.mbtiles.onetile.json.check
+
+decode-pmtiles-test:
+	mkdir -p tests/muni/decode
+	./tippecanoe -q -z11 -Z11 -f -o tests/muni/decode/multi.pmtiles tests/muni/*.json
+	./tippecanoe-decode -x generator -l subway tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.json.check
+	./tippecanoe-decode -x generator -l subway --integer tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.integer.json.check
+	./tippecanoe-decode -x generator -l subway --fraction tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.fraction.json.check
+	./tippecanoe-decode -x generator -c tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.pipeline.json.check
+	./tippecanoe-decode -x generator tests/muni/decode/multi.pmtiles 11 327 791 > tests/muni/decode/multi.pmtiles.onetile.json.check
+	./tippecanoe-decode -x generator --stats tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.stats.json.check
+	cmp tests/muni/decode/multi.pmtiles.json.check tests/muni/decode/multi.mbtiles.json
+	cmp tests/muni/decode/multi.pmtiles.integer.json.check tests/muni/decode/multi.mbtiles.integer.json
+	cmp tests/muni/decode/multi.pmtiles.fraction.json.check tests/muni/decode/multi.mbtiles.fraction.json
+	cmp tests/muni/decode/multi.pmtiles.pipeline.json.check tests/muni/decode/multi.mbtiles.pipeline.json
+	cmp tests/muni/decode/multi.pmtiles.onetile.json.check tests/muni/decode/multi.mbtiles.onetile.json
+	cmp tests/muni/decode/multi.pmtiles.stats.json.check tests/muni/decode/multi.mbtiles.stats.json
+	rm -f tests/muni/decode/multi.pmtiles.json.check tests/muni/decode/multi.pmtiles tests/muni/decode/multi.pmtiles.pipeline.json.check tests/muni/decode/multi.pmtiles.stats.json.check tests/muni/decode/multi.pmtiles.onetile.json.check
 
 pbf-test:
 	./tippecanoe-decode -x generator tests/pbf/11-328-791.vector.pbf 11 328 791 > tests/pbf/11-328-791.vector.pbf.out
@@ -318,7 +355,16 @@ allow-existing-test:
 	./tippecanoe -q -Z10 -z11 -F -e tests/allow-existing/both.dir tests/coalesce-tract/tl_2010_06001_tract10.json
 	./tippecanoe-decode -x generator -x generator_options tests/allow-existing/both.dir | sed 's/both\.dir/both.mbtiles/g' > tests/allow-existing/both.dir.json.check
 	cmp tests/allow-existing/both.dir.json.check tests/allow-existing/both.mbtiles.json
-	rm -r tests/allow-existing/both.dir.json.check tests/allow-existing/both.dir tests/allow-existing/both.mbtiles.json.check tests/allow-existing/both.mbtiles
+	# Make a tileset
+	./tippecanoe -q -Z0 -z0 -f -e tests/allow-existing/both.pmtiles tests/coalesce-tract/tl_2010_06001_tract10.json
+	# Writing to existing should fail
+	if ./tippecanoe -q -Z1 -z1 -e tests/allow-existing/both.pmtiles tests/coalesce-tract/tl_2010_06001_tract10.json; then exit 1; else exit 0; fi
+	# Replace existing
+	./tippecanoe -q -Z8 -z9 -f -e tests/allow-existing/both.pmtiles tests/coalesce-tract/tl_2010_06001_tract10.json
+	./tippecanoe -q -Z10 -z11 -F -e tests/allow-existing/both.pmtiles tests/coalesce-tract/tl_2010_06001_tract10.json
+	./tippecanoe-decode -x generator -x generator_options tests/allow-existing/both.pmtiles | sed 's/both\.pmtiles/both.mbtiles/g' > tests/allow-existing/both.pmtiles.json.check
+	cmp tests/allow-existing/both.pmtiles.json.check tests/allow-existing/both.mbtiles.json
+	rm -r tests/allow-existing/both.pmtiles.json.check tests/allow-existing/both.pmtiles tests/allow-existing/both.dir.json.check tests/allow-existing/both.dir tests/allow-existing/both.mbtiles.json.check tests/allow-existing/both.mbtiles
 
 csv-test:
 	# Reading from named CSV
