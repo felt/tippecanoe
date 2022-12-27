@@ -421,17 +421,22 @@ sqlite3 *pmtilesmeta2tmp(const char *fname, const char *pmtiles_map) {
 	bool has_json = false;
 	std::string buf;
 	json_writer state(&buf);
+	state.nospace = true;
 	state.json_write_hash();
 
 	for (size_t i = 0; i < o->value.object.length; i++) {
 		const char *key = o->value.object.keys[i]->value.string.string;
 		if (strcmp(key, "vector_layers") == 0 && o->value.object.values[i]->type == JSON_ARRAY) {
 			has_json = true;
+			state.nospace = true;
 			state.json_write_string("vector_layers");
+			state.nospace = true;
 			state.json_write_json(json_stringify(o->value.object.values[i]));
 		} else if (strcmp(key, "tilestats") == 0 && o->value.object.values[i]->type == JSON_HASH) {
 			has_json = true;
+			state.nospace = true;
 			state.json_write_string("tilestats");
+			state.nospace = true;
 			state.json_write_json(json_stringify(o->value.object.values[i]));
 		} else if (strcmp(key, "strategies") == 0 && o->value.object.values[i]->type == JSON_ARRAY) {
 			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('strategies', %Q);", json_stringify(o->value.object.values[i]));
@@ -452,6 +457,7 @@ sqlite3 *pmtilesmeta2tmp(const char *fname, const char *pmtiles_map) {
 	}
 
 	json_end(jp);
+	state.nospace = true;
 	state.json_end_hash();
 
 	if (has_json) {

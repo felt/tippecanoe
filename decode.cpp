@@ -275,6 +275,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 	char *pmtiles_map;
 	std::vector<pmtiles::entry_zxy> entries;
+	bool is_pmtiles = false;
 
 	if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
 		isdir = true;
@@ -294,6 +295,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 		}
 		db = pmtilesmeta2tmp(fname, pmtiles_map);
 		entries = pmtiles_entries_zxy(pmtiles_map, minzoom, maxzoom);
+		is_pmtiles = true;
 	} else {
 		if (sqlite3_open(fname, &db) != SQLITE_OK) {
 			fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
@@ -399,7 +401,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 
 				handle(s, tiles[i].z, tiles[i].x, tiles[i].y, to_decode, pipeline, stats, state, coordinate_mode);
 			}
-		} else if (entries.size() > 0) {
+		} else if (is_pmtiles) {
 			within = 0;
 
 			for (auto const &entry : entries) {
@@ -484,7 +486,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 	} else {
 		int handled = 0;
 		while (z >= 0 && !handled) {
-			if (entries.size() > 0) {
+			if (is_pmtiles) {
 				uint64_t tile_offset;
 				uint32_t tile_length;
 				std::tie(tile_offset, tile_length) = pmtiles_get_tile(pmtiles_map, z, x, y);
