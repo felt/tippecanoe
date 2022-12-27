@@ -175,6 +175,23 @@ pmtiles-test:
 	cmp tests/pmtiles/joined_reordered.json.check tests/pmtiles/joined_reordered.json
 	rm -r tests/pmtiles/joined_reordered.json.check tests/pmtiles/hackspots.mbtiles tests/pmtiles/joined.pmtiles
 
+	# From raw-tiles-test:
+	./tippecanoe -q -f -o tests/raw-tiles/raw-tiles.pmtiles -r1 -pC tests/raw-tiles/hackspots.geojson
+	./tippecanoe-decode -x generator tests/raw-tiles/raw-tiles.pmtiles > tests/raw-tiles/raw-tiles.json.check
+	cmp tests/raw-tiles/raw-tiles.json.check tests/raw-tiles/raw-tiles.json
+	# Test that -z and -Z work in tippecanoe-decode
+	./tippecanoe-decode -x generator -Z6 -z7 tests/raw-tiles/raw-tiles.pmtiles > tests/raw-tiles/raw-tiles-z67.json.check
+	cmp tests/raw-tiles/raw-tiles-z67.json.check tests/raw-tiles/raw-tiles-z67.json
+	# Test that -z and -Z work in tile-join
+	./tile-join -q -f -Z6 -z7 -o tests/raw-tiles/raw-tiles-z67.pmtiles tests/raw-tiles/raw-tiles.pmtiles
+	./tippecanoe-decode -x generator tests/raw-tiles/raw-tiles-z67.pmtiles > tests/raw-tiles/raw-tiles-z67-join.json.check
+	cmp tests/raw-tiles/raw-tiles-z67-join.json.check tests/raw-tiles/raw-tiles-z67-join.json
+	rm -rf tests/raw-tiles/raw-tiles.pmtiles tests/raw-tiles/raw-tiles-z67.pmtiles tests/raw-tiles/raw-tiles.json.check raw-tiles-z67.json.check tests/raw-tiles/raw-tiles-z67-join.json.check
+	# Test that metadata.json is created even if all features are clipped away
+	./tippecanoe -q -f -o tests/raw-tiles/nothing.pmtiles tests/raw-tiles/nothing.geojson
+	./tippecanoe-decode -x generator tests/raw-tiles/nothing.pmtiles > tests/raw-tiles/nothing.json.check
+	cmp tests/raw-tiles/nothing.json.check tests/raw-tiles/nothing.json
+	rm -r tests/raw-tiles/nothing.pmtiles tests/raw-tiles/nothing.json.check
 
 decode-test:
 	mkdir -p tests/muni/decode
