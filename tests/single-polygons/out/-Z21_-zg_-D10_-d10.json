@@ -4,11 +4,11 @@
 "description": "tests/single-polygons/out/-Z21_-zg_-D10_-d10.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/single-polygons/out/-Z21_-zg_-D10_-d10.json.check.mbtiles -Z21 -zg -D10 -d10 tests/single-polygons/in.json",
-"json": "{\"vector_layers\": [ { \"id\": \"in\", \"description\": \"\", \"minzoom\": 21, \"maxzoom\": 22, \"fields\": {\"seq\": \"Number\"} } ],\"tilestats\": {\"layerCount\": 1,\"layers\": [{\"layer\": \"in\",\"count\": 30,\"geometry\": \"Polygon\",\"attributeCount\": 1,\"attributes\": [{\"attribute\": \"seq\",\"count\": 30,\"type\": \"number\",\"values\": [10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,6,7,8,9],\"min\": 6,\"max\": 35}]}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":21,\"maxzoom\":22,\"fields\":{\"seq\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":30,\"geometry\":\"Polygon\",\"attributeCount\":1,\"attributes\":[{\"attribute\":\"seq\",\"count\":30,\"type\":\"number\",\"values\":[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,6,7,8,9],\"min\":6,\"max\":35}]}]}}",
 "maxzoom": "22",
 "minzoom": "21",
 "name": "tests/single-polygons/out/-Z21_-zg_-D10_-d10.json.check.mbtiles",
-"strategies": "[ {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, {  }, { \"tiny_polygons\": 27 }, { \"tiny_polygons\": 1 } ]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{\"tiny_polygons\":27},{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

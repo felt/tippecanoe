@@ -29,7 +29,11 @@ void json_writer::json_adjust() {
 		nospace = false;
 		state[state.size() - 1] = JSON_WRITE_HASH_KEY;
 	} else if (state[state.size() - 1] == JSON_WRITE_HASH_KEY) {
-		adds(": ");
+		adds(":");
+		if (!nospace) {
+			addc(' ');
+			nospace = false;
+		}
 		state[state.size() - 1] = JSON_WRITE_HASH_VALUE;
 	} else if (state[state.size() - 1] == JSON_WRITE_HASH_VALUE) {
 		if (wantnl) {

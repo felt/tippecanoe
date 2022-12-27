@@ -4,11 +4,11 @@
 "description": "tests/curve/out/-z2_--no-clipping.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/curve/out/-z2_--no-clipping.json.check.mbtiles -z2 --no-clipping tests/curve/in.json",
-"json": "{\"vector_layers\": [ { \"id\": \"in\", \"description\": \"\", \"minzoom\": 0, \"maxzoom\": 2, \"fields\": {} } ],\"tilestats\": {\"layerCount\": 1,\"layers\": [{\"layer\": \"in\",\"count\": 2,\"geometry\": \"Polygon\",\"attributeCount\": 0,\"attributes\": []}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":2,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":2,\"geometry\":\"Polygon\",\"attributeCount\":0,\"attributes\":[]}]}}",
 "maxzoom": "2",
 "minzoom": "0",
 "name": "tests/curve/out/-z2_--no-clipping.json.check.mbtiles",
-"strategies": "[ {  }, { \"tiny_polygons\": 1 }, { \"tiny_polygons\": 10 } ]",
+"strategies": "[{},{\"tiny_polygons\":1},{\"tiny_polygons\":10}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

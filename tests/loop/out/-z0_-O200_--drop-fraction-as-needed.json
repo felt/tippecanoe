@@ -4,11 +4,11 @@
 "description": "tests/loop/out/-z0_-O200_--drop-fraction-as-needed.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/loop/out/-z0_-O200_--drop-fraction-as-needed.json.check.mbtiles -z0 -O200 --drop-fraction-as-needed tests/loop/in.json",
-"json": "{\"vector_layers\": [ { \"id\": \"in\", \"description\": \"\", \"minzoom\": 0, \"maxzoom\": 0, \"fields\": {} } ],\"tilestats\": {\"layerCount\": 1,\"layers\": [{\"layer\": \"in\",\"count\": 1000,\"geometry\": \"Point\",\"attributeCount\": 0,\"attributes\": []}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":1000,\"geometry\":\"Point\",\"attributeCount\":0,\"attributes\":[]}]}}",
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/loop/out/-z0_-O200_--drop-fraction-as-needed.json.check.mbtiles",
-"strategies": "[ { \"dropped_as_needed\": 811, \"feature_count_desired\": 1000 } ]",
+"strategies": "[{\"dropped_as_needed\":811,\"feature_count_desired\":1000}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
