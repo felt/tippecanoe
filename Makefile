@@ -196,12 +196,12 @@ decode-test:
 decode-pmtiles-test:
 	mkdir -p tests/muni/decode
 	./tippecanoe -q -z11 -Z11 -f -o tests/muni/decode/multi.pmtiles tests/muni/*.json
-	./tippecanoe-decode -x generator -l subway tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.json.check
-	./tippecanoe-decode -x generator -l subway --integer tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.integer.json.check
-	./tippecanoe-decode -x generator -l subway --fraction tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.fraction.json.check
-	./tippecanoe-decode -x generator -c tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.pipeline.json.check
-	./tippecanoe-decode -x generator tests/muni/decode/multi.pmtiles 11 327 791 > tests/muni/decode/multi.pmtiles.onetile.json.check
-	./tippecanoe-decode -x generator --stats tests/muni/decode/multi.pmtiles > tests/muni/decode/multi.pmtiles.stats.json.check
+	./tippecanoe-decode -x generator -l subway tests/muni/decode/multi.pmtiles | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.json.check
+	./tippecanoe-decode -x generator -l subway --integer tests/muni/decode/multi.pmtiles | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.integer.json.check
+	./tippecanoe-decode -x generator -l subway --fraction tests/muni/decode/multi.pmtiles | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.fraction.json.check
+	./tippecanoe-decode -x generator -c tests/muni/decode/multi.pmtiles | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.pipeline.json.check
+	./tippecanoe-decode -x generator tests/muni/decode/multi.pmtiles 11 327 791 | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.onetile.json.check
+	./tippecanoe-decode -x generator --stats tests/muni/decode/multi.pmtiles | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.stats.json.check
 	cmp tests/muni/decode/multi.pmtiles.json.check tests/muni/decode/multi.mbtiles.json
 	cmp tests/muni/decode/multi.pmtiles.integer.json.check tests/muni/decode/multi.mbtiles.integer.json
 	cmp tests/muni/decode/multi.pmtiles.fraction.json.check tests/muni/decode/multi.mbtiles.fraction.json

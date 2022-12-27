@@ -67,6 +67,34 @@ std::vector<pmtiles::entry_zxy> pmtiles_entries_tms(const char *pmtiles_map, int
 	return filtered;
 }
 
+struct zxycmp {
+	bool operator()(const pmtiles::entry_zxy &a, const pmtiles::entry_zxy &b) {
+		if (a.z < b.z) {
+			return true;
+		} else if (a.z == b.z) {
+			if (a.x < b.x) {
+				return true;
+			} else if (a.x == b.x) {
+				// reversed because the mbtiles SELECT
+				// orders by tile_row, which is TMS
+				if (a.y > b.y) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+} zxycmp;
+
+std::vector<pmtiles::entry_zxy> pmtiles_entries_zxy(const char *pmtiles_map, int minzoom, int maxzoom) {
+	std::vector<pmtiles::entry_zxy> filtered;
+	auto all_entries = pmtiles::entries_tms(&decompress_fn, pmtiles_map);
+	std::copy_if(all_entries.begin(), all_entries.end(), std::back_inserter(filtered), [minzoom, maxzoom](pmtiles::entry_zxy e) { return e.z >= minzoom && e.z <= maxzoom; });
+	std::sort(filtered.begin(), filtered.end(), zxycmp);
+	return filtered;
+}
+
 std::pair<uint64_t, uint32_t> pmtiles_get_tile(const char *pmtiles_map, int z, int x, int y) {
 	return pmtiles::get_tile(&decompress_fn, pmtiles_map, z, x, y);
 }

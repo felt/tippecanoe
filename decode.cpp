@@ -293,7 +293,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 			exit(EXIT_CLOSE);
 		}
 		db = pmtilesmeta2tmp(fname, pmtiles_map);
-		entries = pmtiles_entries_tms(pmtiles_map, minzoom, maxzoom);
+		entries = pmtiles_entries_zxy(pmtiles_map, minzoom, maxzoom);
 	} else {
 		if (sqlite3_open(fname, &db) != SQLITE_OK) {
 			fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
@@ -400,7 +400,22 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 				handle(s, tiles[i].z, tiles[i].x, tiles[i].y, to_decode, pipeline, stats, state, coordinate_mode);
 			}
 		} else if (entries.size() > 0) {
+			within = 0;
+
 			for (auto const &entry : entries) {
+				if (!pipeline && !stats) {
+					if (within) {
+						state.json_comma_newline();
+					}
+					within = 1;
+				}
+				if (stats) {
+					if (within) {
+						state.json_comma_newline();
+					}
+					within = 1;
+				}
+
 				std::string s{pmtiles_map + entry.offset, entry.length};
 				handle(s, entry.z, entry.x, entry.y, to_decode, pipeline, stats, state, coordinate_mode);
 			}
