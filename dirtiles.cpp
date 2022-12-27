@@ -326,14 +326,14 @@ void dir_write_metadata(const char *outdir, const metadata &m) {
 			std::string json = "{";
 
 			if (m.vector_layers_json.size() > 0) {
-				json += "\"vector_layers\": " + m.vector_layers_json;
+				json += "\"vector_layers\":" + m.vector_layers_json;
 
 				if (m.tilestats_json.size() > 0) {
-					json += ",\"tilestats\": " + m.tilestats_json;
+					json += ",\"tilestats\":" + m.tilestats_json;
 				}
 			} else {
 				if (m.tilestats_json.size() > 0) {
-					json += "\"tilestats\": " + m.tilestats_json;
+					json += "\"tilestats\":" + m.tilestats_json;
 				}
 			}
 
