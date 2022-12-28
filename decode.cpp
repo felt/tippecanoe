@@ -294,7 +294,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 			exit(EXIT_CLOSE);
 		}
 		db = pmtilesmeta2tmp(fname, pmtiles_map);
-		entries = pmtiles_entries_zxy(pmtiles_map, minzoom, maxzoom);
+		entries = pmtiles_entries_tms(pmtiles_map, minzoom, maxzoom);
 		is_pmtiles = true;
 	} else {
 		if (sqlite3_open(fname, &db) != SQLITE_OK) {
