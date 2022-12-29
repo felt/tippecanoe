@@ -4,7 +4,7 @@
 "description": "tests/high-longitude/out/-z1.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/high-longitude/out/-z1.json.check.mbtiles -z1 tests/high-longitude/in.json",
-"json": "{\"vector_layers\": [ { \"id\": \"in\", \"description\": \"\", \"minzoom\": 0, \"maxzoom\": 1, \"fields\": {\"hpa\": \"Number\"} } ],\"tilestats\": {\"layerCount\": 1,\"layers\": [{\"layer\": \"in\",\"count\": 1,\"geometry\": \"LineString\",\"attributeCount\": 1,\"attributes\": [{\"attribute\": \"hpa\",\"count\": 1,\"type\": \"number\",\"values\": [103200],\"min\": 103200,\"max\": 103200}]}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":1,\"fields\":{\"hpa\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":1,\"geometry\":\"LineString\",\"attributeCount\":1,\"attributes\":[{\"attribute\":\"hpa\",\"count\":1,\"type\":\"number\",\"values\":[103200],\"min\":103200,\"max\":103200}]}]}}",
 "maxzoom": "1",
 "minzoom": "0",
 "name": "tests/high-longitude/out/-z1.json.check.mbtiles",

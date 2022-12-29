@@ -56,12 +56,12 @@ struct metadata {
 	double center_lon, center_lat;
 	int center_z;
 
-	std::string attribution; // not written if empty
+	std::string attribution;  // not written if empty
 
 	std::string generator;
 	std::string generator_options;
 
-	std::string strategies_json; // not written if empty
+	std::string strategies_json;  // not written if empty
 
 	std::string vector_layers_json;
 	std::string tilestats_json;

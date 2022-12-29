@@ -1622,7 +1622,7 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
 	// lower right of tile in world coordinates;
-	long long tx2 = 1LL << 32; // , ty2 = 1LL << 32;
+	long long tx2 = 1LL << 32;  // , ty2 = 1LL << 32;
 	if (z != 0) {
 		tx1 = (long long) tx << (32 - z);
 		ty1 = (long long) ty << (32 - z);

@@ -1998,7 +1998,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
-		for (size_t seq = 0; ; seq++) {
+		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
 
@@ -3040,7 +3040,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
 
-		for (size_t pass = 0; ; pass++) {
+		for (size_t pass = 0;; pass++) {
 			pthread_t pthreads[threads];
 			std::vector<write_tile_args> args;
 			args.resize(threads);
