@@ -1,3 +1,7 @@
+## 2.17.0
+
+* Add pmtiles output format
+
 ## 2.16.0
 
 * During tiling, limit the size of the statistics that are kept for -as-needed calculations, because they can get quite large for sources with hundreds of millions of features.
