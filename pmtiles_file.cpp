@@ -25,11 +25,16 @@ bool pmtiles_has_suffix(const char *filename) {
 	return false;
 }
 
-void check_pmtiles(const char *filename, char **argv) {
+void check_pmtiles(const char *filename, char **argv, bool forcetable) {
 	struct stat st;
 	if (stat(filename, &st) == 0) {
 		fprintf(stderr, "%s: Tileset \"%s\" already exists. You can use --force if you want to delete the old tileset.\n", argv[0], filename);
 		fprintf(stderr, "%s: %s: file exists\n", argv[0], filename);
+
+		if (forcetable) {
+			fprintf(stderr, "%s: --allow-existing is not supported for pmtiles\n", argv[0]);
+		}
+
 		exit(EXIT_EXISTS);
 	}
 }

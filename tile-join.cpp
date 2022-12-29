@@ -1190,7 +1190,7 @@ int main(int argc, char **argv) {
 			unlink(out_mbtiles);
 		} else {
 			if (pmtiles_has_suffix(out_mbtiles)) {
-				check_pmtiles(out_mbtiles, argv);
+				check_pmtiles(out_mbtiles, argv, false);
 			}
 		}
 

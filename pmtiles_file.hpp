@@ -5,7 +5,7 @@
 #include "mbtiles.hpp"
 
 bool pmtiles_has_suffix(const char *filename);
-void check_pmtiles(const char *filename, char **argv);
+void check_pmtiles(const char *filename, char **argv, bool forcetable);
 
 void mbtiles_map_image_to_pmtiles(char *dbname, metadata m, bool tile_compression, bool quiet, bool quiet_progress);
 
