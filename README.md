@@ -4,12 +4,9 @@ tippecanoe
 Builds [vector tilesets](https://github.com/mapbox/vector-tile-spec/) from large (or small) collections of [GeoJSON](http://geojson.org/), [FlatGeobuf](https://github.com/flatgeobuf/flatgeobuf), or [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) features,
 [like these](MADE_WITH.md).
 
-This intends to be an actively maintained fork of [tippecanoe](https://github.com/mapbox/tippecanoe) originally developed by [Erica Fischer](https://github.com/e-n-f) at Mapbox. Version 2.0.0 is equivalent to [1.36.0](https://github.com/mapbox/tippecanoe/tree/1.36.0) in the original repository. Thank you Mapbox and Erica for an incredible tool!
+This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com). 
 
-Key features of this fork include:
-
-* Support for [FlatGeobuf](https://github.com/flatgeobuf/flatgeobuf) input which is more compact and 5-10x faster than GeoJsonSeq input.
-
+Version 2.0.0 is equivalent to [1.36.0](https://github.com/mapbox/tippecanoe/tree/1.36.0) in the original repository. Thank you Mapbox for the many years of early support.
 
 Intent
 ------
