@@ -200,6 +200,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 			pmtiles::zxy zxy = pmtiles::tileid_to_zxy(tile_id);
 			if (!quiet && !quiet_progress) {
 				fprintf(stderr, "  %3.1f%%  %d/%u/%u  \r", progress, zxy.z, zxy.x, zxy.y);
+				fflush(stderr);
 			}
 			sqlite3_bind_int(map_stmt, 1, zxy.z);
 			sqlite3_bind_int(map_stmt, 2, zxy.x);

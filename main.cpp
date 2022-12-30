@@ -335,6 +335,7 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 		*progress += (ix.end - ix.start) * 3 / 4;
 		if (!quiet && !quiet_progress && progress_time() && 100 * *progress / *progress_max != *progress_reported) {
 			fprintf(stderr, "Reordering geometry: %lld%% \r", 100 * *progress / *progress_max);
+			fflush(stderr);
 			*progress_reported = 100 * *progress / *progress_max;
 		}
 
@@ -795,6 +796,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				*progress += (ix.end - ix.start) / 4;
 				if (!quiet && !quiet_progress && progress_time() && 100 * *progress / *progress_max != *progress_reported) {
 					fprintf(stderr, "Reordering geometry: %lld%% \r", 100 * *progress / *progress_max);
+					fflush(stderr);
 					*progress_reported = 100 * *progress / *progress_max;
 				}
 
@@ -967,6 +969,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					*progress += (ix.end - ix.start) * 3 / 4;
 					if (!quiet && !quiet_progress && progress_time() && 100 * *progress / *progress_max != *progress_reported) {
 						fprintf(stderr, "Reordering geometry: %lld%% \r", 100 * *progress / *progress_max);
+						fflush(stderr);
 						*progress_reported = 100 * *progress / *progress_max;
 					}
 
@@ -1787,6 +1790,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	if (!quiet) {
 		fprintf(stderr, "                              \r");
 		//     (stderr, "Read 10000.00 million features\r", *progress_seq / 1000000.0);
+		fflush(stderr);
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -2004,6 +2008,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				progress = nprogress;
 				if (!quiet && !quiet_progress && progress_time()) {
 					fprintf(stderr, "Maxzoom: %lld%% \r", progress);
+					fflush(stderr);
 				}
 			}
 		}
@@ -2178,6 +2183,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				progress = nprogress;
 				if (!quiet && !quiet_progress && progress_time()) {
 					fprintf(stderr, "Base zoom/drop rate: %lld%% \r", progress);
+					fflush(stderr);
 				}
 			}
 

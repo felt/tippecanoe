@@ -588,6 +588,7 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 		if (ai == tasks.begin()) {
 			if (!quiet) {
 				fprintf(stderr, "%lld/%lld/%lld  \r", ai->first.z, ai->first.x, ai->first.y);
+				fflush(stderr);
 			}
 		}
 	}
