@@ -3,6 +3,7 @@
 #include <string.h>
 #include <limits.h>
 #include <math.h>
+#include "main.hpp"
 #include "memfile.hpp"
 #include "pool.hpp"
 #include "errors.hpp"
@@ -72,6 +73,23 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 			}
 			return off;
 		}
+	}
+
+	if ((size_t) (poolfile->off + treefile->off) > memsize / CPUS / 2) {
+		// If the pool and search tree get to be larger than physical memory,
+		// then searching will start thrashing. Just append the new string
+		// to the pool rather than letting the tree grow any further.
+
+		long long off = poolfile->off;
+		if (memfile_write(poolfile, &type, 1) < 0) {
+			perror("memfile write");
+			exit(EXIT_WRITE);
+		}
+		if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+			perror("memfile write");
+			exit(EXIT_WRITE);
+		}
+		return off;
 	}
 
 	// *sp is probably in the memory-mapped file, and will move if the file grows.

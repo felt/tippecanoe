@@ -47,6 +47,7 @@ extern int extra_detail;
 
 extern size_t CPUS;
 extern size_t TEMP_FILES;
+extern size_t memsize;
 
 extern size_t max_tile_size;
 extern size_t max_tile_features;

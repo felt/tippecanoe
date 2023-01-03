@@ -105,6 +105,7 @@ struct source {
 size_t CPUS;
 size_t TEMP_FILES;
 long long MAX_FILES;
+size_t memsize;
 static long long diskfree;
 char **av;
 
@@ -1031,17 +1032,8 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 	}
 }
 
-void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
-	// Run through the index and geometry for each reader,
-	// splitting the contents out by index into as many
-	// sub-files as we can write to simultaneously.
-
-	// Then sort each of those by index, recursively if it is
-	// too big to fit in memory.
-
-	// Then concatenate each of the sub-outputs into a final output.
-
-	long long mem;
+static size_t calc_memsize() {
+	size_t mem;
 
 #ifdef __APPLE__
 	int64_t hw_memsize;
@@ -1061,6 +1053,21 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 
 	mem = (long long) pages * pagesize;
 #endif
+
+	return mem;
+}
+
+void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
+	// Run through the index and geometry for each reader,
+	// splitting the contents out by index into as many
+	// sub-files as we can write to simultaneously.
+
+	// Then sort each of those by index, recursively if it is
+	// too big to fit in memory.
+
+	// Then concatenate each of the sub-outputs into a final output.
+
+	long long mem = memsize;
 
 	// Just for code coverage testing. Deeply recursive sorting is very slow
 	// compared to sorting in memory.
@@ -2649,6 +2656,8 @@ int main(int argc, char **argv) {
 	int read_parallel = 0;
 	int files_open_at_start;
 	json_object *filter = NULL;
+
+	memsize = calc_memsize();
 
 	for (i = 0; i < 256; i++) {
 		prevent[i] = 0;

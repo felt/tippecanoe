@@ -25,7 +25,6 @@
 #include <pthread.h>
 #include "mvt.hpp"
 #include "projection.hpp"
-#include "pool.hpp"
 #include "mbtiles.hpp"
 #include "geometry.hpp"
 #include "dirtiles.hpp"
