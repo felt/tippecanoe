@@ -38,9 +38,9 @@ struct serial_val {
 };
 
 struct serial_feature {
-	unsigned long long layer = 0;
-	unsigned int segment = 0;
-	unsigned long long seq = 0;
+	long long layer = 0;
+	int segment = 0;
+	long long seq = 0;
 
 	signed char t = 0;
 	signed char feature_minzoom = 0;
@@ -57,10 +57,10 @@ struct serial_feature {
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
 	unsigned long long label_point = 0;
-	unsigned long long extent = 0;
+	long long extent = 0;
 
-	std::vector<unsigned long long> keys{};
-	std::vector<unsigned long long> values{};
+	std::vector<long long> keys{};
+	std::vector<long long> values{};
 
 	// XXX This isn't serialized. Should it be here?
 	long long bbox[4] = {0, 0, 0, 0};

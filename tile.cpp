@@ -79,13 +79,13 @@ bool draws_something(drawvec &geom) {
 	return false;
 }
 
-static int metacmp(const std::vector<unsigned long long> &keys1, const std::vector<unsigned long long> &values1, char *stringpool1, const std::vector<unsigned long long> &keys2, const std::vector<unsigned long long> &values2, char *stringpool2);
+static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2);
 int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2);
 
 struct coalesce {
 	char *stringpool = NULL;
-	std::vector<unsigned long long> keys;
-	std::vector<unsigned long long> values;
+	std::vector<long long> keys = std::vector<long long>();
+	std::vector<long long> values = std::vector<long long>();
 	std::vector<std::string> full_keys = std::vector<std::string>();
 	std::vector<serial_val> full_values = std::vector<serial_val>();
 	drawvec geom = drawvec();
@@ -201,7 +201,7 @@ mvt_value retrieve_string(long long off, const char *stringpool, int *otype) {
 	return stringified_to_mvt_value(type, s);
 }
 
-void decode_meta(std::vector<unsigned long long> const &metakeys, std::vector<unsigned long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature) {
+void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature) {
 	size_t i;
 	for (i = 0; i < metakeys.size(); i++) {
 		int otype;
@@ -212,7 +212,7 @@ void decode_meta(std::vector<unsigned long long> const &metakeys, std::vector<un
 	}
 }
 
-static int metacmp(const std::vector<unsigned long long> &keys1, const std::vector<unsigned long long> &values1, char *stringpool1, const std::vector<unsigned long long> &keys2, const std::vector<unsigned long long> &values2, char *stringpool2) {
+static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2) {
 	size_t i;
 	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
@@ -258,8 +258,8 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 		return v;
 	}
 
-	const std::vector<unsigned long long> &keys1 = c1->keys;
-	const std::vector<unsigned long long> &values1 = c1->values;
+	const std::vector<long long> &keys1 = c1->keys;
+	const std::vector<long long> &values1 = c1->values;
 	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
@@ -324,7 +324,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, unsigned long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<unsigned long long> &metakeys, std::vector<unsigned long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, unsigned long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -435,12 +435,12 @@ struct accum_state {
 };
 
 struct partial {
-	std::vector<drawvec> geoms;
-	std::vector<unsigned long long> keys;
-	std::vector<unsigned long long> values;
-	std::vector<std::string> full_keys;
-	std::vector<serial_val> full_values;
-	std::vector<ssize_t> arc_polygon;
+	std::vector<drawvec> geoms = std::vector<drawvec>();
+	std::vector<long long> keys = std::vector<long long>();
+	std::vector<long long> values = std::vector<long long>();
+	std::vector<std::string> full_keys = std::vector<std::string>();
+	std::vector<serial_val> full_values = std::vector<serial_val>();
+	std::vector<ssize_t> arc_polygon = std::vector<ssize_t>();
 	long long layer = 0;
 	long long original_seq = 0;
 	unsigned long long index = 0;
@@ -1273,7 +1273,7 @@ unsigned long long choose_mingap(std::vector<unsigned long long> const &indices,
 	return top;
 }
 
-unsigned long long choose_minextent(std::vector<unsigned long long> &extents, double f) {
+long long choose_minextent(std::vector<long long> &extents, double f) {
 	std::sort(extents.begin(), extents.end());
 	return extents[(extents.size() - 1) * (1 - f)];
 }
@@ -1895,7 +1895,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *stri
 		std::map<std::string, std::vector<coalesce>> layers;
 
 		std::vector<unsigned long long> indices;
-		std::vector<unsigned long long> extents;
+		std::vector<long long> extents;
 		size_t extents_increment = 1;
 
 		double coalesced_area = 0;
