@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <atomic>
 #include <string>
+#include <vector>
 
 #include "json_logger.hpp"
 
