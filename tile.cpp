@@ -517,7 +517,7 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	}
 }
 
-double simplify_partial(partial *p, drawvec &shared_nodes) {
+double simplify_partial(partial *p, drawvec &shared_nodes, std::set<std::pair<long long, long long>> &kept) {
 	drawvec geom;
 
 	for (size_t j = 0; j < p->geoms.size(); j++) {
@@ -566,7 +566,7 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
-				drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes);
+				drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, kept);
 
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
 					geom = ngeom;
@@ -586,9 +586,10 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 void *partial_feature_worker(void *v) {
 	struct partial_arg *a = (struct partial_arg *) v;
 	std::vector<struct partial> *partials = a->partials;
+	std::set<std::pair<long long, long long>> kept;
 
 	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
-		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes));
+		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), kept);
 
 		signed char t = (*partials)[i].t;
 		int z = (*partials)[i].z;
@@ -1001,6 +1002,7 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 	// Simplify each arc
 
 	std::vector<drawvec> simplified_arcs;
+	std::set<std::pair<long long, long long>> kept;
 
 	size_t count = 0;
 	for (auto ai = arcs.begin(); ai != arcs.end(); ++ai) {
@@ -1017,7 +1019,7 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 			}
 		}
 		if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
-			simplified_arcs[ai->second] = simplify_lines(dv, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec());
+			simplified_arcs[ai->second] = simplify_lines(dv, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec(), kept);
 		} else {
 			simplified_arcs[ai->second] = dv;
 		}
@@ -2215,9 +2217,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
 					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
 						drawvec dv;
+						std::set<std::pair<long long, long long>> keptp;
 
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
-							simplify_partial(&partials[simplified_geometry_through], dv);
+							simplify_partial(&partials[simplified_geometry_through], dv, keptp);
 
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
@@ -2327,6 +2330,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 		if (tasks < 1) {
 			tasks = 1;
 		}
+		tasks = 1;
 
 		pthread_t pthreads[tasks];
 		std::vector<partial_arg> args;
@@ -2445,12 +2449,13 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			layer_features = out;
 
+			std::set<std::pair<long long, long long>> keptp;
 			out.clear();
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
 					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
 					layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
-										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, keptp);
 				}
 
 				if (layer_features[x].type == VT_POLYGON) {
