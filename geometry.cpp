@@ -87,8 +87,8 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x >>= (32 - detail - z);
-		geom[i].y >>= (32 - detail - z);
+		geom[i].x = std::round(geom[i].x / (1LL << (32 - detail - z)));
+		geom[i].y = std::round(geom[i].y / (1LL << (32 - detail - z)));
 	}
 }
 
@@ -96,8 +96,8 @@ drawvec from_tile_scale(drawvec const &geom, int z, int detail) {
 	drawvec out;
 	for (size_t i = 0; i < geom.size(); i++) {
 		draw d = geom[i];
-		d.x <<= (32 - detail - z);
-		d.y <<= (32 - detail - z);
+		d.x *= (1LL << (32 - detail - z));
+		d.y *= (1LL << (32 - detail - z));
 		out.push_back(d);
 	}
 	return out;
