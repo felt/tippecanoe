@@ -87,8 +87,8 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x = std::round(geom[i].x / (1LL << (32 - detail - z)));
-		geom[i].y = std::round(geom[i].y / (1LL << (32 - detail - z)));
+		geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
+		geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
 	}
 }
 
