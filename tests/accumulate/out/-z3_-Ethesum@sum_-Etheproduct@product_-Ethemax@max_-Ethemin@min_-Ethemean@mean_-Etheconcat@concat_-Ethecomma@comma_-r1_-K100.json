@@ -22,7 +22,7 @@
 ,
 { "type": "Feature", "properties": { "thesum": 397, "themax": 91, "themin": 2, "theproduct": 8357260912000, "themean": 44.111111111111117, "theconcat": "11216822689255591", "thecomma": "11,2,16,82,26,89,25,55,91", "clustered": true, "point_count": 9, "sqrt_point_count": 3 }, "geometry": { "type": "Point", "coordinates": [ 48.164062, 66.583217 ] } }
 ,
-{ "type": "Feature", "properties": { "thesum": 793, "themax": 93, "themin": 7, "theproduct": 3.649478722049509e+25, "themean": 49.5625, "theconcat": "3317626981793467648183915808524", "thecomma": "33,17,62,69,81,7,93,46,76,48,18,39,15,80,85,24", "clustered": true, "point_count": 16, "sqrt_point_count": 4 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 177.363281, 76.393312 ], [ -182.636719, 76.393312 ] ] } }
+{ "type": "Feature", "properties": { "thesum": 793, "themax": 93, "themin": 7, "theproduct": 3.649478722049509e+25, "themean": 49.5625, "theconcat": "3317626981793467648183915808524", "thecomma": "33,17,62,69,81,7,93,46,76,48,18,39,15,80,85,24", "clustered": true, "point_count": 16, "sqrt_point_count": 4 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 177.363281, 76.393312 ], [ -182.548828, 76.393312 ] ] } }
 ,
 { "type": "Feature", "properties": { "thesum": 821, "themax": 96, "themin": 1, "theproduct": 3.7235827383082715e+25, "themean": 48.294117647058829, "theconcat": "8310357913170648446526136879658", "thecomma": "83,10,35,79,1,31,70,64,8,44,6,52,61,36,87,96,58", "clustered": true, "point_count": 17, "sqrt_point_count": 4.12 }, "geometry": { "type": "Point", "coordinates": [ 127.089844, -68.815927 ] } }
 ] }
@@ -30,7 +30,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "thesum": 65, "themax": 65, "themin": 65, "theproduct": 65, "themean": 65, "theconcat": 65, "thecomma": 65 }, "geometry": { "type": "Point", "coordinates": [ -166.464844, 2.811371 ] } }
+{ "type": "Feature", "properties": { "thesum": 65, "themax": 65, "themin": 65, "theproduct": 65, "themean": 65, "theconcat": 65, "thecomma": 65 }, "geometry": { "type": "Point", "coordinates": [ -166.464844, 2.767478 ] } }
 ,
 { "type": "Feature", "properties": { "thesum": 371, "themax": 75, "themin": 9, "theproduct": 6630617750400, "themean": 46.375, "theconcat": "384943547193275", "thecomma": "38,49,43,54,71,9,32,75", "clustered": true, "point_count": 8, "sqrt_point_count": 2.83 }, "geometry": { "type": "Point", "coordinates": [ -164.838867, -39.639538 ] } }
 ,
@@ -56,7 +56,7 @@
 ,
 { "type": "Feature", "properties": { "thesum": 73, "themax": 73, "themin": 73, "theproduct": 73, "themean": 73, "theconcat": 73, "thecomma": 73 }, "geometry": { "type": "Point", "coordinates": [ -41.308594, -0.527336 ] } }
 ,
-{ "type": "Feature", "properties": { "thesum": 33, "themax": 33, "themin": 33, "theproduct": 33, "themean": 33, "theconcat": 33, "thecomma": 33 }, "geometry": { "type": "Point", "coordinates": [ -182.592773, 76.393312 ] } }
+{ "type": "Feature", "properties": { "thesum": 33, "themax": 33, "themin": 33, "theproduct": 33, "themean": 33, "theconcat": 33, "thecomma": 33 }, "geometry": { "type": "Point", "coordinates": [ -182.548828, 76.393312 ] } }
 ] }
 ] }
 ,

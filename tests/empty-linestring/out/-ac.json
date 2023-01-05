@@ -31,7 +31,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 10, "x": 163, "y": 396 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.437992, 37.723139 ], [ -122.437906, 37.723139 ] ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.437992, 37.723071 ], [ -122.437906, 37.723071 ] ] } }
 ] }
 ] }
 ,

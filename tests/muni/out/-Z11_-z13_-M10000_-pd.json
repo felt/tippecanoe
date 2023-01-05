@@ -8,7 +8,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-M10000_-pd.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":7695,\"dropped_as_needed\":87,\"tile_size_desired\":10871},{\"dropped_by_rate\":4112,\"dropped_as_needed\":86,\"tile_size_desired\":10708},{}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":7695,\"dropped_as_needed\":87,\"tile_size_desired\":10871},{\"dropped_by_rate\":4112,\"dropped_as_needed\":86,\"tile_size_desired\":10710},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -30,45 +30,45 @@
 ,
 { "type": "Feature", "properties": { "name": "Juan Bautista Cir & Font Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.478461, 37.718692 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Holloway Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475328, 37.721136 ] } }
+{ "type": "Feature", "properties": { "name": "19th Ave & Holloway Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475328, 37.721102 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Garfield St&Vernon St" }, "geometry": { "type": "Point", "coordinates": [ -122.468162, 37.719609 ] } }
+{ "type": "Feature", "properties": { "name": "Garfield St&Vernon St" }, "geometry": { "type": "Point", "coordinates": [ -122.468162, 37.719575 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Grafton Ave & Ashton Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.462153, 37.720050 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Grafton Ave & Lee St" }, "geometry": { "type": "Point", "coordinates": [ -122.454214, 37.720016 ] } }
+{ "type": "Feature", "properties": { "name": "Grafton Ave & Lee St" }, "geometry": { "type": "Point", "coordinates": [ -122.454214, 37.719982 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Grafton Ave & Harold Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.453012, 37.720084 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Louisburg St & Niagra Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450137, 37.720423 ] } }
+{ "type": "Feature", "properties": { "name": "Louisburg St & Niagra Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450137, 37.720390 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave/Balboa Park BART" }, "geometry": { "type": "Point", "coordinates": [ -122.447262, 37.721068 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave/Balboa Park BART" }, "geometry": { "type": "Point", "coordinates": [ -122.447262, 37.721034 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Balboa Park BART/Mezzanine level" }, "geometry": { "type": "Point", "coordinates": [ -122.446661, 37.720865 ] } }
+{ "type": "Feature", "properties": { "name": "Balboa Park BART/Mezzanine level" }, "geometry": { "type": "Point", "coordinates": [ -122.446661, 37.720831 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Niagra Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.447562, 37.719711 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Niagra Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.447562, 37.719677 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.446918, 37.720491 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.446918, 37.720457 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -122.446618, 37.720627 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -122.446618, 37.720593 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "SAN JOSE AVE & GENEVA AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.446704, 37.720491 ] } }
+{ "type": "Feature", "properties": { "name": "SAN JOSE AVE & GENEVA AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.446704, 37.720457 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geneva Ave & Cayuga Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.443571, 37.718930 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Persia Ave & Athens St" }, "geometry": { "type": "Point", "coordinates": [ -122.429538, 37.720152 ] } }
+{ "type": "Feature", "properties": { "name": "Persia Ave & Athens St" }, "geometry": { "type": "Point", "coordinates": [ -122.429538, 37.720118 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Persia Ave & Moscow St" }, "geometry": { "type": "Point", "coordinates": [ -122.428679, 37.719745 ] } }
+{ "type": "Feature", "properties": { "name": "Persia Ave & Moscow St" }, "geometry": { "type": "Point", "coordinates": [ -122.428679, 37.719711 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "DUBLIN ST & BRAZIL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.425804, 37.719337 ] } }
+{ "type": "Feature", "properties": { "name": "DUBLIN ST & BRAZIL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.425804, 37.719303 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mansell St & Hamilton St" }, "geometry": { "type": "Point", "coordinates": [ -122.406921, 37.720118 ] } }
+{ "type": "Feature", "properties": { "name": "Mansell St & Hamilton St" }, "geometry": { "type": "Point", "coordinates": [ -122.406921, 37.720084 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mansell St & Brussels St" }, "geometry": { "type": "Point", "coordinates": [ -122.403102, 37.721102 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Salinas Ave & Gould St" }, "geometry": { "type": "Point", "coordinates": [ -122.398467, 37.721136 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Third Street & Le Conte Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.397480, 37.718828 ] } }
+{ "type": "Feature", "properties": { "name": "Third Street & Le Conte Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.397480, 37.718794 ] } }
 ,
 { "type": "Feature", "properties": { "name": "555 John Muir Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.496572, 37.716553 ] } }
 ,
@@ -1428,31 +1428,31 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.500048, 37.718998 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Lake Merced Blvd & Higuera Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.485006, 37.718709 ] } }
+{ "type": "Feature", "properties": { "name": "Lake Merced Blvd & Higuera Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.485006, 37.718692 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Font Blvd & Serrano Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.479985, 37.719643 ] } }
+{ "type": "Feature", "properties": { "name": "Font Blvd & Serrano Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.479985, 37.719626 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Juan Bautista Cir & Font Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.478440, 37.718692 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Gonzalez Dr & Cardenas Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475650, 37.719117 ] } }
+{ "type": "Feature", "properties": { "name": "Gonzalez Dr & Cardenas Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475650, 37.719100 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Gonzalez Dr. & Crespi Dr." }, "geometry": { "type": "Point", "coordinates": [ -122.475586, 37.719694 ] } }
+{ "type": "Feature", "properties": { "name": "Gonzalez Dr. & Crespi Dr." }, "geometry": { "type": "Point", "coordinates": [ -122.475586, 37.719677 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Cardenas Ave & Gonzalez Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.475393, 37.719049 ] } }
+{ "type": "Feature", "properties": { "name": "Cardenas Ave & Gonzalez Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.475393, 37.719032 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Garfield St & Beverly St" }, "geometry": { "type": "Point", "coordinates": [ -122.471552, 37.719728 ] } }
+{ "type": "Feature", "properties": { "name": "Garfield St & Beverly St" }, "geometry": { "type": "Point", "coordinates": [ -122.471552, 37.719711 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Garfield St & Byxbee St" }, "geometry": { "type": "Point", "coordinates": [ -122.469749, 37.719745 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Garfield St&Vernon St" }, "geometry": { "type": "Point", "coordinates": [ -122.468162, 37.719609 ] } }
+{ "type": "Feature", "properties": { "name": "Garfield St&Vernon St" }, "geometry": { "type": "Point", "coordinates": [ -122.468162, 37.719592 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Garfield St & Victoria St" }, "geometry": { "type": "Point", "coordinates": [ -122.465458, 37.719626 ] } }
+{ "type": "Feature", "properties": { "name": "Garfield St & Victoria St" }, "geometry": { "type": "Point", "coordinates": [ -122.465458, 37.719609 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Garfield St & Bright St" }, "geometry": { "type": "Point", "coordinates": [ -122.463655, 37.719795 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Plymouth Ave & Grafton Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.456017, 37.719897 ] } }
+{ "type": "Feature", "properties": { "name": "Plymouth Ave & Grafton Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.456017, 37.719880 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Howth St & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.451661, 37.719795 ] } }
+{ "type": "Feature", "properties": { "name": "Howth St & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.451661, 37.719778 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Niagra Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.447541, 37.719694 ] } }
 ,
@@ -1628,11 +1628,11 @@
 ,
 { "type": "Feature", "properties": { "name": "California St & Pierce St" }, "geometry": { "type": "Point", "coordinates": [ -122.437499, 37.788522 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "California St & Pierce St" }, "geometry": { "type": "Point", "coordinates": [ -122.436812, 37.788471 ] } }
+{ "type": "Feature", "properties": { "name": "California St & Pierce St" }, "geometry": { "type": "Point", "coordinates": [ -122.436812, 37.788454 ] } }
 ,
 { "type": "Feature", "properties": { "name": "California St & Steiner St" }, "geometry": { "type": "Point", "coordinates": [ -122.435095, 37.788794 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "California St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.434151, 37.788946 ] } }
+{ "type": "Feature", "properties": { "name": "California St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.434151, 37.788929 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Point Lobos Ave & El Camino Del Mar" }, "geometry": { "type": "Point", "coordinates": [ -122.509918, 37.779890 ] } }
 ,
@@ -1732,7 +1732,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Balboa St & 35th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.494597, 37.775905 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "33rd Ave & Balboa St" }, "geometry": { "type": "Point", "coordinates": [ -122.492988, 37.776040 ] } }
+{ "type": "Feature", "properties": { "name": "Fulton St & 36th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.496357, 37.772089 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Fulton St & 33rd Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.492881, 37.772106 ] } }
 ,
@@ -1842,7 +1842,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Judah St & 23rd Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.481186, 37.761589 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "23rd Ave & Lawton St" }, "geometry": { "type": "Point", "coordinates": [ -122.481122, 37.757874 ] } }
+{ "type": "Feature", "properties": { "name": "Noriega St & 27th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.485178, 37.753785 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Noriega St & 25th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.483032, 37.753887 ] } }
 ,
@@ -1952,7 +1952,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Taraval St & 30th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.487624, 37.742468 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Ulloa St & 30th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.487237, 37.740721 ] } }
+{ "type": "Feature", "properties": { "name": "Quintara St & 28th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.485607, 37.748271 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Quintara St & 27th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.484598, 37.748322 ] } }
 ,
@@ -1968,7 +1968,7 @@
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Rivera St" }, "geometry": { "type": "Point", "coordinates": [ -122.476015, 37.746473 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Santiago St" }, "geometry": { "type": "Point", "coordinates": [ -122.475672, 37.745251 ] } }
+{ "type": "Feature", "properties": { "name": "Taraval St & 28th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.485220, 37.742689 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Taraval St & 26th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.483075, 37.742791 ] } }
 ,
@@ -2046,7 +2046,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Geary Blvd & 12th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.470608, 37.780840 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "California St & 10th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.468977, 37.784554 ] } }
+{ "type": "Feature", "properties": { "name": "California St & 8th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.466831, 37.784639 ] } }
 ,
 { "type": "Feature", "properties": { "name": "California St & 6th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.464943, 37.785029 ] } }
 ,
@@ -2062,7 +2062,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Balboa St & Park Presidio Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472239, 37.776905 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Park Presidio Blvd & Balboa St" }, "geometry": { "type": "Point", "coordinates": [ -122.472153, 37.776481 ] } }
+{ "type": "Feature", "properties": { "name": "Balboa St & 12th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.470329, 37.777007 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Fulton St & Park Presidio Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472196, 37.773191 ] } }
 ,
@@ -2078,7 +2078,7 @@
 ,
 { "type": "Feature", "properties": { "name": "8th Ave & Cabrillo St" }, "geometry": { "type": "Point", "coordinates": [ -122.466102, 37.775023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "8th Ave & Fulton St" }, "geometry": { "type": "Point", "coordinates": [ -122.465994, 37.773479 ] } }
+{ "type": "Feature", "properties": { "name": "Cornwall St & 5th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.463634, 37.784893 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Corwall St & 6th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.464428, 37.784724 ] } }
 ,
@@ -2156,7 +2156,7 @@
 ,
 { "type": "Feature", "properties": { "name": "9th Ave & Judah St" }, "geometry": { "type": "Point", "coordinates": [ -122.466080, 37.762098 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Judah St & 16th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.473676, 37.761928 ] } }
+{ "type": "Feature", "properties": { "name": "16th Ave & Lawton St" }, "geometry": { "type": "Point", "coordinates": [ -122.473676, 37.758111 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Judah St & 15th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.472796, 37.761809 ] } }
 ,
@@ -2172,7 +2172,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Lawton St & 11th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.467947, 37.758417 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "9th Ave & Kirkham St" }, "geometry": { "type": "Point", "coordinates": [ -122.465973, 37.760249 ] } }
+{ "type": "Feature", "properties": { "name": "9th Ave & Lawton St" }, "geometry": { "type": "Point", "coordinates": [ -122.466037, 37.758535 ] } }
 ,
 { "type": "Feature", "properties": { "name": "9th Ave & Lawton St" }, "geometry": { "type": "Point", "coordinates": [ -122.465844, 37.758366 ] } }
 ,
@@ -2188,7 +2188,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Irving St & 4th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.460845, 37.764303 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Parnassus Ave & 4th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.460759, 37.762742 ] } }
+{ "type": "Feature", "properties": { "name": "513 Parnassus Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.459965, 37.762793 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Irving St & 2nd Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.458656, 37.764456 ] } }
 ,
@@ -2266,7 +2266,7 @@
 ,
 { "type": "Feature", "properties": { "name": "McAllister St & Central Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.443206, 37.777279 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mcallister St & Central Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.444773, 37.776956 ] } }
+{ "type": "Feature", "properties": { "name": "Mcallister St & Lyon St" }, "geometry": { "type": "Point", "coordinates": [ -122.443335, 37.777160 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Hayes St & Ashbury St" }, "geometry": { "type": "Point", "coordinates": [ -122.447326, 37.773751 ] } }
 ,
@@ -2282,7 +2282,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Divisadero St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.439945, 37.785165 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Sutter St & Divisadero St" }, "geometry": { "type": "Point", "coordinates": [ -122.439451, 37.785266 ] } }
+{ "type": "Feature", "properties": { "name": "Sutter St & Scott St" }, "geometry": { "type": "Point", "coordinates": [ -122.438099, 37.785521 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Turk St & Broderick St" }, "geometry": { "type": "Point", "coordinates": [ -122.440310, 37.779517 ] } }
 ,
@@ -2298,7 +2298,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Fillmore St & Pine St" }, "geometry": { "type": "Point", "coordinates": [ -122.433572, 37.788064 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433207, 37.785996 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433271, 37.785826 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geary Blvd & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.433314, 37.784266 ] } }
 ,
@@ -2314,7 +2314,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Mcallister St & Baker St" }, "geometry": { "type": "Point", "coordinates": [ -122.441854, 37.777313 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mcallister St & Broderick St" }, "geometry": { "type": "Point", "coordinates": [ -122.440181, 37.777533 ] } }
+{ "type": "Feature", "properties": { "name": "McAllister St & Divisadero St" }, "geometry": { "type": "Point", "coordinates": [ -122.438593, 37.777821 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mcallister St & Divisadero St" }, "geometry": { "type": "Point", "coordinates": [ -122.438228, 37.777872 ] } }
 ,
@@ -2376,7 +2376,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Haight St & Masonic Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.445352, 37.770223 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Haight St & Central Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.443571, 37.770511 ] } }
+{ "type": "Feature", "properties": { "name": "Frederick St & Masonic St" }, "geometry": { "type": "Point", "coordinates": [ -122.444837, 37.767356 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Clayton St & Carl St" }, "geometry": { "type": "Point", "coordinates": [ -122.447948, 37.766169 ] } }
 ,
@@ -2392,7 +2392,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Roosevelt Way & Clifford Ter" }, "geometry": { "type": "Point", "coordinates": [ -122.443013, 37.763743 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "17th St & Cole St" }, "geometry": { "type": "Point", "coordinates": [ -122.449000, 37.761691 ] } }
+{ "type": "Feature", "properties": { "name": "Panorama Dr & Dellbrook Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.452626, 37.753463 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Carmel St & Belvedere St" }, "geometry": { "type": "Point", "coordinates": [ -122.447648, 37.760927 ] } }
 ,
@@ -2408,7 +2408,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Corbett Ave & Mars St" }, "geometry": { "type": "Point", "coordinates": [ -122.444494, 37.760486 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "210 Corbett Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442842, 37.761809 ] } }
+{ "type": "Feature", "properties": { "name": "18th St & Danvers St" }, "geometry": { "type": "Point", "coordinates": [ -122.443507, 37.760249 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Corbett Ave & Iron Aly" }, "geometry": { "type": "Point", "coordinates": [ -122.444773, 37.757806 ] } }
 ,
@@ -2424,7 +2424,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Roosevelt Way & 15th St" }, "geometry": { "type": "Point", "coordinates": [ -122.439516, 37.766508 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Buena Vista Ter & Roosevelt Way" }, "geometry": { "type": "Point", "coordinates": [ -122.438164, 37.766864 ] } }
+{ "type": "Feature", "properties": { "name": "Roosevelt Way & 14th St" }, "geometry": { "type": "Point", "coordinates": [ -122.437241, 37.767170 ] } }
 ,
 { "type": "Feature", "properties": { "name": "17th St & Diamond St" }, "geometry": { "type": "Point", "coordinates": [ -122.437499, 37.762420 ] } }
 ,
@@ -2466,7 +2466,7 @@
 ,
 { "type": "Feature", "properties": { "name": "18th St & Castro St" }, "geometry": { "type": "Point", "coordinates": [ -122.434859, 37.760859 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Castro St & 19th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434795, 37.759163 ] } }
+{ "type": "Feature", "properties": { "name": "18th St & Noe St" }, "geometry": { "type": "Point", "coordinates": [ -122.432692, 37.761097 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Castro St & 20th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434645, 37.757636 ] } }
 ,
@@ -2482,7 +2482,7 @@
 ,
 { "type": "Feature", "properties": { "name": "17th Ave & Rivera St" }, "geometry": { "type": "Point", "coordinates": [ -122.473719, 37.746761 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "15th Ave & Quintara St" }, "geometry": { "type": "Point", "coordinates": [ -122.471831, 37.748916 ] } }
+{ "type": "Feature", "properties": { "name": "Santiago St & 14th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.470500, 37.745081 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Quintara St & Cragmont Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.467690, 37.749102 ] } }
 ,
@@ -2498,7 +2498,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Taraval St & 17th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.473719, 37.743079 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Ulloa St" }, "geometry": { "type": "Point", "coordinates": [ -122.475436, 37.741501 ] } }
+{ "type": "Feature", "properties": { "name": "15th Ave & Taraval St" }, "geometry": { "type": "Point", "coordinates": [ -122.471316, 37.743130 ] } }
 ,
 { "type": "Feature", "properties": { "name": "14th Ave & Taraval St" }, "geometry": { "type": "Point", "coordinates": [ -122.470179, 37.743181 ] } }
 ,
@@ -2514,7 +2514,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Ulloa St & WEST PORTAL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.466123, 37.741026 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "West Portal Ave & Ulloa St" }, "geometry": { "type": "Point", "coordinates": [ -122.465866, 37.741009 ] } }
+{ "type": "Feature", "properties": { "name": "West Portal Ave & Ulloa St" }, "geometry": { "type": "Point", "coordinates": [ -122.465866, 37.740907 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Ulloa St & West portal t" }, "geometry": { "type": "Point", "coordinates": [ -122.465780, 37.740890 ] } }
 ,
@@ -2530,7 +2530,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Vicente St & West Portal Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.466788, 37.739685 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Portola Ave & Claremont Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.465050, 37.739855 ] } }
+{ "type": "Feature", "properties": { "name": "Laguna Honda Blvd & Clarendon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.461059, 37.750952 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Clarendon Ave & Clarendon Woods S" }, "geometry": { "type": "Point", "coordinates": [ -122.458398, 37.751715 ] } }
 ,
@@ -2574,7 +2574,7 @@
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Ocean Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.474813, 37.732134 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Right Of Way/Ocean Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.473826, 37.731812 ] } }
+{ "type": "Feature", "properties": { "name": "Sloat Blvd & West Portal Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.471874, 37.734629 ] } }
 ,
 { "type": "Feature", "properties": { "name": "West Portal/Sloat/St Francis Circle" }, "geometry": { "type": "Point", "coordinates": [ -122.471638, 37.734815 ] } }
 ,
@@ -2590,7 +2590,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Eucalyptus Dr & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472453, 37.730997 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Junipero Serra Blvd & Ocean Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.471681, 37.731370 ] } }
+{ "type": "Feature", "properties": { "name": "Ocean Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.471702, 37.730963 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Saint Francis Blvd & Santa Ana Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.467861, 37.734951 ] } }
 ,
@@ -2606,7 +2606,7 @@
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Winston Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.474685, 37.727195 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19TH AVE & HOLLOWAY AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.475307, 37.721204 ] } }
+{ "type": "Feature", "properties": { "name": "19th Ave & Holloway Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475307, 37.721119 ] } }
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Holloway Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475114, 37.721255 ] } }
 ,
@@ -2622,7 +2622,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Garfield St & Beverly St" }, "geometry": { "type": "Point", "coordinates": [ -122.471552, 37.719728 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Ocean Ave & Cerritos Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.466788, 37.727229 ] } }
+{ "type": "Feature", "properties": { "name": "Garfield St & Byxbee St" }, "geometry": { "type": "Point", "coordinates": [ -122.469749, 37.719745 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Garfield St&Vernon St" }, "geometry": { "type": "Point", "coordinates": [ -122.468162, 37.719609 ] } }
 ,
@@ -2638,7 +2638,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Plymouth Ave & Yerba Buena Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.458527, 37.732626 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Plymouth Ave & Mangels Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.457669, 37.732100 ] } }
+{ "type": "Feature", "properties": { "name": "Monterey Blvd & Plymouth Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.457325, 37.731116 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Monterey Blvd & Valdez Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.455845, 37.731268 ] } }
 ,
@@ -2654,7 +2654,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Ocean Ave & Miramar Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.458098, 37.724395 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Plymouth Ave & Ocean Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.456059, 37.723784 ] } }
+{ "type": "Feature", "properties": { "name": "Ocean Ave & Lee St" }, "geometry": { "type": "Point", "coordinates": [ -122.454236, 37.723462 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Ocean Ave & Lee St" }, "geometry": { "type": "Point", "coordinates": [ -122.454000, 37.723462 ] } }
 ,
@@ -2684,7 +2684,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Burnett Ave & Crestline Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.444944, 37.749136 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Grand View Ave & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.442820, 37.750850 ] } }
+{ "type": "Feature", "properties": { "name": "Dawnview Way & Glenview Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.447541, 37.748034 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Glenview Dr & Portola Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.447777, 37.746676 ] } }
 ,
@@ -2700,7 +2700,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Fowler Ave & Portola Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.453249, 37.744369 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "100 O'Shaughnessy Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.450695, 37.744487 ] } }
+{ "type": "Feature", "properties": { "name": "Teresita Blvd & Isola Way" }, "geometry": { "type": "Point", "coordinates": [ -122.450545, 37.741739 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Reposa Way & Teresita Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.449365, 37.740839 ] } }
 ,
@@ -2716,7 +2716,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Teresita Blvd & El Sereno Ct" }, "geometry": { "type": "Point", "coordinates": [ -122.446253, 37.738973 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Teresita Blvd & Bella Vista Way" }, "geometry": { "type": "Point", "coordinates": [ -122.446640, 37.737700 ] } }
+{ "type": "Feature", "properties": { "name": "636 Teresita Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.445674, 37.736801 ] } }
 ,
 { "type": "Feature", "properties": { "name": "O'Shaughnessy Blvd & Malta Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.443314, 37.736614 ] } }
 ,
@@ -2732,7 +2732,7 @@
 ,
 { "type": "Feature", "properties": { "name": "5157 Diamond Heights Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.440202, 37.746931 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Diamond Heights Blvd & Duncan St" }, "geometry": { "type": "Point", "coordinates": [ -122.439859, 37.745251 ] } }
+{ "type": "Feature", "properties": { "name": "Diamond St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.436383, 37.751274 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Diamond St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.436233, 37.751088 ] } }
 ,
@@ -2748,7 +2748,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Castro St & 25th St" }, "geometry": { "type": "Point", "coordinates": [ -122.433851, 37.749611 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Diamond St & Clipper St" }, "geometry": { "type": "Point", "coordinates": [ -122.436168, 37.748865 ] } }
+{ "type": "Feature", "properties": { "name": "Diamond St & 26th St" }, "geometry": { "type": "Point", "coordinates": [ -122.435911, 37.747898 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Diamond St & Cesar Chavez St" }, "geometry": { "type": "Point", "coordinates": [ -122.435997, 37.747083 ] } }
 ,
@@ -2764,7 +2764,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Diamond St & 29th St" }, "geometry": { "type": "Point", "coordinates": [ -122.435675, 37.743266 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Diamond St & Diamond Heights Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.435482, 37.741925 ] } }
+{ "type": "Feature", "properties": { "name": "Diamond St & Diamond Heights Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.435546, 37.741620 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Diamond Heights Blvd & Addison St" }, "geometry": { "type": "Point", "coordinates": [ -122.435782, 37.740211 ] } }
 ,
@@ -2778,7 +2778,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Diamond St & Sussex St" }, "geometry": { "type": "Point", "coordinates": [ -122.434623, 37.737344 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Addison  St & Digby St" }, "geometry": { "type": "Point", "coordinates": [ -122.433615, 37.740008 ] } }
+{ "type": "Feature", "properties": { "name": "164 Addison  St" }, "geometry": { "type": "Point", "coordinates": [ -122.432821, 37.738175 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Teresita Blvd & Foerster St" }, "geometry": { "type": "Point", "coordinates": [ -122.448785, 37.734357 ] } }
 ,
@@ -2794,7 +2794,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Judson Ave & Gennessee St" }, "geometry": { "type": "Point", "coordinates": [ -122.451231, 37.728299 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Foerster St & Monterey Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.448785, 37.731404 ] } }
+{ "type": "Feature", "properties": { "name": "Foerster St & Judson Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448764, 37.728502 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Teresita Blvd & Foerster St" }, "geometry": { "type": "Point", "coordinates": [ -122.446339, 37.735528 ] } }
 ,
@@ -2810,7 +2810,7 @@
 ,
 { "type": "Feature", "properties": { "name": "PHELAN AVE/CCSF (South Entrance)" }, "geometry": { "type": "Point", "coordinates": [ -122.452433, 37.723852 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Ocean Ave & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.452455, 37.723037 ] } }
+{ "type": "Feature", "properties": { "name": "GENEVA AVE & GENEVA AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.451189, 37.723122 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Grafton Ave & Harold Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.453012, 37.720084 ] } }
 ,
@@ -2826,7 +2826,7 @@
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Ocean Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.444794, 37.723071 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave/Balboa Park BART" }, "geometry": { "type": "Point", "coordinates": [ -122.447240, 37.721051 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave & San Jose Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.446983, 37.720967 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -122.446811, 37.720916 ] } }
 ,
@@ -2842,7 +2842,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Geneva Ave/Balboa Park BART" }, "geometry": { "type": "Point", "coordinates": [ -122.447155, 37.719863 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -122.446597, 37.720644 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -122.446597, 37.720627 ] } }
 ,
 { "type": "Feature", "properties": { "name": "GENEVA AVE & SANA JOSE AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.446618, 37.720576 ] } }
 ,
@@ -2858,7 +2858,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Geneva Ave & Cayuga Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.443571, 37.718930 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Bosworth St & Elk St" }, "geometry": { "type": "Point", "coordinates": [ -122.440095, 37.735019 ] } }
+{ "type": "Feature", "properties": { "name": "Monterey Blvd & Baden St" }, "geometry": { "type": "Point", "coordinates": [ -122.439644, 37.731676 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Monterey Blvd & Congo St" }, "geometry": { "type": "Point", "coordinates": [ -122.442133, 37.731523 ] } }
 ,
@@ -2874,7 +2874,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Chenery St & Castro St" }, "geometry": { "type": "Point", "coordinates": [ -122.432349, 37.734612 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Bosworth St & Diamond St" }, "geometry": { "type": "Point", "coordinates": [ -122.434087, 37.733492 ] } }
+{ "type": "Feature", "properties": { "name": "Bosworth St & Diamond St" }, "geometry": { "type": "Point", "coordinates": [ -122.434022, 37.733610 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Circular Ave & Monterey Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.437005, 37.731336 ] } }
 ,
@@ -2888,9 +2888,9 @@
 ,
 { "type": "Feature", "properties": { "name": "Ocean Ave & Otsego Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.441254, 37.723275 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Ocean Ave & Cayuga Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.438550, 37.723580 ] } }
-,
 { "type": "Feature", "properties": { "name": "Mission St & Onondaga Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.437499, 37.721289 ] } }
+,
+{ "type": "Feature", "properties": { "name": "Ocean Ave & Persia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.435911, 37.723835 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Persia Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.435846, 37.723156 ] } }
 ,
@@ -2904,7 +2904,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Excelsior Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.432199, 37.725532 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & Ruth St" }, "geometry": { "type": "Point", "coordinates": [ -122.436340, 37.722817 ] } }
+{ "type": "Feature", "properties": { "name": "Persia Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.434280, 37.722409 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Persia Ave & Madrid St" }, "geometry": { "type": "Point", "coordinates": [ -122.432692, 37.721646 ] } }
 ,
@@ -2920,7 +2920,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Fillmore St & Haight St" }, "geometry": { "type": "Point", "coordinates": [ -122.430353, 37.772038 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Hermann St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.429945, 37.770308 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & Deboce Ave temp bus terminal" }, "geometry": { "type": "Point", "coordinates": [ -122.430031, 37.769510 ] } }
 ,
 { "type": "Feature", "properties": { "name": "14th St & SANCHEZ ST" }, "geometry": { "type": "Point", "coordinates": [ -122.431126, 37.767679 ] } }
 ,
@@ -2936,7 +2936,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Noe St & 29th St" }, "geometry": { "type": "Point", "coordinates": [ -122.431190, 37.743554 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Noe St & 30th St" }, "geometry": { "type": "Point", "coordinates": [ -122.431018, 37.742010 ] } }
+{ "type": "Feature", "properties": { "name": "Bemis St & Moffitt St" }, "geometry": { "type": "Point", "coordinates": [ -122.431190, 37.736665 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Bosworth St & Rotteck St" }, "geometry": { "type": "Point", "coordinates": [ -122.431297, 37.733220 ] } }
 ,
@@ -2952,7 +2952,7 @@
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472990, 37.717334 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Plymouth Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.456081, 37.718183 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448657, 37.718472 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Alemany Blvd & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442391, 37.717674 ] } }
 ] }
@@ -3178,15 +3178,15 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "Naples St & Russia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.432413, 37.719201 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Persia Ave & Moscow St" }, "geometry": { "type": "Point", "coordinates": [ -122.428980, 37.719711 ] } }
+{ "type": "Feature", "properties": { "name": "Persia Ave & Moscow St" }, "geometry": { "type": "Point", "coordinates": [ -122.428980, 37.719694 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Persia Ave & Moscow St" }, "geometry": { "type": "Point", "coordinates": [ -122.428679, 37.719745 ] } }
+{ "type": "Feature", "properties": { "name": "Persia Ave & Moscow St" }, "geometry": { "type": "Point", "coordinates": [ -122.428679, 37.719728 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Prague St & Persia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.427199, 37.719032 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Prague St & Persia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.427220, 37.718845 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "DUBLIN ST & BRAZIL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.425804, 37.719320 ] } }
+{ "type": "Feature", "properties": { "name": "DUBLIN ST & BRAZIL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.425804, 37.719303 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mansell St & John F Shelley Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.418637, 37.718726 ] } }
 ,
@@ -3350,19 +3350,19 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1583 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433207, 37.785996 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433186, 37.785996 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433271, 37.785826 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geary Blvd & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.433314, 37.784266 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Fillmore St & O'Farrell St" }, "geometry": { "type": "Point", "coordinates": [ -122.432714, 37.783028 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & O'Farrell St" }, "geometry": { "type": "Point", "coordinates": [ -122.432692, 37.783028 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Fillmore St & Eddy St" }, "geometry": { "type": "Point", "coordinates": [ -122.432413, 37.781535 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & Eddy St" }, "geometry": { "type": "Point", "coordinates": [ -122.432392, 37.781535 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Eddy St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.432241, 37.781502 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mcallister St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.432091, 37.778652 ] } }
+{ "type": "Feature", "properties": { "name": "Mcallister St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.432070, 37.778652 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Hayes St & Steiner St" }, "geometry": { "type": "Point", "coordinates": [ -122.432477, 37.775633 ] } }
 ,
@@ -3374,29 +3374,29 @@
 ,
 { "type": "Feature", "properties": { "name": "18th St & Noe St" }, "geometry": { "type": "Point", "coordinates": [ -122.432692, 37.761097 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "24th St & Noe St" }, "geometry": { "type": "Point", "coordinates": [ -122.431791, 37.751512 ] } }
+{ "type": "Feature", "properties": { "name": "24th St & Noe St" }, "geometry": { "type": "Point", "coordinates": [ -122.431769, 37.751512 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "164 Addison  St" }, "geometry": { "type": "Point", "coordinates": [ -122.432821, 37.738175 ] } }
+{ "type": "Feature", "properties": { "name": "164 Addison  St" }, "geometry": { "type": "Point", "coordinates": [ -122.432799, 37.738175 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Chenery St & Castro St" }, "geometry": { "type": "Point", "coordinates": [ -122.432349, 37.734612 ] } }
+{ "type": "Feature", "properties": { "name": "Chenery St & Castro St" }, "geometry": { "type": "Point", "coordinates": [ -122.432327, 37.734612 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Silver Ave & Alemany Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.433186, 37.729605 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Excelsior Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.432199, 37.725532 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Persia Ave & Madrid St" }, "geometry": { "type": "Point", "coordinates": [ -122.432692, 37.721646 ] } }
+{ "type": "Feature", "properties": { "name": "Persia Ave & Madrid St" }, "geometry": { "type": "Point", "coordinates": [ -122.432671, 37.721646 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Bush St &Van ness Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.421856, 37.788421 ] } }
+{ "type": "Feature", "properties": { "name": "Bush St &Van ness Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.421856, 37.788404 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Polk St & Pine St" }, "geometry": { "type": "Point", "coordinates": [ -122.420547, 37.789370 ] } }
+{ "type": "Feature", "properties": { "name": "Polk St & Pine St" }, "geometry": { "type": "Point", "coordinates": [ -122.420547, 37.789353 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Bush St & Hyde St" }, "geometry": { "type": "Point", "coordinates": [ -122.416599, 37.789167 ] } }
+{ "type": "Feature", "properties": { "name": "Bush St & Hyde St" }, "geometry": { "type": "Point", "coordinates": [ -122.416599, 37.789150 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Leavenworth St & Bush St" }, "geometry": { "type": "Point", "coordinates": [ -122.415311, 37.789234 ] } }
+{ "type": "Feature", "properties": { "name": "Leavenworth St & Bush St" }, "geometry": { "type": "Point", "coordinates": [ -122.415311, 37.789218 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Bush St & Leavenworth St" }, "geometry": { "type": "Point", "coordinates": [ -122.414968, 37.789302 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Sutter St & Jones St" }, "geometry": { "type": "Point", "coordinates": [ -122.413638, 37.788658 ] } }
+{ "type": "Feature", "properties": { "name": "Sutter St & Jones St" }, "geometry": { "type": "Point", "coordinates": [ -122.413638, 37.788641 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Sutter St & Taylor St" }, "geometry": { "type": "Point", "coordinates": [ -122.411964, 37.788861 ] } }
 ,
@@ -3406,9 +3406,9 @@
 ,
 { "type": "Feature", "properties": { "name": "POST & GRANT" }, "geometry": { "type": "Point", "coordinates": [ -122.405419, 37.788590 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Kearny St & Geary Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.403467, 37.788217 ] } }
+{ "type": "Feature", "properties": { "name": "Kearny St & Geary Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.403467, 37.788200 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Market St & New Montgomery St" }, "geometry": { "type": "Point", "coordinates": [ -122.402179, 37.788624 ] } }
+{ "type": "Feature", "properties": { "name": "Market St & New Montgomery St" }, "geometry": { "type": "Point", "coordinates": [ -122.402179, 37.788607 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Market St & 2nd St" }, "geometry": { "type": "Point", "coordinates": [ -122.401321, 37.789353 ] } }
 ,
@@ -3416,9 +3416,9 @@
 ,
 { "type": "Feature", "properties": { "name": "1st St & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.397223, 37.789404 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Fremont St & Howard St" }, "geometry": { "type": "Point", "coordinates": [ -122.394991, 37.789201 ] } }
+{ "type": "Feature", "properties": { "name": "Fremont St & Howard St" }, "geometry": { "type": "Point", "coordinates": [ -122.394991, 37.789184 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Folsom St & Main St" }, "geometry": { "type": "Point", "coordinates": [ -122.391880, 37.789285 ] } }
+{ "type": "Feature", "properties": { "name": "Folsom St & Main St" }, "geometry": { "type": "Point", "coordinates": [ -122.391880, 37.789268 ] } }
 ,
 { "type": "Feature", "properties": { "name": "FOLSOM & BEALE" }, "geometry": { "type": "Point", "coordinates": [ -122.392824, 37.788675 ] } }
 ,
@@ -4678,19 +4678,19 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1582 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Buchanan St & Bay St" }, "geometry": { "type": "Point", "coordinates": [ -122.433357, 37.803443 ] } }
+{ "type": "Feature", "properties": { "name": "Buchanan St & Bay St" }, "geometry": { "type": "Point", "coordinates": [ -122.433336, 37.803443 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Marina Blvd & Laguna St" }, "geometry": { "type": "Point", "coordinates": [ -122.432199, 37.805122 ] } }
+{ "type": "Feature", "properties": { "name": "Marina Blvd & Laguna St" }, "geometry": { "type": "Point", "coordinates": [ -122.432177, 37.805122 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Chestnut St & Buchanan St" }, "geometry": { "type": "Point", "coordinates": [ -122.432864, 37.801324 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Union St & Buchanan St" }, "geometry": { "type": "Point", "coordinates": [ -122.432606, 37.797526 ] } }
+{ "type": "Feature", "properties": { "name": "Union St & Buchanan St" }, "geometry": { "type": "Point", "coordinates": [ -122.432585, 37.797526 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Union St & Buchanan St" }, "geometry": { "type": "Point", "coordinates": [ -122.432306, 37.797441 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Jackson St & Webster St" }, "geometry": { "type": "Point", "coordinates": [ -122.433035, 37.792728 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Sacramento St & Webster St" }, "geometry": { "type": "Point", "coordinates": [ -122.432241, 37.790116 ] } }
+{ "type": "Feature", "properties": { "name": "Sacramento St & Webster St" }, "geometry": { "type": "Point", "coordinates": [ -122.432220, 37.790116 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Larkin St & Beach St" }, "geometry": { "type": "Point", "coordinates": [ -122.422092, 37.806359 ] } }
 ,

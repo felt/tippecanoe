@@ -22,11 +22,11 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.500048, 37.718998 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Holloway Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475328, 37.721136 ] } }
+{ "type": "Feature", "properties": { "name": "19th Ave & Holloway Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475328, 37.721102 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Balboa Park BART/Mezzanine level" }, "geometry": { "type": "Point", "coordinates": [ -122.446661, 37.720933 ] } }
+{ "type": "Feature", "properties": { "name": "Balboa Park BART/Mezzanine level" }, "geometry": { "type": "Point", "coordinates": [ -122.446661, 37.720899 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Moscow St & Persia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.428765, 37.719846 ] } }
+{ "type": "Feature", "properties": { "name": "Moscow St & Persia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.428765, 37.719812 ] } }
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Randolph St" }, "geometry": { "type": "Point", "coordinates": [ -122.471681, 37.716214 ] } }
 ,
@@ -298,7 +298,7 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.500048, 37.718998 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Banbury Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.474599, 37.719541 ] } }
+{ "type": "Feature", "properties": { "name": "19th Ave & Banbury Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.474599, 37.719524 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mt Vernon Ave & Louisburg St" }, "geometry": { "type": "Point", "coordinates": [ -122.450953, 37.719371 ] } }
 ,
@@ -620,7 +620,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Moscow St & Persia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.428765, 37.719829 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "DUBLIN ST & BRAZIL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.425804, 37.719320 ] } }
+{ "type": "Feature", "properties": { "name": "DUBLIN ST & BRAZIL AVE" }, "geometry": { "type": "Point", "coordinates": [ -122.425804, 37.719303 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Prague St & Russia Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.428207, 37.717572 ] } }
 ,
@@ -650,7 +650,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1583 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433207, 37.785996 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433186, 37.785996 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Fillmore St & Geary Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.432928, 37.784741 ] } }
 ,
@@ -662,7 +662,7 @@
 ,
 { "type": "Feature", "properties": { "name": "2nd St & Stevenson St" }, "geometry": { "type": "Point", "coordinates": [ -122.400076, 37.788285 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "1st St & Howard St" }, "geometry": { "type": "Point", "coordinates": [ -122.396064, 37.788539 ] } }
+{ "type": "Feature", "properties": { "name": "1st St & Howard St" }, "geometry": { "type": "Point", "coordinates": [ -122.396064, 37.788522 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Sutter St & Laguna St" }, "geometry": { "type": "Point", "coordinates": [ -122.428722, 37.786725 ] } }
 ,
@@ -874,7 +874,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1582 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Buchanan St & Bay St" }, "geometry": { "type": "Point", "coordinates": [ -122.433357, 37.803443 ] } }
+{ "type": "Feature", "properties": { "name": "Buchanan St & Bay St" }, "geometry": { "type": "Point", "coordinates": [ -122.433336, 37.803443 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Jefferson St & Taylor St" }, "geometry": { "type": "Point", "coordinates": [ -122.415526, 37.808326 ] } }
 ,
