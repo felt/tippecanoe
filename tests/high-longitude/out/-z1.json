@@ -13,7 +13,7 @@
 }, "features": [
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "hpa": 103200 }, "geometry": { "type": "LineString", "coordinates": [ [ -106.083984, 35.029996 ], [ -156.005859, 35.029996 ], [ -156.005859, 30.069094 ], [ -106.083984, 30.069094 ], [ -106.083984, 35.029996 ] ] } }
+{ "type": "Feature", "properties": { "hpa": 103200 }, "geometry": { "type": "LineString", "coordinates": [ [ -105.996094, 35.029996 ], [ -156.005859, 35.029996 ], [ -156.005859, 29.993002 ], [ -105.996094, 29.993002 ], [ -105.996094, 35.029996 ] ] } }
 ] }
 ] }
 ,
