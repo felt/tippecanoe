@@ -869,9 +869,17 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 
 			double distance = std::fabs(temp_dist);
 
-			if ((distance > e || kept < retain) && distance > max_distance) {
-				farthest_element_index = i;
-				max_distance = distance;
+			if ((distance > e || kept < retain) && distance >= max_distance) {
+				if (distance > max_distance) {
+					farthest_element_index = i;
+					max_distance = distance;
+				} else if (geom[i].y > geom[farthest_element_index].y) {
+					farthest_element_index = i;
+					max_distance = distance;
+				} else if (geom[i].y == geom[farthest_element_index].y && geom[i].x == geom[farthest_element_index].x) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
 			}
 		}
 
@@ -968,20 +976,28 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 			geom[i].necessary = 1;
 			geom[j - 1].necessary = 1;
 
-			// empirical mapping from douglas-peucker simplifications
-			// to visvalingam simplifications that yield similar
-			// output sizes
-			double sim = simplification * (0.1596 * z + 0.878);
-			double scale = (res * sim) * (res * sim);
-			scale = exp(1.002 * log(scale) + 0.3043);
+			size_t start = i;
+			for (size_t k = start + 1; k <= j - 1; k++) {
+				if (geom[k].necessary) {
+					if (k - start > 1) {
+						// empirical mapping from douglas-peucker simplifications
+						// to visvalingam simplifications that yield similar
+						// output sizes
+						double sim = simplification * (0.1596 * z + 0.878);
+						double scale = (res * sim) * (res * sim);
+						scale = exp(1.002 * log(scale) + 0.3043);
 
-			if (j - i > 1) {
-				if (additional[A_VISVALINGAM]) {
-					visvalingam(geom, i, j, scale, retain);
-				} else {
-					douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
+						if (additional[A_VISVALINGAM]) {
+							visvalingam(geom, start, k + 1, scale, retain);
+						} else {
+							douglas_peucker(geom, start, k + 1 - start, res * simplification, 2, retain);
+						}
+					}
+
+					start = k;
 				}
 			}
+
 			i = j - 1;
 		}
 	}

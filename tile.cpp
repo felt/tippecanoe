@@ -588,9 +588,29 @@ void *partial_feature_worker(void *v) {
 	std::vector<struct partial> *partials = a->partials;
 	std::set<std::pair<long long, long long>> kept;
 
+	for (size_t i = 0; i < (*partials).size(); i++) {
+		for (size_t j = 0; j < (*partials)[i].geoms.size(); j++) {
+			(*partials)[i].geoms[j] = remove_noop((*partials)[i].geoms[j], (*partials)[i].t, 0);
+		}
+	}
+
+	for (size_t n = 0; n < 20; n++) {
+		size_t before = kept.size();
+
+		for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
+			auto stash = (*partials)[i].geoms;
+			double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), kept);
+			(*partials)[i].geoms = stash;
+		}
+
+		printf("%zu nodes kept\n", kept.size());
+		if (kept.size() == before) {
+			break;
+		}
+	}
+
 	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
 		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), kept);
-
 		signed char t = (*partials)[i].t;
 		int z = (*partials)[i].z;
 		int out_detail = (*partials)[i].extra_detail;
