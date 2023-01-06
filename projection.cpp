@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cmath>
 #include <atomic>
 #include "projection.hpp"
 #include "errors.hpp"
@@ -87,8 +88,8 @@ void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y) 
 	*y = ((1LL << 32) - 1) - (iy * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31));
 
 	if (zoom != 0) {
-		*x >>= (32 - zoom);
-		*y >>= (32 - zoom);
+		*x = std::round((double) *x / (1LL << (32 - zoom)));
+		*y = std::round((double) *y / (1LL << (32 - zoom)));
 	}
 }
 

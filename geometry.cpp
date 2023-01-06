@@ -110,7 +110,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && (geom[i].x >> shift) == x && (geom[i].y >> shift) == y) {
+		if (geom[i].op == VT_LINETO && std::round((double) geom[i].x / (1LL << shift)) == x && std::round((double) geom[i].y / (1LL << shift)) == y) {
 			continue;
 		}
 
@@ -118,8 +118,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 			out.push_back(geom[i]);
 		} else { /* moveto or lineto */
 			out.push_back(geom[i]);
-			x = geom[i].x >> shift;
-			y = geom[i].y >> shift;
+			x = std::round((double) geom[i].x / (1LL << shift));
+			y = std::round((double) geom[i].y / (1LL << shift));
 		}
 	}
 
