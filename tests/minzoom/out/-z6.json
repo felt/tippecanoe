@@ -61,13 +61,13 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 5, "x": 16, "y": 15 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 4.998779, 5.000658 ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 5.001526, 5.000658 ] } }
 ] }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 6, "x": 33, "y": 30 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 5.999908, 6.001265 ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 5.999908, 5.999899 ] } }
 ] }
 ] }
 ] }

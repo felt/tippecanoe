@@ -24,7 +24,7 @@
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
-#define SHIFT_RIGHT(a) ((((a) + COORD_OFFSET) >> geometry_scale) - (COORD_OFFSET >> geometry_scale))
+#define SHIFT_RIGHT(a) std::round((double) a / (1LL << geometry_scale))
 #define SHIFT_LEFT(a) ((((a) + (COORD_OFFSET >> geometry_scale)) << geometry_scale) - COORD_OFFSET)
 
 size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, const char *fname) {
