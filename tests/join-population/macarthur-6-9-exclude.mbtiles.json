@@ -4,7 +4,7 @@
 "description": "tests/join-population/macarthur.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -f -Z5 -z10 -o tests/join-population/macarthur.mbtiles -l macarthur tests/join-population/macarthur.json; ./tile-join -q -f -Z6 -z9 -X -o tests/join-population/macarthur-6-9-exclude.mbtiles tests/join-population/macarthur.mbtiles",
-"json": "{\"vector_layers\":[{\"id\":\"macarthur\",\"description\":\"\",\"minzoom\":6,\"maxzoom\":9,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"macarthur\",\"count\":60,\"geometry\":\"LineString\",\"attributeCount\":0,\"attributes\":[]}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"macarthur\",\"description\":\"\",\"minzoom\":6,\"maxzoom\":9,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"macarthur\",\"count\":65,\"geometry\":\"LineString\",\"attributeCount\":0,\"attributes\":[]}]}}",
 "maxzoom": "9",
 "minzoom": "6",
 "name": "tests/join-population/macarthur.mbtiles",
@@ -15,7 +15,11 @@
 { "type": "FeatureCollection", "properties": { "layer": "macarthur", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.103424, 37.695774 ], [ -122.108917, 37.701207 ], [ -122.130890, 37.715331 ], [ -122.137756, 37.725108 ], [ -122.140503, 37.738141 ], [ -122.151489, 37.750087 ], [ -122.147369, 37.759859 ], [ -122.156982, 37.772886 ], [ -122.177582, 37.783740 ], [ -122.192688, 37.784825 ], [ -122.209167, 37.796763 ], [ -122.228394, 37.801104 ], [ -122.236633, 37.806529 ], [ -122.248993, 37.810869 ], [ -122.253113, 37.818463 ], [ -122.257233, 37.821718 ], [ -122.281952, 37.827141 ], [ -122.290192, 37.827141 ], [ -122.292938, 37.830395 ] ] } }
 ,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.270966, 37.827141 ], [ -122.272339, 37.827141 ] ] } }
+,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.254486, 37.821718 ], [ -122.258606, 37.824972 ], [ -122.270966, 37.827141 ] ] } }
+,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.254486, 37.819548 ], [ -122.254486, 37.820633 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.253113, 37.817378 ], [ -122.251740, 37.816293 ] ] } }
 ,
@@ -24,6 +28,8 @@
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.242126, 37.807614 ], [ -122.236633, 37.805444 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.194061, 37.785911 ], [ -122.194061, 37.786996 ] ] } }
+,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.185822, 37.775057 ], [ -122.184448, 37.776142 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.184448, 37.776142 ], [ -122.180328, 37.773971 ] ] } }
 ,
@@ -97,11 +103,15 @@
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.185135, 37.775328 ], [ -122.185135, 37.775600 ] ] } }
 ,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.181358, 37.775057 ], [ -122.181015, 37.774785 ] ] } }
+,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.184105, 37.776414 ], [ -122.179642, 37.773971 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.176208, 37.771258 ], [ -122.175179, 37.770715 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.172089, 37.769086 ], [ -122.168312, 37.766644 ], [ -122.163162, 37.760944 ], [ -122.161446, 37.756330 ] ] } }
+,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.169685, 37.767458 ], [ -122.170029, 37.767729 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.160416, 37.752801 ], [ -122.158699, 37.749815 ] ] } }
 ,
