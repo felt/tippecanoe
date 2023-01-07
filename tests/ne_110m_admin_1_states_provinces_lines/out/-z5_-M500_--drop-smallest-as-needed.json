@@ -8,7 +8,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_1_states_provinces_lines/out/-z5_-M500_--drop-smallest-as-needed.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":92,\"tile_size_desired\":1377},{\"dropped_as_needed\":96,\"tile_size_desired\":1738},{\"dropped_as_needed\":115,\"tile_size_desired\":1303},{\"dropped_as_needed\":126,\"tile_size_desired\":1154},{\"dropped_as_needed\":103,\"tile_size_desired\":1228},{\"dropped_as_needed\":101,\"tile_size_desired\":1075}]",
+"strategies": "[{\"dropped_as_needed\":92,\"tile_size_desired\":1377},{\"dropped_as_needed\":96,\"tile_size_desired\":1738},{\"dropped_as_needed\":115,\"tile_size_desired\":1303},{\"dropped_as_needed\":126,\"tile_size_desired\":1154},{\"dropped_as_needed\":103,\"tile_size_desired\":1228},{\"dropped_as_needed\":101,\"tile_size_desired\":1077}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -286,7 +286,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 5, "x": 5, "y": 12 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "scalerank": 2, "featurecla": "Admin-1 boundary", "adm0_a3": "USA", "adm0_name": "United States of America", "mapcolor9": 1, "mapcolor13": 1 }, "geometry": { "type": "LineString", "coordinates": [ [ -120.000916, 41.145570 ], [ -120.000916, 40.979898 ], [ -120.000916, 38.995707 ], [ -118.114014, 37.644685 ], [ -116.320496, 36.321764 ], [ -114.642334, 35.052484 ] ] } }
+{ "type": "Feature", "properties": { "scalerank": 2, "featurecla": "Admin-1 boundary", "adm0_a3": "USA", "adm0_name": "United States of America", "mapcolor9": 1, "mapcolor13": 1 }, "geometry": { "type": "LineString", "coordinates": [ [ -119.998169, 41.145570 ], [ -119.998169, 40.979898 ], [ -120.000916, 38.995707 ], [ -118.114014, 37.644685 ], [ -116.320496, 36.321764 ], [ -114.642334, 35.052484 ] ] } }
 ,
 { "type": "Feature", "properties": { "scalerank": 2, "featurecla": "Admin-1 boundary", "adm0_a3": "USA", "adm0_name": "United States of America", "mapcolor9": 1, "mapcolor13": 1 }, "geometry": { "type": "LineString", "coordinates": [ [ -114.029846, 36.993778 ], [ -114.035339, 40.979898 ], [ -114.035339, 41.145570 ] ] } }
 ,
@@ -306,7 +306,7 @@
 ,
 { "type": "Feature", "properties": { "scalerank": 2, "featurecla": "Admin-1 boundary", "adm0_a3": "USA", "adm0_name": "United States of America", "mapcolor9": 1, "mapcolor13": 1 }, "geometry": { "type": "LineString", "coordinates": [ [ -112.280273, 44.555249 ], [ -112.335205, 44.561120 ], [ -112.362671, 44.463191 ], [ -112.500000, 44.478871 ], [ -112.689514, 44.498464 ], [ -112.873535, 44.359206 ], [ -113.052063, 44.619799 ], [ -113.175659, 44.766237 ], [ -113.378906, 44.789633 ], [ -113.439331, 44.863656 ], [ -113.502502, 45.123929 ], [ -113.681030, 45.249755 ], [ -113.793640, 45.564064 ], [ -113.914490, 45.702343 ], [ -114.035339, 45.729191 ], [ -114.136963, 45.589056 ], [ -114.334717, 45.469762 ], [ -114.513245, 45.569832 ], [ -114.524231, 45.824971 ], [ -114.406128, 45.890008 ], [ -114.491272, 46.147492 ], [ -114.395142, 46.409458 ], [ -114.285278, 46.632465 ], [ -114.584656, 46.641894 ], [ -114.842834, 46.786897 ], [ -115.122986, 47.094435 ], [ -115.287781, 47.251271 ], [ -115.518494, 47.344406 ], [ -115.705261, 47.504214 ], [ -115.705261, 47.685730 ], [ -115.968933, 47.951305 ], [ -116.043091, 48.922499 ], [ -116.048584, 49.000042 ] ] } }
 ,
-{ "type": "Feature", "properties": { "scalerank": 2, "featurecla": "Admin-1 boundary", "adm0_a3": "USA", "adm0_name": "United States of America", "mapcolor9": 1, "mapcolor13": 1 }, "geometry": { "type": "LineString", "coordinates": [ [ -114.035339, 40.813809 ], [ -114.035339, 40.979898 ], [ -114.035339, 41.992160 ] ] } }
+{ "type": "Feature", "properties": { "scalerank": 2, "featurecla": "Admin-1 boundary", "adm0_a3": "USA", "adm0_name": "United States of America", "mapcolor9": 1, "mapcolor13": 1 }, "geometry": { "type": "LineString", "coordinates": [ [ -114.032593, 40.813809 ], [ -114.032593, 40.979898 ], [ -114.035339, 41.992160 ] ] } }
 ] }
 ] }
 ,
