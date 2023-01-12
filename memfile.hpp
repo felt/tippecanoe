@@ -2,17 +2,12 @@
 #define MEMFILE_HPP
 
 #include <atomic>
+#include <string>
 
 struct memfile {
 	int fd = 0;
-	char *map = NULL;
-	std::atomic<long long> len;
-	long long off = 0;
+	std::string map;
 	unsigned long tree = 0;
-
-	memfile()
-	    : len(0) {
-	}
 };
 
 struct memfile *memfile_open(int fd);

@@ -116,7 +116,7 @@ void checkdisk(std::vector<struct reader> *r) {
 	for (size_t i = 0; i < r->size(); i++) {
 		// Pool and tree are used once.
 		// Geometry and index will be duplicated during sorting and tiling.
-		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->len + (*r)[i].treefile->len;
+		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->map.size() + (*r)[i].treefile->map.size();
 	}
 
 	static int warned = 0;
@@ -1847,15 +1847,15 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (readers[i].poolfile->off > 0) {
-			if (fwrite(readers[i].poolfile->map, readers[i].poolfile->off, 1, poolfile) != 1) {
+		if (readers[i].poolfile->map.size() > 0) {
+			if (fwrite(readers[i].poolfile->map.c_str(), readers[i].poolfile->map.size(), 1, poolfile) != 1) {
 				perror("Reunify string pool");
 				exit(EXIT_WRITE);
 			}
 		}
 
 		pool_off[i] = poolpos;
-		poolpos += readers[i].poolfile->off;
+		poolpos += readers[i].poolfile->map.size();
 		memfile_close(readers[i].poolfile);
 	}
 

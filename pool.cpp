@@ -37,24 +37,24 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	size_t depth = 0;
 
 	// In typical data, traversal depth generally stays under 2.5x
-	size_t max = 3 * log(treefile->off / sizeof(struct stringpool)) / log(2);
+	size_t max = 3 * log(treefile->map.size() / sizeof(struct stringpool)) / log(2);
 	if (max < 30) {
 		max = 30;
 	}
 
 	while (*sp != 0) {
-		int cmp = swizzlecmp(s, poolfile->map + ((struct stringpool *) (treefile->map + *sp))->off + 1);
+		int cmp = swizzlecmp(s, poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1);
 
 		if (cmp == 0) {
-			cmp = type - (poolfile->map + ((struct stringpool *) (treefile->map + *sp))->off)[0];
+			cmp = type - (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0];
 		}
 
 		if (cmp < 0) {
-			sp = &(((struct stringpool *) (treefile->map + *sp))->left);
+			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->left);
 		} else if (cmp > 0) {
-			sp = &(((struct stringpool *) (treefile->map + *sp))->right);
+			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->right);
 		} else {
-			return ((struct stringpool *) (treefile->map + *sp))->off;
+			return ((struct stringpool *) (treefile->map.c_str() + *sp))->off;
 		}
 
 		depth++;
@@ -62,7 +62,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 			// Search is very deep, so string is probably unique.
 			// Add it to the pool without adding it to the search tree.
 
-			long long off = poolfile->off;
+			long long off = poolfile->map.size();
 			if (memfile_write(poolfile, &type, 1) < 0) {
 				perror("memfile write");
 				exit(EXIT_WRITE);
@@ -75,12 +75,12 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 		}
 	}
 
-	if ((size_t) (poolfile->off + treefile->off) > memsize / CPUS / 2) {
+	if ((size_t) (poolfile->map.size() + treefile->map.size()) > memsize / CPUS / 2) {
 		// If the pool and search tree get to be larger than physical memory,
 		// then searching will start thrashing. Just append the new string
 		// to the pool rather than letting the tree grow any further.
 
-		long long off = poolfile->off;
+		long long off = poolfile->map.size();
 		if (memfile_write(poolfile, &type, 1) < 0) {
 			perror("memfile write");
 			exit(EXIT_WRITE);
@@ -97,10 +97,10 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	if (sp == &treefile->tree) {
 		ssp = -1;
 	} else {
-		ssp = ((char *) sp) - treefile->map;
+		ssp = ((char *) sp) - treefile->map.c_str();
 	}
 
-	long long off = poolfile->off;
+	long long off = poolfile->map.size();
 	if (memfile_write(poolfile, &type, 1) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
@@ -110,7 +110,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 		exit(EXIT_WRITE);
 	}
 
-	if (off >= LONG_MAX || treefile->off >= LONG_MAX) {
+	if (off >= LONG_MAX || treefile->map.size() >= LONG_MAX) {
 		// Tree or pool is bigger than 2GB
 		static bool warned = false;
 		if (!warned) {
@@ -125,7 +125,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	tsp.right = 0;
 	tsp.off = off;
 
-	long long p = treefile->off;
+	long long p = treefile->map.size();
 	if (memfile_write(treefile, &tsp, sizeof(struct stringpool)) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
@@ -134,7 +134,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	if (ssp == -1) {
 		treefile->tree = p;
 	} else {
-		*((long long *) (treefile->map + ssp)) = p;
+		*((long long *) (treefile->map.c_str() + ssp)) = p;
 	}
 	return off;
 }
