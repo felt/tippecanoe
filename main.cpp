@@ -384,32 +384,30 @@ void *run_sort(void *v) {
 		a->merges[start / a->unit].end = end;
 		a->merges[start / a->unit].next = NULL;
 
-		// MAP_PRIVATE to avoid disk writes if it fits in memory
-		void *map = mmap(NULL, end - start, PROT_READ | PROT_WRITE, MAP_PRIVATE, a->indexfd, start);
+		// Read section of index into memory to sort and then use pwrite()
+		// to write it back out rather than sorting in mapped memory,
+		// because writable mapped memory seems to have bad performance
+		// problems on ECS (and maybe in containers in general)?
+
+		std::string s;
+		s.resize(end - start);
+
+		void *map = mmap(NULL, end - start, PROT_READ, MAP_PRIVATE, a->indexfd, start);
 		if (map == MAP_FAILED) {
 			perror("mmap in run_sort");
 			exit(EXIT_MEMORY);
 		}
-		madvise(map, end - start, MADV_RANDOM);
+		madvise(map, end - start, MADV_SEQUENTIAL);
 		madvise(map, end - start, MADV_WILLNEED);
-
-		qsort(map, (end - start) / a->bytes, a->bytes, indexcmp);
-
-		// Sorting and then copying avoids disk access to
-		// write out intermediate stages of the sort.
-
-		void *map2 = mmap(NULL, end - start, PROT_READ | PROT_WRITE, MAP_SHARED, a->indexfd, start);
-		if (map2 == MAP_FAILED) {
-			perror("mmap (write)");
-			exit(EXIT_MEMORY);
-		}
-		madvise(map2, end - start, MADV_SEQUENTIAL);
-
-		memcpy(map2, map, end - start);
-
-		// No madvise, since caller will want the sorted data
+		memcpy((void *) s.c_str(), map, end - start);
 		munmap(map, end - start);
-		munmap(map2, end - start);
+
+		qsort((void *) s.c_str(), (end - start) / a->bytes, a->bytes, indexcmp);
+
+		if (pwrite(a->indexfd, s.c_str(), end - start, start) != end - start) {
+			fprintf(stderr, "pwrite(index): %s\n", strerror(errno));
+			exit(EXIT_WRITE);
+		}
 	}
 
 	return NULL;
