@@ -392,15 +392,10 @@ void *run_sort(void *v) {
 		std::string s;
 		s.resize(end - start);
 
-		void *map = mmap(NULL, end - start, PROT_READ, MAP_PRIVATE, a->indexfd, start);
-		if (map == MAP_FAILED) {
-			perror("mmap in run_sort");
-			exit(EXIT_MEMORY);
+		if (pread(a->indexfd, (void *) s.c_str(), end - start, start) != end - start) {
+			fprintf(stderr, "pread(index): %s\n", strerror(errno));
+			exit(EXIT_READ);
 		}
-		madvise(map, end - start, MADV_SEQUENTIAL);
-		madvise(map, end - start, MADV_WILLNEED);
-		memcpy((void *) s.c_str(), map, end - start);
-		munmap(map, end - start);
 
 		qsort((void *) s.c_str(), (end - start) / a->bytes, a->bytes, indexcmp);
 
