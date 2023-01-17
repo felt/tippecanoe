@@ -456,9 +456,10 @@ struct reader *begin_reading(char *fname) {
 			r->x = r->pmtiles_entries.back().x;
 			r->y = r->pmtiles_entries.back().y;
 			r->sorty = (1LL << r->zoom) - 1 - r->y;
+
+			r->data = std::string(r->pmtiles_map + r->pmtiles_entries.back().offset, r->pmtiles_entries.back().length);
+			r->pmtiles_entries.pop_back();
 		}
-		r->data = std::string(r->pmtiles_map + r->pmtiles_entries.back().offset, r->pmtiles_entries.back().length);
-		r->pmtiles_entries.pop_back();
 	} else {
 		sqlite3 *db;
 
