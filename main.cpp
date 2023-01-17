@@ -116,7 +116,7 @@ void checkdisk(std::vector<struct reader> *r) {
 	for (size_t i = 0; i < r->size(); i++) {
 		// Pool and tree are used once.
 		// Geometry and index will be duplicated during sorting and tiling.
-		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->map.size() + (*r)[i].treefile->map.size();
+		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off;
 	}
 
 	static int warned = 0;
@@ -1840,15 +1840,48 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (readers[i].poolfile->map.size() > 0) {
-			if (fwrite(readers[i].poolfile->map.c_str(), readers[i].poolfile->map.size(), 1, poolfile) != 1) {
-				perror("Reunify string pool");
+		// If the memfile is not done yet, it is in memory, so just copy the memory.
+		// Otherwise, we need to merge memory and file.
+
+		if (readers[i].poolfile->fp == NULL) {
+			// still in memory
+
+			if (readers[i].poolfile->map.size() > 0) {
+				if (fwrite(readers[i].poolfile->map.c_str(), readers[i].poolfile->map.size(), 1, poolfile) != 1) {
+					perror("Reunify string pool");
+					exit(EXIT_WRITE);
+				}
+			}
+
+			pool_off[i] = poolpos;
+			poolpos += readers[i].poolfile->map.size();
+		} else {
+			// split into memory and file
+
+			if (fflush(readers[i].poolfile->fp) != 0) {
+				perror("fflush poolfile");
 				exit(EXIT_WRITE);
 			}
+
+			char *s = (char *) mmap(NULL, readers[i].poolfile->off, PROT_READ, MAP_PRIVATE, readers[i].poolfile->fd, 0);
+			if (s == MAP_FAILED) {
+				perror("mmap string pool for copy");
+				exit(EXIT_MEMORY);
+			}
+			madvise(s, readers[i].poolfile->off, MADV_SEQUENTIAL);
+			if (fwrite(s, sizeof(char), readers[i].poolfile->off, poolfile) != readers[i].poolfile->off) {
+				perror("Reunify string pool (split)");
+				exit(EXIT_WRITE);
+			}
+			if (munmap(s, readers[i].poolfile->off) != 0) {
+				perror("unmap string pool for copy");
+				exit(EXIT_MEMORY);
+			}
+
+			pool_off[i] = poolpos;
+			poolpos += readers[i].poolfile->off;
 		}
 
-		pool_off[i] = poolpos;
-		poolpos += readers[i].poolfile->map.size();
 		memfile_close(readers[i].poolfile);
 	}
 
