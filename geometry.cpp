@@ -1481,14 +1481,40 @@ draw centerOfMass(const drawvec &dv, size_t start, size_t end, draw centre) {
 	}
 }
 
-double label_goodness(const drawvec &dv, size_t start, size_t count, long long x, long long y) {
-	if (!pnpoly(dv, start, count, x, y)) {
+double label_goodness(const drawvec &dv, long long x, long long y) {
+	int nesting = 0;
+
+	for (size_t i = 0; i < dv.size(); i++) {
+		if (dv[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < dv.size(); j++) {
+				if (dv[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			// if it's inside the ring, and it's an outer ring,
+			// we are nested more; if it's an inner ring, we are
+			// nested less.
+			if (pnpoly(dv, i, j - i, x, y)) {
+				if (get_area(dv, i, j) >= 0) {
+					nesting++;
+				} else {
+					nesting--;
+				}
+			}
+
+			i = j - 1;
+		}
+	}
+
+	if (nesting < 1) {
 		return 0;  // outside the polygon is as bad as it gets
 	}
 
 	double closest = INFINITY;  // square of closest distance to the border
 
-	for (size_t i = start; i < start + count; i++) {
+	for (size_t i = 0; i < dv.size(); i++) {
 		double dx = dv[i].x - x;
 		double dy = dv[i].y - y;
 		double squared = dx * dx + dy * dy;
@@ -1522,6 +1548,9 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 	size_t start = 0, end = 0;
 	size_t best_area = 0;
 
+	// find the largest outer ring, which will be the best thing
+	// to label if we can do it.
+
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
 			size_t j;
@@ -1554,7 +1583,9 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			xsum += geom[k].x;
 			ysum += geom[k].y;
 			count++;
+		}
 
+		for (size_t k = 0; k < geom.size(); k++) {
 			xmin = std::min(xmin, geom[k].x);
 			ymin = std::min(ymin, geom[k].y);
 			xmax = std::max(xmax, geom[k].x);
@@ -1568,7 +1599,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			double radius = sqrt(best_area / M_PI);
 			double goodness_threshold = radius / 5;
 
-			double goodness = label_goodness(geom, start, end - start - 1, d.x, d.y);
+			double goodness = label_goodness(geom, d.x, d.y);
 			if (goodness < goodness_threshold) {
 				// Label is too close to the border or outside it,
 				// so try some other possible points
@@ -1582,7 +1613,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 								   xmin + x * (xmax - xmin) / sub,
 								   ymin + y * (ymax - ymin) / sub);
 
-							double maybe_goodness = label_goodness(geom, start, end - start, maybe.x, maybe.y);
+							double maybe_goodness = label_goodness(geom, maybe.x, maybe.y);
 							if (maybe_goodness > goodness) {
 								// better than the previous
 								d = maybe;
@@ -1598,7 +1629,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 				// There is nothing really good. Is the centroid maybe better?
 				// If not, we're stuck with whatever the best we found was.
-				if (label_goodness(geom, start, end - start, centroid.x, centroid.y) > goodness) {
+				if (label_goodness(geom, centroid.x, centroid.y) > goodness) {
 					d = centroid;
 				}
 			}
@@ -1676,31 +1707,18 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 				continue;
 			}
 
-			for (size_t a = 0; a < geom.size(); a++) {
-				if (geom[a].op == VT_MOVETO) {
-					size_t b;
-					for (b = a + 1; b < geom.size(); b++) {
-						if (geom[b].op != VT_LINETO) {
-							break;
-						}
-					}
-
-					// If it's the central label, it's the best we've got,
-					// so accept it in any case. If it's from the outer spiral,
-					// don't use it if it's too close to a border.
-					if (lx == 0 && ly == 0) {
-						out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
-						break;
-					} else {
-						double tilesize = 1LL << (32 - z);
-						double goodness_threshold = tilesize / 100;
-						if (label_goodness(geom, a, b - a, x - tx1, y - ty1) > goodness_threshold) {
-							out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
-							break;
-						}
-					}
-
-					a = b - 1;
+			// If it's the central label, it's the best we've got,
+			// so accept it in any case. If it's from the outer spiral,
+			// don't use it if it's too close to a border.
+			if (lx == 0 && ly == 0) {
+				out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+				break;
+			} else {
+				double tilesize = 1LL << (32 - z);
+				double goodness_threshold = tilesize / 100;
+				if (label_goodness(geom, x - tx1, y - ty1) > goodness_threshold) {
+					out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+					break;
 				}
 			}
 		}
