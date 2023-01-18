@@ -21,6 +21,7 @@
 #include "main.hpp"
 #include "options.hpp"
 #include "errors.hpp"
+#include "projection.hpp"
 
 static int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 
@@ -1526,6 +1527,17 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 	return sqrt(closest);
 }
 
+struct candidate {
+	long long x;
+	long long y;
+	double dist;
+
+	bool operator<(const candidate &c) const {
+		// largest distance sorts first
+		return dist > c.dist;
+	};
+};
+
 // Generate a label point for a polygon feature.
 //
 // A good label point will be near the center of the feature and far from any border.
@@ -1547,6 +1559,7 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 drawvec polygon_to_anchor(const drawvec &geom) {
 	size_t start = 0, end = 0;
 	size_t best_area = 0;
+	std::vector<unsigned long long> points;
 
 	// find the largest outer ring, which will be the best thing
 	// to label if we can do it.
@@ -1558,6 +1571,8 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				if (geom[j].op != VT_LINETO) {
 					break;
 				}
+
+				points.push_back(encode_hilbert(geom[j].x, geom[j].y));
 			}
 
 			double area = get_area(geom, i, j);
@@ -1599,10 +1614,70 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			double radius = sqrt(best_area / M_PI);
 			double goodness_threshold = radius / 5;
 
+
+
+
+
+
+
+
+
 			double goodness = label_goodness(geom, d.x, d.y);
 			if (goodness < goodness_threshold) {
 				// Label is too close to the border or outside it,
 				// so try some other possible points
+
+
+
+
+
+				std::sort(points.begin(), points.end());
+				std::vector<candidate> candidates;
+
+				unsigned ox, oy;
+				decode_hilbert(points[0], &ox, &oy);
+				for (size_t i = 1; i < points.size(); i++) {
+					unsigned x, y;
+					decode_hilbert(points[i], &x, &y);
+
+					double dx = (double) x - ox;
+					double dy = (double) y - oy;
+
+					double dist = sqrt(dx * dx + dy * dy);
+					if (dist > 2 * goodness_threshold) {
+						candidate c;
+
+						c.x = ((long long) x + ox) / 2;
+						c.y = ((long long) y + oy) / 2;
+						c.dist = dist;
+
+						candidates.push_back(c);
+
+						
+						// double lon, lat;
+						// tile2lonlat(x / 2 + ox / 2, y / 2 + oy / 2, 32, &lon, &lat);
+
+						// printf("{\"type\":\"Feature\",\"properties\":{\"thresh\":%f,\"dist\":%f},\"geometry\":{\"type\":\"Point\",\"coordinates\":[%f,%f]}}\n", goodness_threshold, sqrt(dx * dx + dy * dy), lon, lat);
+					}
+
+					ox = x;
+					oy = y;
+				}
+
+				std::sort(candidates.begin(), candidates.end());
+				for (size_t i = 0; i < candidates.size(); i++) {
+					d.x = candidates[i].x;
+					d.y = candidates[i].y;
+
+					goodness = label_goodness(geom, d.x, d.y);
+					if (goodness > goodness_threshold) {
+						break;
+					}
+				}
+			}
+
+
+			if (goodness < goodness_threshold) {
 
 				for (long long sub = 2;
 				     sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
