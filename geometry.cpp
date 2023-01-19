@@ -1527,6 +1527,21 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 	return sqrt(closest);
 }
 
+struct sorty {
+	long long x;
+	long long y;
+
+	bool operator<(const sorty &s) const {
+		if (y < s.y) {
+			return true;
+		} else if (y == s.y && x < s.x) {
+			return true;
+		} else {
+			return false;
+		}
+	};
+};
+
 struct candidate {
 	long long x;
 	long long y;
@@ -1559,7 +1574,7 @@ struct candidate {
 drawvec polygon_to_anchor(const drawvec &geom) {
 	size_t start = 0, end = 0;
 	size_t best_area = 0;
-	std::vector<unsigned long long> points;
+	std::vector<sorty> points;
 
 	// find the largest outer ring, which will be the best thing
 	// to label if we can do it.
@@ -1572,7 +1587,10 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 					break;
 				}
 
-				points.push_back(encode_hilbert(geom[j].x, geom[j].y));
+				sorty sy;
+				sy.x = geom[j].x;
+				sy.y = geom[j].y;
+				points.push_back(sy);
 			}
 
 			double area = get_area(geom, i, j);
@@ -1634,21 +1652,16 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				std::sort(points.begin(), points.end());
 				std::vector<candidate> candidates;
 
-				unsigned ox, oy;
-				decode_hilbert(points[0], &ox, &oy);
 				for (size_t i = 1; i < points.size(); i++) {
-					unsigned x, y;
-					decode_hilbert(points[i], &x, &y);
-
-					double dx = (double) x - ox;
-					double dy = (double) y - oy;
+					double dx = points[i].x - points[i - 1].x;
+					double dy = points[i].y - points[i - 1].y;
 
 					double dist = sqrt(dx * dx + dy * dy);
 					if (dist > 2 * goodness_threshold) {
 						candidate c;
 
-						c.x = ((long long) x + ox) / 2;
-						c.y = ((long long) y + oy) / 2;
+						c.x = (points[i].x + points[i - 1].x) / 2;
+						c.y = (points[i].y + points[i - 1].y) / 2;
 						c.dist = dist;
 
 						candidates.push_back(c);
@@ -1659,9 +1672,6 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 						// printf("{\"type\":\"Feature\",\"properties\":{\"thresh\":%f,\"dist\":%f},\"geometry\":{\"type\":\"Point\",\"coordinates\":[%f,%f]}}\n", goodness_threshold, sqrt(dx * dx + dy * dy), lon, lat);
 					}
-
-					ox = x;
-					oy = y;
 				}
 
 				std::sort(candidates.begin(), candidates.end());
