@@ -1664,6 +1664,13 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 						c.y = (points[i].y + points[i - 1].y) / 2;
 						c.dist = dist;
 
+						// give a bonus for being near the center of mass
+						// of the largest ring
+						dx = c.x - d.x;
+						dy = c.y - d.y;
+						dist = sqrt(dx * dx + dy * dy);
+						c.dist /= sqrt(dist);
+
 						candidates.push_back(c);
 
 						
