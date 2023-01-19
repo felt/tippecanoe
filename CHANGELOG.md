@@ -1,3 +1,7 @@
+## 2.19.0
+
+* Improve label placement to avoid placing labels in polygon holes
+
 ## 2.18.0
 
 * Fix crash when using tile-join to join an empty pmtiles tileset

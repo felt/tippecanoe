@@ -1623,21 +1623,21 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 		}
 	}
 
+	// If there are no outer rings, don't generate a label point
+
 	if (best_area > 0) {
 		long long xsum = 0;
 		long long ysum = 0;
 		size_t count = 0;
 		long long xmin = LLONG_MAX, ymin = LLONG_MAX, xmax = LLONG_MIN, ymax = LLONG_MIN;
 
-		// Calculate centroid and bounding box.
+		// Calculate centroid and bounding box of biggest ring.
 		// start + 1 to exclude the first point, which is duplicated as the last
 		for (size_t k = start + 1; k < end; k++) {
 			xsum += geom[k].x;
 			ysum += geom[k].y;
 			count++;
-		}
 
-		for (size_t k = 0; k < geom.size(); k++) {
 			xmin = std::min(xmin, geom[k].x);
 			ymin = std::min(ymin, geom[k].y);
 			xmax = std::max(xmax, geom[k].x);
@@ -1645,28 +1645,28 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 		}
 
 		if (count > 0) {
-			draw centroid(VT_MOVETO, xsum / count, ysum / count);
-			draw d = centerOfMass(geom, start, end, centroid);
+			// We want label points that are at least a moderate distance from
+			// the edge of the feature. The threshold for what is too close
+			// is derived from the area of the feature.
 
 			double radius = sqrt(best_area / M_PI);
 			double goodness_threshold = radius / 4;
 
+			// First choice: Turf's center of mass.
 
-
-
-
-
-
-
-
+			draw centroid(VT_MOVETO, xsum / count, ysum / count);
+			draw d = centerOfMass(geom, start, end, centroid);
 			double goodness = label_goodness(geom, d.x, d.y);
+			const char *kind = "mass";
+
 			if (goodness < goodness_threshold) {
 				// Label is too close to the border or outside it,
-				// so try some other possible points
-
-
-
-
+				// so try some other possible points. Sort the vertices
+				// both by Y and X coordinate, and walk through each set
+				// in sorted order. Adjacent pairs of coordinates should
+				// tend to bounce back and forth between rings, so the
+				// midpoint of each pair will hopefully be somewhere in the
+				// interior of the polygon.
 
 				std::vector<candidate> candidates;
 
@@ -1689,6 +1689,10 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 							c.y = (points[i].y + points[i - 1].y) / 2;
 							c.dist = dist;
 
+							// Michigan would be a little better if we
+							// penalize tall places relative to wide places,
+							// but Norway is worse, so prefer Norway.
+
 							// give a bonus for being near the center of mass
 							// of the largest ring
 							dx = c.x - d.x;
@@ -1697,31 +1701,37 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 							c.dist /= sqrt(dist);
 
 							candidates.push_back(c);
-
-							
-							// double lon, lat;
-							// tile2lonlat(x / 2 + ox / 2, y / 2 + oy / 2, 32, &lon, &lat);
-
-							// printf("{\"type\":\"Feature\",\"properties\":{\"thresh\":%f,\"dist\":%f},\"geometry\":{\"type\":\"Point\",\"coordinates\":[%f,%f]}}\n", goodness_threshold, sqrt(dx * dx + dy * dy), lon, lat);
 						}
 					}
 				}
 
+				// Now sort the accumulate list of segment midpoints by the lengths
+				// of the segments (taking into account the bonus for being near
+				// the center of mass). Starting from the longest
+				// segment, if we find one whose midpoint is inside the polygon and
+				// far enough from any edge to be good enough, stop looking.
+
 				std::sort(candidates.begin(), candidates.end());
 				for (size_t i = 0; i < candidates.size(); i++) {
-					d.x = candidates[i].x;
-					d.y = candidates[i].y;
+					double maybe_goodness = label_goodness(geom, candidates[i].x, candidates[i].y);
 
-					goodness = label_goodness(geom, d.x, d.y);
-					if (goodness > goodness_threshold) {
-						break;
+					if (maybe_goodness > goodness) {
+						d.x = candidates[i].x;
+						d.y = candidates[i].y;
+
+						goodness = maybe_goodness;
+						kind = "diagonal";
+						if (goodness > goodness_threshold) {
+							break;
+						}
 					}
 				}
 			}
 
+			// We may still not have anything decent, so the next thing to look at
+			// is points from gridding the bounding box of the largest ring.
 
 			if (goodness < goodness_threshold) {
-
 				for (long long sub = 2;
 				     sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
 				     sub *= 2) {
@@ -1736,25 +1746,29 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 								// better than the previous
 								d = maybe;
 								goodness = maybe_goodness;
+								kind = "grid";
 							}
 						}
 					}
 
 					if (goodness > goodness_threshold) {
-						double lon, lat;
-						tile2lonlat(d.x, d.y, 32, &lon, &lat);
-						printf("grid http://localhost:3000/#12/%f/%f\n", lat, lon);
 						break;
 					}
 				}
 
 				// There is nothing really good. Is the centroid maybe better?
 				// If not, we're stuck with whatever the best we found was.
-				if (label_goodness(geom, centroid.x, centroid.y) > goodness) {
+				double maybe_goodness = label_goodness(geom, centroid.x, centroid.y);
+				if (maybe_goodness > goodness) {
 					d = centroid;
+					goodness = maybe_goodness;
+					kind = "centroid";
+				}
+
+				if (goodness <= 0) {
 					double lon, lat;
 					tile2lonlat(d.x, d.y, 32, &lon, &lat);
-					printf("centroid http://localhost:3000/#12/%f/%f\n", lat, lon);
+					fprintf(stderr, "could not find label point: %s %f,%f\n", kind, lat, lon);
 				}
 			}
 
