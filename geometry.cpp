@@ -1522,6 +1522,13 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 		if (squared < closest) {
 			closest = squared;
 		}
+
+		if (i > 0 && dv[i].op == VT_LINETO) {
+			squared = square_distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
+			if (squared < closest) {
+				closest = squared;
+			}
+		}
 	}
 
 	return sqrt(closest);
@@ -1541,6 +1548,18 @@ struct sorty {
 		}
 	};
 };
+
+struct sorty_sortx {
+	bool operator()(const sorty &a, const sorty &s) const {
+		if (a.x < s.x) {
+			return true;
+		} else if (a.x == s.x && a.y < s.y) {
+			return true;
+		} else {
+			return false;
+		}
+	};
+} sorty_sortx;
 
 struct candidate {
 	long long x;
@@ -1649,35 +1668,42 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 
 
-				std::sort(points.begin(), points.end());
 				std::vector<candidate> candidates;
 
-				for (size_t i = 1; i < points.size(); i++) {
-					double dx = points[i].x - points[i - 1].x;
-					double dy = points[i].y - points[i - 1].y;
+				for (size_t pass = 0; pass < 2; pass++) {
+					if (pass == 0) {
+						std::sort(points.begin(), points.end());
+					} else {
+						std::sort(points.begin(), points.end(), sorty_sortx);
+					}
 
-					double dist = sqrt(dx * dx + dy * dy);
-					if (dist > 2 * goodness_threshold) {
-						candidate c;
+					for (size_t i = 1; i < points.size(); i++) {
+						double dx = points[i].x - points[i - 1].x;
+						double dy = points[i].y - points[i - 1].y;
 
-						c.x = (points[i].x + points[i - 1].x) / 2;
-						c.y = (points[i].y + points[i - 1].y) / 2;
-						c.dist = dist;
+						double dist = sqrt(dx * dx + dy * dy);
+						if (dist > 2 * goodness_threshold) {
+							candidate c;
 
-						// give a bonus for being near the center of mass
-						// of the largest ring
-						dx = c.x - d.x;
-						dy = c.y - d.y;
-						dist = sqrt(dx * dx + dy * dy);
-						c.dist /= sqrt(dist);
+							c.x = (points[i].x + points[i - 1].x) / 2;
+							c.y = (points[i].y + points[i - 1].y) / 2;
+							c.dist = dist;
 
-						candidates.push_back(c);
+							// give a bonus for being near the center of mass
+							// of the largest ring
+							dx = c.x - d.x;
+							dy = c.y - d.y;
+							dist = sqrt(dx * dx + dy * dy);
+							c.dist /= sqrt(dist);
 
-						
-						// double lon, lat;
-						// tile2lonlat(x / 2 + ox / 2, y / 2 + oy / 2, 32, &lon, &lat);
+							candidates.push_back(c);
 
-						// printf("{\"type\":\"Feature\",\"properties\":{\"thresh\":%f,\"dist\":%f},\"geometry\":{\"type\":\"Point\",\"coordinates\":[%f,%f]}}\n", goodness_threshold, sqrt(dx * dx + dy * dy), lon, lat);
+							
+							// double lon, lat;
+							// tile2lonlat(x / 2 + ox / 2, y / 2 + oy / 2, 32, &lon, &lat);
+
+							// printf("{\"type\":\"Feature\",\"properties\":{\"thresh\":%f,\"dist\":%f},\"geometry\":{\"type\":\"Point\",\"coordinates\":[%f,%f]}}\n", goodness_threshold, sqrt(dx * dx + dy * dy), lon, lat);
+						}
 					}
 				}
 
@@ -1715,6 +1741,9 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 					}
 
 					if (goodness > goodness_threshold) {
+						double lon, lat;
+						tile2lonlat(d.x, d.y, 32, &lon, &lat);
+						printf("grid http://localhost:3000/#12/%f/%f\n", lat, lon);
 						break;
 					}
 				}
@@ -1723,6 +1752,9 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				// If not, we're stuck with whatever the best we found was.
 				if (label_goodness(geom, centroid.x, centroid.y) > goodness) {
 					d = centroid;
+					double lon, lat;
+					tile2lonlat(d.x, d.y, 32, &lon, &lat);
+					printf("centroid http://localhost:3000/#12/%f/%f\n", lat, lon);
 				}
 			}
 
