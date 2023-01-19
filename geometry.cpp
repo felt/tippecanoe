@@ -1537,29 +1537,50 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 struct sorty {
 	long long x;
 	long long y;
+};
 
-	bool operator<(const sorty &s) const {
-		if (y < s.y) {
+struct sorty_sorter {
+	int kind;
+	sorty_sorter(int k) : kind(k) {};
+
+	bool operator()(const sorty &a, const sorty &b) const {
+		long long xa, ya, xb, yb;
+
+		if (kind == 0) {  // Y first
+			xa = a.x;
+			ya = a.y;
+
+			xb = b.x;
+			yb = b.y;
+		} else if (kind == 1) {  // X first
+			xa = a.y;
+			ya = a.x;
+
+			xb = b.y;
+			yb = b.x;
+		} else if (kind == 2) {  // diagonal
+			xa = a.x + a.y;
+			ya = a.x - a.y;
+
+			xb = b.x + b.y;
+			yb = b.x - b.y;
+		} else {  // other diagonal
+			xa = a.x - a.y;
+			ya = a.x + a.y;
+
+			xb = b.x - b.y;
+			yb = b.x + b.y;
+		}
+
+		if (ya < yb) {
 			return true;
-		} else if (y == s.y && x < s.x) {
+		} else if (ya == yb && xa < xb) {
 			return true;
 		} else {
 			return false;
 		}
 	};
 };
-
-struct sorty_sortx {
-	bool operator()(const sorty &a, const sorty &s) const {
-		if (a.x < s.x) {
-			return true;
-		} else if (a.x == s.x && a.y < s.y) {
-			return true;
-		} else {
-			return false;
-		}
-	};
-} sorty_sortx;
 
 struct candidate {
 	long long x;
@@ -1662,7 +1683,8 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			if (goodness < goodness_threshold) {
 				// Label is too close to the border or outside it,
 				// so try some other possible points. Sort the vertices
-				// both by Y and X coordinate, and walk through each set
+				// both by Y and X coordinate and then by diagonals,
+				// and walk through each set
 				// in sorted order. Adjacent pairs of coordinates should
 				// tend to bounce back and forth between rings, so the
 				// midpoint of each pair will hopefully be somewhere in the
@@ -1670,12 +1692,8 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 				std::vector<candidate> candidates;
 
-				for (size_t pass = 0; pass < 2; pass++) {
-					if (pass == 0) {
-						std::sort(points.begin(), points.end());
-					} else {
-						std::sort(points.begin(), points.end(), sorty_sortx);
-					}
+				for (size_t pass = 0; pass < 4; pass++) {
+					std::sort(points.begin(), points.end(), sorty_sorter(pass));
 
 					for (size_t i = 1; i < points.size(); i++) {
 						double dx = points[i].x - points[i - 1].x;
