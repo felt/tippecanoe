@@ -1630,7 +1630,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			draw d = centerOfMass(geom, start, end, centroid);
 
 			double radius = sqrt(best_area / M_PI);
-			double goodness_threshold = radius / 5;
+			double goodness_threshold = radius / 4;
 
 
 
