@@ -1671,7 +1671,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 			// is derived from the area of the feature.
 
 			double radius = sqrt(best_area / M_PI);
-			double goodness_threshold = radius / 4;
+			double goodness_threshold = radius / 5;
 
 			// First choice: Turf's center of mass.
 
@@ -1707,21 +1707,13 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 							c.y = (points[i].y + points[i - 1].y) / 2;
 							c.dist = dist;
 
-							// give a bonus for being near the center of mass
-							// of the largest ring
-							dx = c.x - d.x;
-							dy = c.y - d.y;
-							dist = sqrt(dx * dx + dy * dy);
-							c.dist /= sqrt(dist);
-
 							candidates.push_back(c);
 						}
 					}
 				}
 
 				// Now sort the accumulate list of segment midpoints by the lengths
-				// of the segments (taking into account the bonus for being near
-				// the center of mass). Starting from the longest
+				// of the segments. Starting from the longest
 				// segment, if we find one whose midpoint is inside the polygon and
 				// far enough from any edge to be good enough, stop looking.
 
