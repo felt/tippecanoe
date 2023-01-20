@@ -1707,10 +1707,6 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 							c.y = (points[i].y + points[i - 1].y) / 2;
 							c.dist = dist;
 
-							// Michigan would be a little better if we
-							// penalize tall places relative to wide places,
-							// but Norway is worse, so prefer Norway.
-
 							// give a bonus for being near the center of mass
 							// of the largest ring
 							dx = c.x - d.x;
@@ -1730,7 +1726,8 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				// far enough from any edge to be good enough, stop looking.
 
 				std::sort(candidates.begin(), candidates.end());
-				for (size_t i = 0; i < candidates.size(); i++) {
+				// only check the top 50 stride midpoints, since this list can be quite large
+				for (size_t i = 0; i < candidates.size() && i < 50; i++) {
 					double maybe_goodness = label_goodness(geom, candidates[i].x, candidates[i].y);
 
 					if (maybe_goodness > goodness) {
