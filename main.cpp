@@ -2206,6 +2206,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			}
 		}
 
+		if (basezoom == -2 && basezoom_marker_width == 1) {  // -Bg, not -Bg###
+			basezoom = maxzoom;
+			if (!quiet) {
+				fprintf(stderr, "Using base zoom of -z%d\n", basezoom);
+			}
+		}
+
 		if (maxzoom < minimum_maxzoom) {
 			if (!quiet) {
 				fprintf(stderr, "Using minimum maxzoom of -z%d\n", minimum_maxzoom);
@@ -2222,7 +2229,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		fix_dropping = true;
 
-		if (basezoom == -1) {
+		if (basezoom == -1) {  // basezoom unspecified
 			basezoom = maxzoom;
 		}
 	}
@@ -3434,7 +3441,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "%s: Reducing minimum detail to match low detail %d\n", argv[0], min_detail);
 	}
 
-	if (basezoom == -1) {
+	if (basezoom == -1) {  // basezoom unspecified
 		if (!guess_maxzoom) {
 			basezoom = maxzoom;
 		}
