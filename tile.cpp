@@ -1793,13 +1793,13 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 	}
 }
 
-bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent) {
+bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long) {
 	for (size_t i = partials.size(); i > 0; i--) {
 		if (partials[i - 1].t == sf.t) {
 			std::string &layername1 = (*layer_unmaps)[partials[i - 1].segment][partials[i - 1].layer];
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
-			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
+			if (layername1 == layername2 /* && partials[i - 1].extent <= maxextent */) {
 				out = i - 1;
 				return true;
 			}
