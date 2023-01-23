@@ -329,6 +329,29 @@ join-test: tile-join
 	./tippecanoe-decode -x generator tests/join-population/concat.mbtiles > tests/join-population/concat.mbtiles.json.check
 	cmp tests/join-population/concat.mbtiles.json.check tests/join-population/concat.mbtiles.json
 	rm tests/join-population/concat.mbtiles.json.check tests/join-population/concat.mbtiles tests/join-population/macarthur.mbtiles
+	#`
+	# Make sure empty tilesets work
+	#
+	# mbtiles:
+	./tippecanoe -q -z0 -f -o tests/join-population/empty.mbtiles tests/join-population/empty.json
+	./tile-join -f -o tests/join-population/empty.out.mbtiles tests/join-population/empty.mbtiles
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/join-population/empty.mbtiles > tests/join-population/empty.out.json.check
+	cmp tests/join-population/empty.out.json.check tests/join-population/empty.out.json
+	rm -f tests/join-population/empty.mbtiles tests/join-population/empty.out.mbtiles tests/join-population/empty.out.json.check
+	# pmtiles:
+	./tippecanoe -q -z0 -f -o tests/join-population/empty.pmtiles tests/join-population/empty.json
+	./tile-join -f -o tests/join-population/empty.out.pmtiles tests/join-population/empty.pmtiles
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/join-population/empty.pmtiles > tests/join-population/empty.out.json.check
+	cmp tests/join-population/empty.out.json.check tests/join-population/empty.out.json
+	rm -f tests/join-population/empty.pmtiles tests/join-population/empty.out.pmtiles tests/join-population/empty.out.json.check
+	# dirtiles:
+	./tippecanoe -q -z0 -f -e tests/join-population/empty.dirtiles tests/join-population/empty.json
+	./tile-join -f -e tests/join-population/empty.out.dirtiles tests/join-population/empty.dirtiles
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/join-population/empty.dirtiles > tests/join-population/empty.out.json.check
+	cmp tests/join-population/empty.out.json.check tests/join-population/empty.out.json
+	rm -rf tests/join-population/empty.dirtiles tests/join-population/empty.out.dirtiles tests/join-population/empty.out.json.check
+
+
 
 join-filter-test:
 	# Comes out different from the direct tippecanoe run because null attributes are lost

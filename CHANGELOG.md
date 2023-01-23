@@ -1,3 +1,7 @@
+## 2.18.0
+
+* Fix crash when using tile-join to join an empty pmtiles tileset
+
 ## 2.17.0
 
 * Add pmtiles output format
