@@ -18,7 +18,12 @@ void serialize_long_long(FILE *out, long long n, std::atomic<long long> *fpos, c
 void serialize_ulong_long(FILE *out, unsigned long long n, std::atomic<long long> *fpos, const char *fname);
 void serialize_byte(FILE *out, signed char n, std::atomic<long long> *fpos, const char *fname);
 void serialize_uint(FILE *out, unsigned n, std::atomic<long long> *fpos, const char *fname);
-void serialize_string(FILE *out, const char *s, std::atomic<long long> *fpos, const char *fname);
+
+void serialize_int(std::string &out, int n, std::atomic<long long> *fpos);
+void serialize_long_long(std::string &out, long long n, std::atomic<long long> *fpos);
+void serialize_ulong_long(std::string &out, unsigned long long n, std::atomic<long long> *fpos);
+void serialize_byte(std::string &out, signed char n, std::atomic<long long> *fpos);
+void serialize_uint(std::string &out, unsigned n, std::atomic<long long> *fpos);
 
 void deserialize_int(char **f, int *n);
 void deserialize_long_long(char **f, long long *n);

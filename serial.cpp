@@ -27,6 +27,8 @@
 #define SHIFT_RIGHT(a) ((((a) + COORD_OFFSET) >> geometry_scale) - (COORD_OFFSET >> geometry_scale))
 #define SHIFT_LEFT(a) ((((a) + (COORD_OFFSET >> geometry_scale)) << geometry_scale) - COORD_OFFSET)
 
+// write to file
+
 size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, const char *fname) {
 	size_t w = fwrite(ptr, size, nitems, stream);
 	if (w != nitems) {
@@ -74,9 +76,52 @@ void serialize_byte(FILE *out, signed char n, std::atomic<long long> *fpos, cons
 }
 
 void serialize_uint(FILE *out, unsigned n, std::atomic<long long> *fpos, const char *fname) {
-	fwrite_check(&n, sizeof(unsigned), 1, out, fname);
-	*fpos += sizeof(unsigned);
+	serialize_ulong_long(out, n, fpos, fname);
 }
+
+// write to memory
+
+size_t fwrite_check(const void *ptr, size_t size, size_t nitems, std::string &stream) {
+	stream += std::string((char *) ptr, size * nitems);
+	return nitems;
+}
+
+void serialize_ulong_long(std::string &out, unsigned long long zigzag, std::atomic<long long> *fpos) {
+	while (1) {
+		unsigned char b = zigzag & 0x7F;
+		if ((zigzag >> 7) != 0) {
+			b |= 0x80;
+			out += b;
+			*fpos += 1;
+			zigzag >>= 7;
+		} else {
+			out += b;
+			*fpos += 1;
+			break;
+		}
+	}
+}
+
+void serialize_long_long(std::string &out, long long n, std::atomic<long long> *fpos) {
+	unsigned long long zigzag = protozero::encode_zigzag64(n);
+
+	serialize_ulong_long(out, zigzag, fpos);
+}
+
+void serialize_int(std::string &out, int n, std::atomic<long long> *fpos) {
+	serialize_long_long(out, n, fpos);
+}
+
+void serialize_byte(std::string &out, signed char n, std::atomic<long long> *fpos) {
+	out += n;
+	*fpos += sizeof(signed char);
+}
+
+void serialize_uint(std::string &out, unsigned n, std::atomic<long long> *fpos) {
+	serialize_ulong_long(out, n, fpos);
+}
+
+// read from memory
 
 void deserialize_int(char **f, int *n) {
 	long long ll;
@@ -109,14 +154,17 @@ void deserialize_ulong_long(char **f, unsigned long long *zigzag) {
 }
 
 void deserialize_uint(char **f, unsigned *n) {
-	memcpy(n, *f, sizeof(unsigned));
-	*f += sizeof(unsigned);
+	unsigned long long v;
+	deserialize_ulong_long(f, &v);
+	*n = v;
 }
 
 void deserialize_byte(char **f, signed char *n) {
 	memcpy(n, *f, sizeof(signed char));
 	*f += sizeof(signed char);
 }
+
+// read from file
 
 int deserialize_long_long_io(FILE *f, long long *n, std::atomic<long long> *geompos) {
 	unsigned long long zigzag = 0;
@@ -157,10 +205,9 @@ int deserialize_int_io(FILE *f, int *n, std::atomic<long long> *geompos) {
 }
 
 int deserialize_uint_io(FILE *f, unsigned *n, std::atomic<long long> *geompos) {
-	if (fread(n, sizeof(unsigned), 1, f) != 1) {
-		return 0;
-	}
-	*geompos += sizeof(unsigned);
+	unsigned long long v;
+	deserialize_ulong_long_io(f, &v, geompos);
+	*n = v;
 	return 1;
 }
 
