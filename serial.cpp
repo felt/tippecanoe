@@ -276,10 +276,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 
 	serialize_int(s, sf->segment);
 
-	std::string geom;
-	write_geometry(sf->geometry, geom, wx, wy);
-	serialize_ulong_long(s, geom.size());
-	s += geom;
+	write_geometry(sf->geometry, s, wx, wy);
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
@@ -384,12 +381,7 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	sf.label_point = 0;
 	sf.extent = 0;
 
-	unsigned long long geom_len;
-	deserialize_ulong_long(&cp, &geom_len);
-	std::string geom(cp, geom_len);
-	cp += geom_len;
-	char *cp2 = (char *) geom.c_str();
-	sf.geometry = decode_geometry(&cp2, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
+	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
