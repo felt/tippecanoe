@@ -86,39 +86,36 @@ size_t fwrite_check(const void *ptr, size_t size, size_t nitems, std::string &st
 	return nitems;
 }
 
-void serialize_ulong_long(std::string &out, unsigned long long zigzag, std::atomic<long long> *fpos) {
+void serialize_ulong_long(std::string &out, unsigned long long zigzag) {
 	while (1) {
 		unsigned char b = zigzag & 0x7F;
 		if ((zigzag >> 7) != 0) {
 			b |= 0x80;
 			out += b;
-			*fpos += 1;
 			zigzag >>= 7;
 		} else {
 			out += b;
-			*fpos += 1;
 			break;
 		}
 	}
 }
 
-void serialize_long_long(std::string &out, long long n, std::atomic<long long> *fpos) {
+void serialize_long_long(std::string &out, long long n) {
 	unsigned long long zigzag = protozero::encode_zigzag64(n);
 
-	serialize_ulong_long(out, zigzag, fpos);
+	serialize_ulong_long(out, zigzag);
 }
 
-void serialize_int(std::string &out, int n, std::atomic<long long> *fpos) {
-	serialize_long_long(out, n, fpos);
+void serialize_int(std::string &out, int n) {
+	serialize_long_long(out, n);
 }
 
-void serialize_byte(std::string &out, signed char n, std::atomic<long long> *fpos) {
+void serialize_byte(std::string &out, signed char n) {
 	out += n;
-	*fpos += sizeof(signed char);
 }
 
-void serialize_uint(std::string &out, unsigned n, std::atomic<long long> *fpos) {
-	serialize_ulong_long(out, n, fpos);
+void serialize_uint(std::string &out, unsigned n) {
+	serialize_ulong_long(out, n);
 }
 
 // read from memory
@@ -221,18 +218,19 @@ int deserialize_byte_io(FILE *f, signed char *n, std::atomic<long long> *geompos
 	return 1;
 }
 
-static void write_geometry(drawvec const &dv, std::atomic<long long> *fpos, FILE *out, const char *fname, long long wx, long long wy) {
+static void write_geometry(drawvec const &dv, std::string &out, long long wx, long long wy) {
 	for (size_t i = 0; i < dv.size(); i++) {
 		if (dv[i].op == VT_MOVETO || dv[i].op == VT_LINETO) {
-			serialize_byte(out, dv[i].op, fpos, fname);
-			serialize_long_long(out, dv[i].x - wx, fpos, fname);
-			serialize_long_long(out, dv[i].y - wy, fpos, fname);
+			serialize_byte(out, dv[i].op);
+			serialize_long_long(out, dv[i].x - wx);
+			serialize_long_long(out, dv[i].y - wy);
 			wx = dv[i].x;
 			wy = dv[i].y;
 		} else {
-			serialize_byte(out, dv[i].op, fpos, fname);
+			serialize_byte(out, dv[i].op);
 		}
 	}
+	serialize_byte(out, VT_END);
 }
 
 // called from generating the next zoom level
@@ -275,8 +273,12 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 
 	serialize_int(geomfile, sf->segment, geompos, fname);
 
-	write_geometry(sf->geometry, geompos, geomfile, fname, wx, wy);
-	serialize_byte(geomfile, VT_END, geompos, fname);
+	std::string geom;
+	write_geometry(sf->geometry, geom, wx, wy);
+	serialize_ulong_long(geomfile, geom.size(), geompos, fname);
+	fwrite_check(geom.c_str(), sizeof(char), geom.size(), geomfile, fname);
+	geompos += geom.size();
+
 	if (sf->index != 0) {
 		serialize_ulong_long(geomfile, sf->index, geompos, fname);
 	}
@@ -335,7 +337,20 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	sf.label_point = 0;
 	sf.extent = 0;
 
-	sf.geometry = decode_geometry(geoms, geompos_in, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
+	unsigned long long geom_len;
+	deserialize_ulong_long_io(geoms, &geom_len, geompos_in);
+
+	std::string geom;
+	geom.resize(geom_len);
+	if (fread((void *) geom.c_str(), sizeof(char), geom_len, geoms) != geom_len) {
+		fprintf(stderr, "Short read (%llu) from geometry\n", geom_len);
+		exit(EXIT_READ);
+	}
+	*geompos_in += geom_len;
+
+	char *s = (char *) geom.c_str();
+	sf.geometry = decode_geometry(&s, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
+
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long_io(geoms, &sf.index, geompos_in);
 	}
