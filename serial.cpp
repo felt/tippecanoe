@@ -277,7 +277,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	write_geometry(sf->geometry, geom, wx, wy);
 	serialize_ulong_long(geomfile, geom.size(), geompos, fname);
 	fwrite_check(geom.c_str(), sizeof(char), geom.size(), geomfile, fname);
-	geompos += geom.size();
+	*geompos += geom.size();
 
 	if (sf->index != 0) {
 		serialize_ulong_long(geomfile, sf->index, geompos, fname);
@@ -342,8 +342,9 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 
 	std::string geom;
 	geom.resize(geom_len);
-	if (fread((void *) geom.c_str(), sizeof(char), geom_len, geoms) != geom_len) {
-		fprintf(stderr, "Short read (%llu) from geometry\n", geom_len);
+	size_t n = fread((void *) geom.c_str(), sizeof(char), geom_len, geoms);
+	if (n != geom_len) {
+		fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, geom.size());
 		exit(EXIT_READ);
 	}
 	*geompos_in += geom_len;
