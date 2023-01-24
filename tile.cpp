@@ -422,7 +422,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 						sf.values.push_back(metavals[i]);
 					}
 
-					serialize_feature(geomfile[j], &sf, &geompos[j], fname, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]), true);
+					serialize_feature(geomfile[j], &sf, &geompos[j], fname, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
 				}
 			}
 		}
@@ -2400,7 +2400,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *stri
 		int j;
 		for (j = 0; j < child_shards; j++) {
 			if (within[j]) {
-				serialize_byte(geomfile[j], -2, &geompos[j], fname);
+				serialize_ulong_long(geomfile[j], 0, &geompos[j], fname);  // EOF
 				within[j] = 0;
 			}
 		}

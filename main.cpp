@@ -327,8 +327,12 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 	while (head != NULL) {
 		struct index ix = *((struct index *) (map + head->start));
 		long long pos = *geompos;
-		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start, geom_out, "merge geometry");
-		*geompos += ix.end - ix.start;
+
+		// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
+		// and is writing one byte less and then adding the byte for the minzoom.
+
+		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start - 1, geom_out, "merge geometry");
+		*geompos += ix.end - ix.start - 1;
 		int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 		serialize_byte(geom_out, feature_minzoom, geompos, "merge geometry");
 
@@ -1950,7 +1954,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	radix(readers, CPUS, geomfile, indexfile, tmpdir, &geompos, maxzoom, basezoom, droprate, gamma);
 
 	/* end of tile */
-	serialize_byte(geomfile, -2, &geompos, fname);
+	serialize_ulong_long(geomfile, 0, &geompos, fname);  // EOF
 
 	if (fclose(geomfile) != 0) {
 		perror("fclose geom");

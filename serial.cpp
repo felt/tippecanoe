@@ -234,8 +234,10 @@ static void write_geometry(drawvec const &dv, std::string &out, long long wx, lo
 }
 
 // called from generating the next zoom level
-void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long> *geompos, const char *fname, long long wx, long long wy, bool include_minzoom) {
-	serialize_byte(geomfile, sf->t, geompos, fname);
+void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long> *geompos, const char *fname, long long wx, long long wy) {
+	std::string s;
+
+	serialize_byte(s, sf->t);
 
 #define FLAG_LAYER 7
 
@@ -257,63 +259,81 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	layer |= sf->has_tippecanoe_minzoom << FLAG_MINZOOM;
 	layer |= sf->has_tippecanoe_maxzoom << FLAG_MAXZOOM;
 
-	serialize_long_long(geomfile, layer, geompos, fname);
+	serialize_long_long(s, layer);
 	if (sf->seq != 0) {
-		serialize_long_long(geomfile, sf->seq, geompos, fname);
+		serialize_long_long(s, sf->seq);
 	}
 	if (sf->has_tippecanoe_minzoom) {
-		serialize_int(geomfile, sf->tippecanoe_minzoom, geompos, fname);
+		serialize_int(s, sf->tippecanoe_minzoom);
 	}
 	if (sf->has_tippecanoe_maxzoom) {
-		serialize_int(geomfile, sf->tippecanoe_maxzoom, geompos, fname);
+		serialize_int(s, sf->tippecanoe_maxzoom);
 	}
 	if (sf->has_id) {
-		serialize_ulong_long(geomfile, sf->id, geompos, fname);
+		serialize_ulong_long(s, sf->id);
 	}
 
-	serialize_int(geomfile, sf->segment, geompos, fname);
+	serialize_int(s, sf->segment);
 
 	std::string geom;
 	write_geometry(sf->geometry, geom, wx, wy);
-	serialize_ulong_long(geomfile, geom.size(), geompos, fname);
-	fwrite_check(geom.c_str(), sizeof(char), geom.size(), geomfile, fname);
-	*geompos += geom.size();
+	serialize_ulong_long(s, geom.size());
+	s += geom;
 
 	if (sf->index != 0) {
-		serialize_ulong_long(geomfile, sf->index, geompos, fname);
+		serialize_ulong_long(s, sf->index);
 	}
 	if (sf->label_point != 0) {
-		serialize_ulong_long(geomfile, sf->label_point, geompos, fname);
+		serialize_ulong_long(s, sf->label_point);
 	}
 	if (sf->extent != 0) {
-		serialize_long_long(geomfile, sf->extent, geompos, fname);
+		serialize_long_long(s, sf->extent);
 	}
 
-	serialize_long_long(geomfile, sf->keys.size(), geompos, fname);
+	serialize_long_long(s, sf->keys.size());
 
 	for (size_t i = 0; i < sf->keys.size(); i++) {
-		serialize_long_long(geomfile, sf->keys[i], geompos, fname);
-		serialize_long_long(geomfile, sf->values[i], geompos, fname);
+		serialize_long_long(s, sf->keys[i]);
+		serialize_long_long(s, sf->values[i]);
 	}
 
-	if (include_minzoom) {
-		serialize_byte(geomfile, sf->feature_minzoom, geompos, fname);
-	}
+	serialize_byte(s, sf->feature_minzoom);
+
+	serialize_ulong_long(geomfile, s.size(), geompos, fname);
+	fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, fname);
+	*geompos += s.size();
 }
 
 serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
 	serial_feature sf;
+	std::string s;
+	unsigned long long len;
 
-	deserialize_byte_io(geoms, &sf.t, geompos_in);
-	if (sf.t < 0) {
+	if (deserialize_ulong_long_io(geoms, &len, geompos_in) == 0) {
+		sf.t = -2;
+		return sf;
+	}
+	if (len == 0) {
+		sf.t = -2;
 		return sf;
 	}
 
-	deserialize_long_long_io(geoms, &sf.layer, geompos_in);
+	s.resize(len);
+	size_t n = fread((void *) s.c_str(), sizeof(char), len, geoms);
+	if (n != len) {
+		fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
+		exit(EXIT_READ);
+	}
+	*geompos_in += n;
+
+	char *cp = (char *) s.c_str();
+
+	deserialize_byte(&cp, &sf.t);
+	deserialize_long_long(&cp, &sf.layer);
 
 	sf.seq = 0;
 	if (sf.layer & (1 << FLAG_SEQ)) {
-		deserialize_long_long_io(geoms, &sf.seq, geompos_in);
+		deserialize_long_long(&cp, &sf.seq);
 	}
 
 	sf.tippecanoe_minzoom = -1;
@@ -321,61 +341,58 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	sf.id = 0;
 	sf.has_id = false;
 	if (sf.layer & (1 << FLAG_MINZOOM)) {
-		deserialize_int_io(geoms, &sf.tippecanoe_minzoom, geompos_in);
+		deserialize_int(&cp, &sf.tippecanoe_minzoom);
 	}
 	if (sf.layer & (1 << FLAG_MAXZOOM)) {
-		deserialize_int_io(geoms, &sf.tippecanoe_maxzoom, geompos_in);
+		deserialize_int(&cp, &sf.tippecanoe_maxzoom);
 	}
 	if (sf.layer & (1 << FLAG_ID)) {
 		sf.has_id = true;
-		deserialize_ulong_long_io(geoms, &sf.id, geompos_in);
+		deserialize_ulong_long(&cp, &sf.id);
 	}
 
-	deserialize_int_io(geoms, &sf.segment, geompos_in);
+	deserialize_int(&cp, &sf.segment);
 
 	sf.index = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
 
 	unsigned long long geom_len;
-	deserialize_ulong_long_io(geoms, &geom_len, geompos_in);
-
-	std::string geom;
-	geom.resize(geom_len);
-	size_t n = fread((void *) geom.c_str(), sizeof(char), geom_len, geoms);
-	if (n != geom_len) {
-		fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, geom.size());
-		exit(EXIT_READ);
-	}
-	*geompos_in += geom_len;
-
-	char *s = (char *) geom.c_str();
-	sf.geometry = decode_geometry(&s, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
+	deserialize_ulong_long(&cp, &geom_len);
+	std::string geom(cp, geom_len);
+	cp += geom_len;
+	char *cp2 = (char *) geom.c_str();
+	sf.geometry = decode_geometry(&cp2, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
-		deserialize_ulong_long_io(geoms, &sf.index, geompos_in);
+		deserialize_ulong_long(&cp, &sf.index);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		deserialize_ulong_long_io(geoms, &sf.label_point, geompos_in);
+		deserialize_ulong_long(&cp, &sf.label_point);
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
-		deserialize_long_long_io(geoms, &sf.extent, geompos_in);
+		deserialize_long_long(&cp, &sf.extent);
 	}
 
 	sf.layer >>= FLAG_LAYER;
 
 	long long count;
-	deserialize_long_long_io(geoms, &count, geompos_in);
+	deserialize_long_long(&cp, &count);
 
 	for (long long i = 0; i < count; i++) {
 		long long k, v;
-		deserialize_long_long_io(geoms, &k, geompos_in);
-		deserialize_long_long_io(geoms, &v, geompos_in);
+		deserialize_long_long(&cp, &k);
+		deserialize_long_long(&cp, &v);
 		sf.keys.push_back(k);
 		sf.values.push_back(v);
 	}
 
-	deserialize_byte_io(geoms, &sf.feature_minzoom, geompos_in);
+	deserialize_byte(&cp, &sf.feature_minzoom);
+
+	if (cp != s.c_str() + len) {
+		fprintf(stderr, "wrong length decoding feature: used %zd, len is %llu\n", cp - s.c_str(), len);
+		exit(EXIT_IMPOSSIBLE);
+	}
 
 	return sf;
 }
@@ -748,7 +765,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	long long geomstart = r->geompos;
 	sf.geometry = scaled_geometry;
-	serialize_feature(r->geomfile, &sf, &r->geompos, sst->fname, SHIFT_RIGHT(*(sst->initial_x)), SHIFT_RIGHT(*(sst->initial_y)), false);
+	serialize_feature(r->geomfile, &sf, &r->geompos, sst->fname, SHIFT_RIGHT(*(sst->initial_x)), SHIFT_RIGHT(*(sst->initial_y)));
 
 	struct index index;
 	index.start = geomstart;
