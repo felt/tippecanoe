@@ -295,27 +295,12 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 		serialize_long_long(s, sf->values[i]);
 	}
 
-	if (s.size() > 500) {  // smaller than this rarely comes out smaller than it started
-		std::string compressed;
-		compress(s, compressed, false);  // false for no gzip header: saves 12 bytes
-
-		if (s.size() <= compressed.size()) {
-			serialize_long_long(geomfile, s.size(), geompos, fname);
-			fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, fname);
-			*geompos += s.size();
-		} else {
-			serialize_long_long(geomfile, -compressed.size(), geompos, fname);
-			fwrite_check(compressed.c_str(), sizeof(char), compressed.size(), geomfile, fname);
-			*geompos += compressed.size();
-		}
-	} else {
-		serialize_long_long(geomfile, s.size(), geompos, fname);
-		fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, fname);
-		*geompos += s.size();
-	}
-
 	// MAGIC: This knows that the feature minzoom is the last byte of the feature,
-	serialize_byte(geomfile, sf->feature_minzoom, geompos, fname);
+	serialize_byte(s, sf->feature_minzoom);
+
+	serialize_long_long(geomfile, s.size(), geompos, fname);
+	fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, fname);
+	*geompos += s.size();
 }
 
 serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
@@ -406,13 +391,13 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 		sf.values.push_back(v);
 	}
 
+	// MAGIC: This knows that the feature minzoom is the last byte of the feature.
+	deserialize_byte(&cp, &sf.feature_minzoom);
+
 	if (cp != s.c_str() + len) {
 		fprintf(stderr, "wrong length decoding feature: used %zd, len is %llu\n", cp - s.c_str(), len);
 		exit(EXIT_IMPOSSIBLE);
 	}
-
-	// MAGIC: This knows that the feature minzoom is the last byte of the feature.
-	deserialize_byte_io(geoms, &sf.feature_minzoom, geompos_in);
 
 	return sf;
 }
