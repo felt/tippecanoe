@@ -383,7 +383,7 @@ static void write_geometry(drawvec const &dv, std::string &out, long long wx, lo
 }
 
 // called from generating the next zoom level
-void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long> *geompos, const char *fname, long long wx, long long wy) {
+std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	std::string s;
 
 	serialize_byte(s, sf->t);
@@ -445,9 +445,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 
 	// MAGIC: This knows that the feature minzoom is the last byte of the feature,
 	serialize_byte(s, sf->feature_minzoom);
-
-	serialize_long_long(geomfile, s.size(), geompos, fname);
-	fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, geompos, fname);
+	return s;
 }
 
 serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
@@ -917,7 +915,10 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	long long geomstart = r->geompos;
 	sf.geometry = scaled_geometry;
-	serialize_feature(r->geomfile, &sf, &r->geompos, sst->fname, SHIFT_RIGHT(*(sst->initial_x)), SHIFT_RIGHT(*(sst->initial_y)));
+
+	std::string feature = serialize_feature(&sf, SHIFT_RIGHT(*(sst->initial_x)), SHIFT_RIGHT(*(sst->initial_y)));
+	serialize_long_long(r->geomfile, feature.size(), &r->geompos, sst->fname);
+	fwrite_check(feature.c_str(), sizeof(char), feature.size(), r->geomfile, &r->geompos, sst->fname);
 
 	struct index index;
 	index.start = geomstart;

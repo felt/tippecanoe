@@ -422,7 +422,9 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 						sf.values.push_back(metavals[i]);
 					}
 
-					serialize_feature(geomfile[j], &sf, &geompos[j], fname, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
+					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
+					serialize_long_long(geomfile[j], feature.size(), &geompos[j], fname);
+					fwrite_check(feature.c_str(), sizeof(char), feature.size(), geomfile[j], &geompos[j], fname);
 				}
 			}
 		}
