@@ -9,6 +9,7 @@
 #include <map>
 #include <algorithm>
 #include <limits.h>
+#include <zlib.h>
 #include "protozero/varint.hpp"
 #include "geometry.hpp"
 #include "mbtiles.hpp"
@@ -22,6 +23,67 @@
 #include "evaluator.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+
+struct zwriter {
+	z_stream zstream;
+	std::string buf;
+	std::string zbuf;
+	FILE *fp;
+
+	zwriter(FILE *out) {
+		zstream.zalloc = NULL;
+		zstream.zfree = NULL;
+		zstream.opaque = NULL;
+		if (deflateInit(&zstream, Z_DEFAULT_COMPRESSION) != Z_OK) {
+			fprintf(stderr, "Compression initialization failed\n");
+			exit(EXIT_MEMORY);
+		}
+
+		zbuf.resize(5000);
+		fp = out;
+	}
+
+	int fwrite(void *p, size_t size, size_t nmemb, bool flush) {
+		buf += std::string((char *) p, size * nmemb);
+
+		while (true) {
+			zstream.next_in = (Bytef *) buf.c_str();
+			zstream.avail_in = buf.size();
+
+			zstream.next_out = (Bytef *) zbuf.c_str();
+			zstream.avail_out = zbuf.size();
+
+			int d = deflate(&zstream, flush ? Z_FULL_FLUSH : Z_NO_FLUSH);
+
+			if (zstream.next_in != (Bytef *) buf.c_str()) {
+				// it consumed some input
+
+				ssize_t consumed = zstream.next_in - (Bytef *) buf.c_str();
+				buf.erase(buf.begin(), buf.begin() + consumed);
+			}
+
+			if (zstream.next_out != (Bytef *) zbuf.c_str()) {
+				// it produced some output
+
+				ssize_t produced = zstream.next_out - (Bytef *) zbuf.c_str();
+				fwrite((void *) zbuf.c_str(), sizeof(char), produced, fp);
+			}
+
+			if (d == Z_BUF_ERROR) {
+				zbuf.resize(zbuf.size() + 5000);
+			} else if (d != Z_OK) {
+				fprintf(stderr, "impossible return %d from deflate()\n", d);
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			if (buf.size() == 0) {
+				break;
+			}
+		}
+
+		return nmemb;
+	}
+};
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
