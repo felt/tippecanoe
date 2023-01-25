@@ -43,7 +43,7 @@ struct zwriter {
 		fp = out;
 	}
 
-	int fwrite(void *p, size_t size, size_t nmemb, bool flush) {
+	int fwrite_check(const void *p, size_t size, size_t nmemb, bool flush, std::atomic<long long> *fpos, const char *fname) {
 		buf += std::string((char *) p, size * nmemb);
 		bool again = false;
 
@@ -69,14 +69,14 @@ struct zwriter {
 				// it produced some output
 
 				ssize_t produced = zstream.next_out - (Bytef *) zbuf.c_str();
-				::fwrite((void *) zbuf.c_str(), sizeof(char), produced, fp);
+				::fwrite_check((void *) zbuf.c_str(), sizeof(char), produced, fp, fpos, fname);
 			}
 
 			if (d == Z_BUF_ERROR) {
 				zbuf.resize(zbuf.size() + 5000);
 				again = true;
 			} else if (d != Z_OK) {
-				fprintf(stderr, "impossible return %d from deflate()\n", d);
+				fprintf(stderr, "impossible return %d from deflate() in fclose()\n", d);
 				exit(EXIT_IMPOSSIBLE);
 			}
 
@@ -88,12 +88,12 @@ struct zwriter {
 		return nmemb;
 	}
 
-	int putc(int c) {
+	int putc(int c, std::atomic<long long> *fpos, const char *fname) {
 		char ch = c;
-		return fwrite(&ch, sizeof(char), 1, false);
+		return fwrite_check(&ch, sizeof(char), 1, false, fpos, fname);
 	}
 
-	int fclose() {
+	int fclose(std::atomic<long long> *fpos, const char *fname) {
 		while (true) {
 			zstream.next_in = (Bytef *) buf.c_str();
 			zstream.avail_in = 0;
@@ -107,7 +107,7 @@ struct zwriter {
 				// it produced some output
 
 				ssize_t produced = zstream.next_out - (Bytef *) zbuf.c_str();
-				fwrite((void *) zbuf.c_str(), sizeof(char), produced, fp);
+				::fwrite_check((void *) zbuf.c_str(), sizeof(char), produced, fp, fpos, fname);
 			}
 
 			if (d == Z_BUF_ERROR || d == Z_OK) {
@@ -186,6 +186,45 @@ void serialize_byte(FILE *out, signed char n, std::atomic<long long> *fpos, cons
 }
 
 void serialize_uint(FILE *out, unsigned n, std::atomic<long long> *fpos, const char *fname) {
+	serialize_ulong_long(out, n, fpos, fname);
+}
+
+// write to compression
+
+size_t fwrite_check(const void *ptr, size_t size, size_t nitems, zwriter *stream, std::atomic<long long> *fpos, const char *fname) {
+	size_t w = stream->fwrite_check(ptr, size, nitems, false, fpos, fname);
+	return w;
+}
+
+void serialize_ulong_long(zwriter *out, unsigned long long zigzag, std::atomic<long long> *fpos, const char *fname) {
+	while (1) {
+		unsigned char b = zigzag & 0x7F;
+		if ((zigzag >> 7) != 0) {
+			b |= 0x80;
+			out->putc(b, fpos, fname);
+			zigzag >>= 7;
+		} else {
+			out->putc(b, fpos, fname);
+			break;
+		}
+	}
+}
+
+void serialize_long_long(zwriter *out, long long n, std::atomic<long long> *fpos, const char *fname) {
+	unsigned long long zigzag = protozero::encode_zigzag64(n);
+
+	serialize_ulong_long(out, zigzag, fpos, fname);
+}
+
+void serialize_int(zwriter *out, int n, std::atomic<long long> *fpos, const char *fname) {
+	serialize_long_long(out, n, fpos, fname);
+}
+
+void serialize_byte(zwriter *out, signed char n, std::atomic<long long> *fpos, const char *fname) {
+	out->fwrite_check(&n, sizeof(signed char), 1, false, fpos, fname);
+}
+
+void serialize_uint(zwriter *out, unsigned n, std::atomic<long long> *fpos, const char *fname) {
 	serialize_ulong_long(out, n, fpos, fname);
 }
 
