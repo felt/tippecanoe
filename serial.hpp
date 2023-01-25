@@ -11,7 +11,7 @@
 #include "mbtiles.hpp"
 #include "jsonpull/jsonpull.h"
 
-size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, const char *fname);
+size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, std::atomic<long long> *fpos, const char *fname);
 
 void serialize_int(FILE *out, int n, std::atomic<long long> *fpos, const char *fname);
 void serialize_long_long(FILE *out, long long n, std::atomic<long long> *fpos, const char *fname);

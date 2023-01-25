@@ -45,8 +45,11 @@ struct zwriter {
 
 	int fwrite(void *p, size_t size, size_t nmemb, bool flush) {
 		buf += std::string((char *) p, size * nmemb);
+		bool again = false;
 
-		while (true) {
+		while (buf.size() != 0 || again) {
+			again = false;
+
 			zstream.next_in = (Bytef *) buf.c_str();
 			zstream.avail_in = buf.size();
 
@@ -66,22 +69,66 @@ struct zwriter {
 				// it produced some output
 
 				ssize_t produced = zstream.next_out - (Bytef *) zbuf.c_str();
-				fwrite((void *) zbuf.c_str(), sizeof(char), produced, fp);
+				::fwrite((void *) zbuf.c_str(), sizeof(char), produced, fp);
 			}
 
 			if (d == Z_BUF_ERROR) {
 				zbuf.resize(zbuf.size() + 5000);
+				again = true;
 			} else if (d != Z_OK) {
 				fprintf(stderr, "impossible return %d from deflate()\n", d);
 				exit(EXIT_IMPOSSIBLE);
 			}
 
-			if (buf.size() == 0) {
-				break;
+			if (zstream.avail_out == 0) {
+				again = true;
 			}
 		}
 
 		return nmemb;
+	}
+
+	int putc(int c) {
+		char ch = c;
+		return fwrite(&ch, sizeof(char), 1, false);
+	}
+
+	int fclose() {
+		while (true) {
+			zstream.next_in = (Bytef *) buf.c_str();
+			zstream.avail_in = 0;
+
+			zstream.next_out = (Bytef *) zbuf.c_str();
+			zstream.avail_out = zbuf.size();
+
+			int d = deflate(&zstream, Z_FINISH);
+
+			if (zstream.next_out != (Bytef *) zbuf.c_str()) {
+				// it produced some output
+
+				ssize_t produced = zstream.next_out - (Bytef *) zbuf.c_str();
+				fwrite((void *) zbuf.c_str(), sizeof(char), produced, fp);
+			}
+
+			if (d == Z_BUF_ERROR || d == Z_OK) {
+				// still more to be written
+				zbuf.resize(zbuf.size() + 5000);
+				continue;
+			} else if (d == Z_STREAM_END) {
+				// done
+				break;
+			} else {
+				fprintf(stderr, "impossible return %d from deflate()\n", d);
+				exit(EXIT_IMPOSSIBLE);
+			}
+		}
+
+		if (deflateEnd(&zstream) != Z_OK) {
+			fprintf(stderr, "Error closing compression scheme (%s)\n", zstream.msg);
+			exit(EXIT_WRITE);
+		}
+
+		return ::fclose(fp);
 	}
 };
 
@@ -92,12 +139,13 @@ struct zwriter {
 
 // write to file
 
-size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, const char *fname) {
+size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, std::atomic<long long> *fpos, const char *fname) {
 	size_t w = fwrite(ptr, size, nitems, stream);
 	if (w != nitems) {
 		fprintf(stderr, "%s: Write to temporary file failed: %s\n", fname, strerror(errno));
 		exit(EXIT_WRITE);
 	}
+	*fpos += size * nitems;
 	return w;
 }
 
@@ -134,8 +182,7 @@ void serialize_ulong_long(FILE *out, unsigned long long zigzag, std::atomic<long
 }
 
 void serialize_byte(FILE *out, signed char n, std::atomic<long long> *fpos, const char *fname) {
-	fwrite_check(&n, sizeof(signed char), 1, out, fname);
-	*fpos += sizeof(signed char);
+	fwrite_check(&n, sizeof(signed char), 1, out, fpos, fname);
 }
 
 void serialize_uint(FILE *out, unsigned n, std::atomic<long long> *fpos, const char *fname) {
@@ -361,8 +408,7 @@ void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long
 	serialize_byte(s, sf->feature_minzoom);
 
 	serialize_long_long(geomfile, s.size(), geompos, fname);
-	fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, fname);
-	*geompos += s.size();
+	fwrite_check(s.c_str(), sizeof(char), s.size(), geomfile, geompos, fname);
 }
 
 serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
@@ -842,8 +888,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	index.t = sf.t;
 	index.ix = bbox_index;
 
-	fwrite_check(&index, sizeof(struct index), 1, r->indexfile, sst->fname);
-	r->indexpos += sizeof(struct index);
+	fwrite_check(&index, sizeof(struct index), 1, r->indexfile, &r->indexpos, sst->fname);
 
 	for (size_t i = 0; i < 2; i++) {
 		if (sf.bbox[i] < r->file_bbox[i]) {

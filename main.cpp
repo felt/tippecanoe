@@ -331,8 +331,7 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 		// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
 		// and is writing one byte less and then adding the byte for the minzoom.
 
-		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start - 1, geom_out, "merge geometry");
-		*geompos += ix.end - ix.start - 1;
+		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start - 1, geom_out, geompos, "merge geometry");
 		int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 		serialize_byte(geom_out, feature_minzoom, geompos, "merge geometry");
 
@@ -346,7 +345,8 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 
 		ix.start = pos;
 		ix.end = *geompos;
-		fwrite_check(&ix, bytes, 1, indexfile, "merge temporary");
+		std::atomic<long long> indexpos;
+		fwrite_check(&ix, bytes, 1, indexfile, &indexpos, "merge temporary");
 		head->start += bytes;
 
 		struct mergelist *m = head;
@@ -787,8 +787,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				unsigned long long which = (ix.ix << prefix) >> (64 - splitbits);
 				long long pos = sub_geompos[which];
 
-				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], "geom");
-				sub_geompos[which] += ix.end - ix.start;
+				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], &sub_geompos[which], "geom");
 
 				// Count this as a 25%-accomplishment, since we will copy again
 				*progress += (ix.end - ix.start) / 4;
@@ -801,7 +800,8 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				ix.start = pos;
 				ix.end = sub_geompos[which];
 
-				fwrite_check(&ix, sizeof(struct index), 1, indexfiles[which], "index");
+				std::atomic<long long> indexpos;
+				fwrite_check(&ix, sizeof(struct index), 1, indexfiles[which], &indexpos, "index");
 			}
 
 			madvise(indexmap, indexst.st_size, MADV_DONTNEED);
@@ -958,8 +958,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					struct index ix = indexmap[a];
 					long long pos = *geompos_out;
 
-					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, "geom");
-					*geompos_out += ix.end - ix.start;
+					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
 					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
 
@@ -973,7 +972,8 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 					ix.start = pos;
 					ix.end = *geompos_out;
-					fwrite_check(&ix, sizeof(struct index), 1, indexfile, "index");
+					std::atomic<long long> indexpos;
+					fwrite_check(&ix, sizeof(struct index), 1, indexfile, &indexpos, "index");
 				}
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
@@ -1665,7 +1665,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				int n;
 
 				while ((n = fp->read(buf, READ_BUF)) > 0) {
-					fwrite_check(buf, sizeof(char), n, readfp, reading.c_str());
+					std::atomic<long long> readingpos;
+					fwrite_check(buf, sizeof(char), n, readfp, &readingpos, reading.c_str());
 					ahead += n;
 
 					if (buf[n - 1] == read_parallel_this && ahead > PARSE_MIN) {
