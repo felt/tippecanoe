@@ -1,6 +1,7 @@
-## ??
+## 2.19.0
 
 * Don't guess an excessively large maxzoom when there is only one feature
+* Set the base zoom for -Bg as part of the --smallest-maximum-zoom-guess logic
 
 ## 2.18.0
 
