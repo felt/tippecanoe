@@ -320,6 +320,10 @@ struct ordercmp {
 			}
 		}
 
+		if (a.index < b.index) {
+			return true;
+		}
+
 		return false;  // greater than or equal
 	}
 } ordercmp;
