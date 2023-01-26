@@ -1,0 +1,11 @@
+{ "type": "FeatureCollection", "properties": {
+"bounds": "-180.000000,-85.051129,180.000000,-85.051129",
+"center": "0.000000,-85.051129,0",
+"format": "pbf",
+"json": "{\"vector_layers\":[{\"id\":\"empty\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{\"id\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"empty\",\"count\":2,\"geometry\":\"LineString\",\"attributeCount\":1,\"attributes\":[{\"attribute\":\"id\",\"count\":2,\"type\":\"number\",\"values\":[1,2],\"min\":1,\"max\":2}]}]}}",
+"maxzoom": "0",
+"minzoom": "0",
+"type": "overlay",
+"version": "2"
+}, "features": [
+] }

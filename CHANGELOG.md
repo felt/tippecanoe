@@ -1,7 +1,11 @@
-## 2.18.0
+## ?
 
 * Round coordinates instead of truncating them, for better precision when overzooming
 * Don't guess an excessively large maxzoom when there is only one feature
+
+## 2.18.0
+
+* Fix crash when using tile-join to join an empty pmtiles tileset
 
 ## 2.17.0
 
