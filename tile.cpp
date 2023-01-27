@@ -63,9 +63,11 @@ struct compressor {
 		zs.zalloc = NULL;
 		zs.zfree = NULL;
 		zs.opaque = NULL;
+		zs.msg = (char *) "";
 
-		if (deflateInit(&zs, Z_DEFAULT_COMPRESSION) != Z_OK) {
-			fprintf(stderr, "initialize compression: %s\n", zs.msg);
+		int d = deflateInit(&zs, Z_DEFAULT_COMPRESSION);
+		if (d != Z_OK) {
+			fprintf(stderr, "initialize compression: %d %s\n", d, zs.msg);
 			exit(EXIT_IMPOSSIBLE);
 		}
 	}
@@ -74,21 +76,32 @@ struct compressor {
 		std::string buf;
 		buf.resize(5000);
 
-		zs.next_out = (Bytef *) buf.c_str();
-		zs.avail_out = buf.size();
-
 		zs.next_in = zs.next_out;
 		zs.avail_in = 0;
 
-		if (deflate(&zs, Z_FINISH) != Z_STREAM_END) {
-			fprintf(stderr, "finish compression: %s\n", zs.msg);
-			exit(EXIT_IMPOSSIBLE);
+		while (true) {
+			zs.next_out = (Bytef *) buf.c_str();
+			zs.avail_out = buf.size();
+
+			int d = deflate(&zs, Z_FINISH);
+			::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+
+			if (d == Z_OK || d == Z_BUF_ERROR) {
+				// it can take several calls to flush out all the buffered data
+				continue;
+			}
+
+			if (d != Z_STREAM_END) {
+				fprintf(stderr, "%s: finish compression: %d %s\n", fname, d, zs.msg);
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			break;
 		}
 
-		::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
-
-		if (deflateEnd(&zs) != Z_OK) {
-			fprintf(stderr, "end compression: %s\n", zs.msg);
+		int d = deflateEnd(&zs);
+		if (d != Z_OK) {
+			fprintf(stderr, "%s: end compression: %d %s\n", fname, d, zs.msg);
 			exit(EXIT_IMPOSSIBLE);
 		}
 	}
@@ -108,8 +121,9 @@ struct compressor {
 			zs.next_out = (Bytef *) buf.c_str();
 			zs.avail_out = buf.size();
 
-			if (deflate(&zs, Z_NO_FLUSH) != Z_OK) {
-				fprintf(stderr, "finish compression: %s\n", zs.msg);
+			int d = deflate(&zs, Z_NO_FLUSH);
+			if (d != Z_OK) {
+				fprintf(stderr, "%s: deflate: %d %s\n", fname, d, zs.msg);
 				exit(EXIT_IMPOSSIBLE);
 			}
 
@@ -3051,7 +3065,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			}
 			compressors[j] = compressor(fp);
 			sub[j] = &compressors[j];
-			unlink(geomname);
+			// unlink(geomname);
 		}
 
 		size_t useful_threads = 0;
