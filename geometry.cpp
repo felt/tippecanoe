@@ -21,6 +21,7 @@
 #include "main.hpp"
 #include "options.hpp"
 #include "errors.hpp"
+#include "projection.hpp"
 
 static int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 
@@ -87,8 +88,8 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x >>= (32 - detail - z);
-		geom[i].y >>= (32 - detail - z);
+		geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
+		geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
 	}
 }
 
@@ -96,8 +97,8 @@ drawvec from_tile_scale(drawvec const &geom, int z, int detail) {
 	drawvec out;
 	for (size_t i = 0; i < geom.size(); i++) {
 		draw d = geom[i];
-		d.x <<= (32 - detail - z);
-		d.y <<= (32 - detail - z);
+		d.x *= (1LL << (32 - detail - z));
+		d.y *= (1LL << (32 - detail - z));
 		out.push_back(d);
 	}
 	return out;
@@ -110,7 +111,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && (geom[i].x >> shift) == x && (geom[i].y >> shift) == y) {
+		if (geom[i].op == VT_LINETO && std::round((double) geom[i].x / (1LL << shift)) == x && std::round((double) geom[i].y / (1LL << shift)) == y) {
 			continue;
 		}
 
@@ -118,8 +119,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 			out.push_back(geom[i]);
 		} else { /* moveto or lineto */
 			out.push_back(geom[i]);
-			x = geom[i].x >> shift;
-			y = geom[i].y >> shift;
+			x = std::round((double) geom[i].x / (1LL << shift));
+			y = std::round((double) geom[i].y / (1LL << shift));
 		}
 	}
 
@@ -158,7 +159,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
-				if (i > 0 && geom[i - 1].op == VT_LINETO && (geom[i - 1].x >> shift) == (geom[i].x >> shift) && (geom[i - 1].y >> shift) == (geom[i].y >> shift)) {
+				if (i > 0 && geom[i - 1].op == VT_LINETO && std::round((double) geom[i - 1].x / (1LL << shift)) == std::round((double) geom[i].x / (1LL << shift)) && std::round((double) geom[i - 1].y / (1LL << shift)) == std::round((double) geom[i].y / (1LL << shift))) {
 					continue;
 				}
 			}
@@ -1323,8 +1324,8 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 	double scale = 1 << (32 - detail - z);
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x = std::floor(geom[i].x / scale);
-		geom[i].y = std::floor(geom[i].y / scale);
+		geom[i].x = std::round(geom[i].x / scale);
+		geom[i].y = std::round(geom[i].y / scale);
 	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
@@ -1481,24 +1482,116 @@ draw centerOfMass(const drawvec &dv, size_t start, size_t end, draw centre) {
 	}
 }
 
-double label_goodness(const drawvec &dv, size_t start, size_t count, long long x, long long y) {
-	if (!pnpoly(dv, start, count, x, y)) {
+double label_goodness(const drawvec &dv, long long x, long long y) {
+	int nesting = 0;
+
+	for (size_t i = 0; i < dv.size(); i++) {
+		if (dv[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < dv.size(); j++) {
+				if (dv[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			// if it's inside the ring, and it's an outer ring,
+			// we are nested more; if it's an inner ring, we are
+			// nested less.
+			if (pnpoly(dv, i, j - i, x, y)) {
+				if (get_area(dv, i, j) >= 0) {
+					nesting++;
+				} else {
+					nesting--;
+				}
+			}
+
+			i = j - 1;
+		}
+	}
+
+	if (nesting < 1) {
 		return 0;  // outside the polygon is as bad as it gets
 	}
 
 	double closest = INFINITY;  // square of closest distance to the border
 
-	for (size_t i = start; i < start + count; i++) {
+	for (size_t i = 0; i < dv.size(); i++) {
 		double dx = dv[i].x - x;
 		double dy = dv[i].y - y;
 		double squared = dx * dx + dy * dy;
 		if (squared < closest) {
 			closest = squared;
 		}
+
+		if (i > 0 && dv[i].op == VT_LINETO) {
+			squared = square_distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
+			if (squared < closest) {
+				closest = squared;
+			}
+		}
 	}
 
 	return sqrt(closest);
 }
+
+struct sorty {
+	long long x;
+	long long y;
+};
+
+struct sorty_sorter {
+	int kind;
+	sorty_sorter(int k) : kind(k) {};
+
+	bool operator()(const sorty &a, const sorty &b) const {
+		long long xa, ya, xb, yb;
+
+		if (kind == 0) {  // Y first
+			xa = a.x;
+			ya = a.y;
+
+			xb = b.x;
+			yb = b.y;
+		} else if (kind == 1) {  // X first
+			xa = a.y;
+			ya = a.x;
+
+			xb = b.y;
+			yb = b.x;
+		} else if (kind == 2) {  // diagonal
+			xa = a.x + a.y;
+			ya = a.x - a.y;
+
+			xb = b.x + b.y;
+			yb = b.x - b.y;
+		} else {  // other diagonal
+			xa = a.x - a.y;
+			ya = a.x + a.y;
+
+			xb = b.x - b.y;
+			yb = b.x + b.y;
+		}
+
+		if (ya < yb) {
+			return true;
+		} else if (ya == yb && xa < xb) {
+			return true;
+		} else {
+			return false;
+		}
+	};
+};
+
+struct candidate {
+	long long x;
+	long long y;
+	double dist;
+
+	bool operator<(const candidate &c) const {
+		// largest distance sorts first
+		return dist > c.dist;
+	};
+};
 
 // Generate a label point for a polygon feature.
 //
@@ -1521,6 +1614,10 @@ double label_goodness(const drawvec &dv, size_t start, size_t count, long long x
 drawvec polygon_to_anchor(const drawvec &geom) {
 	size_t start = 0, end = 0;
 	size_t best_area = 0;
+	std::vector<sorty> points;
+
+	// find the largest outer ring, which will be the best thing
+	// to label if we can do it.
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
@@ -1529,6 +1626,11 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				if (geom[j].op != VT_LINETO) {
 					break;
 				}
+
+				sorty sy;
+				sy.x = geom[j].x;
+				sy.y = geom[j].y;
+				points.push_back(sy);
 			}
 
 			double area = get_area(geom, i, j);
@@ -1542,13 +1644,15 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 		}
 	}
 
+	// If there are no outer rings, don't generate a label point
+
 	if (best_area > 0) {
 		long long xsum = 0;
 		long long ysum = 0;
 		size_t count = 0;
 		long long xmin = LLONG_MAX, ymin = LLONG_MAX, xmax = LLONG_MIN, ymax = LLONG_MIN;
 
-		// Calculate centroid and bounding box.
+		// Calculate centroid and bounding box of biggest ring.
 		// start + 1 to exclude the first point, which is duplicated as the last
 		for (size_t k = start + 1; k < end; k++) {
 			xsum += geom[k].x;
@@ -1562,17 +1666,79 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 		}
 
 		if (count > 0) {
-			draw centroid(VT_MOVETO, xsum / count, ysum / count);
-			draw d = centerOfMass(geom, start, end, centroid);
+			// We want label points that are at least a moderate distance from
+			// the edge of the feature. The threshold for what is too close
+			// is derived from the area of the feature.
 
 			double radius = sqrt(best_area / M_PI);
 			double goodness_threshold = radius / 5;
 
-			double goodness = label_goodness(geom, start, end - start - 1, d.x, d.y);
+			// First choice: Turf's center of mass.
+
+			draw centroid(VT_MOVETO, xsum / count, ysum / count);
+			draw d = centerOfMass(geom, start, end, centroid);
+			double goodness = label_goodness(geom, d.x, d.y);
+			const char *kind = "mass";
+
 			if (goodness < goodness_threshold) {
 				// Label is too close to the border or outside it,
-				// so try some other possible points
+				// so try some other possible points. Sort the vertices
+				// both by Y and X coordinate and then by diagonals,
+				// and walk through each set
+				// in sorted order. Adjacent pairs of coordinates should
+				// tend to bounce back and forth between rings, so the
+				// midpoint of each pair will hopefully be somewhere in the
+				// interior of the polygon.
 
+				std::vector<candidate> candidates;
+
+				for (size_t pass = 0; pass < 4; pass++) {
+					std::sort(points.begin(), points.end(), sorty_sorter(pass));
+
+					for (size_t i = 1; i < points.size(); i++) {
+						double dx = points[i].x - points[i - 1].x;
+						double dy = points[i].y - points[i - 1].y;
+
+						double dist = sqrt(dx * dx + dy * dy);
+						if (dist > 2 * goodness_threshold) {
+							candidate c;
+
+							c.x = (points[i].x + points[i - 1].x) / 2;
+							c.y = (points[i].y + points[i - 1].y) / 2;
+							c.dist = dist;
+
+							candidates.push_back(c);
+						}
+					}
+				}
+
+				// Now sort the accumulate list of segment midpoints by the lengths
+				// of the segments. Starting from the longest
+				// segment, if we find one whose midpoint is inside the polygon and
+				// far enough from any edge to be good enough, stop looking.
+
+				std::sort(candidates.begin(), candidates.end());
+				// only check the top 50 stride midpoints, since this list can be quite large
+				for (size_t i = 0; i < candidates.size() && i < 50; i++) {
+					double maybe_goodness = label_goodness(geom, candidates[i].x, candidates[i].y);
+
+					if (maybe_goodness > goodness) {
+						d.x = candidates[i].x;
+						d.y = candidates[i].y;
+
+						goodness = maybe_goodness;
+						kind = "diagonal";
+						if (goodness > goodness_threshold) {
+							break;
+						}
+					}
+				}
+			}
+
+			// We may still not have anything decent, so the next thing to look at
+			// is points from gridding the bounding box of the largest ring.
+
+			if (goodness < goodness_threshold) {
 				for (long long sub = 2;
 				     sub < 32 && (xmax - xmin) > 2 * sub && (ymax - ymin) > 2 * sub;
 				     sub *= 2) {
@@ -1582,11 +1748,12 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 								   xmin + x * (xmax - xmin) / sub,
 								   ymin + y * (ymax - ymin) / sub);
 
-							double maybe_goodness = label_goodness(geom, start, end - start, maybe.x, maybe.y);
+							double maybe_goodness = label_goodness(geom, maybe.x, maybe.y);
 							if (maybe_goodness > goodness) {
 								// better than the previous
 								d = maybe;
 								goodness = maybe_goodness;
+								kind = "grid";
 							}
 						}
 					}
@@ -1598,8 +1765,17 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 				// There is nothing really good. Is the centroid maybe better?
 				// If not, we're stuck with whatever the best we found was.
-				if (label_goodness(geom, start, end - start, centroid.x, centroid.y) > goodness) {
+				double maybe_goodness = label_goodness(geom, centroid.x, centroid.y);
+				if (maybe_goodness > goodness) {
 					d = centroid;
+					goodness = maybe_goodness;
+					kind = "centroid";
+				}
+
+				if (goodness <= 0) {
+					double lon, lat;
+					tile2lonlat(d.x, d.y, 32, &lon, &lat);
+					fprintf(stderr, "could not find label point: %s %f,%f\n", kind, lat, lon);
 				}
 			}
 
@@ -1676,31 +1852,18 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 				continue;
 			}
 
-			for (size_t a = 0; a < geom.size(); a++) {
-				if (geom[a].op == VT_MOVETO) {
-					size_t b;
-					for (b = a + 1; b < geom.size(); b++) {
-						if (geom[b].op != VT_LINETO) {
-							break;
-						}
-					}
-
-					// If it's the central label, it's the best we've got,
-					// so accept it in any case. If it's from the outer spiral,
-					// don't use it if it's too close to a border.
-					if (lx == 0 && ly == 0) {
-						out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
-						break;
-					} else {
-						double tilesize = 1LL << (32 - z);
-						double goodness_threshold = tilesize / 100;
-						if (label_goodness(geom, a, b - a, x - tx1, y - ty1) > goodness_threshold) {
-							out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
-							break;
-						}
-					}
-
-					a = b - 1;
+			// If it's the central label, it's the best we've got,
+			// so accept it in any case. If it's from the outer spiral,
+			// don't use it if it's too close to a border.
+			if (lx == 0 && ly == 0) {
+				out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+				break;
+			} else {
+				double tilesize = 1LL << (32 - z);
+				double goodness_threshold = tilesize / 100;
+				if (label_goodness(geom, x - tx1, y - ty1) > goodness_threshold) {
+					out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
+					break;
 				}
 			}
 		}
