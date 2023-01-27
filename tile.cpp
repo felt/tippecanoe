@@ -41,6 +41,7 @@
 #include "milo/dtoa_milo.h"
 #include "evaluator.hpp"
 #include "errors.hpp"
+#include "protozero/varint.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -58,7 +59,7 @@ struct compressor {
 
 	compressor() { }
 
-	void begin(std::atomic<long long> *fpos, const char *fname) {
+	void begin() {
 		zs.zalloc = NULL;
 		zs.zfree = NULL;
 		zs.opaque = NULL;
@@ -70,31 +71,78 @@ struct compressor {
 	}
 
 	void end(std::atomic<long long> *fpos, const char *fname) {
+		std::string buf;
+		buf.resize(5000);
 
+		zs.next_out = (Bytef *) buf.c_str();
+		zs.avail_out = buf.size();
+
+		zs.next_in = zs.next_out;
+		zs.avail_in = 0;
+
+		if (deflate(&zs, Z_FINISH) != Z_STREAM_END) {
+			fprintf(stderr, "finish compression: %s\n", zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+
+		if (deflateEnd(&zs) != Z_OK) {
+			fprintf(stderr, "end compression: %s\n", zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
 	}
 
 	int fclose() {
 		return ::fclose(fp);
 	}
 
-	void serialize_int(int val, std::atomic<long long> *fpos, const char *fname) {
+	void fwrite_check(const char *p, size_t size, size_t nmemb, std::atomic<long long> *fpos, const char *fname) {
+		std::string buf;
+		buf.resize(size * nmemb * 2 + 200);
 
-	}
+		zs.next_in = (Bytef *) p;
+		zs.avail_in = size * nmemb;
 
-	void serialize_uint(unsigned val, std::atomic<long long> *fpos, const char *fname) {
+		while (zs.avail_in > 0) {
+			zs.next_out = (Bytef *) buf.c_str();
+			zs.avail_out = buf.size();
 
-	}
+			if (deflate(&zs, Z_NO_FLUSH) != Z_OK) {
+				fprintf(stderr, "finish compression: %s\n", zs.msg);
+				exit(EXIT_IMPOSSIBLE);
+			}
 
-	void serialize_long_long(long long val, std::atomic<long long> *fpos, const char *fname) {
-
+			::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+		}
 	}
 
 	void serialize_ulong_long(unsigned long long val, std::atomic<long long> *fpos, const char *fname) {
-
+		while (1) {
+			unsigned char b = val & 0x7F;
+			if ((val >> 7) != 0) {
+				b |= 0x80;
+				fwrite_check((const char *) &b, 1, 1, fpos, fname);
+				val >>= 7;
+			} else {
+				fwrite_check((const char *) &b, 1, 1, fpos, fname);
+				break;
+			}
+		}
 	}
 
-	void fwrite_check(const char *p, size_t size, size_t nmemb, std::atomic<long long> *fpos, const char *fname) {
+	void serialize_long_long(long long val, std::atomic<long long> *fpos, const char *fname) {
+		unsigned long long zigzag = protozero::encode_zigzag64(val);
 
+		serialize_ulong_long(zigzag, fpos, fname);
+	}
+
+	void serialize_int(int val, std::atomic<long long> *fpos, const char *fname) {
+		serialize_long_long(val, fpos, fname);
+	}
+
+	void serialize_uint(unsigned val, std::atomic<long long> *fpos, const char *fname) {
+		serialize_ulong_long(val, fpos, fname);
 	}
 };
 
@@ -445,7 +493,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 
 				{
 					if (!within[j]) {
-						geomfile[j]->begin(&geompos[j], fname);
+						geomfile[j]->begin();
 						geomfile[j]->serialize_int(nextzoom, &geompos[j], fname);
 						geomfile[j]->serialize_uint(tx * span + xo, &geompos[j], fname);
 						geomfile[j]->serialize_uint(ty * span + yo, &geompos[j], fname);
