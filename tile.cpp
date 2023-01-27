@@ -51,7 +51,7 @@ extern "C" {
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
-#define SHIFT_RIGHT(a) ((((a) + COORD_OFFSET) >> geometry_scale) - (COORD_OFFSET >> geometry_scale))
+#define SHIFT_RIGHT(a) ((long long) std::round((double)(a) / (1LL << geometry_scale)))
 
 #define XSTRINGIFY(s) STRINGIFY(s)
 #define STRINGIFY(s) #s
@@ -318,6 +318,10 @@ struct ordercmp {
 					return false;
 				}  // else they are equal, so continue to the next attribute
 			}
+		}
+
+		if (a.index < b.index) {
+			return true;
 		}
 
 		return false;  // greater than or equal
@@ -1814,12 +1818,12 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 		return true;
 	}
 
-	long long x = geometry[0].x >> (32 - detail - z);
-	long long y = geometry[0].y >> (32 - detail - z);
+	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
+	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
 
 	for (auto &g : geometry) {
-		long long xx = g.x >> (32 - detail - z);
-		long long yy = g.y >> (32 - detail - z);
+		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
+		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
 
 		if (xx != x || yy != y) {
 			return false;
