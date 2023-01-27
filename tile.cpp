@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <time.h>
 #include <fcntl.h>
+#include <zlib.h>
 #include <sys/wait.h>
 #include "mvt.hpp"
 #include "mbtiles.hpp"
@@ -40,12 +41,110 @@
 #include "milo/dtoa_milo.h"
 #include "evaluator.hpp"
 #include "errors.hpp"
+#include "protozero/varint.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
 }
 
 #include "plugin.hpp"
+
+struct compressor {
+	FILE *fp = NULL;
+	z_stream zs;
+
+	compressor(FILE *f) {
+		fp = f;
+	}
+
+	compressor() { }
+
+	void begin() {
+		zs.zalloc = NULL;
+		zs.zfree = NULL;
+		zs.opaque = NULL;
+
+		if (deflateInit(&zs, Z_DEFAULT_COMPRESSION) != Z_OK) {
+			fprintf(stderr, "initialize compression: %s\n", zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	void end(std::atomic<long long> *fpos, const char *fname) {
+		std::string buf;
+		buf.resize(5000);
+
+		zs.next_out = (Bytef *) buf.c_str();
+		zs.avail_out = buf.size();
+
+		zs.next_in = zs.next_out;
+		zs.avail_in = 0;
+
+		if (deflate(&zs, Z_FINISH) != Z_STREAM_END) {
+			fprintf(stderr, "finish compression: %s\n", zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+
+		if (deflateEnd(&zs) != Z_OK) {
+			fprintf(stderr, "end compression: %s\n", zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	int fclose() {
+		return ::fclose(fp);
+	}
+
+	void fwrite_check(const char *p, size_t size, size_t nmemb, std::atomic<long long> *fpos, const char *fname) {
+		std::string buf;
+		buf.resize(size * nmemb * 2 + 200);
+
+		zs.next_in = (Bytef *) p;
+		zs.avail_in = size * nmemb;
+
+		while (zs.avail_in > 0) {
+			zs.next_out = (Bytef *) buf.c_str();
+			zs.avail_out = buf.size();
+
+			if (deflate(&zs, Z_NO_FLUSH) != Z_OK) {
+				fprintf(stderr, "finish compression: %s\n", zs.msg);
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+		}
+	}
+
+	void serialize_ulong_long(unsigned long long val, std::atomic<long long> *fpos, const char *fname) {
+		while (1) {
+			unsigned char b = val & 0x7F;
+			if ((val >> 7) != 0) {
+				b |= 0x80;
+				fwrite_check((const char *) &b, 1, 1, fpos, fname);
+				val >>= 7;
+			} else {
+				fwrite_check((const char *) &b, 1, 1, fpos, fname);
+				break;
+			}
+		}
+	}
+
+	void serialize_long_long(long long val, std::atomic<long long> *fpos, const char *fname) {
+		unsigned long long zigzag = protozero::encode_zigzag64(val);
+
+		serialize_ulong_long(zigzag, fpos, fname);
+	}
+
+	void serialize_int(int val, std::atomic<long long> *fpos, const char *fname) {
+		serialize_long_long(val, fpos, fname);
+	}
+
+	void serialize_uint(unsigned val, std::atomic<long long> *fpos, const char *fname) {
+		serialize_ulong_long(val, fpos, fname);
+	}
+};
 
 #define CMD_BITS 3
 
@@ -324,7 +423,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, FILE **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -394,9 +493,10 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 
 				{
 					if (!within[j]) {
-						serialize_int(geomfile[j], nextzoom, &geompos[j], fname);
-						serialize_uint(geomfile[j], tx * span + xo, &geompos[j], fname);
-						serialize_uint(geomfile[j], ty * span + yo, &geompos[j], fname);
+						geomfile[j]->begin();
+						geomfile[j]->serialize_int(nextzoom, &geompos[j], fname);
+						geomfile[j]->serialize_uint(tx * span + xo, &geompos[j], fname);
+						geomfile[j]->serialize_uint(ty * span + yo, &geompos[j], fname);
 						within[j] = 1;
 					}
 
@@ -423,8 +523,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					}
 
 					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
-					serialize_long_long(geomfile[j], feature.size(), &geompos[j], fname);
-					fwrite_check(feature.c_str(), sizeof(char), feature.size(), geomfile[j], &geompos[j], fname);
+					geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
+					geomfile[j]->fwrite_check(feature.c_str(), sizeof(char), feature.size(), &geompos[j], fname);
 				}
 			}
 		}
@@ -1288,7 +1388,7 @@ struct write_tile_args {
 	const char *outdir = NULL;
 	int buffer = 0;
 	const char *fname = NULL;
-	FILE **geomfile = NULL;
+	compressor **geomfile = NULL;
 	double todo = 0;
 	std::atomic<long long> *along = NULL;
 	double gamma = 0;
@@ -1426,7 +1526,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, FILE **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time) {
+serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time) {
 	while (1) {
 		serial_feature sf = deserialize_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y);
 		if (sf.t < 0) {
@@ -1577,7 +1677,7 @@ struct run_prefilter_args {
 	long long alongminus = 0;
 	int buffer = 0;
 	int *within = NULL;
-	FILE **geomfile = NULL;
+	compressor **geomfile = NULL;
 	std::atomic<long long> *geompos = NULL;
 	std::atomic<double> *oprogress = NULL;
 	double todo = 0;
@@ -1846,7 +1946,7 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
-long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
+long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -2402,7 +2502,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *stri
 		int j;
 		for (j = 0; j < child_shards; j++) {
 			if (within[j]) {
-				serialize_ulong_long(geomfile[j], 0, &geompos[j], fname);  // EOF
+				geomfile[j]->serialize_ulong_long(0, &geompos[j], fname);  // EOF
+				geomfile[j]->end(&geompos[j], fname);
 				within[j] = 0;
 			}
 		}
@@ -2925,7 +3026,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 	for (z = 0; z <= maxzoom; z++) {
 		std::atomic<long long> most(0);
 
-		FILE *sub[TEMP_FILES];
+		compressor compressors[TEMP_FILES];
+		compressor *sub[TEMP_FILES];
 		int subfd[TEMP_FILES];
 		for (size_t j = 0; j < TEMP_FILES; j++) {
 			char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX" XSTRINGIFY(INT_MAX)) + 1];
@@ -2936,11 +3038,13 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				perror(geomname);
 				exit(EXIT_OPEN);
 			}
-			sub[j] = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
-			if (sub[j] == NULL) {
+			FILE *fp = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+			if (fp == NULL) {
 				perror(geomname);
 				exit(EXIT_OPEN);
 			}
+			compressors[j] = compressor(fp);
+			sub[j] = &compressors[j];
 			unlink(geomname);
 		}
 
@@ -3175,7 +3279,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 					exit(EXIT_CLOSE);
 				}
 			}
-			if (fclose(sub[j]) != 0) {
+			if (sub[j]->fclose() != 0) {
 				perror("close subfile");
 				exit(EXIT_CLOSE);
 			}
