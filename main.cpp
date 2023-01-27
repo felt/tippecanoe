@@ -2241,6 +2241,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			for (z = 0; z <= MAX_ZOOM; z++) {
 				unsigned xxx = 0, yyy = 0;
 				if (z != 0) {
+					// These are tile numbers, not pixels,
+					// so shift, not round
 					xxx = xx >> (32 - z);
 					yyy = yy >> (32 - z);
 				}

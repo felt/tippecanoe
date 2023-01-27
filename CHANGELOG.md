@@ -1,3 +1,15 @@
+## 2.22.0
+
+* Speed up feature dropping by removing unnecessary search for other small features
+
+## 2.21.0
+
+* Improve label placement to avoid placing labels in polygon holes
+
+## 2.20.0
+
+* Round coordinates instead of truncating them, for better precision when overzooming
+
 ## 2.19.0
 
 * Don't guess an excessively large maxzoom when there is only one feature
