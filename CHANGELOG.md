@@ -1,3 +1,7 @@
+## 2.21.0
+
+* Improve label placement to avoid placing labels in polygon holes
+
 ## 2.20.0
 
 * Round coordinates instead of truncating them, for better precision when overzooming
