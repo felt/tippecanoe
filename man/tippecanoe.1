@@ -3,13 +3,9 @@
 Builds vector tilesets \[la]https://github.com/mapbox/vector-tile-spec/\[ra] from large (or small) collections of GeoJSON \[la]http://geojson.org/\[ra], FlatGeobuf \[la]https://github.com/flatgeobuf/flatgeobuf\[ra], or CSV \[la]https://en.wikipedia.org/wiki/Comma-separated_values\[ra] features,
 like these \[la]MADE_WITH.md\[ra]\&.
 .PP
-This intends to be an actively maintained fork of tippecanoe \[la]https://github.com/mapbox/tippecanoe\[ra] originally developed by Erica Fischer \[la]https://github.com/e-n-f\[ra] at Mapbox. Version 2.0.0 is equivalent to 1.36.0 \[la]https://github.com/mapbox/tippecanoe/tree/1.36.0\[ra] in the original repository. Thank you Mapbox and Erica for an incredible tool!
+This is the official home of Tippecanoe, developed and actively maintained by Erica Fischer \[la]https://github.com/e-n-f\[ra] at Felt \[la]https://felt.com\[ra]\&. 
 .PP
-Key features of this fork include:
-.RS
-.IP \(bu 2
-Support for FlatGeobuf \[la]https://github.com/flatgeobuf/flatgeobuf\[ra] input which is more compact and 5\-10x faster than GeoJsonSeq input.
-.RE
+Version 2.0.0 is equivalent to 1.36.0 \[la]https://github.com/mapbox/tippecanoe/tree/1.36.0\[ra] in the original repository. Thank you Mapbox for the many years of early support.
 .SH Intent
 .PP
 The goal of Tippecanoe is to enable making a scale\-independent view of your data,
@@ -327,7 +323,7 @@ If your input is formatted as newline\-delimited GeoJSON, use \fB\fC\-P\fR to ma
 .SS Output tileset
 .RS
 .IP \(bu 2
-\fB\fC\-o\fR \fIfile\fP\fB\fC\&.mbtiles\fR or \fB\fC\-\-output=\fR\fIfile\fP\fB\fC\&.mbtiles\fR: Name the output file.
+\fB\fC\-o\fR \fIfile\fP\fB\fC\&.mbtiles\fR, \fIfile\fP\fB\fC\&.pmtiles\fR or \fB\fC\-\-output=\fR\fIfile\fP\fB\fC\&.mbtiles\fR: Name the output file.
 .IP \(bu 2
 \fB\fC\-e\fR \fIdirectory\fP or \fB\fC\-\-output\-to\-directory\fR=\fIdirectory\fP: Write tiles to the specified \fIdirectory\fP instead of to an mbtiles file.
 .IP \(bu 2
@@ -939,7 +935,7 @@ Tile\-join is a tool for copying and merging vector mbtiles files and for
 joining new attributes from a CSV file to existing features in them.
 .PP
 It reads the tiles from an
-existing .mbtiles file or a directory of tiles, matches them against the
+existing .mbtiles file, .pmtiles file, or a directory of tiles, matches them against the
 records of the CSV (if one is specified), and writes out a new tileset.
 .PP
 If you specify multiple source mbtiles files or source directories of tiles,
@@ -951,7 +947,7 @@ The options are:
 .SS Output tileset
 .RS
 .IP \(bu 2
-\fB\fC\-o\fR \fIout.mbtiles\fP or \fB\fC\-\-output=\fR\fIout.mbtiles\fP: Write the new tiles to the specified .mbtiles file.
+\fB\fC\-o\fR \fIout.mbtiles\fP, \fIout.pmtiles\fP or \fB\fC\-\-output=\fR\fIout.mbtiles\fP: Write the new tiles to the specified .mbtiles file.
 .IP \(bu 2
 \fB\fC\-e\fR \fIdirectory\fP or \fB\fC\-\-output\-to\-directory=\fR\fIdirectory\fP: Write the new tiles to the specified directory instead of to an mbtiles file.
 .IP \(bu 2
@@ -1095,6 +1091,7 @@ on an entire file:
 .RS
 .nf
 tippecanoe\-decode file.mbtiles
+tippecanoe\-decode file.pmtiles
 .fi
 .RE
 .PP

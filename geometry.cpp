@@ -88,8 +88,8 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x >>= (32 - detail - z);
-		geom[i].y >>= (32 - detail - z);
+		geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
+		geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
 	}
 }
 
@@ -97,8 +97,8 @@ drawvec from_tile_scale(drawvec const &geom, int z, int detail) {
 	drawvec out;
 	for (size_t i = 0; i < geom.size(); i++) {
 		draw d = geom[i];
-		d.x <<= (32 - detail - z);
-		d.y <<= (32 - detail - z);
+		d.x *= (1LL << (32 - detail - z));
+		d.y *= (1LL << (32 - detail - z));
 		out.push_back(d);
 	}
 	return out;
@@ -111,7 +111,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && (geom[i].x >> shift) == x && (geom[i].y >> shift) == y) {
+		if (geom[i].op == VT_LINETO && std::round((double) geom[i].x / (1LL << shift)) == x && std::round((double) geom[i].y / (1LL << shift)) == y) {
 			continue;
 		}
 
@@ -119,8 +119,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 			out.push_back(geom[i]);
 		} else { /* moveto or lineto */
 			out.push_back(geom[i]);
-			x = geom[i].x >> shift;
-			y = geom[i].y >> shift;
+			x = std::round((double) geom[i].x / (1LL << shift));
+			y = std::round((double) geom[i].y / (1LL << shift));
 		}
 	}
 
@@ -159,7 +159,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
-				if (i > 0 && geom[i - 1].op == VT_LINETO && (geom[i - 1].x >> shift) == (geom[i].x >> shift) && (geom[i - 1].y >> shift) == (geom[i].y >> shift)) {
+				if (i > 0 && geom[i - 1].op == VT_LINETO && std::round((double) geom[i - 1].x / (1LL << shift)) == std::round((double) geom[i].x / (1LL << shift)) && std::round((double) geom[i - 1].y / (1LL << shift)) == std::round((double) geom[i].y / (1LL << shift))) {
 					continue;
 				}
 			}
@@ -1324,8 +1324,8 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 	double scale = 1 << (32 - detail - z);
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x = std::floor(geom[i].x / scale);
-		geom[i].y = std::floor(geom[i].y / scale);
+		geom[i].x = std::round(geom[i].x / scale);
+		geom[i].y = std::round(geom[i].y / scale);
 	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
