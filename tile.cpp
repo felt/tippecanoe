@@ -49,6 +49,68 @@ extern "C" {
 
 #include "plugin.hpp"
 
+struct decompressor {
+	FILE *fp = NULL;
+	z_stream zs;
+	std::string buf;
+
+	decompressor(FILE *f) {
+		fp = f;
+		buf.resize(5000);
+
+		zs.next_in = (Bytef *) buf.c_str();
+		zs.avail_in = 0;
+	}
+
+	decompressor() { }
+
+	void begin() {
+		zs.zalloc = NULL;
+		zs.zfree = NULL;
+		zs.opaque = NULL;
+		zs.msg = (char *) "";
+
+		int d = inflateInit(&zs);
+		if (d != Z_OK) {
+			fprintf(stderr, "initialize decompression: %d %s\n", d, zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	int fread(void *p, size_t size, size_t nmemb, std::atomic<long long> *geompos) {
+		zs.next_out = (Bytef *) p;
+		zs.avail_out = size * nmemb;
+
+		while (zs.avail_out > 0) {
+			if (zs.avail_in == 0) {
+				size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
+				if (n == 0) {
+					fprintf(stderr, "Reached EOF while decompressing\n");
+					exit(EXIT_IMPOSSIBLE);
+				}
+				zs.next_in = (Bytef *) buf.c_str();
+				zs.avail_in = n;
+			}
+
+			size_t avail_before = zs.avail_in;
+			int d = inflate(&zs, Z_NO_FLUSH);
+			*geompos += avail_before - zs.avail_in;
+
+			if (d == Z_OK) {
+				// it made some progress
+			} else if (d == Z_STREAM_END) {
+				// it may have made some progress and now we are done
+				break;
+			} else {
+				fprintf(stderr, "decompression error %d %s\n", d, zs.msg);
+				exit(EXIT_IMPOSSIBLE);
+			}
+		}
+
+		return (size * nmemb - zs.avail_out) / nmemb;
+	}
+};
+
 struct compressor {
 	FILE *fp = NULL;
 	z_stream zs;
@@ -1447,6 +1509,7 @@ struct write_tile_args {
 	struct json_object *filter = NULL;
 	std::atomic<size_t> *dropped_count = NULL;
 	atomic_strategy *strategy = NULL;
+	int zoom = -1;
 };
 
 bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
@@ -2928,13 +2991,23 @@ void *run_thread(void *vargs) {
 			continue;
 		}
 
-		// printf("%lld of geom_size\n", (long long) geom_size[j]);
+		// If this is zoom level 0, the geomfd will be uncompressed data,
+		// because (at least for now) it needs to stay uncompressed during
+		// the sort and post-sort maxzoom calculation and fixup so that
+		// the sort can rearrange individual features and the fixup can
+		// then adjust their minzooms without decompressing and recompressing
+		// each feature.
+		//
+		// In higher zooms, it will be compressed data written out during the
+		// previous zoom.
 
 		FILE *geom = fdopen(arg->geomfd[j], "rb");
 		if (geom == NULL) {
 			perror("open geom");
 			exit(EXIT_OPEN);
 		}
+
+		//decompressor dc(geom);
 
 		std::atomic<long long> geompos(0);
 		long long prevgeom = 0;
@@ -2945,6 +3018,10 @@ void *run_thread(void *vargs) {
 
 			if (!deserialize_int_io(geom, &z, &geompos)) {
 				break;
+			}
+			if (z != arg->zoom) {
+				fprintf(stderr, "Expected zoom %d, found zoom %d\n", arg->zoom, z);
+				exit(EXIT_IMPOSSIBLE);
 			}
 			deserialize_uint_io(geom, &x, &geompos);
 			deserialize_uint_io(geom, &y, &geompos);
@@ -3083,7 +3160,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 		}
 		// XXX is it useful to divide further if we know we are skipping
 		// some zoom levels? Is it faster to have fewer CPUs working on
-		// sharding, but more deeply, or fewer CPUs, less deeply?
+		// sharding, but more deeply, or more CPUs, less deeply?
 		if (threads > useful_threads) {
 			threads = useful_threads;
 		}
@@ -3221,6 +3298,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				args[thread].wrote_zoom = -1;
 				args[thread].still_dropping = false;
 				args[thread].strategy = &strategy;
+				args[thread].zoom = z;
 
 				if (pthread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
 					perror("pthread_create");
