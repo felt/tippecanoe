@@ -53,6 +53,7 @@ struct decompressor {
 	FILE *fp = NULL;
 	z_stream zs;
 	std::string buf;
+	bool within = false;
 
 	decompressor(FILE *f) {
 		fp = f;
@@ -65,6 +66,8 @@ struct decompressor {
 	decompressor() { }
 
 	void begin() {
+		within = true;
+
 		zs.zalloc = NULL;
 		zs.zfree = NULL;
 		zs.opaque = NULL;
@@ -77,6 +80,16 @@ struct decompressor {
 		}
 	}
 
+	void end() {
+		within = false;
+
+		int d = inflateEnd(&zs);
+		if (d != Z_OK) {
+			fprintf(stderr, "end decompression: %d %s\n", d, zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
 	int fread(void *p, size_t size, size_t nmemb, std::atomic<long long> *geompos) {
 		zs.next_out = (Bytef *) p;
 		zs.avail_out = size * nmemb;
@@ -85,25 +98,41 @@ struct decompressor {
 			if (zs.avail_in == 0) {
 				size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
 				if (n == 0) {
-					fprintf(stderr, "Reached EOF while decompressing\n");
-					exit(EXIT_IMPOSSIBLE);
+					if (within) {
+						fprintf(stderr, "Reached EOF while decompressing\n");
+						exit(EXIT_IMPOSSIBLE);
+					} else {
+						break;
+					}
 				}
 				zs.next_in = (Bytef *) buf.c_str();
 				zs.avail_in = n;
 			}
 
 			size_t avail_before = zs.avail_in;
-			int d = inflate(&zs, Z_NO_FLUSH);
-			*geompos += avail_before - zs.avail_in;
 
-			if (d == Z_OK) {
-				// it made some progress
-			} else if (d == Z_STREAM_END) {
-				// it may have made some progress and now we are done
-				break;
+			if (within) {
+				int d = inflate(&zs, Z_NO_FLUSH);
+				*geompos += avail_before - zs.avail_in;
+
+				if (d == Z_OK) {
+					// it made some progress
+				} else if (d == Z_STREAM_END) {
+					// it may have made some progress and now we are done
+					break;
+				} else {
+					fprintf(stderr, "decompression error %d %s\n", d, zs.msg);
+					exit(EXIT_IMPOSSIBLE);
+				}
 			} else {
-				fprintf(stderr, "decompression error %d %s\n", d, zs.msg);
-				exit(EXIT_IMPOSSIBLE);
+				size_t n = std::min(zs.avail_in, zs.avail_out);
+				memcpy(zs.next_out, zs.next_in, n);
+				*geompos += n;
+
+				zs.avail_out -= n;
+				zs.avail_in -= n;
+				zs.next_out += n;
+				zs.next_in += n;
 			}
 		}
 
