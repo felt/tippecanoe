@@ -67,6 +67,7 @@ struct decompressor {
 
 	void begin() {
 		within = true;
+		printf("------- BEGIN\n");
 
 		zs.zalloc = NULL;
 		zs.zfree = NULL;
@@ -81,16 +82,6 @@ struct decompressor {
 
 		zs.avail_in = 0;
 		zs.avail_out = 0;
-	}
-
-	void end() {
-		within = false;
-
-		int d = inflateEnd(&zs);
-		if (d != Z_OK) {
-			fprintf(stderr, "end decompression: %d %s\n", d, zs.msg);
-			exit(EXIT_IMPOSSIBLE);
-		}
 	}
 
 	int fread(void *p, size_t size, size_t nmemb, std::atomic<long long> *geompos) {
@@ -124,6 +115,7 @@ struct decompressor {
 				if (d == Z_OK) {
 					// it made some progress
 				} else if (d == Z_STREAM_END) {
+					printf("-------------- EOS\n");
 					// it may have made some progress and now we are done
 					break;
 				} else {
@@ -145,6 +137,26 @@ struct decompressor {
 
 		printf("returning %zu\n", size * nmemb - zs.avail_out);
 		return (size * nmemb - zs.avail_out) / size;
+	}
+
+	void end(std::atomic<long long> *geompos) {
+#if 0
+		// consume the trailer of the compressed stream
+		char s[20];
+		int n;
+		while ((n = fread(s, sizeof(char), 20, geompos)) != 0) {
+			printf("read extra %d\n", n);
+		}
+#endif
+
+		within = false;
+		printf("------- END\n");
+
+		int d = inflateEnd(&zs);
+		if (d != Z_OK) {
+			fprintf(stderr, "end decompression: %d %s\n", d, zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
 	}
 
 	int deserialize_ulong_long(unsigned long long *zigzag, std::atomic<long long> *geompos) {
@@ -1682,16 +1694,18 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		long long len;
 
 		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
+			printf("------ <<<<<< deserialization failure, end of tile\n");
 			if (z != 0) {
-				geoms->end();
+				geoms->end(geompos_in);
 			}
 
 			sf.t = -2;
 			return sf;
 		}
 		if (len == 0) {
+			printf("------ <<<<<< feature len 0, end of tile\n");
 			if (z != 0) {
-				geoms->end();
+				geoms->end(geompos_in);
 			}
 
 			sf.t = -2;
@@ -2193,7 +2207,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		if (*geompos_in != og) {
 			if (z != 0) {
-				geoms->end();
+				geoms->end(geompos_in);
 				geoms->begin();
 			}
 
@@ -2683,7 +2697,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		int j;
 		for (j = 0; j < child_shards; j++) {
 			if (within[j]) {
-				geomfile[j]->serialize_ulong_long(0, &geompos[j], fname);  // EOF
+				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
 				within[j] = 0;
 			}
@@ -3117,12 +3131,13 @@ void *run_thread(void *vargs) {
 			if (!deserialize_int_io(geom, &z, &geompos)) {
 				break;
 			}
+			deserialize_uint_io(geom, &x, &geompos);
+			deserialize_uint_io(geom, &y, &geompos);
+			printf("------- %d/%d/%d\n", z, x, y);
 			if (z != arg->zoom) {
 				fprintf(stderr, "Expected zoom %d, found zoom %d\n", arg->zoom, z);
 				exit(EXIT_IMPOSSIBLE);
 			}
-			deserialize_uint_io(geom, &x, &geompos);
-			deserialize_uint_io(geom, &y, &geompos);
 
 			if (z != 0) {
 				dc.begin();
