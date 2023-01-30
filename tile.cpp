@@ -573,10 +573,10 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 
 				{
 					if (!within[j]) {
+						serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
+						serialize_uint(geomfile[j]->fp, tx * span + xo, &geompos[j], fname);
+						serialize_uint(geomfile[j]->fp, ty * span + yo, &geompos[j], fname);
 						geomfile[j]->begin();
-						geomfile[j]->serialize_int(nextzoom, &geompos[j], fname);
-						geomfile[j]->serialize_uint(tx * span + xo, &geompos[j], fname);
-						geomfile[j]->serialize_uint(ty * span + yo, &geompos[j], fname);
 						within[j] = 1;
 					}
 
