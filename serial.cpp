@@ -301,39 +301,9 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	return s;
 }
 
-serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
+serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
 	serial_feature sf;
-	std::string s;
-	long long len;
-
-	if (deserialize_long_long_io(geoms, &len, geompos_in) == 0) {
-		sf.t = -2;
-		return sf;
-	}
-	if (len == 0) {
-		sf.t = -2;
-		return sf;
-	}
-
-	s.resize(std::abs(len));
-	size_t n = fread((void *) s.c_str(), sizeof(char), s.size(), geoms);
-	if (n != s.size()) {
-		fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
-		exit(EXIT_READ);
-	}
-	*geompos_in += n;
-
-	if (len < 0) {
-		std::string d;
-		if (decompress(s, d) == 0) {
-			fprintf(stderr, "Internal decompression failure\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
-		s = d;
-		len = s.size();
-	}
-
-	char *cp = (char *) s.c_str();
+	char *cp = (char *) geoms.c_str();
 
 	deserialize_byte(&cp, &sf.t);
 	deserialize_long_long(&cp, &sf.layer);
@@ -392,8 +362,8 @@ serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_
 	// MAGIC: This knows that the feature minzoom is the last byte of the feature.
 	deserialize_byte(&cp, &sf.feature_minzoom);
 
-	if (cp != s.c_str() + len) {
-		fprintf(stderr, "wrong length decoding feature: used %zd, len is %llu\n", cp - s.c_str(), len);
+	if (cp != geoms.c_str() + geoms.size()) {
+		fprintf(stderr, "wrong length decoding feature: used %zd, len is %zu\n", cp - geoms.c_str(), geoms.size());
 		exit(EXIT_IMPOSSIBLE);
 	}
 

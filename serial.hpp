@@ -76,7 +76,7 @@ struct serial_feature {
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
-serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
 
 struct reader {
 	int poolfd = -1;
