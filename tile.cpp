@@ -112,11 +112,14 @@ struct decompressor {
 				zs.avail_in = n;
 			}
 
+			printf("to read %d, to write %d, %s\n", zs.avail_in, zs.avail_out, within ? "within": "not");
+
 			size_t avail_before = zs.avail_in;
 
 			if (within) {
 				int d = inflate(&zs, Z_NO_FLUSH);
 				*geompos += avail_before - zs.avail_in;
+				printf("consumed %zu from compression\n", avail_before - zs.avail_in);
 
 				if (d == Z_OK) {
 					// it made some progress
@@ -131,6 +134,7 @@ struct decompressor {
 				size_t n = std::min(zs.avail_in, zs.avail_out);
 				memcpy(zs.next_out, zs.next_in, n);
 				*geompos += n;
+				printf("consumed %zu\n", n);
 
 				zs.avail_out -= n;
 				zs.avail_in -= n;
@@ -139,7 +143,8 @@ struct decompressor {
 			}
 		}
 
-		return (size * nmemb - zs.avail_out) / nmemb;
+		printf("returning %zu\n", size * nmemb - zs.avail_out);
+		return (size * nmemb - zs.avail_out) / size;
 	}
 
 	int deserialize_ulong_long(unsigned long long *zigzag, std::atomic<long long> *geompos) {
@@ -1677,12 +1682,18 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		long long len;
 
 		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
-			geoms->end();
+			if (z != 0) {
+				geoms->end();
+			}
+
 			sf.t = -2;
 			return sf;
 		}
 		if (len == 0) {
-			geoms->end();
+			if (z != 0) {
+				geoms->end();
+			}
+
 			sf.t = -2;
 			return sf;
 		}
