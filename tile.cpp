@@ -116,6 +116,7 @@ struct decompressor {
 					// it made some progress
 				} else if (d == Z_STREAM_END) {
 					printf("-------------- EOS\n");
+					within = false;
 					// it may have made some progress and now we are done
 					break;
 				} else {
@@ -140,6 +141,11 @@ struct decompressor {
 	}
 
 	void end(std::atomic<long long> *geompos) {
+		printf("----- left in the buffer:\n");
+		for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
+			printf("%d ", zs.next_in[i] & 0xFF);
+		}
+		printf("\n");
 #if 0
 		// consume the trailer of the compressed stream
 		char s[20];
@@ -189,6 +195,19 @@ struct decompressor {
 		return ret;
 	}
 
+	int deserialize_int(int *n, std::atomic<long long> *geompos) {
+		long long ll = 0;
+		int ret = deserialize_long_long(&ll, geompos);
+		*n = ll;
+		return ret;
+	}
+
+	int deserialize_uint(unsigned *n, std::atomic<long long> *geompos) {
+		unsigned long long v;
+		deserialize_ulong_long(&v, geompos);
+		*n = v;
+		return 1;
+	}
 };
 
 struct compressor {
@@ -246,6 +265,8 @@ struct compressor {
 			fprintf(stderr, "%s: end compression: %d %s\n", fname, d, zs.msg);
 			exit(EXIT_IMPOSSIBLE);
 		}
+
+		// ::fwrite_check("aaaaaaaaa", 1, 9, fp, fpos, fname);
 	}
 
 	int fclose() {
@@ -3128,11 +3149,14 @@ void *run_thread(void *vargs) {
 			int z;
 			unsigned x, y;
 
-			if (!deserialize_int_io(geom, &z, &geompos)) {
+			// These z/x/y are uncompressed so we can seek to the start of the
+			// compressed feature data that immediately follows.
+
+			if (!dc.deserialize_int(&z, &geompos)) {
 				break;
 			}
-			deserialize_uint_io(geom, &x, &geompos);
-			deserialize_uint_io(geom, &y, &geompos);
+			dc.deserialize_uint(&x, &geompos);
+			dc.deserialize_uint(&y, &geompos);
 			printf("------- %d/%d/%d\n", z, x, y);
 			if (z != arg->zoom) {
 				fprintf(stderr, "Expected zoom %d, found zoom %d\n", arg->zoom, z);
