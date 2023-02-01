@@ -116,9 +116,9 @@ struct decompressor {
 				if (d == Z_OK) {
 					// it made some progress
 				} else if (d == Z_STREAM_END) {
-					printf("-------------- EOS\n");
-					within = false;
+					printf("-------------- EOS got stream end\n");
 					// it may have made some progress and now we are done
+					within = false;
 					break;
 				} else {
 					fprintf(stderr, "decompression error %d %s\n", d, zs.msg);
@@ -147,6 +147,18 @@ struct decompressor {
 			printf("%d ", zs.next_in[i] & 0xFF);
 		}
 		printf("\n");
+
+		if (zs.avail_in == 0) {
+			size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
+			zs.next_in = (Bytef *) buf.c_str();
+			zs.avail_in = n;
+
+			printf("----- now in the buffer:\n");
+			for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
+				printf("%d ", zs.next_in[i] & 0xFF);
+			}
+			printf("\n");
+		}
 #if 0
 		// consume the trailer of the compressed stream
 		char s[20];
@@ -155,6 +167,15 @@ struct decompressor {
 			printf("read extra %d\n", n);
 		}
 #endif
+
+		if (within) {
+			zs.avail_out = 0;
+			int d = inflate(&zs, Z_NO_FLUSH);
+			if (d != Z_STREAM_END) {
+				fprintf(stderr, "decompression: got %d, not Z_STREAM_END\n", d);
+				exit(EXIT_FAILURE);
+			}
+		}
 
 		within = false;
 		printf("------- END\n");
@@ -238,7 +259,12 @@ struct compressor {
 		std::string buf;
 		buf.resize(5000);
 
-		zs.next_in = zs.next_out;
+		if (zs.avail_in != 0) {
+			fprintf(stderr, "compression end called with data available\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		zs.next_in = (Bytef *) buf.c_str();
 		zs.avail_in = 0;
 
 		while (true) {
@@ -261,11 +287,16 @@ struct compressor {
 			break;
 		}
 
+		zs.next_out = (Bytef *) buf.c_str();
+		zs.avail_out = buf.size();
+
 		int d = deflateEnd(&zs);
 		if (d != Z_OK) {
 			fprintf(stderr, "%s: end compression: %d %s\n", fname, d, zs.msg);
 			exit(EXIT_IMPOSSIBLE);
 		}
+
+		::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
 
 		// ::fwrite_check("aaaaaaaaa", 1, 9, fp, fpos, fname);
 	}
@@ -3144,6 +3175,7 @@ void *run_thread(void *vargs) {
 		}
 
 		decompressor dc(geom);
+		printf("-------------------------- new file\n");
 
 		std::atomic<long long> geompos(0);
 		long long prevgeom = 0;
