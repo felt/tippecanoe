@@ -24,7 +24,7 @@
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
-#define SHIFT_RIGHT(a) ((((a) + COORD_OFFSET) >> geometry_scale) - (COORD_OFFSET >> geometry_scale))
+#define SHIFT_RIGHT(a) ((long long) std::round((double)(a) / (1LL << geometry_scale)))
 #define SHIFT_LEFT(a) ((((a) + (COORD_OFFSET >> geometry_scale)) << geometry_scale) - COORD_OFFSET)
 
 // write to file
@@ -409,8 +409,8 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 					*(sst->initial_x) = 1LL << 31;
 					*(sst->initial_y) = 1LL << 31;
 				} else {
-					*(sst->initial_x) = (((x + COORD_OFFSET) >> geometry_scale) << geometry_scale) - COORD_OFFSET;
-					*(sst->initial_y) = (((y + COORD_OFFSET) >> geometry_scale) << geometry_scale) - COORD_OFFSET;
+					*(sst->initial_x) = SHIFT_LEFT(SHIFT_RIGHT(x));
+					*(sst->initial_y) = SHIFT_LEFT(SHIFT_RIGHT(y));
 				}
 
 				*(sst->initialized) = 1;
