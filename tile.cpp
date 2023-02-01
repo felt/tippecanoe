@@ -67,7 +67,6 @@ struct decompressor {
 
 	void begin() {
 		within = true;
-		// printf("------- BEGIN\n");
 
 		zs.zalloc = NULL;
 		zs.zfree = NULL;
@@ -100,23 +99,15 @@ struct decompressor {
 				zs.avail_in = n;
 			}
 
-			// printf("to read %d, to write %d, %s\n", zs.avail_in, zs.avail_out, within ? "within": "not");
-			// for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
-			//	printf("%d ", zs.next_in[i]);
-			// }
-			// printf("\n");
-
 			size_t avail_before = zs.avail_in;
 
 			if (within) {
 				int d = inflate(&zs, Z_NO_FLUSH);
 				*geompos += avail_before - zs.avail_in;
-				// printf("consumed %zu from compression\n", avail_before - zs.avail_in);
 
 				if (d == Z_OK) {
 					// it made some progress
 				} else if (d == Z_STREAM_END) {
-					// printf("-------------- EOS got stream end\n");
 					// it may have made some progress and now we are done
 					within = false;
 					break;
@@ -128,7 +119,6 @@ struct decompressor {
 				size_t n = std::min(zs.avail_in, zs.avail_out);
 				memcpy(zs.next_out, zs.next_in, n);
 				*geompos += n;
-				// printf("consumed %zu\n", n);
 
 				zs.avail_out -= n;
 				zs.avail_in -= n;
@@ -137,27 +127,14 @@ struct decompressor {
 			}
 		}
 
-		// printf("returning %zu\n", size * nmemb - zs.avail_out);
 		return (size * nmemb - zs.avail_out) / size;
 	}
 
-	void end(std::atomic<long long> *geompos) {
-		// printf("----- left in the buffer:\n");
-		// for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
-		//	printf("%d ", zs.next_in[i] & 0xFF);
-		// }
-		// printf("\n");
-
+	void end(std::atomic<long long> *) {
 		if (zs.avail_in == 0) {
 			size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
 			zs.next_in = (Bytef *) buf.c_str();
 			zs.avail_in = n;
-
-			// printf("----- now in the buffer:\n");
-			// for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
-			// 	printf("%d ", zs.next_in[i] & 0xFF);
-			// }
-			// printf("\n");
 		}
 
 		if (within) {
@@ -170,7 +147,6 @@ struct decompressor {
 		}
 
 		within = false;
-		// printf("------- END\n");
 
 		int d = inflateEnd(&zs);
 		if (d != Z_OK) {
@@ -1740,7 +1716,6 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		long long len;
 
 		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
-			printf("------ <<<<<< deserialization failure, end of tile\n");
 			if (compressed) {
 				geoms->end(geompos_in);
 			}
@@ -1749,7 +1724,6 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			return sf;
 		}
 		if (len == 0) {
-			printf("------ <<<<<< feature len 0, end of tile\n");
 			if (compressed) {
 				geoms->end(geompos_in);
 			}
@@ -2254,8 +2228,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		if (*geompos_in != og) {
 			if (compressed_input) {
-				long long n = *geompos_in;
-				printf("-------- seek: end %lld to %lld\n", n, og);
 				if (geoms->within) {
 					geoms->end(geompos_in);
 				}
@@ -2267,6 +2239,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				perror("fseek geom");
 				exit(EXIT_SEEK);
 			}
+
 			*geompos_in = og;
 			geoms->zs.avail_in = 0;
 			geoms->zs.avail_out = 0;
@@ -3175,7 +3148,6 @@ void *run_thread(void *vargs) {
 		}
 
 		decompressor dc(geom);
-		printf("-------------------------- new file\n");
 
 		std::atomic<long long> geompos(0);
 		long long prevgeom = 0;
@@ -3192,8 +3164,8 @@ void *run_thread(void *vargs) {
 			}
 			dc.deserialize_uint(&x, &geompos);
 			dc.deserialize_uint(&y, &geompos);
-			printf("------- %d/%d/%d\n", z, x, y);
 #if 0
+			// currently broken because also requires tracking nextzoom when skipping zooms
 			if (z != arg->zoom) {
 				fprintf(stderr, "Expected zoom %d, found zoom %d\n", arg->zoom, z);
 				exit(EXIT_IMPOSSIBLE);
@@ -3329,6 +3301,11 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			todo += geom_size[j];
 			if (geom_size[j] > 0) {
 				useful_threads++;
+			}
+		}
+		if (z == iz + 1) {
+			if (!quiet) {
+				fprintf(stderr, "(compressed geometry size %lld for zoom level %d)\n", todo, z);
 			}
 		}
 
