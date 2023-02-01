@@ -67,7 +67,7 @@ struct decompressor {
 
 	void begin() {
 		within = true;
-		printf("------- BEGIN\n");
+		// printf("------- BEGIN\n");
 
 		zs.zalloc = NULL;
 		zs.zfree = NULL;
@@ -100,23 +100,23 @@ struct decompressor {
 				zs.avail_in = n;
 			}
 
-			printf("to read %d, to write %d, %s\n", zs.avail_in, zs.avail_out, within ? "within": "not");
-			for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
-				printf("%d ", zs.next_in[i]);
-			}
-			printf("\n");
+			// printf("to read %d, to write %d, %s\n", zs.avail_in, zs.avail_out, within ? "within": "not");
+			// for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
+			//	printf("%d ", zs.next_in[i]);
+			// }
+			// printf("\n");
 
 			size_t avail_before = zs.avail_in;
 
 			if (within) {
 				int d = inflate(&zs, Z_NO_FLUSH);
 				*geompos += avail_before - zs.avail_in;
-				printf("consumed %zu from compression\n", avail_before - zs.avail_in);
+				// printf("consumed %zu from compression\n", avail_before - zs.avail_in);
 
 				if (d == Z_OK) {
 					// it made some progress
 				} else if (d == Z_STREAM_END) {
-					printf("-------------- EOS got stream end\n");
+					// printf("-------------- EOS got stream end\n");
 					// it may have made some progress and now we are done
 					within = false;
 					break;
@@ -128,7 +128,7 @@ struct decompressor {
 				size_t n = std::min(zs.avail_in, zs.avail_out);
 				memcpy(zs.next_out, zs.next_in, n);
 				*geompos += n;
-				printf("consumed %zu\n", n);
+				// printf("consumed %zu\n", n);
 
 				zs.avail_out -= n;
 				zs.avail_in -= n;
@@ -137,36 +137,28 @@ struct decompressor {
 			}
 		}
 
-		printf("returning %zu\n", size * nmemb - zs.avail_out);
+		// printf("returning %zu\n", size * nmemb - zs.avail_out);
 		return (size * nmemb - zs.avail_out) / size;
 	}
 
 	void end(std::atomic<long long> *geompos) {
-		printf("----- left in the buffer:\n");
-		for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
-			printf("%d ", zs.next_in[i] & 0xFF);
-		}
-		printf("\n");
+		// printf("----- left in the buffer:\n");
+		// for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
+		//	printf("%d ", zs.next_in[i] & 0xFF);
+		// }
+		// printf("\n");
 
 		if (zs.avail_in == 0) {
 			size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
 			zs.next_in = (Bytef *) buf.c_str();
 			zs.avail_in = n;
 
-			printf("----- now in the buffer:\n");
-			for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
-				printf("%d ", zs.next_in[i] & 0xFF);
-			}
-			printf("\n");
+			// printf("----- now in the buffer:\n");
+			// for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
+			// 	printf("%d ", zs.next_in[i] & 0xFF);
+			// }
+			// printf("\n");
 		}
-#if 0
-		// consume the trailer of the compressed stream
-		char s[20];
-		int n;
-		while ((n = fread(s, sizeof(char), 20, geompos)) != 0) {
-			printf("read extra %d\n", n);
-		}
-#endif
 
 		if (within) {
 			zs.avail_out = 0;
@@ -178,7 +170,7 @@ struct decompressor {
 		}
 
 		within = false;
-		printf("------- END\n");
+		// printf("------- END\n");
 
 		int d = inflateEnd(&zs);
 		if (d != Z_OK) {
