@@ -79,9 +79,6 @@ struct decompressor {
 			fprintf(stderr, "initialize decompression: %d %s\n", d, zs.msg);
 			exit(EXIT_IMPOSSIBLE);
 		}
-
-		zs.avail_in = 0;
-		zs.avail_out = 0;
 	}
 
 	int fread(void *p, size_t size, size_t nmemb, std::atomic<long long> *geompos) {
@@ -104,6 +101,10 @@ struct decompressor {
 			}
 
 			printf("to read %d, to write %d, %s\n", zs.avail_in, zs.avail_out, within ? "within": "not");
+			for (size_t i = 0; i < 50 && i < zs.avail_in; i++) {
+				printf("%d ", zs.next_in[i]);
+			}
+			printf("\n");
 
 			size_t avail_before = zs.avail_in;
 
@@ -2228,6 +2229,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		if (*geompos_in != og) {
 			if (z != 0) {
+				long long n = *geompos_in;
+				printf("-------- seek: end %lld to %lld\n", n, og);
 				geoms->end(geompos_in);
 				geoms->begin();
 			}
