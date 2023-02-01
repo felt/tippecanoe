@@ -25,7 +25,7 @@
 
 static int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 
-drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
+drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
 	drawvec out;
 
 	bbox[0] = LLONG_MAX;
@@ -38,10 +38,7 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 	while (1) {
 		draw d;
 
-		if (!deserialize_byte_io(meta, &d.op, geompos)) {
-			fprintf(stderr, "Internal error: Unexpected end of file in geometry\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
+		deserialize_byte(meta, &d.op);
 		if (d.op == VT_END) {
 			break;
 		}
@@ -49,8 +46,8 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
 			long long dx, dy;
 
-			deserialize_long_long_io(meta, &dx, geompos);
-			deserialize_long_long_io(meta, &dy, geompos);
+			deserialize_long_long(meta, &dx);
+			deserialize_long_long(meta, &dy);
 
 			wx += dx * (1 << geometry_scale);
 			wy += dy * (1 << geometry_scale);

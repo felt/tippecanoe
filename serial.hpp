@@ -11,7 +11,7 @@
 #include "mbtiles.hpp"
 #include "jsonpull/jsonpull.h"
 
-size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, const char *fname);
+size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, std::atomic<long long> *fpos, const char *fname);
 
 void serialize_int(FILE *out, int n, std::atomic<long long> *fpos, const char *fname);
 void serialize_long_long(FILE *out, long long n, std::atomic<long long> *fpos, const char *fname);
@@ -19,11 +19,11 @@ void serialize_ulong_long(FILE *out, unsigned long long n, std::atomic<long long
 void serialize_byte(FILE *out, signed char n, std::atomic<long long> *fpos, const char *fname);
 void serialize_uint(FILE *out, unsigned n, std::atomic<long long> *fpos, const char *fname);
 
-void serialize_int(std::string &out, int n, std::atomic<long long> *fpos);
-void serialize_long_long(std::string &out, long long n, std::atomic<long long> *fpos);
-void serialize_ulong_long(std::string &out, unsigned long long n, std::atomic<long long> *fpos);
-void serialize_byte(std::string &out, signed char n, std::atomic<long long> *fpos);
-void serialize_uint(std::string &out, unsigned n, std::atomic<long long> *fpos);
+void serialize_int(std::string &out, int n);
+void serialize_long_long(std::string &out, long long n);
+void serialize_ulong_long(std::string &out, unsigned long long n);
+void serialize_byte(std::string &out, signed char n);
+void serialize_uint(std::string &out, unsigned n);
 
 void deserialize_int(char **f, int *n);
 void deserialize_long_long(char **f, long long *n);
@@ -75,8 +75,8 @@ struct serial_feature {
 	bool dropped = false;
 };
 
-void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long> *geompos, const char *fname, long long wx, long long wy, bool include_minzoom);
-serial_feature deserialize_feature(FILE *geoms, std::atomic<long long> *geompos_in, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
+serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
 
 struct reader {
 	int poolfd = -1;

@@ -544,7 +544,7 @@ void *join_worker(void *v) {
 			std::string compressed;
 
 			if (!pC) {
-				compress(pbf, compressed);
+				compress(pbf, compressed, true);
 			} else {
 				compressed = pbf;
 			}
