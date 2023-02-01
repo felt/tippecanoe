@@ -2264,7 +2264,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (compressed_input) {
 				long long n = *geompos_in;
 				printf("-------- seek: end %lld to %lld\n", n, og);
-				geoms->end(geompos_in);
+				if (geoms->within) {
+					geoms->end(geompos_in);
+				}
+
 				geoms->begin();
 			}
 
@@ -2273,6 +2276,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				exit(EXIT_SEEK);
 			}
 			*geompos_in = og;
+			geoms->zs.avail_in = 0;
+			geoms->zs.avail_out = 0;
 		}
 
 		int prefilter_write = -1, prefilter_read = -1;
