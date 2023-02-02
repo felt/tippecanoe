@@ -320,6 +320,14 @@ struct ordercmp {
 			}
 		}
 
+		if (prevent[P_INPUT_ORDER]) {
+			if (a.original_seq < b.original_seq) {
+				return true;
+			} else if (a.original_seq > b.original_seq) {
+				return false;
+			}  // else they are equal, so continue to the index
+		}
+
 		if (a.index < b.index) {
 			return true;
 		}
@@ -479,6 +487,72 @@ struct partial_arg {
 	int tasks = 0;
 	drawvec *shared_nodes;
 };
+
+static mvt_value find_attribute_value(const partial *c1, std::string key, const char *stringpool, long long pool_off[]) {
+	if (key == ORDER_BY_SIZE) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+
+	const std::vector<long long> &keys1 = c1->keys;
+	const std::vector<long long> &values1 = c1->values;
+	const char *stringpool1 = stringpool + pool_off[c1->segment];
+
+	for (size_t i = 0; i < keys1.size(); i++) {
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
+		if (key == key1.string_value) {
+			return retrieve_string(values1[i], stringpool1, NULL);
+		}
+	}
+
+	for (size_t i = 0; i < c1->full_keys.size(); i++) {
+		if (c1->full_keys[i] == key) {
+			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
+		}
+	}
+
+	mvt_value v;
+	v.type = mvt_null;
+	v.numeric_value.null_value = 0;
+	return v;
+}
+
+static bool order_partials(const char *stringpool, long long pool_off[], const partial &a, const partial &b) {
+	for (size_t i = 0; i < order_by.size(); i++) {
+		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, stringpool, pool_off));
+		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, stringpool, pool_off));
+
+		if (order_by[i].descending) {
+			if (v2 < v1) {
+				return true;
+			} else if (v1 < v2) {
+				return false;
+			}  // else they are equal, so continue to the next attribute
+		} else {
+			if (v1 < v2) {
+				return true;
+			} else if (v2 < v1) {
+				return false;
+			}  // else they are equal, so continue to the next attribute
+		}
+	}
+
+	if (prevent[P_INPUT_ORDER]) {
+		if (a.original_seq < b.original_seq) {
+			return true;
+		} else if (a.original_seq > b.original_seq) {
+			return false;
+		}  // else they are equal, so continue to the index
+	}
+
+	if (a.index < b.index) {
+		return true;
+	}
+
+	return false;  // greater than or equal
+}
 
 drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	// From area in world coordinates to area in tile coordinates
