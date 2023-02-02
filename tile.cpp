@@ -480,7 +480,7 @@ struct partial {
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
 
-	partial(serial_feature &sf) {
+	partial(serial_feature &sf, int z_, int tx_, int ty_, int line_detail_, int maxzoom_, double simplification_) {
 		geoms.clear();
 		geoms.push_back(sf.geometry);
 
@@ -497,6 +497,18 @@ struct partial {
 		index = sf.index;
 		label_point = sf.label_point;
 		extent = sf.extent;
+
+		z = z_;
+		tx = tx_;
+		ty = ty_;
+		line_detail = line_detail_;
+		extra_detail = line_detail_;
+		maxzoom = maxzoom_;
+		simplification = simplification_;
+
+		coalesced = false;
+		renamed = -1;
+		clustered = 0;
 	}
 };
 
@@ -2162,7 +2174,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 					if (order_by.size() > 0) {
 						if (order_partials(stringpool, pool_off, sf, partials[which_partial])) {
-							partials[which_partial] = partial(sf);
+							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
 							// XXX preserve_attributes
 						}
 					}
@@ -2313,19 +2325,10 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 						}
 					}
 
-					partial p(sf);
+					partial p(sf, z, tx, ty, line_detail, maxzoom, simplification);
+
 					p.reduced = reduced;
-					p.coalesced = false;
-					p.z = z;
-					p.tx = tx;
-					p.ty = ty;
-					p.line_detail = line_detail;
-					p.extra_detail = line_detail;
-					p.maxzoom = maxzoom;
 					p.spacing = spacing;
-					p.simplification = simplification;
-					p.renamed = -1;
-					p.clustered = 0;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						p.extra_detail = extra_detail;
