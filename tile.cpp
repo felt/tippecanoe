@@ -479,6 +479,25 @@ struct partial {
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
+
+	partial(serial_feature &sf) {
+		geoms.clear();
+		geoms.push_back(sf.geometry);
+
+		layer = sf.layer;
+		t = sf.t;
+		segment = sf.segment;
+		original_seq = sf.seq;
+		keys = sf.keys;
+		values = sf.values;
+		full_keys = sf.full_keys;
+		full_values = sf.full_values;
+		id = sf.id;
+		has_id = sf.has_id;
+		index = sf.index;
+		label_point = sf.label_point;
+		extent = sf.extent;
+	}
 };
 
 struct partial_arg {
@@ -487,6 +506,39 @@ struct partial_arg {
 	int tasks = 0;
 	drawvec *shared_nodes;
 };
+
+// THIS IS RIDICULOUS to have three almost-identical representations for features. FIX FIX FIX
+
+static mvt_value find_attribute_value(const serial_feature *c1, std::string key, const char *stringpool, long long pool_off[]) {
+	if (key == ORDER_BY_SIZE) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+
+	const std::vector<long long> &keys1 = c1->keys;
+	const std::vector<long long> &values1 = c1->values;
+	const char *stringpool1 = stringpool + pool_off[c1->segment];
+
+	for (size_t i = 0; i < keys1.size(); i++) {
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
+		if (key == key1.string_value) {
+			return retrieve_string(values1[i], stringpool1, NULL);
+		}
+	}
+
+	for (size_t i = 0; i < c1->full_keys.size(); i++) {
+		if (c1->full_keys[i] == key) {
+			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
+		}
+	}
+
+	mvt_value v;
+	v.type = mvt_null;
+	v.numeric_value.null_value = 0;
+	return v;
+}
 
 static mvt_value find_attribute_value(const partial *c1, std::string key, const char *stringpool, long long pool_off[]) {
 	if (key == ORDER_BY_SIZE) {
@@ -519,7 +571,7 @@ static mvt_value find_attribute_value(const partial *c1, std::string key, const 
 	return v;
 }
 
-static bool order_partials(const char *stringpool, long long pool_off[], const partial &a, const partial &b) {
+static bool order_partials(const char *stringpool, long long pool_off[], const serial_feature &a, const partial &b) {
 	for (size_t i = 0; i < order_by.size(); i++) {
 		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, stringpool, pool_off));
 		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, stringpool, pool_off));
@@ -540,9 +592,9 @@ static bool order_partials(const char *stringpool, long long pool_off[], const p
 	}
 
 	if (prevent[P_INPUT_ORDER]) {
-		if (a.original_seq < b.original_seq) {
+		if (a.seq < b.original_seq) {
 			return true;
-		} else if (a.original_seq > b.original_seq) {
+		} else if (a.seq > b.original_seq) {
 			return false;
 		}  // else they are equal, so continue to the index
 	}
@@ -2106,6 +2158,15 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			if (sf.dropped) {
 				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+					// would it have been better to drop this other feature instead?
+
+					if (order_by.size() > 0) {
+						if (order_partials(stringpool, pool_off, sf, partials[which_partial])) {
+							partials[which_partial] = partial(sf);
+							// XXX preserve_attributes
+						}
+					}
+
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_by_rate++;
 					continue;
@@ -2252,12 +2313,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 						}
 					}
 
-					partial p;
-					p.geoms.push_back(sf.geometry);
-					p.layer = sf.layer;
-					p.t = sf.t;
-					p.segment = sf.segment;
-					p.original_seq = sf.seq;
+					partial p(sf);
 					p.reduced = reduced;
 					p.coalesced = false;
 					p.z = z;
@@ -2266,18 +2322,9 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					p.line_detail = line_detail;
 					p.extra_detail = line_detail;
 					p.maxzoom = maxzoom;
-					p.keys = sf.keys;
-					p.values = sf.values;
-					p.full_keys = sf.full_keys;
-					p.full_values = sf.full_values;
 					p.spacing = spacing;
 					p.simplification = simplification;
-					p.id = sf.id;
-					p.has_id = sf.has_id;
-					p.index = sf.index;
-					p.label_point = sf.label_point;
 					p.renamed = -1;
-					p.extent = sf.extent;
 					p.clustered = 0;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
