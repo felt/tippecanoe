@@ -3292,7 +3292,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			}
 			compressors[j] = compressor(fp);
 			sub[j] = &compressors[j];
-			// unlink(geomname);
+			unlink(geomname);
 		}
 
 		size_t useful_threads = 0;
