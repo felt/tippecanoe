@@ -1772,7 +1772,11 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				if (goodness <= 0) {
 					double lon, lat;
 					tile2lonlat(d.x, d.y, 32, &lon, &lat);
-					fprintf(stderr, "could not find label point: %s %f,%f\n", kind, lat, lon);
+
+					static std::atomic<long long> warned(0);
+					if (warned++ < 10) {
+						fprintf(stderr, "could not find good label point: %s %f,%f\n", kind, lat, lon);
+					}
 				}
 			}
 
