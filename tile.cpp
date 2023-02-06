@@ -130,7 +130,7 @@ struct decompressor {
 		return (size * nmemb - zs.avail_out) / size;
 	}
 
-	void end(std::atomic<long long> *) {
+	void end(std::atomic<long long> *geompos) {
 		if (zs.avail_in == 0) {
 			size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
 			zs.next_in = (Bytef *) buf.c_str();
@@ -139,7 +139,11 @@ struct decompressor {
 
 		if (within) {
 			zs.avail_out = 0;
+
+			size_t avail_before = zs.avail_in;
 			int d = inflate(&zs, Z_NO_FLUSH);
+			*geompos += avail_before - zs.avail_in;
+
 			if (d != Z_STREAM_END) {
 				fprintf(stderr, "decompression: got %d, not Z_STREAM_END\n", d);
 				exit(EXIT_FAILURE);
