@@ -131,36 +131,33 @@ struct decompressor {
 	}
 
 	void end(std::atomic<long long> *geompos) {
-		if (!within) {
-			fprintf(stderr, "compression end called without being within stream\n");
-			exit(EXIT_IMPOSSIBLE);
+		if (within) {
+			while (true) {
+				if (zs.avail_in == 0) {
+					size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
+					zs.next_in = (Bytef *) buf.c_str();
+					zs.avail_in = n;
+				}
+
+				zs.avail_out = 0;
+
+				size_t avail_before = zs.avail_in;
+				int d = inflate(&zs, Z_NO_FLUSH);
+				*geompos += avail_before - zs.avail_in;
+
+				if (d == Z_STREAM_END) {
+					break;
+				}
+				if (d == Z_OK) {
+					continue;
+				}
+
+				fprintf(stderr, "decompression: got %d, not Z_STREAM_END\n", d);
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			within = false;
 		}
-
-		while (true) {
-			if (zs.avail_in == 0) {
-				size_t n = ::fread((Bytef *) buf.c_str(), sizeof(char), buf.size(), fp);
-				zs.next_in = (Bytef *) buf.c_str();
-				zs.avail_in = n;
-			}
-
-			zs.avail_out = 0;
-
-			size_t avail_before = zs.avail_in;
-			int d = inflate(&zs, Z_NO_FLUSH);
-			*geompos += avail_before - zs.avail_in;
-
-			if (d == Z_STREAM_END) {
-				break;
-			}
-			if (d == Z_OK) {
-				continue;
-			}
-
-			fprintf(stderr, "decompression: got %d, not Z_STREAM_END\n", d);
-			exit(EXIT_IMPOSSIBLE);
-		}
-
-		within = false;
 
 		int d = inflateEnd(&zs);
 		if (d != Z_OK) {
@@ -1730,12 +1727,8 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		long long len;
 
 		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
-			if (compressed) {
-				geoms->end(geompos_in);
-			}
-
-			sf.t = -2;
-			return sf;
+			fprintf(stderr, "Unexpected physical EOF in feature stream\n");
+			exit(EXIT_READ);
 		}
 		if (len == 0) {
 			if (compressed) {
