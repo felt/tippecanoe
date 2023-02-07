@@ -43,6 +43,7 @@ struct json_writer {
 	void json_write_hash();
 	void json_end_hash();
 	void json_write_string(std::string const &s);
+	void json_write_json(std::string const &s);
 	void json_write_number(double d);
 	void json_write_float(double d);
 	void json_write_unsigned(unsigned long long v);

@@ -45,6 +45,7 @@
 
 #include "jsonpull/jsonpull.h"
 #include "mbtiles.hpp"
+#include "pmtiles_file.hpp"
 #include "tile.hpp"
 #include "pool.hpp"
 #include "projection.hpp"
@@ -1155,7 +1156,7 @@ void choose_first_zoom(long long *file_bbox, std::vector<struct reader> &readers
 	}
 }
 
-int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -1290,6 +1291,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 				".geojson",
 				".geobuf",
 				".mbtiles",
+				".pmtiles",
 				".csv",
 				".gz",
 			};
@@ -2093,7 +2095,12 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			exit(EXIT_NODATA);
 		}
 
-		if (count > 0) {
+		if (count == 0 && dist_count == 0) {
+			maxzoom = minimum_maxzoom;
+			if (droprate < 0) {
+				droprate = 1;
+			}
+		} else if (count > 0) {
 			double stddev = sqrt(m2 / count);
 
 			// Geometric mean is appropriate because distances between features
@@ -2204,6 +2211,13 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			}
 		}
 
+		if (basezoom == -2 && basezoom_marker_width == 1) {  // -Bg, not -Bg###
+			basezoom = maxzoom;
+			if (!quiet) {
+				fprintf(stderr, "Using base zoom of -z%d\n", basezoom);
+			}
+		}
+
 		if (maxzoom < minimum_maxzoom) {
 			if (!quiet) {
 				fprintf(stderr, "Using minimum maxzoom of -z%d\n", minimum_maxzoom);
@@ -2220,7 +2234,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 
 		fix_dropping = true;
 
-		if (basezoom == -1) {
+		if (basezoom == -1) {  // basezoom unspecified
 			basezoom = maxzoom;
 		}
 	}
@@ -2262,6 +2276,8 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			for (z = 0; z <= MAX_ZOOM; z++) {
 				unsigned xxx = 0, yyy = 0;
 				if (z != 0) {
+					// These are tile numbers, not pixels,
+					// so shift, not round
 					xxx = xx >> (32 - z);
 					yyy = yy >> (32 - z);
 				}
@@ -2564,9 +2580,14 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 		ai->second.maxzoom = maxzoom;
 	}
 
-	mbtiles_write_metadata(outdb, outdir, fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, midlat, midlon, forcetable, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies);
+	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies);
+	if (outdb != NULL) {
+		mbtiles_write_metadata(outdb, m, forcetable);
+	} else {
+		dir_write_metadata(outdir, m);
+	}
 
-	return ret;
+	return std::make_pair(ret, m);
 }
 
 static bool has_name(struct option *long_options, int *pl) {
@@ -3427,7 +3448,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "%s: Reducing minimum detail to match low detail %d\n", argv[0], min_detail);
 	}
 
-	if (basezoom == -1) {
+	if (basezoom == -1) {  // basezoom unspecified
 		if (!guess_maxzoom) {
 			basezoom = maxzoom;
 		}
@@ -3466,6 +3487,10 @@ int main(int argc, char **argv) {
 	if (out_mbtiles != NULL) {
 		if (force) {
 			unlink(out_mbtiles);
+		} else {
+			if (pmtiles_has_suffix(out_mbtiles)) {
+				check_pmtiles(out_mbtiles, argv, forcetable);
+			}
 		}
 
 		outdb = mbtiles_open(out_mbtiles, argv, forcetable);
@@ -3498,12 +3523,18 @@ int main(int argc, char **argv) {
 
 	long long file_bbox[4] = {UINT_MAX, UINT_MAX, 0, 0};
 
-	ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
-							    : out_dir,
-			 maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, prefilter, postfilter, description, guess_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
+	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
+								       : out_dir,
+				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, prefilter, postfilter, description, guess_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
+
+	ret = std::get<0>(input_ret);
 
 	if (outdb != NULL) {
 		mbtiles_close(outdb, argv[0]);
+	}
+
+	if (pmtiles_has_suffix(out_mbtiles)) {
+		mbtiles_map_image_to_pmtiles(out_mbtiles, std::get<1>(input_ret), prevent[P_TILE_COMPRESSION] == 0, quiet, quiet_progress);
 	}
 
 #ifdef MTRACE

@@ -4,7 +4,7 @@
 "description": "tests/polygon-winding/out/-z0.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/polygon-winding/out/-z0.json.check.mbtiles -z0 tests/polygon-winding/in.json",
-"json": "{\"vector_layers\": [ { \"id\": \"in\", \"description\": \"\", \"minzoom\": 0, \"maxzoom\": 0, \"fields\": {} } ],\"tilestats\": {\"layerCount\": 1,\"layers\": [{\"layer\": \"in\",\"count\": 1,\"geometry\": \"Polygon\",\"attributeCount\": 0,\"attributes\": []}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":1,\"geometry\":\"Polygon\",\"attributeCount\":0,\"attributes\":[]}]}}",
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/polygon-winding/out/-z0.json.check.mbtiles",
@@ -13,7 +13,7 @@
 }, "features": [
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 100.986328, 1.054628 ], [ 100.986328, 0.000000 ], [ 99.931641, 0.000000 ], [ 99.931641, 1.054628 ], [ 100.986328, 1.054628 ] ], [ [ 100.195312, 0.263671 ], [ 100.722656, 0.263671 ], [ 100.722656, 0.878872 ], [ 100.195312, 0.878872 ], [ 100.195312, 0.263671 ] ] ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 100.986328, 0.966751 ], [ 100.986328, 0.000000 ], [ 100.019531, 0.000000 ], [ 100.019531, 0.966751 ], [ 100.986328, 0.966751 ] ], [ [ 100.195312, 0.175781 ], [ 100.810547, 0.175781 ], [ 100.810547, 0.790990 ], [ 100.195312, 0.790990 ], [ 100.195312, 0.175781 ] ] ] } }
 ] }
 ] }
 ] }

@@ -4,12 +4,9 @@ tippecanoe
 Builds [vector tilesets](https://github.com/mapbox/vector-tile-spec/) from large (or small) collections of [GeoJSON](http://geojson.org/), [FlatGeobuf](https://github.com/flatgeobuf/flatgeobuf), or [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) features,
 [like these](MADE_WITH.md).
 
-This intends to be an actively maintained fork of [tippecanoe](https://github.com/mapbox/tippecanoe) originally developed by [Erica Fischer](https://github.com/e-n-f) at Mapbox. Version 2.0.0 is equivalent to [1.36.0](https://github.com/mapbox/tippecanoe/tree/1.36.0) in the original repository. Thank you Mapbox and Erica for an incredible tool!
+This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com). 
 
-Key features of this fork include:
-
-* Support for [FlatGeobuf](https://github.com/flatgeobuf/flatgeobuf) input which is more compact and 5-10x faster than GeoJsonSeq input.
-
+Version 2.0.0 is equivalent to [1.36.0](https://github.com/mapbox/tippecanoe/tree/1.36.0) in the original repository. Thank you Mapbox for the many years of early support.
 
 Intent
 ------
@@ -287,7 +284,7 @@ If your input is formatted as newline-delimited GeoJSON, use `-P` to make input 
 
 ### Output tileset
 
- * `-o` _file_`.mbtiles` or `--output=`_file_`.mbtiles`: Name the output file.
+ * `-o` _file_`.mbtiles`, _file_`.pmtiles` or `--output=`_file_`.mbtiles`: Name the output file.
  * `-e` _directory_ or `--output-to-directory`=_directory_: Write tiles to the specified *directory* instead of to an mbtiles file.
  * `-f` or `--force`: Delete the mbtiles file if it already exists instead of giving an error
  * `-F` or `--allow-existing`: Proceed (without deleting existing data) if the metadata or tiles table already exists
@@ -339,7 +336,7 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
 
  * `-z` _zoom_ or `--maximum-zoom=`_zoom_: Maxzoom: the highest zoom level for which tiles are generated (default 14)
  * `-zg` or `--maximum-zoom=g`: Guess what is probably a reasonable maxzoom based on the spacing of features.
- * `--smallest-maximum-zoom-guess=`_zoom_: Guess what is probably a reasonable maxzoom based on the spacing of features, but using the specified _zoom_ if a lower maxzoom is guessed.
+ * `--smallest-maximum-zoom-guess=`_zoom_: Guess what is probably a reasonable maxzoom based on the spacing of features, but using the specified _zoom_ if a lower maxzoom is guessed. If `-Bg` is also set, the base zoom will be set to the guessed maxzoom, with all the points carried forward into additional zooms through the one specified.
  * `-Z` _zoom_ or `--minimum-zoom=`_zoom_: Minzoom: the lowest zoom level for which tiles are generated (default 0)
  * `-ae` or `--extend-zooms-if-still-dropping`: Increase the maxzoom if features are still being dropped at that zoom level.
    The detail and simplification options that ordinarily apply only to the maximum zoom level will apply both to the originally
@@ -745,7 +742,7 @@ Tile-join is a tool for copying and merging vector mbtiles files and for
 joining new attributes from a CSV file to existing features in them.
 
 It reads the tiles from an
-existing .mbtiles file or a directory of tiles, matches them against the
+existing .mbtiles file, .pmtiles file, or a directory of tiles, matches them against the
 records of the CSV (if one is specified), and writes out a new tileset.
 
 If you specify multiple source mbtiles files or source directories of tiles,
@@ -757,7 +754,7 @@ The options are:
 
 ### Output tileset
 
- * `-o` *out.mbtiles* or `--output=`*out.mbtiles*: Write the new tiles to the specified .mbtiles file.
+ * `-o` *out.mbtiles*, *out.pmtiles* or `--output=`*out.mbtiles*: Write the new tiles to the specified .mbtiles file.
  * `-e` *directory* or `--output-to-directory=`*directory*: Write the new tiles to the specified directory instead of to an mbtiles file.
  * `-f` or `--force`: Remove *out.mbtiles* if it already exists.
 
@@ -869,6 +866,7 @@ The `tippecanoe-decode` utility turns vector mbtiles back to GeoJSON. You can us
 on an entire file:
 
     tippecanoe-decode file.mbtiles
+    tippecanoe-decode file.pmtiles
 
 or on an individual tile:
 

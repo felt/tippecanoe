@@ -1,3 +1,42 @@
+## 2.22.0
+
+* Speed up feature dropping by removing unnecessary search for other small features
+
+## 2.21.0
+
+* Improve label placement to avoid placing labels in polygon holes
+
+## 2.20.0
+
+* Round coordinates instead of truncating them, for better precision when overzooming
+
+## 2.19.0
+
+* Don't guess an excessively large maxzoom when there is only one feature
+* Set the base zoom for -Bg as part of the --smallest-maximum-zoom-guess logic
+
+## 2.18.0
+
+* Fix crash when using tile-join to join an empty pmtiles tileset
+
+## 2.17.0
+
+* Add pmtiles output format
+
+## 2.16.0
+
+* During tiling, limit the size of the statistics that are kept for -as-needed calculations, because they can get quite large for sources with hundreds of millions of features.
+
+## 2.15.2
+
+* Change tile hash function to fnv1a
+* Report JSON object context on the same line as the error message
+
+## 2.15.1
+
+* Correct mbtiles inserts to use text instead of blob
+* Add an internal data structure to represent tileset metadata
+
 ## 2.15.0
 
 * Generate label points in a more straightforward checkerboard, and fewer of them at high zoom levels.

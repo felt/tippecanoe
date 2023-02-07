@@ -32,7 +32,7 @@ static void json_context(json_object *j) {
 		sprintf(s + 497, "...");
 	}
 
-	fprintf(stderr, "In JSON object %s\n", s);
+	fprintf(stderr, "in JSON object %s\n", s);
 	free(s);  // stringify
 }
 
@@ -45,9 +45,11 @@ void parse_json(json_feature_action *jfa, json_pull *jp) {
 		json_object *j = json_read(jp);
 		if (j == NULL) {
 			if (jp->error != NULL) {
-				fprintf(stderr, "%s:%d: %s\n", jfa->fname.c_str(), jp->line, jp->error);
+				fprintf(stderr, "%s:%d: %s: ", jfa->fname.c_str(), jp->line, jp->error);
 				if (jp->root != NULL) {
 					json_context(jp->root);
+				} else {
+					fprintf(stderr, "\n");
 				}
 			}
 
@@ -140,7 +142,7 @@ void parse_json(json_feature_action *jfa, json_pull *jp) {
 
 		json_object *geometry = json_hash_get(j, "geometry");
 		if (geometry == NULL) {
-			fprintf(stderr, "%s:%d: feature with no geometry\n", jfa->fname.c_str(), jp->line);
+			fprintf(stderr, "%s:%d: feature with no geometry: ", jfa->fname.c_str(), jp->line);
 			json_context(j);
 			json_free(j);
 			continue;
@@ -148,7 +150,7 @@ void parse_json(json_feature_action *jfa, json_pull *jp) {
 
 		json_object *properties = json_hash_get(j, "properties");
 		if (properties == NULL || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
-			fprintf(stderr, "%s:%d: feature without properties hash\n", jfa->fname.c_str(), jp->line);
+			fprintf(stderr, "%s:%d: feature without properties hash: ", jfa->fname.c_str(), jp->line);
 			json_context(j);
 			json_free(j);
 			continue;

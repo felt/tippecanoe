@@ -29,7 +29,11 @@ void json_writer::json_adjust() {
 		nospace = false;
 		state[state.size() - 1] = JSON_WRITE_HASH_KEY;
 	} else if (state[state.size() - 1] == JSON_WRITE_HASH_KEY) {
-		adds(": ");
+		adds(":");
+		if (!nospace) {
+			addc(' ');
+			nospace = false;
+		}
 		state[state.size() - 1] = JSON_WRITE_HASH_VALUE;
 	} else if (state[state.size() - 1] == JSON_WRITE_HASH_VALUE) {
 		if (wantnl) {
@@ -143,6 +147,11 @@ void json_writer::json_write_string(std::string const &str) {
 		}
 	}
 	addc('"');
+}
+
+void json_writer::json_write_json(std::string const &str) {
+	json_adjust();
+	adds(str);
 }
 
 void json_writer::json_write_number(double d) {

@@ -5,6 +5,8 @@
 
 #define _DEFAULT_SOURCE
 #include <dirent.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -27,6 +29,7 @@
 #include "mbtiles.hpp"
 #include "geometry.hpp"
 #include "dirtiles.hpp"
+#include "pmtiles_file.hpp"
 #include "evaluator.hpp"
 #include "csv.hpp"
 #include "text.hpp"
@@ -373,6 +376,9 @@ struct reader {
 	sqlite3_stmt *stmt = NULL;
 	struct reader *next = NULL;
 
+	char *pmtiles_map = NULL;
+	std::vector<pmtiles::entry_zxy> pmtiles_entries;
+
 	bool operator<(const struct reader &r) const {
 		if (zoom < r.zoom) {
 			return true;
@@ -426,6 +432,33 @@ struct reader *begin_reading(char *fname) {
 			r->data = dir_read_tile(r->dirbase, r->dirtiles[0]);
 
 			r->dirtiles.erase(r->dirtiles.begin());
+		}
+	} else if (pmtiles_has_suffix(fname)) {
+		int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
+		r->pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
+
+		if (r->pmtiles_map == MAP_FAILED) {
+			perror("mmap in decode");
+			exit(EXIT_MEMORY);
+		}
+		if (close(pmtiles_fd) != 0) {
+			perror("close");
+			exit(EXIT_CLOSE);
+		}
+
+		r->pmtiles_entries = pmtiles_entries_tms(r->pmtiles_map, minzoom, maxzoom);
+		std::reverse(r->pmtiles_entries.begin(), r->pmtiles_entries.end());
+
+		if (r->pmtiles_entries.size() == 0) {
+			r->zoom = 32;
+		} else {
+			r->zoom = r->pmtiles_entries.back().z;
+			r->x = r->pmtiles_entries.back().x;
+			r->y = r->pmtiles_entries.back().y;
+			r->sorty = (1LL << r->zoom) - 1 - r->y;
+
+			r->data = std::string(r->pmtiles_map + r->pmtiles_entries.back().offset, r->pmtiles_entries.back().length);
+			r->pmtiles_entries.pop_back();
 		}
 	} else {
 		sqlite3 *db;
@@ -736,6 +769,18 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			} else {
 				r->zoom = 32;
 			}
+		} else if (r->pmtiles_map != NULL) {
+			if (r->pmtiles_entries.size() == 0) {
+				r->zoom = 32;
+			} else {
+				r->zoom = r->pmtiles_entries.back().z;
+				r->x = r->pmtiles_entries.back().x;
+				r->y = r->pmtiles_entries.back().y;
+				r->sorty = (1LL << r->zoom) - 1 - r->y;
+				r->data = std::string(r->pmtiles_map + r->pmtiles_entries.back().offset, r->pmtiles_entries.back().length);
+
+				r->pmtiles_entries.pop_back();
+			}
 		} else {
 			if (r->dirtiles.size() == 0) {
 				r->zoom = 32;
@@ -775,7 +820,10 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		next = r->next;
 
 		sqlite3 *db = r->db;
-		if (db == NULL) {
+		if (r->pmtiles_map) {
+			db = pmtilesmeta2tmp(r->name.c_str(), r->pmtiles_map);
+			// json, strategies
+		} else if (db == NULL) {
 			db = dirmeta2tmp(r->dirbase.c_str());
 		} else {
 			sqlite3_finalize(r->stmt);
@@ -1141,7 +1189,12 @@ int main(int argc, char **argv) {
 	if (out_mbtiles != NULL) {
 		if (force) {
 			unlink(out_mbtiles);
+		} else {
+			if (pmtiles_has_suffix(out_mbtiles)) {
+				check_pmtiles(out_mbtiles, argv, false);
+			}
 		}
+
 		outdb = mbtiles_open(out_mbtiles, argv, 0);
 	}
 	if (out_dir != NULL) {
@@ -1204,7 +1257,13 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	mbtiles_write_metadata(outdb, out_dir, name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.midlat, st.midlon, 0, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
+	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
+
+	if (outdb != NULL) {
+		mbtiles_write_metadata(outdb, m, true);
+	} else {
+		dir_write_metadata(out_dir, m);
+	}
 
 	if (outdb != NULL) {
 		mbtiles_close(outdb, argv[0]);
@@ -1212,6 +1271,10 @@ int main(int argc, char **argv) {
 
 	if (filter != NULL) {
 		json_free(filter);
+	}
+
+	if (pmtiles_has_suffix(out_mbtiles)) {
+		mbtiles_map_image_to_pmtiles(out_mbtiles, m, !pC, quiet, false);
 	}
 
 	return 0;

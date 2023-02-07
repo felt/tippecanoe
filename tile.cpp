@@ -51,7 +51,7 @@ extern "C" {
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
-#define SHIFT_RIGHT(a) ((((a) + COORD_OFFSET) >> geometry_scale) - (COORD_OFFSET >> geometry_scale))
+#define SHIFT_RIGHT(a) ((long long) std::round((double)(a) / (1LL << geometry_scale)))
 
 #define XSTRINGIFY(s) STRINGIFY(s)
 #define STRINGIFY(s) #s
@@ -318,6 +318,10 @@ struct ordercmp {
 					return false;
 				}  // else they are equal, so continue to the next attribute
 			}
+		}
+
+		if (a.index < b.index) {
+			return true;
 		}
 
 		return false;  // greater than or equal
@@ -1814,12 +1818,12 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 		return true;
 	}
 
-	long long x = geometry[0].x >> (32 - detail - z);
-	long long y = geometry[0].y >> (32 - detail - z);
+	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
+	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
 
 	for (auto &g : geometry) {
-		long long xx = g.x >> (32 - detail - z);
-		long long yy = g.y >> (32 - detail - z);
+		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
+		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
 
 		if (xx != x || yy != y) {
 			return false;
@@ -1827,6 +1831,27 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 	}
 
 	return true;
+}
+
+// Keep only a sample of 100K extents for feature dropping,
+// to avoid spending lots of memory on a complete list when there are
+// hundreds of millions of features.
+template <class T>
+void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
+	if (seq % increment == 0) {
+		vals.push_back(val);
+
+		if (vals.size() > 100000) {
+			std::vector<T> tmp;
+
+			for (size_t i = 0; i < vals.size(); i += 2) {
+				tmp.push_back(vals[i]);
+			}
+
+			increment *= 2;
+			vals = tmp;
+		}
+	}
 }
 
 long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *metabase, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, FILE **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *meta_off, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy) {
@@ -1878,8 +1903,11 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 		std::vector<struct partial> partials;
 		std::map<std::string, std::vector<coalesce>> layers;
+
 		std::vector<unsigned long long> indices;
 		std::vector<long long> extents;
+		size_t extents_increment = 1;
+
 		double coalesced_area = 0;
 		drawvec shared_nodes;
 
@@ -1974,7 +2002,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
-		while (1) {
+		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
 
@@ -2018,8 +2046,18 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				}
 			}
 
+			// Cap the indices, rather than sampling them like extents (areas),
+			// because choose_mingap cares about the distance between *surviving*
+			// features, not between *original* features, so we can't just store
+			// gaps rather than indices to be able to downsample them fairly.
+			// Hopefully the first 100K features in the tile are reasonably
+			// representative of the other features in the tile.
+			const size_t MAX_INDICES = 100000;
+
 			if (additional[A_CLUSTER_DENSEST_AS_NEEDED] || cluster_distance != 0) {
-				indices.push_back(sf.index);
+				if (indices.size() < MAX_INDICES) {
+					indices.push_back(sf.index);
+				}
 				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].clustered++;
 
@@ -2040,14 +2078,18 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					continue;
 				}
 			} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
-				indices.push_back(sf.index);
+				if (indices.size() < MAX_INDICES) {
+					indices.push_back(sf.index);
+				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
-				indices.push_back(sf.index);
+				if (indices.size() < MAX_INDICES) {
+					indices.push_back(sf.index);
+				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
@@ -2057,14 +2099,16 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					continue;
 				}
 			} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
-				extents.push_back(sf.extent);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
+				add_sample_to(extents, sf.extent, extents_increment, seq);
+				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
+				// so we shouldn't expect to find anything small that we can related this feature to.
+				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-				extents.push_back(sf.extent);
+				add_sample_to(extents, sf.extent, extents_increment, seq);
 				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
@@ -2108,6 +2152,9 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
 					if (reduced) {
 						strategy->tiny_polygons++;
+					}
+					if (sf.geometry.size() == 0) {
+						continue;
 					}
 				}
 			}
@@ -2999,7 +3046,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *metabase, char *stringpo
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
 
-		for (size_t pass = 0; ; pass++) {
+		for (size_t pass = 0;; pass++) {
 			pthread_t pthreads[threads];
 			std::vector<write_tile_args> args;
 			args.resize(threads);
