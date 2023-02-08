@@ -69,8 +69,9 @@ struct order_field {
 extern std::vector<order_field> order_by;
 
 // not legal UTF-8, so can't appear as a real attribute name
-#define ORDER_BY_SIZE "\200size"
 extern bool order_by_size;
+#define ORDER_BY_SIZE "\200size"
+#define ORDER_BY_INTERESTINGNESS "\200interestingness"
 
 int mkstemp_cloexec(char *name);
 FILE *fopen_oflag(const char *name, const char *mode, int oflag);

@@ -250,11 +250,21 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
+double get_interestingness(const struct coalesce *c1) {
+	return 0;  // XXX
+}
+
 static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
 		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+	if (key == ORDER_BY_INTERESTINGNESS) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = get_interestingness(c1);
 		return v;
 	}
 
@@ -519,6 +529,14 @@ struct partial_arg {
 	drawvec *shared_nodes;
 };
 
+double get_interestingness(const serial_feature *c1, const char *stringpool, long long pool_off[]) {
+	return 0;  // XXX
+}
+
+double get_interestingness(const partial *c1, const char *stringpool, long long pool_off[]) {
+	return 0;  // XXX
+}
+
 // THIS IS RIDICULOUS to have three almost-identical representations for features. FIX FIX FIX
 
 static mvt_value find_attribute_value(const serial_feature *c1, std::string key, const char *stringpool, long long pool_off[]) {
@@ -526,6 +544,12 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string key,
 		mvt_value v;
 		v.type = mvt_double;
 		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+	if (key == ORDER_BY_INTERESTINGNESS) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = get_interestingness(c1, stringpool, pool_off);
 		return v;
 	}
 
@@ -557,6 +581,12 @@ static mvt_value find_attribute_value(const partial *c1, std::string key, const 
 		mvt_value v;
 		v.type = mvt_double;
 		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+	if (key == ORDER_BY_INTERESTINGNESS) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = get_interestingness(c1, stringpool, pool_off);
 		return v;
 	}
 

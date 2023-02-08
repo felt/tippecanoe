@@ -27,6 +27,11 @@ struct type_and_string_stats {
 	double xsum = 0;
 	double ysum = 0;
 	size_t count = 0;
+
+	// for mean and standard deviation
+	double mean = 0;
+	double numeric_count = 0;
+	double m2 = 0;
 };
 
 struct layermap_entry {

@@ -289,7 +289,11 @@ void tilestats(std::map<std::string, layermap_entry> const &layermap1, size_t el
 			double yd = attribute.second.ysum / attribute.second.count;
 			double d = sqrt(xd * xd + yd * yd);
 
-			printf("%s %0.6f\n", attribute.first.c_str(), d);
+			printf("%s %0.6f", attribute.first.c_str(), d);
+			if (attribute.second.numeric_count != 0) {
+				printf(" %f %f", attribute.second.mean, sqrt(attribute.second.m2 / attribute.second.numeric_count));
+			} 
+			printf("\n");
 
 			size_t val_count = attribute.second.sample_values.size();
 			if (val_count > max_tilestats_sample_values) {
@@ -899,22 +903,33 @@ void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, s
 		if (fka->second.sample_values.size() > max_tilestats_sample_values) {
 			fka->second.sample_values.pop_back();
 		}
+	}
 
-		unsigned hash = 0;
-		for (size_t i = 0; i < val.string.size(); i++) {
-			// https://en.wikipedia.org/wiki/Hash_function#Fibonacci_hashing
-			hash = hash * 2654435769 + val.string[i];
-		}
-		// extra multiply so even single-byte values are distributed
-		// around the circle rather than clumped together on one side.
-		hash = hash * 2654435769;
-		double angle = ((double) hash) / UINT_MAX * 2 * M_PI;
-		double x = cos(angle);
-		double y = sin(angle);
+	unsigned hash = 0;
+	for (size_t i = 0; i < val.string.size(); i++) {
+		// https://en.wikipedia.org/wiki/Hash_function#Fibonacci_hashing
+		hash = hash * 2654435769 + val.string[i];
+	}
+	// extra multiply so even single-byte values are distributed
+	// around the circle rather than clumped together on one side.
+	hash = hash * 2654435769;
+	double angle = ((double) hash) / UINT_MAX * 2 * M_PI;
+	double x = cos(angle);
+	double y = sin(angle);
 
-		fka->second.xsum += x;
-		fka->second.ysum += y;
-		fka->second.count++;
+	fka->second.xsum += x;
+	fka->second.ysum += y;
+	fka->second.count++;
+
+	// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+	if (val.type == mvt_double) {
+		double newValue = atof(val.string.c_str());
+
+		fka->second.numeric_count++;
+		double delta = newValue - fka->second.mean;
+		fka->second.mean += delta / fka->second.numeric_count;
+		double delta2 = newValue - fka->second.mean;
+		fka->second.m2 += delta * delta2;
 	}
 
 	fka->second.type |= (1 << val.type);
