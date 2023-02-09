@@ -299,40 +299,45 @@ static mvt_value coerce_double(mvt_value v) {
 	return v;
 }
 
+static bool order_partials(const serial_feature &a, const serial_feature &b) {
+	for (size_t i = 0; i < order_by.size(); i++) {
+		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
+		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
+
+		if (order_by[i].descending) {
+			if (v2 < v1) {
+				return true;
+			} else if (v1 < v2) {
+				return false;
+			}  // else they are equal, so continue to the next attribute
+		} else {
+			if (v1 < v2) {
+				return true;
+			} else if (v2 < v1) {
+				return false;
+			}  // else they are equal, so continue to the next attribute
+		}
+	}
+
+	if (prevent[P_INPUT_ORDER]) {
+		if (a.seq < b.seq) {
+			return true;
+		} else if (a.seq > b.seq) {
+			return false;
+		}  // else they are equal, so continue to the index
+	}
+
+	if (a.index < b.index) {
+		return true;
+	}
+
+	return false;  // greater than or equal
+}
+
+
 struct ordercmp {
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
-		for (size_t i = 0; i < order_by.size(); i++) {
-			mvt_value v1 = coerce_double(find_attribute_value(&a.sf, order_by[i].name));
-			mvt_value v2 = coerce_double(find_attribute_value(&b.sf, order_by[i].name));
-
-			if (order_by[i].descending) {
-				if (v2 < v1) {
-					return true;
-				} else if (v1 < v2) {
-					return false;
-				}  // else they are equal, so continue to the next attribute
-			} else {
-				if (v1 < v2) {
-					return true;
-				} else if (v2 < v1) {
-					return false;
-				}  // else they are equal, so continue to the next attribute
-			}
-		}
-
-		if (prevent[P_INPUT_ORDER]) {
-			if (a.sf.seq < b.sf.seq) {
-				return true;
-			} else if (a.sf.seq > b.sf.seq) {
-				return false;
-			}  // else they are equal, so continue to the index
-		}
-
-		if (a.sf.index < b.sf.index) {
-			return true;
-		}
-
-		return false;  // greater than or equal
+		return order_partials(a.sf, b.sf);
 	}
 } ordercmp;
 
@@ -493,41 +498,6 @@ struct partial_arg {
 	int tasks = 0;
 	drawvec *shared_nodes;
 };
-
-static bool order_partials(const serial_feature &a, const partial &b) {
-	for (size_t i = 0; i < order_by.size(); i++) {
-		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
-		mvt_value v2 = coerce_double(find_attribute_value(&b.sf, order_by[i].name));
-
-		if (order_by[i].descending) {
-			if (v2 < v1) {
-				return true;
-			} else if (v1 < v2) {
-				return false;
-			}  // else they are equal, so continue to the next attribute
-		} else {
-			if (v1 < v2) {
-				return true;
-			} else if (v2 < v1) {
-				return false;
-			}  // else they are equal, so continue to the next attribute
-		}
-	}
-
-	if (prevent[P_INPUT_ORDER]) {
-		if (a.seq < b.sf.seq) {
-			return true;
-		} else if (a.seq > b.sf.seq) {
-			return false;
-		}  // else they are equal, so continue to the index
-	}
-
-	if (a.index < b.sf.index) {
-		return true;
-	}
-
-	return false;  // greater than or equal
-}
 
 drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	// From area in world coordinates to area in tile coordinates
@@ -2069,7 +2039,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					// would it have been better to drop this other feature instead?
 
 					if (order_by.size() > 0) {
-						if (order_partials(sf, partials[which_partial])) {
+						if (order_partials(sf, partials[which_partial].sf)) {
 							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
 							// XXX preserve_attributes
 						}
