@@ -2496,6 +2496,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		perror("close sorted index");
 	}
 
+	// provisional merged tilestats, so the stats for each attribute can be used during tiling
+	std::map<std::string, layermap_entry> merged_lm = merge_layermaps(layermaps);
+
 	/* Traverse and split the geometries for each zoom level */
 
 	struct stat geomst;
@@ -2518,7 +2521,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, meta, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, meta_off, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies);
+	int written = traverse_zooms(fd, size, meta, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, meta_off, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, merged_lm, prefilter, postfilter, attribute_accum, filter, strategies);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2573,7 +2576,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		midlon = maxlon;
 	}
 
-	std::map<std::string, layermap_entry> merged_lm = merge_layermaps(layermaps);
+	// merge again, because new entries can have been added during tiling
+	merged_lm = merge_layermaps(layermaps);
 
 	for (auto ai = merged_lm.begin(); ai != merged_lm.end(); ++ai) {
 		ai->second.minzoom = minzoom;
