@@ -240,27 +240,27 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-double get_interestingness(const struct coalesce *c1) {
+double get_interestingness(const serial_feature *sf) {
 	return 0;  // XXX
 }
 
-static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
+static mvt_value find_attribute_value(const serial_feature *sf, std::string key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
-		v.numeric_value.double_value = c1->sf.extent;
+		v.numeric_value.double_value = sf->extent;
 		return v;
 	}
 	if (key == ORDER_BY_INTERESTINGNESS) {
 		mvt_value v;
 		v.type = mvt_double;
-		v.numeric_value.double_value = get_interestingness(c1);
+		v.numeric_value.double_value = get_interestingness(sf);
 		return v;
 	}
 
-	const std::vector<long long> &keys1 = c1->sf.keys;
-	const std::vector<long long> &values1 = c1->sf.values;
-	const char *stringpool1 = c1->sf.stringpool;
+	const std::vector<long long> &keys1 = sf->keys;
+	const std::vector<long long> &values1 = sf->values;
+	const char *stringpool1 = sf->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
@@ -269,9 +269,9 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 		}
 	}
 
-	for (size_t i = 0; i < c1->sf.full_keys.size(); i++) {
-		if (c1->sf.full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->sf.full_values[i].type, c1->sf.full_values[i].s.c_str());
+	for (size_t i = 0; i < sf->full_keys.size(); i++) {
+		if (sf->full_keys[i] == key) {
+			return stringified_to_mvt_value(sf->full_values[i].type, sf->full_values[i].s.c_str());
 		}
 	}
 
@@ -302,8 +302,8 @@ static mvt_value coerce_double(mvt_value v) {
 struct ordercmp {
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
-			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
-			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
+			mvt_value v1 = coerce_double(find_attribute_value(&a.sf, order_by[i].name));
+			mvt_value v2 = coerce_double(find_attribute_value(&b.sf, order_by[i].name));
 
 			if (order_by[i].descending) {
 				if (v2 < v1) {
@@ -494,94 +494,10 @@ struct partial_arg {
 	drawvec *shared_nodes;
 };
 
-double get_interestingness(const serial_feature *c1) {
-	return 0;  // XXX
-}
-
-double get_interestingness(const partial *c1) {
-	return 0;  // XXX
-}
-
-// THIS IS RIDICULOUS to have three almost-identical representations for features. FIX FIX FIX
-
-static mvt_value find_attribute_value(const serial_feature *c1, std::string key) {
-	if (key == ORDER_BY_SIZE) {
-		mvt_value v;
-		v.type = mvt_double;
-		v.numeric_value.double_value = c1->extent;
-		return v;
-	}
-	if (key == ORDER_BY_INTERESTINGNESS) {
-		mvt_value v;
-		v.type = mvt_double;
-		v.numeric_value.double_value = get_interestingness(c1);
-		return v;
-	}
-
-	const std::vector<long long> &keys1 = c1->keys;
-	const std::vector<long long> &values1 = c1->values;
-	const char *stringpool1 = c1->stringpool;
-
-	for (size_t i = 0; i < keys1.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		if (key == key1.string_value) {
-			return retrieve_string(values1[i], stringpool1, NULL);
-		}
-	}
-
-	for (size_t i = 0; i < c1->full_keys.size(); i++) {
-		if (c1->full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
-		}
-	}
-
-	mvt_value v;
-	v.type = mvt_null;
-	v.numeric_value.null_value = 0;
-	return v;
-}
-
-static mvt_value find_attribute_value(const partial *c1, std::string key) {
-	if (key == ORDER_BY_SIZE) {
-		mvt_value v;
-		v.type = mvt_double;
-		v.numeric_value.double_value = c1->sf.extent;
-		return v;
-	}
-	if (key == ORDER_BY_INTERESTINGNESS) {
-		mvt_value v;
-		v.type = mvt_double;
-		v.numeric_value.double_value = get_interestingness(c1);
-		return v;
-	}
-
-	const std::vector<long long> &keys1 = c1->sf.keys;
-	const std::vector<long long> &values1 = c1->sf.values;
-	const char *stringpool1 = c1->sf.stringpool;
-
-	for (size_t i = 0; i < keys1.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		if (key == key1.string_value) {
-			return retrieve_string(values1[i], stringpool1, NULL);
-		}
-	}
-
-	for (size_t i = 0; i < c1->sf.full_keys.size(); i++) {
-		if (c1->sf.full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->sf.full_values[i].type, c1->sf.full_values[i].s.c_str());
-		}
-	}
-
-	mvt_value v;
-	v.type = mvt_null;
-	v.numeric_value.null_value = 0;
-	return v;
-}
-
 static bool order_partials(const serial_feature &a, const partial &b) {
 	for (size_t i = 0; i < order_by.size(); i++) {
 		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
-		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
+		mvt_value v2 = coerce_double(find_attribute_value(&b.sf, order_by[i].name));
 
 		if (order_by[i].descending) {
 			if (v2 < v1) {
