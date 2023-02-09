@@ -83,20 +83,11 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2);
 
 struct coalesce {
+	serial_feature sf;
+
 	char *stringpool = NULL;
-	std::vector<long long> keys = std::vector<long long>();
-	std::vector<long long> values = std::vector<long long>();
-	std::vector<std::string> full_keys = std::vector<std::string>();
-	std::vector<serial_val> full_values = std::vector<serial_val>();
-	drawvec geom = drawvec();
-	unsigned long long index = 0;
-	long long original_seq = 0;
-	int type = 0;
 	bool coalesced = false;
 	double spacing = 0;
-	bool has_id = false;
-	unsigned long long id = 0;
-	long long extent = 0;
 
 	bool operator<(const coalesce &o) const {
 		int cmp = coalindexcmp(this, &o);
@@ -110,7 +101,7 @@ struct coalesce {
 
 struct preservecmp {
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
-		return a.original_seq < b.original_seq;
+		return a.sf.seq < b.sf.seq;
 	}
 } preservecmp;
 
@@ -118,51 +109,51 @@ int coalcmp(const void *v1, const void *v2) {
 	const struct coalesce *c1 = (const struct coalesce *) v1;
 	const struct coalesce *c2 = (const struct coalesce *) v2;
 
-	int cmp = c1->type - c2->type;
+	int cmp = c1->sf.t - c2->sf.t;
 	if (cmp != 0) {
 		return cmp;
 	}
 
-	if (c1->has_id != c2->has_id) {
-		return (int) c1->has_id - (int) c2->has_id;
+	if (c1->sf.has_id != c2->sf.has_id) {
+		return (int) c1->sf.has_id - (int) c2->sf.has_id;
 	}
 
-	if (c1->has_id && c2->has_id) {
-		if (c1->id < c2->id) {
+	if (c1->sf.has_id && c2->sf.has_id) {
+		if (c1->sf.id < c2->sf.id) {
 			return -1;
 		}
-		if (c1->id > c2->id) {
+		if (c1->sf.id > c2->sf.id) {
 			return 1;
 		}
 	}
 
-	cmp = metacmp(c1->keys, c1->values, c1->stringpool, c2->keys, c2->values, c2->stringpool);
+	cmp = metacmp(c1->sf.keys, c1->sf.values, c1->stringpool, c2->sf.keys, c2->sf.values, c2->stringpool);
 	if (cmp != 0) {
 		return cmp;
 	}
 
-	if (c1->full_keys.size() < c2->full_keys.size()) {
+	if (c1->sf.full_keys.size() < c2->sf.full_keys.size()) {
 		return -1;
-	} else if (c1->full_keys.size() > c2->full_keys.size()) {
+	} else if (c1->sf.full_keys.size() > c2->sf.full_keys.size()) {
 		return 1;
 	}
 
-	for (size_t i = 0; i < c1->full_keys.size(); i++) {
-		if (c1->full_keys[i] < c2->full_keys[i]) {
+	for (size_t i = 0; i < c1->sf.full_keys.size(); i++) {
+		if (c1->sf.full_keys[i] < c2->sf.full_keys[i]) {
 			return -1;
-		} else if (c1->full_keys[i] > c2->full_keys[i]) {
+		} else if (c1->sf.full_keys[i] > c2->sf.full_keys[i]) {
 			return 1;
 		}
 
-		if (c1->full_values[i].type < c2->full_values[i].type) {
+		if (c1->sf.full_values[i].type < c2->sf.full_values[i].type) {
 			return -1;
-		} else if (c1->full_values[i].type > c2->full_values[i].type) {
+		} else if (c1->sf.full_values[i].type > c2->sf.full_values[i].type) {
 			return 1;
 		}
 
-		if (c1->full_values[i].s < c2->full_values[i].s) {
+		if (c1->sf.full_values[i].s < c2->sf.full_values[i].s) {
 			return -1;
-		} else if (c1->full_values[i].s > c2->full_values[i].s) {
+		} else if (c1->sf.full_values[i].s > c2->sf.full_values[i].s) {
 			return 1;
 		}
 	}
@@ -174,15 +165,15 @@ int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2) {
 	int cmp = coalcmp((const void *) c1, (const void *) c2);
 
 	if (cmp == 0) {
-		if (c1->index < c2->index) {
+		if (c1->sf.index < c2->sf.index) {
 			return -1;
-		} else if (c1->index > c2->index) {
+		} else if (c1->sf.index > c2->sf.index) {
 			return 1;
 		}
 
-		if (c1->geom < c2->geom) {
+		if (c1->sf.geometry < c2->sf.geometry) {
 			return -1;
-		} else if (c1->geom > c2->geom) {
+		} else if (c1->sf.geometry > c2->sf.geometry) {
 			return 1;
 		}
 	}
@@ -258,7 +249,7 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
-		v.numeric_value.double_value = c1->extent;
+		v.numeric_value.double_value = c1->sf.extent;
 		return v;
 	}
 	if (key == ORDER_BY_INTERESTINGNESS) {
@@ -268,8 +259,8 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 		return v;
 	}
 
-	const std::vector<long long> &keys1 = c1->keys;
-	const std::vector<long long> &values1 = c1->values;
+	const std::vector<long long> &keys1 = c1->sf.keys;
+	const std::vector<long long> &values1 = c1->sf.values;
 	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
@@ -279,9 +270,9 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 		}
 	}
 
-	for (size_t i = 0; i < c1->full_keys.size(); i++) {
-		if (c1->full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
+	for (size_t i = 0; i < c1->sf.full_keys.size(); i++) {
+		if (c1->sf.full_keys[i] == key) {
+			return stringified_to_mvt_value(c1->sf.full_values[i].type, c1->sf.full_values[i].s.c_str());
 		}
 	}
 
@@ -331,14 +322,14 @@ struct ordercmp {
 		}
 
 		if (prevent[P_INPUT_ORDER]) {
-			if (a.original_seq < b.original_seq) {
+			if (a.sf.seq < b.sf.seq) {
 				return true;
-			} else if (a.original_seq > b.original_seq) {
+			} else if (a.sf.seq > b.sf.seq) {
 				return false;
 			}  // else they are equal, so continue to the index
 		}
 
-		if (a.index < b.index) {
+		if (a.sf.index < b.sf.index) {
 			return true;
 		}
 
@@ -2479,25 +2470,24 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 		for (size_t i = 0; i < partials.size(); i++) {
 			signed char t = partials[i].sf.t;
-			long long original_seq = partials[i].sf.seq;
 
 			if (t == VT_POINT || draws_something(partials[i].sf.geometry)) {
 				struct coalesce c;
 
-				c.type = t;
-				c.index = partials[i].sf.index;
-				c.geom = partials[i].sf.geometry;
+				c.sf.t = t;
+				c.sf.index = partials[i].sf.index;
+				c.sf.geometry = partials[i].sf.geometry;
 				c.coalesced = false;
-				c.original_seq = partials[i].sf.seq;
+				c.sf.seq = partials[i].sf.seq;
 				c.stringpool = stringpool + pool_off[partials[i].sf.segment];
-				c.keys = partials[i].sf.keys;
-				c.values = partials[i].sf.values;
-				c.full_keys = partials[i].sf.full_keys;
-				c.full_values = partials[i].sf.full_values;
+				c.sf.keys = partials[i].sf.keys;
+				c.sf.values = partials[i].sf.values;
+				c.sf.full_keys = partials[i].sf.full_keys;
+				c.sf.full_values = partials[i].sf.full_values;
 				c.spacing = partials[i].spacing;
-				c.id = partials[i].sf.id;
-				c.has_id = partials[i].sf.has_id;
-				c.extent = partials[i].sf.extent;
+				c.sf.id = partials[i].sf.id;
+				c.sf.has_id = partials[i].sf.has_id;
+				c.sf.extent = partials[i].sf.extent;
 
 				// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 
@@ -2548,8 +2538,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 #endif
 
 				if (additional[A_COALESCE] && out.size() > 0 && coalcmp(&layer_features[x], &out[y]) == 0) {
-					for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
-						out[y].geom.push_back(layer_features[x].geom[g]);
+					for (size_t g = 0; g < layer_features[x].sf.geometry.size(); g++) {
+						out[y].sf.geometry.push_back(layer_features[x].sf.geometry[g]);
 					}
 					out[y].coalesced = true;
 				} else {
@@ -2561,21 +2551,21 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			out.clear();
 			for (size_t x = 0; x < layer_features.size(); x++) {
-				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
-					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
-					layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
-										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+				if (layer_features[x].coalesced && layer_features[x].sf.t == VT_LINE) {
+					layer_features[x].sf.geometry = remove_noop(layer_features[x].sf.geometry, layer_features[x].sf.t, 0);
+					layer_features[x].sf.geometry = simplify_lines(layer_features[x].sf.geometry , 32, 0,
+										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].sf.t == VT_POLYGON ? 4 : 0, shared_nodes);
 				}
 
-				if (layer_features[x].type == VT_POLYGON) {
+				if (layer_features[x].sf.t == VT_POLYGON) {
 					if (layer_features[x].coalesced) {
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false);
+						layer_features[x].sf.geometry = clean_or_clip_poly(layer_features[x].sf.geometry, 0, 0, false);
 					}
 
-					layer_features[x].geom = close_poly(layer_features[x].geom);
+					layer_features[x].sf.geometry = close_poly(layer_features[x].sf.geometry);
 				}
 
-				if (layer_features[x].geom.size() > 0) {
+				if (layer_features[x].sf.geometry.size() > 0) {
 					out.push_back(layer_features[x]);
 				}
 			}
@@ -2613,27 +2603,27 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				mvt_feature feature;
 
-				if (layer_features[x].type == VT_LINE || layer_features[x].type == VT_POLYGON) {
-					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+				if (layer_features[x].sf.t == VT_LINE || layer_features[x].sf.t == VT_POLYGON) {
+					layer_features[x].sf.geometry = remove_noop(layer_features[x].sf.geometry, layer_features[x].sf.t, 0);
 				}
 
-				if (layer_features[x].geom.size() == 0) {
+				if (layer_features[x].sf.geometry.size() == 0) {
 					continue;
 				}
 
-				feature.type = layer_features[x].type;
-				feature.geometry = to_feature(layer_features[x].geom);
-				count += layer_features[x].geom.size();
-				layer_features[x].geom.clear();
+				feature.type = layer_features[x].sf.t;
+				feature.geometry = to_feature(layer_features[x].sf.geometry);
+				count += layer_features[x].sf.geometry.size();
+				layer_features[x].sf.geometry.clear();
 
-				feature.id = layer_features[x].id;
-				feature.has_id = layer_features[x].has_id;
+				feature.id = layer_features[x].sf.id;
+				feature.has_id = layer_features[x].sf.has_id;
 
-				decode_meta(layer_features[x].keys, layer_features[x].values, layer_features[x].stringpool, layer, feature);
-				for (size_t a = 0; a < layer_features[x].full_keys.size(); a++) {
-					serial_val sv = layer_features[x].full_values[a];
+				decode_meta(layer_features[x].sf.keys, layer_features[x].sf.values, layer_features[x].stringpool, layer, feature);
+				for (size_t a = 0; a < layer_features[x].sf.full_keys.size(); a++) {
+					serial_val sv = layer_features[x].sf.full_values[a];
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str());
-					layer.tag(feature, layer_features[x].full_keys[a], v);
+					layer.tag(feature, layer_features[x].sf.full_keys[a], v);
 				}
 
 				if (additional[A_CALCULATE_FEATURE_DENSITY]) {
