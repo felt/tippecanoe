@@ -70,6 +70,7 @@ struct serial_feature {
 	std::vector<serial_val> full_values{};
 	std::string layername = "";
 	bool dropped = false;
+	const char *stringpool;  // the pool for this segment, where its keys and values are stored
 };
 
 void serialize_feature(FILE *geomfile, serial_feature *sf, std::atomic<long long> *geompos, const char *fname, long long wx, long long wy, bool include_minzoom);

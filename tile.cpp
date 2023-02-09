@@ -79,13 +79,12 @@ bool draws_something(drawvec &geom) {
 	return false;
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2);
+static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, const char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, const char *stringpool2);
 int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2);
 
 struct coalesce {
 	serial_feature sf;
 
-	char *stringpool = NULL;
 	bool coalesced = false;
 	double spacing = 0;
 
@@ -127,7 +126,7 @@ int coalcmp(const void *v1, const void *v2) {
 		}
 	}
 
-	cmp = metacmp(c1->sf.keys, c1->sf.values, c1->stringpool, c2->sf.keys, c2->sf.values, c2->stringpool);
+	cmp = metacmp(c1->sf.keys, c1->sf.values, c1->sf.stringpool, c2->sf.keys, c2->sf.values, c2->sf.stringpool);
 	if (cmp != 0) {
 		return cmp;
 	}
@@ -192,7 +191,7 @@ mvt_value retrieve_string(long long off, const char *stringpool, int *otype) {
 	return stringified_to_mvt_value(type, s);
 }
 
-void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature) {
+void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, const char *stringpool, mvt_layer &layer, mvt_feature &feature) {
 	size_t i;
 	for (i = 0; i < metakeys.size(); i++) {
 		int otype;
@@ -203,7 +202,7 @@ void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> 
 	}
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2) {
+static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, const char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, const char *stringpool2) {
 	size_t i;
 	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
@@ -217,11 +216,11 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 
 		long long off1 = values1[i];
 		int type1 = stringpool1[off1];
-		char *s1 = stringpool1 + off1 + 1;
+		const char *s1 = stringpool1 + off1 + 1;
 
 		long long off2 = values2[i];
 		int type2 = stringpool2[off2];
-		char *s2 = stringpool2 + off2 + 1;
+		const char *s2 = stringpool2 + off2 + 1;
 
 		if (type1 != type2) {
 			return type1 - type2;
@@ -261,7 +260,7 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 
 	const std::vector<long long> &keys1 = c1->sf.keys;
 	const std::vector<long long> &values1 = c1->sf.values;
-	const char *stringpool1 = c1->stringpool;
+	const char *stringpool1 = c1->sf.stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
@@ -495,17 +494,17 @@ struct partial_arg {
 	drawvec *shared_nodes;
 };
 
-double get_interestingness(const serial_feature *c1, const char *stringpool, long long pool_off[]) {
+double get_interestingness(const serial_feature *c1) {
 	return 0;  // XXX
 }
 
-double get_interestingness(const partial *c1, const char *stringpool, long long pool_off[]) {
+double get_interestingness(const partial *c1) {
 	return 0;  // XXX
 }
 
 // THIS IS RIDICULOUS to have three almost-identical representations for features. FIX FIX FIX
 
-static mvt_value find_attribute_value(const serial_feature *c1, std::string key, const char *stringpool, long long pool_off[]) {
+static mvt_value find_attribute_value(const serial_feature *c1, std::string key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -515,13 +514,13 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string key,
 	if (key == ORDER_BY_INTERESTINGNESS) {
 		mvt_value v;
 		v.type = mvt_double;
-		v.numeric_value.double_value = get_interestingness(c1, stringpool, pool_off);
+		v.numeric_value.double_value = get_interestingness(c1);
 		return v;
 	}
 
 	const std::vector<long long> &keys1 = c1->keys;
 	const std::vector<long long> &values1 = c1->values;
-	const char *stringpool1 = stringpool + pool_off[c1->segment];
+	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
@@ -542,7 +541,7 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string key,
 	return v;
 }
 
-static mvt_value find_attribute_value(const partial *c1, std::string key, const char *stringpool, long long pool_off[]) {
+static mvt_value find_attribute_value(const partial *c1, std::string key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -552,13 +551,13 @@ static mvt_value find_attribute_value(const partial *c1, std::string key, const 
 	if (key == ORDER_BY_INTERESTINGNESS) {
 		mvt_value v;
 		v.type = mvt_double;
-		v.numeric_value.double_value = get_interestingness(c1, stringpool, pool_off);
+		v.numeric_value.double_value = get_interestingness(c1);
 		return v;
 	}
 
 	const std::vector<long long> &keys1 = c1->sf.keys;
 	const std::vector<long long> &values1 = c1->sf.values;
-	const char *stringpool1 = stringpool + pool_off[c1->sf.segment];
+	const char *stringpool1 = c1->sf.stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
@@ -579,10 +578,10 @@ static mvt_value find_attribute_value(const partial *c1, std::string key, const 
 	return v;
 }
 
-static bool order_partials(const char *stringpool, long long pool_off[], const serial_feature &a, const partial &b) {
+static bool order_partials(const serial_feature &a, const partial &b) {
 	for (size_t i = 0; i < order_by.size(); i++) {
-		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, stringpool, pool_off));
-		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, stringpool, pool_off));
+		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
+		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
 
 		if (order_by[i].descending) {
 			if (v2 < v1) {
@@ -1532,9 +1531,9 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	return false;
 }
 
-void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes, const char *stringpool, long long *pool_off) {
+void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes) {
 	for (ssize_t i = sf.keys.size() - 1; i >= 0; i--) {
-		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+		std::string key = sf.stringpool + sf.keys[i] + 1;
 		if (exclude_attributes.count(key) > 0) {
 			sf.keys.erase(sf.keys.begin() + i);
 			sf.values.erase(sf.values.begin() + i);
@@ -1556,6 +1555,8 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 		if (sf.t < 0) {
 			return sf;
 		}
+
+		sf.stringpool = stringpool + pool_off[sf.segment];
 
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;
@@ -1602,11 +1603,11 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 			std::set<std::string> exclude_attributes;
 
 			for (size_t i = 0; i < sf.keys.size(); i++) {
-				std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+				std::string key = sf.stringpool + sf.keys[i] + 1;
 
 				serial_val sv;
-				sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
-				sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
+				sv.type = (sf.stringpool)[sf.values[i]];
+				sv.s = sf.stringpool + sf.values[i] + 1;
 
 				mvt_value val = stringified_to_mvt_value(sv.type, sv.s.c_str());
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
@@ -1651,7 +1652,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 			}
 
 			if (exclude_attributes.size() > 0) {
-				remove_attributes(sf, exclude_attributes, stringpool, pool_off);
+				remove_attributes(sf, exclude_attributes);
 			}
 		}
 
@@ -1662,7 +1663,7 @@ serial_feature next_feature(FILE *geoms, std::atomic<long long> *geompos_in, cha
 		// Remove nulls, now that the expression evaluation filter has run
 
 		for (ssize_t i = (ssize_t) sf.keys.size() - 1; i >= 0; i--) {
-			int type = (stringpool + pool_off[sf.segment])[sf.values[i]];
+			int type = (sf.stringpool)[sf.values[i]];
 
 			if (type == mvt_null) {
 				sf.keys.erase(sf.keys.begin() + i);
@@ -1801,7 +1802,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 	add_to_file_keys(fk->second.file_keys, key, attrib);
 }
 
-void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, long long *pool_off, std::string &key, serial_val &val, partial &p) {
+void preserve_attribute(attribute_op op, serial_feature &, std::string &key, serial_val &val, partial &p) {
 	if (p.need_tilestats.count(key) == 0) {
 		p.need_tilestats.insert(key);
 	}
@@ -1810,10 +1811,10 @@ void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, lon
 	// promote it to a full_key so it can be modified
 
 	for (size_t i = 0; i < p.sf.keys.size(); i++) {
-		if (strcmp(key.c_str(), stringpool + pool_off[p.sf.segment] + p.sf.keys[i] + 1) == 0) {
+		if (strcmp(key.c_str(), p.sf.stringpool + p.sf.keys[i] + 1) == 0) {
 			serial_val sv;
-			sv.s = stringpool + pool_off[p.sf.segment] + p.sf.values[i] + 1;
-			sv.type = (stringpool + pool_off[p.sf.segment])[p.sf.values[i]];
+			sv.s = p.sf.stringpool + p.sf.values[i] + 1;
+			sv.type = p.sf.stringpool[p.sf.values[i]];
 
 			p.sf.full_keys.push_back(key);
 			p.sf.full_values.push_back(sv);
@@ -1890,17 +1891,17 @@ void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, lon
 	}
 }
 
-void preserve_attributes(std::map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, partial &p) {
+void preserve_attributes(std::map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, partial &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
-		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+		std::string key = sf.stringpool + sf.keys[i] + 1;
 
 		serial_val sv;
-		sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
-		sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
+		sv.type = (sf.stringpool)[sf.values[i]];
+		sv.s = sf.stringpool + sf.values[i] + 1;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			preserve_attribute(f->second, sf, stringpool, pool_off, key, sv, p);
+			preserve_attribute(f->second, sf, key, sv, p);
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
@@ -1909,7 +1910,7 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			preserve_attribute(f->second, sf, stringpool, pool_off, key, sv, p);
+			preserve_attribute(f->second, sf, key, sv, p);
 		}
 	}
 }
@@ -2152,13 +2153,13 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					// would it have been better to drop this other feature instead?
 
 					if (order_by.size() > 0) {
-						if (order_partials(stringpool, pool_off, sf, partials[which_partial])) {
+						if (order_partials(sf, partials[which_partial])) {
 							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
 							// XXX preserve_attributes
 						}
 					}
 
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->dropped_by_rate++;
 					continue;
 				}
@@ -2166,7 +2167,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 
 			if (gamma > 0) {
 				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->dropped_by_gamma++;
 					continue;
 				}
@@ -2198,7 +2199,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 						partials[which_partial].sf.geometry[0].y = y / (partials[which_partial].clustered + 1);
 					}
 
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2207,7 +2208,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					indices.push_back(sf.index);
 				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
@@ -2221,7 +2222,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2230,7 +2231,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 				// so we shouldn't expect to find anything small that we can related this feature to.
 				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
@@ -2242,7 +2243,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 					}
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2272,7 +2273,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				} else {
 					strategy->dropped_as_needed++;
 				}
-				preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				preserve_attributes(arg->attribute_accum, sf, partials[which_partial]);
 				continue;
 			}
 			fraction_accum -= 1;
@@ -2480,7 +2481,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				c.sf.geometry = partials[i].sf.geometry;
 				c.coalesced = false;
 				c.sf.seq = partials[i].sf.seq;
-				c.stringpool = stringpool + pool_off[partials[i].sf.segment];
+				c.sf.stringpool = partials[i].sf.stringpool;
 				c.sf.keys = partials[i].sf.keys;
 				c.sf.values = partials[i].sf.values;
 				c.sf.full_keys = partials[i].sf.full_keys;
@@ -2620,7 +2621,7 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				feature.id = layer_features[x].sf.id;
 				feature.has_id = layer_features[x].sf.has_id;
 
-				decode_meta(layer_features[x].sf.keys, layer_features[x].sf.values, layer_features[x].stringpool, layer, feature);
+				decode_meta(layer_features[x].sf.keys, layer_features[x].sf.values, layer_features[x].sf.stringpool, layer, feature);
 				for (size_t a = 0; a < layer_features[x].sf.full_keys.size(); a++) {
 					serial_val sv = layer_features[x].sf.full_values[a];
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str());

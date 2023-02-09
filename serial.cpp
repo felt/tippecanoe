@@ -17,6 +17,7 @@
 #include "options.hpp"
 #include "main.hpp"
 #include "pool.hpp"
+#include "memfile.hpp"
 #include "projection.hpp"
 #include "evaluator.hpp"
 #include "milo/dtoa_milo.h"
@@ -739,6 +740,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 			serialize_long_long(r->metafile, addpool(r->poolfile, r->treefile, sf.full_values[i].s.c_str(), sf.full_values[i].type), &r->metapos, sst->fname);
 		}
 	}
+
+	sf.stringpool = r->poolfile->map;
 
 	long long geomstart = r->geompos;
 	sf.geometry = scaled_geometry;
