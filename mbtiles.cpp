@@ -856,38 +856,31 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 					fk2->second.count += fk->second.count;
 
 					if (fk->second.numeric_count + fk2->second.numeric_count > 0) {
-						// Why is this standard deviation not exactly right?
-						// Because the subsamples had different means?
-						// Because the subsamples have different counts?
-
-#if 0
-						size_t n = fk->second.numeric_count;
-						size_t m = fk2->second.numeric_count;
-						double s2x = fk->second.m2;
-						double s2y = fk2->second.m2;
-						double xmean = fk->second.mean;
-						double ymean = fk2->second.mean;
-
-						fk2->second.m2 = ((n - 1) * s2x + (m - 1) * s2y) / (n + m - 1) +
-							((n * m) * pow(xmean - ymean, 2) /
-							 ((n + m) * (n + m - 1)));
-#endif
-
 						// https://math.stackexchange.com/questions/2971315/how-do-i-combine-standard-deviations-of-two-groups
 						size_t n1 = fk->second.numeric_count;
 						size_t n2 = fk2->second.numeric_count;
-						double var_x1 = fk->second.m2 / n1;
-						double var_x2 = fk2->second.m2 / n2;
-						double mean_x1 = fk->second.mean;
-						double mean_x2 = fk2->second.mean;
-						double mean_x = (n1 * mean_x1 + n2 * mean_x2) / (n1 + n2);
 
-						double q1 = (n1 - 1) * var_x1 + n1 * mean_x1 * mean_x1;
-						double q2 = (n2 - 1) * var_x2 + n2 * mean_x2 * mean_x2;
-						double qc = q1 + q2;
-						double sc = sqrt((qc - (n1 + n2) * mean_x * mean_x) / (n1 + n2 - 1));
+						if (n1 == 0) {
+							// fk2 is already correct
+						} else if (n2 == 0) {
+							// move fk to fk2
+							fk2->second.m2 = fk->second.m2;
+						} else {
+							double var_x1 = fk->second.m2 / n1;
+							double var_x2 = fk2->second.m2 / n2;
+							double mean_x1 = fk->second.mean;
+							double mean_x2 = fk2->second.mean;
+							double mean_x = (n1 * mean_x1 + n2 * mean_x2) / (n1 + n2);
 
-						fk2->second.m2 = sc * sc * (n1 + n2);
+							// stack overflow uses n1 - 1 and n2 - 1
+							double q1 = (n1) * var_x1 + n1 * mean_x1 * mean_x1;
+							double q2 = (n2) * var_x2 + n2 * mean_x2 * mean_x2;
+							double qc = q1 + q2;
+							// stack overflow uses n1 + n2 - 1
+							double sc = sqrt((qc - (n1 + n2) * mean_x * mean_x) / (n1 + n2));
+
+							fk2->second.m2 = sc * sc * (n1 + n2);
+						}
 
 						fk2->second.mean = (
 							fk2->second.mean * fk2->second.numeric_count +
