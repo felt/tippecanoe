@@ -850,6 +850,19 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 					if (fk->second.max > fk2->second.max) {
 						fk2->second.max = fk->second.max;
 					}
+
+					fk2->second.xsum += fk->second.xsum;
+					fk2->second.ysum += fk->second.ysum;
+					fk2->second.count += fk->second.count;
+
+					if (fk->second.numeric_count + fk2->second.numeric_count > 0) {
+						fk2->second.mean = (
+							fk2->second.mean * fk2->second.numeric_count +
+							fk->second.mean * fk->second.numeric_count
+						) / (fk2->second.numeric_count + fk->second.numeric_count);
+
+						fk2->second.numeric_count += fk->second.numeric_count;
+					}
 				}
 			}
 
