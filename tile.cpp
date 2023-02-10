@@ -240,11 +240,37 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-double get_interestingness(const serial_feature *sf, const std::map<std::string, layermap_entry> *merged_layermaps) {
-	return 0;  // XXX
+double get_interestingness(const serial_feature *sf, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {
+	double interestingness = 0;
+	auto layer = merged_layermaps->find(layername);
+	if (layer == merged_layermaps->end()) {
+		fprintf(stderr, "Can't find layer %s\n", layername.c_str());
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	for (size_t i = 0; i < sf->keys.size(); i++) {
+		mvt_value key = retrieve_string(sf->keys[i], sf->stringpool, NULL);
+		mvt_value value = retrieve_string(sf->values[i], sf->stringpool, NULL);
+
+#if 0
+		// this needs to find the layer before it can find the attribute
+		auto lm = merged_layermaps->find(key.string_value);
+		if (lm != merged_layermaps->end()) {
+			// how categorical is it?
+
+                        double xd = lm->second.xsum / lm->second.count;
+                        double yd = lm->second.ysum / lm->second.count;
+                        double d = sqrt(xd * xd + yd * yd);
+
+			
+		}
+#endif
+	}
+
+	return interestingness;
 }
 
-static mvt_value find_attribute_value(const serial_feature *sf, std::string key, const std::map<std::string, layermap_entry> *merged_layermaps) {
+static mvt_value find_attribute_value(const serial_feature *sf, std::string key, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -254,7 +280,7 @@ static mvt_value find_attribute_value(const serial_feature *sf, std::string key,
 	if (key == ORDER_BY_INTERESTINGNESS) {
 		mvt_value v;
 		v.type = mvt_double;
-		v.numeric_value.double_value = get_interestingness(sf, merged_layermaps);
+		v.numeric_value.double_value = get_interestingness(sf, merged_layermaps, layername);
 		return v;
 	}
 
@@ -299,10 +325,10 @@ static mvt_value coerce_double(mvt_value v) {
 	return v;
 }
 
-static bool order_partials(const serial_feature &a, const serial_feature &b, const std::map<std::string, layermap_entry> *merged_layermaps) {
+static bool order_partials(const serial_feature &a, const serial_feature &b, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {
 	for (size_t i = 0; i < order_by.size(); i++) {
-		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, merged_layermaps));
-		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, merged_layermaps));
+		mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, merged_layermaps, layername));
+		mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, merged_layermaps, layername));
 
 		if (order_by[i].descending) {
 			if (v2 < v1) {
@@ -337,11 +363,13 @@ static bool order_partials(const serial_feature &a, const serial_feature &b, con
 
 struct ordercmp {
 	const std::map<std::string, layermap_entry> *merged_layermaps;
-	ordercmp(const std::map<std::string, layermap_entry> *merged_layermaps_) :
-		merged_layermaps(merged_layermaps_) { }
+	const std::string layername;
+
+	ordercmp(const std::map<std::string, layermap_entry> *merged_layermaps_, const std::string &layername_) :
+		merged_layermaps(merged_layermaps_), layername(layername_) { }
 
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
-		return order_partials(a.sf, b.sf, merged_layermaps);
+		return order_partials(a.sf, b.sf, merged_layermaps, layername);
 	}
 };
 
@@ -2042,8 +2070,9 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					// would it have been better to drop this other feature instead?
 
+					std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
 					if (order_by.size() > 0) {
-						if (order_partials(sf, partials[which_partial].sf, merged_layermaps)) {
+						if (order_partials(sf, partials[which_partial].sf, merged_layermaps, layername)) {
 							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
 							// XXX preserve_attributes
 						}
@@ -2468,7 +2497,8 @@ long long write_tile(FILE *geoms, std::atomic<long long> *geompos_in, char *meta
 			}
 
 			if (order_by.size() != 0) {
-				std::sort(layer_features.begin(), layer_features.end(), ordercmp(merged_layermaps));
+				std::string layername = layer_iterator->first;
+				std::sort(layer_features.begin(), layer_features.end(), ordercmp(merged_layermaps, layername));
 			}
 
 			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
