@@ -241,6 +241,8 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 }
 
 double get_interestingness(const serial_feature *sf, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {
+	double sum = 0;
+
 	auto layer = merged_layermaps->find(layername);
 	if (layer == merged_layermaps->end()) {
 		fprintf(stderr, "Can't find layer %s\n", layername.c_str());
@@ -272,12 +274,18 @@ double get_interestingness(const serial_feature *sf, const std::map<std::string,
 				// or somewhere in between for more reasonably categorical values.
 				double interestingness = sqrt(xd * xd + yd * yd);
 
-				printf("%f: %s %s\n", categoricality * interestingness, key.string_value.c_str(), sf->stringpool + sf->values[i] + 1);
+				// printf("%f: %s %s\n", categoricality * interestingness, key.string_value.c_str(), sf->stringpool + sf->values[i] + 1);
+				sum += categoricality * interestingness;
+			}
+
+			if (sf->stringpool[sf->values[i]] == mvt_double) {
+				double stddev = sqrt(tass->second.m2 / tass->second.numeric_count);
+				sum += fabs(atof(sf->stringpool + sf->values[i] + 1) - tass->second.mean) / stddev;
 			}
 		}
 	}
 
-	return 0;
+	return sum;
 }
 
 static mvt_value find_attribute_value(const serial_feature *sf, std::string key, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {

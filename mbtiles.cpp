@@ -289,11 +289,13 @@ void tilestats(std::map<std::string, layermap_entry> const &layermap1, size_t el
 			double yd = attribute.second.ysum / attribute.second.count;
 			double d = sqrt(xd * xd + yd * yd);
 
+#if 0
 			printf("%s %0.6f", attribute.first.c_str(), d);
 			if (attribute.second.numeric_count != 0) {
 				printf(" %f %f", attribute.second.mean, sqrt(attribute.second.m2 / attribute.second.numeric_count));
 			} 
 			printf("\n");
+#endif
 
 			size_t val_count = attribute.second.sample_values.size();
 			if (val_count > max_tilestats_sample_values) {
