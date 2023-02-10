@@ -908,6 +908,20 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 	return out;
 }
 
+double categorical_hash(std::string const &val) {
+	unsigned hash = 0;
+	for (size_t i = 0; i < val.size(); i++) {
+		// https://en.wikipedia.org/wiki/Hash_function#Fibonacci_hashing
+		hash = hash * 2654435769 + val[i];
+	}
+	// extra multiply so even single-byte values are distributed
+	// around the circle rather than clumped together on one side.
+	hash = hash * 2654435769;
+	double angle = ((double) hash) / UINT_MAX * 2 * M_PI;
+
+	return angle;
+}
+
 void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, std::string const &attrib, type_and_string const &val) {
 	if (val.type == mvt_null) {
 		return;
@@ -944,15 +958,7 @@ void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, s
 		}
 	}
 
-	unsigned hash = 0;
-	for (size_t i = 0; i < val.string.size(); i++) {
-		// https://en.wikipedia.org/wiki/Hash_function#Fibonacci_hashing
-		hash = hash * 2654435769 + val.string[i];
-	}
-	// extra multiply so even single-byte values are distributed
-	// around the circle rather than clumped together on one side.
-	hash = hash * 2654435769;
-	double angle = ((double) hash) / UINT_MAX * 2 * M_PI;
+	double angle = categorical_hash(val.string);
 	double x = cos(angle);
 	double y = sin(angle);
 

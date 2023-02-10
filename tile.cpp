@@ -241,7 +241,6 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 }
 
 double get_interestingness(const serial_feature *sf, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {
-	double interestingness = 0;
 	auto layer = merged_layermaps->find(layername);
 	if (layer == merged_layermaps->end()) {
 		fprintf(stderr, "Can't find layer %s\n", layername.c_str());
@@ -250,24 +249,35 @@ double get_interestingness(const serial_feature *sf, const std::map<std::string,
 
 	for (size_t i = 0; i < sf->keys.size(); i++) {
 		mvt_value key = retrieve_string(sf->keys[i], sf->stringpool, NULL);
-		mvt_value value = retrieve_string(sf->values[i], sf->stringpool, NULL);
 
-#if 0
-		// this needs to find the layer before it can find the attribute
-		auto lm = merged_layermaps->find(key.string_value);
-		if (lm != merged_layermaps->end()) {
-			// how categorical is it?
+		auto const tass = layer->second.file_keys.find(key.string_value);
+		if (tass != layer->second.file_keys.end()) {
+			// mvt_value value = retrieve_string(sf->values[i], sf->stringpool, NULL);
 
-                        double xd = lm->second.xsum / lm->second.count;
-                        double yd = lm->second.ysum / lm->second.count;
-                        double d = sqrt(xd * xd + yd * yd);
+                        double xd = tass->second.xsum / tass->second.count;
+                        double yd = tass->second.ysum / tass->second.count;
 
-			
+			// This will be 0 for something that is not categorical at all,
+			// 1 for something that is so categorical that there is only one value,
+			// and above 0.3 or so for something that is more reasonably categorical.
+                        double categoricality = sqrt(xd * xd + yd * yd);
+
+			if (categoricality != 1) {
+				double angle = categorical_hash(sf->stringpool + sf->values[i] + 1);
+				xd -= cos(angle);
+				yd -= sin(angle);
+
+				// This will be 0 for something that matches the single categorical value,
+				// almost 2 for something that is an extreme categorical outlier,
+				// or somewhere in between for more reasonably categorical values.
+				double interestingness = sqrt(xd * xd + yd * yd);
+
+				printf("%f: %s %s\n", categoricality * interestingness, key.string_value.c_str(), sf->stringpool + sf->values[i] + 1);
+			}
 		}
-#endif
 	}
 
-	return interestingness;
+	return 0;
 }
 
 static mvt_value find_attribute_value(const serial_feature *sf, std::string key, const std::map<std::string, layermap_entry> *merged_layermaps, std::string const &layername) {
