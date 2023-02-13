@@ -31,12 +31,6 @@ void deserialize_ulong_long(char **f, unsigned long long *n);
 void deserialize_uint(char **f, unsigned *n);
 void deserialize_byte(char **f, signed char *n);
 
-int deserialize_int_io(FILE *f, int *n, std::atomic<long long> *geompos);
-int deserialize_long_long_io(FILE *f, long long *n, std::atomic<long long> *geompos);
-int deserialize_ulong_long_io(FILE *f, unsigned long long *n, std::atomic<long long> *geompos);
-int deserialize_uint_io(FILE *f, unsigned *n, std::atomic<long long> *geompos);
-int deserialize_byte_io(FILE *f, signed char *n, std::atomic<long long> *geompos);
-
 struct serial_val {
 	int type = 0;
 	std::string s = "";

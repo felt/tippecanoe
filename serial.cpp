@@ -163,63 +163,6 @@ void deserialize_byte(char **f, signed char *n) {
 	*f += sizeof(signed char);
 }
 
-// read from file
-
-int deserialize_long_long_io(FILE *f, long long *n, std::atomic<long long> *geompos) {
-	unsigned long long zigzag = 0;
-	int ret = deserialize_ulong_long_io(f, &zigzag, geompos);
-	*n = protozero::decode_zigzag64(zigzag);
-	return ret;
-}
-
-int deserialize_ulong_long_io(FILE *f, unsigned long long *zigzag, std::atomic<long long> *geompos) {
-	*zigzag = 0;
-	int shift = 0;
-
-	while (1) {
-		int c = getc(f);
-		if (c == EOF) {
-			return 0;
-		}
-		(*geompos)++;
-
-		if ((c & 0x80) == 0) {
-			*zigzag |= ((unsigned long long) c) << shift;
-			shift += 7;
-			break;
-		} else {
-			*zigzag |= ((unsigned long long) (c & 0x7F)) << shift;
-			shift += 7;
-		}
-	}
-
-	return 1;
-}
-
-int deserialize_int_io(FILE *f, int *n, std::atomic<long long> *geompos) {
-	long long ll = 0;
-	int ret = deserialize_long_long_io(f, &ll, geompos);
-	*n = ll;
-	return ret;
-}
-
-int deserialize_uint_io(FILE *f, unsigned *n, std::atomic<long long> *geompos) {
-	unsigned long long v;
-	deserialize_ulong_long_io(f, &v, geompos);
-	*n = v;
-	return 1;
-}
-
-int deserialize_byte_io(FILE *f, signed char *n, std::atomic<long long> *geompos) {
-	int c = getc(f);
-	if (c == EOF) {
-		return 0;
-	}
-	*n = c;
-	(*geompos)++;
-	return 1;
-}
-
 static void write_geometry(drawvec const &dv, std::string &out, long long wx, long long wy) {
 	for (size_t i = 0; i < dv.size(); i++) {
 		if (dv[i].op == VT_MOVETO || dv[i].op == VT_LINETO) {
