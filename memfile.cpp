@@ -75,8 +75,6 @@ void memfile_full(struct memfile *file) {
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	fprintf(stderr, "Tippecanoe string pool is full (%zu); switching to file\n", file->off);
-
 	file->fp = fdopen(file->fd, "wb");
 	if (file->fp == NULL) {
 		fprintf(stderr, "fdopen memfile: %s\n", strerror(errno));

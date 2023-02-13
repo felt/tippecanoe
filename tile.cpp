@@ -3026,11 +3026,6 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				useful_threads++;
 			}
 		}
-		if (z == iz + 1) {
-			if (!quiet) {
-				fprintf(stderr, "(compressed geometry size %lld for zoom level %d)\n", todo, z);
-			}
-		}
 
 		size_t threads = CPUS;
 		if (threads > TEMP_FILES / 4) {
