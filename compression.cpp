@@ -213,8 +213,6 @@ void compressor::compressor::end(std::atomic<long long> *fpos, const char *fname
 	}
 
 	::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
-
-	// ::fwrite_check("aaaaaaaaa", 1, 9, fp, fpos, fname);
 }
 
 int compressor::fclose() {
