@@ -3,6 +3,7 @@
 #include <string.h>
 #include <limits.h>
 #include <math.h>
+#include "main.hpp"
 #include "memfile.hpp"
 #include "pool.hpp"
 #include "errors.hpp"
@@ -42,24 +43,26 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	}
 
 	while (*sp != 0) {
-		int cmp = swizzlecmp(s, poolfile->map + ((struct stringpool *) (treefile->map + *sp))->off + 1);
+		int cmp = swizzlecmp(s, poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1);
 
 		if (cmp == 0) {
-			cmp = type - (poolfile->map + ((struct stringpool *) (treefile->map + *sp))->off)[0];
+			cmp = type - (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0];
 		}
 
 		if (cmp < 0) {
-			sp = &(((struct stringpool *) (treefile->map + *sp))->left);
+			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->left);
 		} else if (cmp > 0) {
-			sp = &(((struct stringpool *) (treefile->map + *sp))->right);
+			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->right);
 		} else {
-			return ((struct stringpool *) (treefile->map + *sp))->off;
+			return ((struct stringpool *) (treefile->map.c_str() + *sp))->off;
 		}
 
 		depth++;
 		if (depth > max) {
 			// Search is very deep, so string is probably unique.
 			// Add it to the pool without adding it to the search tree.
+			// This might go either to memory or the file, depending on whether
+			// the pool is full yet.
 
 			long long off = poolfile->off;
 			if (memfile_write(poolfile, &type, 1) < 0) {
@@ -74,12 +77,41 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 		}
 	}
 
+	// Size of memory divided by 10 from observation of OOM errors (when supposedly
+	// 20% of memory is full) and onset of thrashing (when supposedly 15% of memory
+	// is full) on ECS.
+	if ((size_t) (poolfile->off + treefile->off) > memsize / CPUS / 10) {
+		// If the pool and search tree get to be larger than physical memory,
+		// then searching will start thrashing. Switch to appending strings
+		// to the file instead of keeping them in memory.
+
+		if (poolfile->fp == NULL) {
+			memfile_full(poolfile);
+		}
+	}
+
+	if (poolfile->fp != NULL) {
+		// We are now appending to the file, so don't try to keep tree references
+		// to the newly-added strings.
+
+		long long off = poolfile->off;
+		if (memfile_write(poolfile, &type, 1) < 0) {
+			perror("memfile write");
+			exit(EXIT_WRITE);
+		}
+		if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+			perror("memfile write");
+			exit(EXIT_WRITE);
+		}
+		return off;
+	}
+
 	// *sp is probably in the memory-mapped file, and will move if the file grows.
 	long long ssp;
 	if (sp == &treefile->tree) {
 		ssp = -1;
 	} else {
-		ssp = ((char *) sp) - treefile->map;
+		ssp = ((char *) sp) - treefile->map.c_str();
 	}
 
 	long long off = poolfile->off;
@@ -116,7 +148,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	if (ssp == -1) {
 		treefile->tree = p;
 	} else {
-		*((long long *) (treefile->map + ssp)) = p;
+		*((long long *) (treefile->map.c_str() + ssp)) = p;
 	}
 	return off;
 }

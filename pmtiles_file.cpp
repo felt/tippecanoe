@@ -57,7 +57,7 @@ std::string compress_fn(const std::string &input, uint8_t compression) {
 	if (compression == pmtiles::COMPRESSION_NONE) {
 		output = input;
 	} else if (compression == pmtiles::COMPRESSION_GZIP) {
-		compress(input, output);
+		compress(input, output, true);
 	} else {
 		throw std::runtime_error("Unknown or unsupported compression.");
 	}
@@ -121,7 +121,7 @@ std::string metadata_to_pmtiles_json(metadata m) {
 	state.json_end_hash();
 	state.json_write_newline();
 	std::string compressed;
-	compress(buf, compressed);
+	compress(buf, compressed, true);
 	return compressed;
 }
 
@@ -200,6 +200,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 			pmtiles::zxy zxy = pmtiles::tileid_to_zxy(tile_id);
 			if (!quiet && !quiet_progress) {
 				fprintf(stderr, "  %3.1f%%  %d/%u/%u  \r", progress, zxy.z, zxy.x, zxy.y);
+				fflush(stderr);
 			}
 			sqlite3_bind_int(map_stmt, 1, zxy.z);
 			sqlite3_bind_int(map_stmt, 2, zxy.x);
