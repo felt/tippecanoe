@@ -73,6 +73,12 @@ int decompressor::fread(void *p, size_t size, size_t nmemb, std::atomic<long lon
 }
 
 void decompressor::end(std::atomic<long long> *geompos) {
+	// "within" means that we haven't received end-of-stream yet,
+	// so consume more compressed data until we get there.
+	// This can be necessary if the caller knows that it is at
+	// the end of the feature stream (because it got a 0-length
+	// feature) but the decompressor doesn't know yet.
+
 	if (within) {
 		while (true) {
 			if (zs.avail_in == 0) {

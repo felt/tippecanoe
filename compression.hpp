@@ -11,6 +11,8 @@ struct decompressor {
 	FILE *fp = NULL;
 	z_stream zs;
 	std::string buf;
+
+	// from begin() to receiving end-of-stream
 	bool within = false;
 
 	decompressor(FILE *f) {
