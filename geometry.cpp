@@ -1538,7 +1538,8 @@ struct sorty {
 
 struct sorty_sorter {
 	int kind;
-	sorty_sorter(int k) : kind(k) {};
+	sorty_sorter(int k)
+	    : kind(k){};
 
 	bool operator()(const sorty &a, const sorty &b) const {
 		long long xa, ya, xb, yb;
@@ -1549,13 +1550,13 @@ struct sorty_sorter {
 
 			xb = b.x;
 			yb = b.y;
-		} else if (kind == 1) {  // X first
+		} else if (kind == 1) {	 // X first
 			xa = a.y;
 			ya = a.x;
 
 			xb = b.y;
 			yb = b.x;
-		} else if (kind == 2) {  // diagonal
+		} else if (kind == 2) {	 // diagonal
 			xa = a.x + a.y;
 			ya = a.x - a.y;
 

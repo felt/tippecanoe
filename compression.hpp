@@ -23,7 +23,8 @@ struct decompressor {
 		zs.avail_in = 0;
 	}
 
-	decompressor() { }
+	decompressor() {
+	}
 
 	void begin();
 	int fread(void *p, size_t size, size_t nmemb, std::atomic<long long> *geompos);
@@ -42,13 +43,14 @@ struct compressor {
 		fp = f;
 	}
 
-	compressor() { }
+	compressor() {
+	}
 
 	void begin();
 	void end(std::atomic<long long> *fpos, const char *fname);
 	int fclose();
 	void fwrite_check(const char *p, size_t size, size_t nmemb, std::atomic<long long> *fpos, const char *fname);
-	void serialize_ulong_long(unsigned long long val, std::atomic<long long> *fpos, const char *fname); 
+	void serialize_ulong_long(unsigned long long val, std::atomic<long long> *fpos, const char *fname);
 
 	void serialize_long_long(long long val, std::atomic<long long> *fpos, const char *fname);
 	void serialize_int(int val, std::atomic<long long> *fpos, const char *fname);

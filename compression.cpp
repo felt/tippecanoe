@@ -158,115 +158,114 @@ int decompressor::deserialize_uint(unsigned *n, std::atomic<long long> *geompos)
 	return 1;
 }
 
+void compressor::begin() {
+	zs.zalloc = NULL;
+	zs.zfree = NULL;
+	zs.opaque = NULL;
+	zs.msg = (char *) "";
 
-	void compressor::begin() {
-		zs.zalloc = NULL;
-		zs.zfree = NULL;
-		zs.opaque = NULL;
-		zs.msg = (char *) "";
+	int d = deflateInit(&zs, Z_DEFAULT_COMPRESSION);
+	if (d != Z_OK) {
+		fprintf(stderr, "initialize compression: %d %s\n", d, zs.msg);
+		exit(EXIT_IMPOSSIBLE);
+	}
+}
 
-		int d = deflateInit(&zs, Z_DEFAULT_COMPRESSION);
-		if (d != Z_OK) {
-			fprintf(stderr, "initialize compression: %d %s\n", d, zs.msg);
-			exit(EXIT_IMPOSSIBLE);
-		}
+void compressor::compressor::end(std::atomic<long long> *fpos, const char *fname) {
+	std::string buf;
+	buf.resize(5000);
+
+	if (zs.avail_in != 0) {
+		fprintf(stderr, "compression end called with data available\n");
+		exit(EXIT_IMPOSSIBLE);
 	}
 
-	void compressor::compressor::end(std::atomic<long long> *fpos, const char *fname) {
-		std::string buf;
-		buf.resize(5000);
+	zs.next_in = (Bytef *) buf.c_str();
+	zs.avail_in = 0;
 
-		if (zs.avail_in != 0) {
-			fprintf(stderr, "compression end called with data available\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
-
-		zs.next_in = (Bytef *) buf.c_str();
-		zs.avail_in = 0;
-
-		while (true) {
-			zs.next_out = (Bytef *) buf.c_str();
-			zs.avail_out = buf.size();
-
-			int d = deflate(&zs, Z_FINISH);
-			::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
-
-			if (d == Z_OK || d == Z_BUF_ERROR) {
-				// it can take several calls to flush out all the buffered data
-				continue;
-			}
-
-			if (d != Z_STREAM_END) {
-				fprintf(stderr, "%s: finish compression: %d %s\n", fname, d, zs.msg);
-				exit(EXIT_IMPOSSIBLE);
-			}
-
-			break;
-		}
-
+	while (true) {
 		zs.next_out = (Bytef *) buf.c_str();
 		zs.avail_out = buf.size();
 
-		int d = deflateEnd(&zs);
+		int d = deflate(&zs, Z_FINISH);
+		::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+
+		if (d == Z_OK || d == Z_BUF_ERROR) {
+			// it can take several calls to flush out all the buffered data
+			continue;
+		}
+
+		if (d != Z_STREAM_END) {
+			fprintf(stderr, "%s: finish compression: %d %s\n", fname, d, zs.msg);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		break;
+	}
+
+	zs.next_out = (Bytef *) buf.c_str();
+	zs.avail_out = buf.size();
+
+	int d = deflateEnd(&zs);
+	if (d != Z_OK) {
+		fprintf(stderr, "%s: end compression: %d %s\n", fname, d, zs.msg);
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+
+	// ::fwrite_check("aaaaaaaaa", 1, 9, fp, fpos, fname);
+}
+
+int compressor::fclose() {
+	return ::fclose(fp);
+}
+
+void compressor::fwrite_check(const char *p, size_t size, size_t nmemb, std::atomic<long long> *fpos, const char *fname) {
+	std::string buf;
+	buf.resize(size * nmemb * 2 + 200);
+
+	zs.next_in = (Bytef *) p;
+	zs.avail_in = size * nmemb;
+
+	while (zs.avail_in > 0) {
+		zs.next_out = (Bytef *) buf.c_str();
+		zs.avail_out = buf.size();
+
+		int d = deflate(&zs, Z_NO_FLUSH);
 		if (d != Z_OK) {
-			fprintf(stderr, "%s: end compression: %d %s\n", fname, d, zs.msg);
+			fprintf(stderr, "%s: deflate: %d %s\n", fname, d, zs.msg);
 			exit(EXIT_IMPOSSIBLE);
 		}
 
 		::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
-
-		// ::fwrite_check("aaaaaaaaa", 1, 9, fp, fpos, fname);
 	}
+}
 
-	int compressor::fclose() {
-		return ::fclose(fp);
-	}
-
-	void compressor::fwrite_check(const char *p, size_t size, size_t nmemb, std::atomic<long long> *fpos, const char *fname) {
-		std::string buf;
-		buf.resize(size * nmemb * 2 + 200);
-
-		zs.next_in = (Bytef *) p;
-		zs.avail_in = size * nmemb;
-
-		while (zs.avail_in > 0) {
-			zs.next_out = (Bytef *) buf.c_str();
-			zs.avail_out = buf.size();
-
-			int d = deflate(&zs, Z_NO_FLUSH);
-			if (d != Z_OK) {
-				fprintf(stderr, "%s: deflate: %d %s\n", fname, d, zs.msg);
-				exit(EXIT_IMPOSSIBLE);
-			}
-
-			::fwrite_check(buf.c_str(), sizeof(char), zs.next_out - (Bytef *) buf.c_str(), fp, fpos, fname);
+void compressor::serialize_ulong_long(unsigned long long val, std::atomic<long long> *fpos, const char *fname) {
+	while (1) {
+		unsigned char b = val & 0x7F;
+		if ((val >> 7) != 0) {
+			b |= 0x80;
+			fwrite_check((const char *) &b, 1, 1, fpos, fname);
+			val >>= 7;
+		} else {
+			fwrite_check((const char *) &b, 1, 1, fpos, fname);
+			break;
 		}
 	}
+}
 
-	void compressor::serialize_ulong_long(unsigned long long val, std::atomic<long long> *fpos, const char *fname) {
-		while (1) {
-			unsigned char b = val & 0x7F;
-			if ((val >> 7) != 0) {
-				b |= 0x80;
-				fwrite_check((const char *) &b, 1, 1, fpos, fname);
-				val >>= 7;
-			} else {
-				fwrite_check((const char *) &b, 1, 1, fpos, fname);
-				break;
-			}
-		}
-	}
+void compressor::serialize_long_long(long long val, std::atomic<long long> *fpos, const char *fname) {
+	unsigned long long zigzag = protozero::encode_zigzag64(val);
 
-	void compressor::serialize_long_long(long long val, std::atomic<long long> *fpos, const char *fname) {
-		unsigned long long zigzag = protozero::encode_zigzag64(val);
+	serialize_ulong_long(zigzag, fpos, fname);
+}
 
-		serialize_ulong_long(zigzag, fpos, fname);
-	}
+void compressor::serialize_int(int val, std::atomic<long long> *fpos, const char *fname) {
+	serialize_long_long(val, fpos, fname);
+}
 
-	void compressor::serialize_int(int val, std::atomic<long long> *fpos, const char *fname) {
-		serialize_long_long(val, fpos, fname);
-	}
-
-	void compressor::serialize_uint(unsigned val, std::atomic<long long> *fpos, const char *fname) {
-		serialize_ulong_long(val, fpos, fname);
-	}
+void compressor::serialize_uint(unsigned val, std::atomic<long long> *fpos, const char *fname) {
+	serialize_ulong_long(val, fpos, fname);
+}
