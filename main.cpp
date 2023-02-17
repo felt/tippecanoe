@@ -1280,6 +1280,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			std::vector<std::string> trim = {
 				".json",
 				".geojson",
+				".fgb",
 				".geobuf",
 				".mbtiles",
 				".pmtiles",

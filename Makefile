@@ -97,10 +97,27 @@ suffixes = json json.gz
 # Don't test overflow with geobuf, because it fails (https://github.com/mapbox/geobuf/issues/87)
 # Don't test stringids with geobuf, because it fails
 nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
+
+# Don't test attribute-type with geobuf, because ogr2ogr doesn't support different types for the same attribute between features
+noflatgeobuf = $(wildcard tests/attribute-type/out/*.json)
+# These inputs all have feature IDs, which aren't supported by flatgeobuf
+noflatgeobuf += $(foreach dir,coalesce-id feature-filter id overflow stringid wyalkatchem,$(wildcard tests/$(dir)/out/*.json))
+# These inputs all have null attributes, which aren't supported by flatgeobuf
+noflatgeobuf += $(foreach dir,attribute-type border dateline epsg-3857 feature-filter islands ne_110m_admin_1_states_provinces_lines ne_110m_populated_places tl_2018_51685_roads wraparound,$(wildcard tests/$(dir)/out/*.json))
+# These inputs have weird GeoJSON geometry types, which aren't supported by flatgeobuf
+noflatgeobuf += $(foreach dir,geometry,$(wildcard tests/$(dir)/out/*.json))
+# Feature order difference, probably from coordinate rounding?
+noflatgeobuf += $(foreach dir,grid-unaligned knox multilayer,$(wildcard tests/$(dir)/out/*.json))
+# Per-feature layer declarations
+noflatgeobuf += $(foreach dir,allow-existing csv feature-filter join-population layer-json longlayer muni pbf raw-tiles,$(wildcard tests/$(dir)/out/*.json))
+# Per-feature minzooms or maxzooms
+noflatgeobuf += $(foreach dir,allow-existing csv dateline join-population layer-json minzoom onefeature raw-tiles,$(wildcard tests/$(dir)/out/*.json))
+
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
+flatgeobuf-test: tippecanoe-json-tool $(addsuffix .checkflatbuf,$(filter-out $(noflatgeobuf),$(TESTS)))
 
 # For quicker address sanitizer build, hope that regular JSON parsing is tested enough by parallel and join tests
-fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
+fewer-tests: tippecanoe tippecanoe-decode flatgeobuf-test geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
 
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkbuf:
@@ -109,6 +126,15 @@ fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-te
 	./tippecanoe -q -a@ -f -o $@.mbtiles $(subst @,:,$(subst %,/,$(subst _, ,$(patsubst %.json.checkbuf,%,$(word 4,$(subst /, ,$@)))))) $(foreach suffix,$(suffixes),$(addsuffix .geobuf,$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix))))) < /dev/null
 	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkbuf/check/g' | sed 's/\.geobuf//g' > $@.out
 	cmp $@.out $(patsubst %.checkbuf,%,$@)
+	rm $@.out $@.mbtiles
+
+# XXX Use proper makefile rules instead of a for loop
+%.json.checkflatbuf:
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json); do rm -f $$i.fgb; ./tippecanoe-json-tool -w $$i > $$i.clean && ogr2ogr -preserve_fid $$i.fgb $$i.clean; done
+	for i in $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.json.gz); do rm -f $$i.fgb; gzip -dc $$i | ./tippecanoe-json-tool -w > $$i.clean && ogr2ogr -preserve_fid $$i.fgb $$i.clean; done
+	./tippecanoe -q -a@ -f -o $@.mbtiles $(subst @,:,$(subst %,/,$(subst _, ,$(patsubst %.json.checkflatbuf,%,$(word 4,$(subst /, ,$@)))))) $(foreach suffix,$(suffixes),$(addsuffix .fgb,$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix))))) < /dev/null
+	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkflatbuf/check/g' | sed 's/\.fgb//g' > $@.out
+	cmp $@.out $(patsubst %.checkflatbuf,%,$@)
 	rm $@.out $@.mbtiles
 
 parallel-test:
