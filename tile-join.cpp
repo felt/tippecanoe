@@ -1193,7 +1193,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (argc - optind < 1) {
+	if ((argc - optind < 1) && (filearg == 0)) {
 		usage(argv);
 	}
 
