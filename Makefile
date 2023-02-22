@@ -329,6 +329,15 @@ join-test: tile-join
 	./tippecanoe-decode -x generator tests/join-population/concat.mbtiles > tests/join-population/concat.mbtiles.json.check
 	cmp tests/join-population/concat.mbtiles.json.check tests/join-population/concat.mbtiles.json
 	rm tests/join-population/concat.mbtiles.json.check tests/join-population/concat.mbtiles tests/join-population/macarthur.mbtiles
+	# Test reading list of input files from file
+	./tippecanoe -q -f -Z5 -z10 -o tests/readfile/macarthur.mbtiles -l macarthur1 tests/join-population/macarthur.json
+	./tippecanoe -q -f -Z5 -z10 -o tests/readfile/macarthur2.mbtiles -l macarthur2 tests/join-population/macarthur2.json
+	./tile-join -q -R macarthur1:one --rename-layer=macarthur2:two -f -o tests/readfile/renamed.mbtiles tests/readfile/macarthur.mbtiles tests/readfile/macarthur2.mbtiles
+	./tippecanoe-decode -x generator -x generator_options tests/readfile/renamed.mbtiles > tests/readfile/renamed.mbtiles.json.check
+	./tile-join -q -R macarthur1:one --rename-layer=macarthur2:two -f -r tests/readfile/readfile.list -o tests/readfile/readfile.mbtiles
+	./tippecanoe-decode -x generator -x generator_options tests/readfile/readfile.mbtiles > tests/readfile/readfile.mbtiles.json.check
+	cmp tests/readfile/renamed.mbtiles.json.check tests/readfile/readfile.mbtiles.json.check
+	rm tests/readfile/renamed.mbtiles.json.check tests/readfile/readfile.mbtiles.json.check  tests/readfile/readfile.mbtiles tests/readfile/renamed.mbtiles
 	#`
 	# Make sure empty tilesets work
 	#
