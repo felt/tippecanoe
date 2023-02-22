@@ -16,10 +16,10 @@ DEBUG_FLAGS := -O0 -DDEBUG -fno-inline-functions -fno-omit-frame-pointer
 
 
 OS := $(shell uname -o)
-ifeq ($(OS),GNU/Linux)
-ADVSHELL = /bin/bash
-else
+ifeq ($(OS),FreeBSD)
 ADVSHELL = /usr/local/bin/bash
+else
+ADVSHELL = /bin/bash
 endif
 
 
