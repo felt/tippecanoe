@@ -757,6 +757,7 @@ The options are:
  * `-o` *out.mbtiles*, *out.pmtiles* or `--output=`*out.mbtiles*: Write the new tiles to the specified .mbtiles file.
  * `-e` *directory* or `--output-to-directory=`*directory*: Write the new tiles to the specified directory instead of to an mbtiles file.
  * `-f` or `--force`: Remove *out.mbtiles* if it already exists.
+ * `-r` or `--read-from`: list of input mbtiles to read from.
 
 ### Tileset description and attribution
 
