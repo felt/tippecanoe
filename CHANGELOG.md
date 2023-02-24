@@ -1,3 +1,5 @@
+* Add --cluster-maxzoom option to limit zoom levels that receive clustering
+
 ## 2.23.0
 
 * Remove the concept of "separate metadata." Features now always directly reference their keys and values rather than going through a second level of indirection.
