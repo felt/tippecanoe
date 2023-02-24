@@ -25,7 +25,7 @@
 
 static int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 
-drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
+drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
 	drawvec out;
 
 	bbox[0] = LLONG_MAX;
@@ -38,10 +38,7 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 	while (1) {
 		draw d;
 
-		if (!deserialize_byte_io(meta, &d.op, geompos)) {
-			fprintf(stderr, "Internal error: Unexpected end of file in geometry\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
+		deserialize_byte(meta, &d.op);
 		if (d.op == VT_END) {
 			break;
 		}
@@ -49,8 +46,8 @@ drawvec decode_geometry(FILE *meta, std::atomic<long long> *geompos, int z, unsi
 		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
 			long long dx, dy;
 
-			deserialize_long_long_io(meta, &dx, geompos);
-			deserialize_long_long_io(meta, &dy, geompos);
+			deserialize_long_long(meta, &dx);
+			deserialize_long_long(meta, &dy);
 
 			wx += dx * (1 << geometry_scale);
 			wy += dy * (1 << geometry_scale);
@@ -1541,7 +1538,8 @@ struct sorty {
 
 struct sorty_sorter {
 	int kind;
-	sorty_sorter(int k) : kind(k) {};
+	sorty_sorter(int k)
+	    : kind(k){};
 
 	bool operator()(const sorty &a, const sorty &b) const {
 		long long xa, ya, xb, yb;
@@ -1552,13 +1550,13 @@ struct sorty_sorter {
 
 			xb = b.x;
 			yb = b.y;
-		} else if (kind == 1) {  // X first
+		} else if (kind == 1) {	 // X first
 			xa = a.y;
 			ya = a.x;
 
 			xb = b.y;
 			yb = b.x;
-		} else if (kind == 2) {  // diagonal
+		} else if (kind == 2) {	 // diagonal
 			xa = a.x + a.y;
 			ya = a.x - a.y;
 
@@ -1775,7 +1773,11 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				if (goodness <= 0) {
 					double lon, lat;
 					tile2lonlat(d.x, d.y, 32, &lon, &lat);
-					fprintf(stderr, "could not find label point: %s %f,%f\n", kind, lat, lon);
+
+					static std::atomic<long long> warned(0);
+					if (warned++ < 10) {
+						fprintf(stderr, "could not find good label point: %s %f,%f\n", kind, lat, lon);
+					}
 				}
 			}
 

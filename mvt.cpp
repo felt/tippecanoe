@@ -82,14 +82,14 @@ int decompress(std::string const &input, std::string &output) {
 }
 
 // https://github.com/mapbox/mapnik-vector-tile/blob/master/src/vector_tile_compression.hpp
-int compress(std::string const &input, std::string &output) {
+int compress(std::string const &input, std::string &output, bool gz) {
 	z_stream deflate_s;
 	deflate_s.zalloc = Z_NULL;
 	deflate_s.zfree = Z_NULL;
 	deflate_s.opaque = Z_NULL;
 	deflate_s.avail_in = 0;
 	deflate_s.next_in = Z_NULL;
-	deflateInit2(&deflate_s, Z_BEST_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY);
+	deflateInit2(&deflate_s, Z_BEST_COMPRESSION, Z_DEFLATED, gz ? 31 : 15, 8, Z_DEFAULT_STRATEGY);
 	deflate_s.next_in = (Bytef *) input.data();
 	deflate_s.avail_in = input.size();
 	size_t length = 0;

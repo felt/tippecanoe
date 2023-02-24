@@ -34,7 +34,7 @@
 #include <map>
 #include <cmath>
 
-#ifdef __APPLE__
+#if  defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/param.h>
@@ -105,6 +105,7 @@ struct source {
 size_t CPUS;
 size_t TEMP_FILES;
 long long MAX_FILES;
+size_t memsize;
 static long long diskfree;
 char **av;
 
@@ -113,9 +114,9 @@ std::vector<clipbbox> clipbboxes;
 void checkdisk(std::vector<struct reader> *r) {
 	long long used = 0;
 	for (size_t i = 0; i < r->size(); i++) {
-		// Meta, pool, and tree are used once.
+		// Pool and tree are used once.
 		// Geometry and index will be duplicated during sorting and tiling.
-		used += (*r)[i].metapos + 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->len + (*r)[i].treefile->len;
+		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off;
 	}
 
 	static int warned = 0;
@@ -326,8 +327,11 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 	while (head != NULL) {
 		struct index ix = *((struct index *) (map + head->start));
 		long long pos = *geompos;
-		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start, geom_out, "merge geometry");
-		*geompos += ix.end - ix.start;
+
+		// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
+		// and is writing one byte less and then adding the byte for the minzoom.
+
+		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start - 1, geom_out, geompos, "merge geometry");
 		int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 		serialize_byte(geom_out, feature_minzoom, geompos, "merge geometry");
 
@@ -335,12 +339,14 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 		*progress += (ix.end - ix.start) * 3 / 4;
 		if (!quiet && !quiet_progress && progress_time() && 100 * *progress / *progress_max != *progress_reported) {
 			fprintf(stderr, "Reordering geometry: %lld%% \r", 100 * *progress / *progress_max);
+			fflush(stderr);
 			*progress_reported = 100 * *progress / *progress_max;
 		}
 
 		ix.start = pos;
 		ix.end = *geompos;
-		fwrite_check(&ix, bytes, 1, indexfile, "merge temporary");
+		std::atomic<long long> indexpos;
+		fwrite_check(&ix, bytes, 1, indexfile, &indexpos, "merge temporary");
 		head->start += bytes;
 
 		struct mergelist *m = head;
@@ -382,32 +388,25 @@ void *run_sort(void *v) {
 		a->merges[start / a->unit].end = end;
 		a->merges[start / a->unit].next = NULL;
 
-		// MAP_PRIVATE to avoid disk writes if it fits in memory
-		void *map = mmap(NULL, end - start, PROT_READ | PROT_WRITE, MAP_PRIVATE, a->indexfd, start);
-		if (map == MAP_FAILED) {
-			perror("mmap in run_sort");
-			exit(EXIT_MEMORY);
+		// Read section of index into memory to sort and then use pwrite()
+		// to write it back out rather than sorting in mapped memory,
+		// because writable mapped memory seems to have bad performance
+		// problems on ECS (and maybe in containers in general)?
+
+		std::string s;
+		s.resize(end - start);
+
+		if (pread(a->indexfd, (void *) s.c_str(), end - start, start) != end - start) {
+			fprintf(stderr, "pread(index): %s\n", strerror(errno));
+			exit(EXIT_READ);
 		}
-		madvise(map, end - start, MADV_RANDOM);
-		madvise(map, end - start, MADV_WILLNEED);
 
-		qsort(map, (end - start) / a->bytes, a->bytes, indexcmp);
+		qsort((void *) s.c_str(), (end - start) / a->bytes, a->bytes, indexcmp);
 
-		// Sorting and then copying avoids disk access to
-		// write out intermediate stages of the sort.
-
-		void *map2 = mmap(NULL, end - start, PROT_READ | PROT_WRITE, MAP_SHARED, a->indexfd, start);
-		if (map2 == MAP_FAILED) {
-			perror("mmap (write)");
-			exit(EXIT_MEMORY);
+		if (pwrite(a->indexfd, s.c_str(), end - start, start) != end - start) {
+			fprintf(stderr, "pwrite(index): %s\n", strerror(errno));
+			exit(EXIT_WRITE);
 		}
-		madvise(map2, end - start, MADV_SEQUENTIAL);
-
-		memcpy(map2, map, end - start);
-
-		// No madvise, since caller will want the sorted data
-		munmap(map, end - start);
-		munmap(map2, end - start);
 	}
 
 	return NULL;
@@ -788,20 +787,21 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				unsigned long long which = (ix.ix << prefix) >> (64 - splitbits);
 				long long pos = sub_geompos[which];
 
-				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], "geom");
-				sub_geompos[which] += ix.end - ix.start;
+				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], &sub_geompos[which], "geom");
 
 				// Count this as a 25%-accomplishment, since we will copy again
 				*progress += (ix.end - ix.start) / 4;
 				if (!quiet && !quiet_progress && progress_time() && 100 * *progress / *progress_max != *progress_reported) {
 					fprintf(stderr, "Reordering geometry: %lld%% \r", 100 * *progress / *progress_max);
+					fflush(stderr);
 					*progress_reported = 100 * *progress / *progress_max;
 				}
 
 				ix.start = pos;
 				ix.end = sub_geompos[which];
 
-				fwrite_check(&ix, sizeof(struct index), 1, indexfiles[which], "index");
+				std::atomic<long long> indexpos;
+				fwrite_check(&ix, sizeof(struct index), 1, indexfiles[which], &indexpos, "index");
 			}
 
 			madvise(indexmap, indexst.st_size, MADV_DONTNEED);
@@ -958,8 +958,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					struct index ix = indexmap[a];
 					long long pos = *geompos_out;
 
-					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, "geom");
-					*geompos_out += ix.end - ix.start;
+					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
 					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
 
@@ -967,12 +966,14 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					*progress += (ix.end - ix.start) * 3 / 4;
 					if (!quiet && !quiet_progress && progress_time() && 100 * *progress / *progress_max != *progress_reported) {
 						fprintf(stderr, "Reordering geometry: %lld%% \r", 100 * *progress / *progress_max);
+						fflush(stderr);
 						*progress_reported = 100 * *progress / *progress_max;
 					}
 
 					ix.start = pos;
 					ix.end = *geompos_out;
-					fwrite_check(&ix, sizeof(struct index), 1, indexfile, "index");
+					std::atomic<long long> indexpos;
+					fwrite_check(&ix, sizeof(struct index), 1, indexfile, &indexpos, "index");
 				}
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
@@ -1028,17 +1029,8 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 	}
 }
 
-void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
-	// Run through the index and geometry for each reader,
-	// splitting the contents out by index into as many
-	// sub-files as we can write to simultaneously.
-
-	// Then sort each of those by index, recursively if it is
-	// too big to fit in memory.
-
-	// Then concatenate each of the sub-outputs into a final output.
-
-	long long mem;
+static size_t calc_memsize() {
+	size_t mem;
 
 #ifdef __APPLE__
 	int64_t hw_memsize;
@@ -1059,6 +1051,21 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 	mem = (long long) pages * pagesize;
 #endif
 
+	return mem;
+}
+
+void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
+	// Run through the index and geometry for each reader,
+	// splitting the contents out by index into as many
+	// sub-files as we can write to simultaneously.
+
+	// Then sort each of those by index, recursively if it is
+	// too big to fit in memory.
+
+	// Then concatenate each of the sub-outputs into a final output.
+
+	long long mem = memsize;
+
 	// Just for code coverage testing. Deeply recursive sorting is very slow
 	// compared to sorting in memory.
 	if (additional[A_PREFER_RADIX_SORT]) {
@@ -1066,7 +1073,7 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 	}
 
 	long long availfiles = MAX_FILES - 2 * nreaders	 // each reader has a geom and an index
-			       - 4			 // pool, meta, mbtiles, mbtiles journal
+			       - 3			 // pool, mbtiles, mbtiles journal
 			       - 4			 // top-level geom and index output, both FILE and fd
 			       - 3;			 // stdin, stdout, stderr
 
@@ -1164,23 +1171,16 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	for (size_t i = 0; i < CPUS; i++) {
 		struct reader *r = &readers[i];
 
-		char metaname[strlen(tmpdir) + strlen("/meta.XXXXXXXX") + 1];
 		char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
 		char treename[strlen(tmpdir) + strlen("/tree.XXXXXXXX") + 1];
 		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
 		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
 
-		sprintf(metaname, "%s%s", tmpdir, "/meta.XXXXXXXX");
 		sprintf(poolname, "%s%s", tmpdir, "/pool.XXXXXXXX");
 		sprintf(treename, "%s%s", tmpdir, "/tree.XXXXXXXX");
 		sprintf(geomname, "%s%s", tmpdir, "/geom.XXXXXXXX");
 		sprintf(indexname, "%s%s", tmpdir, "/index.XXXXXXXX");
 
-		r->metafd = mkstemp_cloexec(metaname);
-		if (r->metafd < 0) {
-			perror(metaname);
-			exit(EXIT_OPEN);
-		}
 		r->poolfd = mkstemp_cloexec(poolname);
 		if (r->poolfd < 0) {
 			perror(poolname);
@@ -1202,11 +1202,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			exit(EXIT_OPEN);
 		}
 
-		r->metafile = fopen_oflag(metaname, "wb", O_WRONLY | O_CLOEXEC);
-		if (r->metafile == NULL) {
-			perror(metaname);
-			exit(EXIT_OPEN);
-		}
 		r->poolfile = memfile_open(r->poolfd);
 		if (r->poolfile == NULL) {
 			perror(poolname);
@@ -1227,11 +1222,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(indexname);
 			exit(EXIT_OPEN);
 		}
-		r->metapos = 0;
 		r->geompos = 0;
 		r->indexpos = 0;
 
-		unlink(metaname);
 		unlink(poolname);
 		unlink(treename);
 		unlink(geomname);
@@ -1242,8 +1235,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			struct stringpool p;
 			memfile_write(r->treefile, &p, sizeof(struct stringpool));
 		}
-		// Keep metadata file from being completely empty if no attributes
-		serialize_int(r->metafile, 0, &r->metapos, "meta");
 
 		r->file_bbox[0] = r->file_bbox[1] = UINT_MAX;
 		r->file_bbox[2] = r->file_bbox[3] = 0;
@@ -1674,7 +1665,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				int n;
 
 				while ((n = fp->read(buf, READ_BUF)) > 0) {
-					fwrite_check(buf, sizeof(char), n, readfp, reading.c_str());
+					std::atomic<long long> readingpos;
+					fwrite_check(buf, sizeof(char), n, readfp, &readingpos, reading.c_str());
 					ahead += n;
 
 					if (buf[n - 1] == read_parallel_this && ahead > PARSE_MIN) {
@@ -1803,13 +1795,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	if (!quiet) {
 		fprintf(stderr, "                              \r");
 		//     (stderr, "Read 10000.00 million features\r", *progress_seq / 1000000.0);
+		fflush(stderr);
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (fclose(readers[i].metafile) != 0) {
-			perror("fclose meta");
-			exit(EXIT_CLOSE);
-		}
 		if (fclose(readers[i].geomfile) != 0) {
 			perror("fclose geom");
 			exit(EXIT_CLOSE);
@@ -1824,21 +1813,16 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("stat geom\n");
 			exit(EXIT_STAT);
 		}
-		if (fstat(readers[i].metafd, &readers[i].metast) != 0) {
-			perror("stat meta\n");
-			exit(EXIT_STAT);
-		}
 	}
 
-	// Create a combined string pool and a combined metadata file
+	// Create a combined string pool
 	// but keep track of the offsets into it since we still need
 	// segment+offset to find the data.
 
 	// 2 * CPUS: One per input thread, one per tiling thread
 	long long pool_off[2 * CPUS];
-	long long meta_off[2 * CPUS];
 	for (size_t i = 0; i < 2 * CPUS; i++) {
-		pool_off[i] = meta_off[i] = 0;
+		pool_off[i] = 0;
 	}
 
 	char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
@@ -1858,60 +1842,51 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	unlink(poolname);
 
-	char metaname[strlen(tmpdir) + strlen("/meta.XXXXXXXX") + 1];
-	sprintf(metaname, "%s%s", tmpdir, "/meta.XXXXXXXX");
-
-	int metafd = mkstemp_cloexec(metaname);
-	if (metafd < 0) {
-		perror(metaname);
-		exit(EXIT_OPEN);
-	}
-
-	FILE *metafile = fopen_oflag(metaname, "wb", O_WRONLY | O_CLOEXEC);
-	if (metafile == NULL) {
-		perror(metaname);
-		exit(EXIT_OPEN);
-	}
-
-	unlink(metaname);
-
-	std::atomic<long long> metapos(0);
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (readers[i].metapos > 0) {
-			void *map = mmap(NULL, readers[i].metapos, PROT_READ, MAP_PRIVATE, readers[i].metafd, 0);
-			if (map == MAP_FAILED) {
-				perror("mmap unmerged meta");
+		// If the memfile is not done yet, it is in memory, so just copy the memory.
+		// Otherwise, we need to merge memory and file.
+
+		if (readers[i].poolfile->fp == NULL) {
+			// still in memory
+
+			if (readers[i].poolfile->map.size() > 0) {
+				if (fwrite(readers[i].poolfile->map.c_str(), readers[i].poolfile->map.size(), 1, poolfile) != 1) {
+					perror("Reunify string pool");
+					exit(EXIT_WRITE);
+				}
+			}
+
+			pool_off[i] = poolpos;
+			poolpos += readers[i].poolfile->map.size();
+		} else {
+			// split into memory and file
+
+			if (fflush(readers[i].poolfile->fp) != 0) {
+				perror("fflush poolfile");
+				exit(EXIT_WRITE);
+			}
+
+			char *s = (char *) mmap(NULL, readers[i].poolfile->off, PROT_READ, MAP_PRIVATE, readers[i].poolfile->fd, 0);
+			if (s == MAP_FAILED) {
+				perror("mmap string pool for copy");
 				exit(EXIT_MEMORY);
 			}
-			madvise(map, readers[i].metapos, MADV_SEQUENTIAL);
-			madvise(map, readers[i].metapos, MADV_WILLNEED);
-			if (fwrite(map, readers[i].metapos, 1, metafile) != 1) {
-				perror("Reunify meta");
+			madvise(s, readers[i].poolfile->off, MADV_SEQUENTIAL);
+			if (fwrite(s, sizeof(char), readers[i].poolfile->off, poolfile) != readers[i].poolfile->off) {
+				perror("Reunify string pool (split)");
 				exit(EXIT_WRITE);
 			}
-			madvise(map, readers[i].metapos, MADV_DONTNEED);
-			if (munmap(map, readers[i].metapos) != 0) {
-				perror("unmap unmerged meta");
+			if (munmap(s, readers[i].poolfile->off) != 0) {
+				perror("unmap string pool for copy");
+				exit(EXIT_MEMORY);
 			}
+
+			pool_off[i] = poolpos;
+			poolpos += readers[i].poolfile->off;
 		}
 
-		meta_off[i] = metapos;
-		metapos += readers[i].metapos;
-		if (close(readers[i].metafd) != 0) {
-			perror("close unmerged meta");
-		}
-
-		if (readers[i].poolfile->off > 0) {
-			if (fwrite(readers[i].poolfile->map, readers[i].poolfile->off, 1, poolfile) != 1) {
-				perror("Reunify string pool");
-				exit(EXIT_WRITE);
-			}
-		}
-
-		pool_off[i] = poolpos;
-		poolpos += readers[i].poolfile->off;
 		memfile_close(readers[i].poolfile);
 	}
 
@@ -1919,17 +1894,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		perror("fclose pool");
 		exit(EXIT_CLOSE);
 	}
-	if (fclose(metafile) != 0) {
-		perror("fclose meta");
-		exit(EXIT_CLOSE);
-	}
-
-	char *meta = (char *) mmap(NULL, metapos, PROT_READ, MAP_PRIVATE, metafd, 0);
-	if (meta == MAP_FAILED) {
-		perror("mmap meta");
-		exit(EXIT_MEMORY);
-	}
-	madvise(meta, metapos, MADV_RANDOM);
 
 	char *stringpool = NULL;
 	if (poolpos > 0) {  // Will be 0 if -X was specified
@@ -1983,7 +1947,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	std::atomic<long long> geompos(0);
 
-	/* initial tile is 0/0/0 */
+	/* initial tile is normally 0/0/0 but can be iz/ix/iy if limited to one tile */
 	serialize_int(geomfile, iz, &geompos, fname);
 	serialize_uint(geomfile, ix, &geompos, fname);
 	serialize_uint(geomfile, iy, &geompos, fname);
@@ -1991,7 +1955,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	radix(readers, CPUS, geomfile, indexfile, tmpdir, &geompos, maxzoom, basezoom, droprate, gamma);
 
 	/* end of tile */
-	serialize_byte(geomfile, -2, &geompos, fname);
+	serialize_ulong_long(geomfile, 0, &geompos, fname);  // EOF
 
 	if (fclose(geomfile) != 0) {
 		perror("fclose geom");
@@ -2014,9 +1978,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	if (!quiet) {
 		long long s = progress_seq;
 		long long geompos_print = geompos;
-		long long metapos_print = metapos;
 		long long poolpos_print = poolpos;
-		fprintf(stderr, "%lld features, %lld bytes of geometry, %lld bytes of separate metadata, %lld bytes of string pool\n", s, geompos_print, metapos_print, poolpos_print);
+		fprintf(stderr, "%lld features, %lld bytes of geometry, %lld bytes of string pool\n", s, geompos_print, poolpos_print);
 	}
 
 	if (indexpos == 0) {
@@ -2083,6 +2046,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				progress = nprogress;
 				if (!quiet && !quiet_progress && progress_time()) {
 					fprintf(stderr, "Maxzoom: %lld%% \r", progress);
+					fflush(stderr);
 				}
 			}
 		}
@@ -2269,6 +2233,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				progress = nprogress;
 				if (!quiet && !quiet_progress && progress_time()) {
 					fprintf(stderr, "Base zoom/drop rate: %lld%% \r", progress);
+					fflush(stderr);
 				}
 			}
 
@@ -2518,7 +2483,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, meta, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, meta_off, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2529,14 +2494,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			fprintf(stderr, "%s: No zoom levels were successfully written\n", *av);
 			exit(EXIT_NODATA);
 		}
-	}
-
-	madvise(meta, metapos, MADV_DONTNEED);
-	if (munmap(meta, metapos) != 0) {
-		perror("munmap meta");
-	}
-	if (close(metafd) < 0) {
-		perror("close meta");
 	}
 
 	if (poolpos > 0) {
@@ -2744,6 +2701,8 @@ int main(int argc, char **argv) {
 	int read_parallel = 0;
 	int files_open_at_start;
 	json_object *filter = NULL;
+
+	memsize = calc_memsize();
 
 	for (i = 0; i < 256; i++) {
 		prevent[i] = 0;

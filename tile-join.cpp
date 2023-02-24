@@ -25,7 +25,6 @@
 #include <pthread.h>
 #include "mvt.hpp"
 #include "projection.hpp"
-#include "pool.hpp"
 #include "mbtiles.hpp"
 #include "geometry.hpp"
 #include "dirtiles.hpp"
@@ -412,7 +411,6 @@ struct reader {
 struct reader *begin_reading(char *fname) {
 	struct reader *r = new reader;
 	r->name = fname;
-
 	struct stat st;
 	if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
 		r->db = NULL;
@@ -545,7 +543,7 @@ void *join_worker(void *v) {
 			std::string compressed;
 
 			if (!pC) {
-				compress(pbf, compressed);
+				compress(pbf, compressed, true);
 			} else {
 				compressed = pbf;
 			}
@@ -589,6 +587,7 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 		if (ai == tasks.begin()) {
 			if (!quiet) {
 				fprintf(stderr, "%lld/%lld/%lld  \r", ai->first.z, ai->first.x, ai->first.y);
+				fflush(stderr);
 			}
 		}
 	}
@@ -959,7 +958,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 }
 
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s [-f] [-i] [-pk] [-pC] [-c joins.csv] [-X] [-x exclude ...] -o new.mbtiles source.mbtiles ...\n", argv[0]);
+	fprintf(stderr, "Usage: %s [-f] [-i] [-pk] [-pC] [-c joins.csv] [-X] [-x exclude ...] [-r inputfile.txt ] -o new.mbtiles source.mbtiles ...\n", argv[0]);
 	exit(EXIT_ARGS);
 }
 
@@ -970,7 +969,10 @@ int main(int argc, char **argv) {
 	char *csv = NULL;
 	int force = 0;
 	int ifmatched = 0;
+	int filearg = 0;
 	json_object *filter = NULL;
+
+	struct reader *readers = NULL;
 
 	CPUS = sysconf(_SC_NPROCESSORS_ONLN);
 
@@ -1011,6 +1013,7 @@ int main(int argc, char **argv) {
 		{"feature-filter-file", required_argument, 0, 'J'},
 		{"feature-filter", required_argument, 0, 'j'},
 		{"rename-layer", required_argument, 0, 'R'},
+		{"read-from", required_argument, 0, 'r'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
 		{"no-tile-compression", no_argument, &pC, 1},
@@ -1143,6 +1146,29 @@ int main(int argc, char **argv) {
 			break;
 		}
 
+		case 'r': {
+			std::fstream read_file;
+			read_file.open(std::string(optarg), std::ios::in);
+			if (read_file.is_open()) {
+				std::string sa;
+				filearg = 1;
+				while (getline(read_file, sa)) {
+					char* c = const_cast<char*>(sa.c_str());
+					reader *r = begin_reading(c);
+					struct reader **rr;
+					for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
+						if (*r < **rr) {
+							break;
+						}
+					}
+					r->next = *rr;
+					*rr = r;
+				}
+				read_file.close();
+			}
+
+		}
+
 		case 'q':
 			quiet = true;
 			break;
@@ -1167,7 +1193,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (argc - optind < 1) {
+	if ((argc - optind < 1) && (filearg == 0)) {
 		usage(argv);
 	}
 
@@ -1211,20 +1237,21 @@ int main(int argc, char **argv) {
 	std::string description;
 	std::string name;
 
-	struct reader *readers = NULL;
 
-	for (i = optind; i < argc; i++) {
-		reader *r = begin_reading(argv[i]);
-		struct reader **rr;
+	if (filearg == 0) {
+		for (i = optind; i < argc; i++) {
+			reader *r = begin_reading(argv[i]);
+			struct reader **rr;
 
-		for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
-			if (*r < **rr) {
-				break;
+			for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
+				if (*r < **rr) {
+					break;
+				}
 			}
-		}
 
-		r->next = *rr;
-		*rr = r;
+			r->next = *rr;
+			*rr = r;
+		}
 	}
 
 	std::map<std::string, std::string> attribute_descriptions;

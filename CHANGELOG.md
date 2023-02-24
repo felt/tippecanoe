@@ -1,3 +1,10 @@
+## 2.23.0
+
+* Remove the concept of "separate metadata." Features now always directly reference their keys and values rather than going through a second level of indirection.
+* Limit the size of the string pool to 1/5 the size of memory, to prevent thrashing during feature ingestion.
+* Avoid using writeable memory maps. Instead, explicitly copy data in and out of memory.
+* Compress streams of features in the temporary files, to reduce disk usage and I/O latency
+
 ## 2.22.0
 
 * Speed up feature dropping by removing unnecessary search for other small features
