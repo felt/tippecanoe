@@ -1,3 +1,9 @@
+## 2.24.0
+
+* Take feature ordering into account when dropping points in the low zooms
+* Makefile changes to support FreeBSD
+* Add -r option to tile-join to specify a list of input files
+
 ## 2.23.0
 
 * Remove the concept of "separate metadata." Features now always directly reference their keys and values rather than going through a second level of indirection.
