@@ -1,3 +1,5 @@
+* Add `point_count_abbreviated` attribute to clustered features, for consistency with supercluster
+
 ## 2.23.0
 
 * Remove the concept of "separate metadata." Features now always directly reference their keys and values rather than going through a second level of indirection.
