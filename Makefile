@@ -1,7 +1,8 @@
 PREFIX ?= /usr/local
 MANDIR ?= $(PREFIX)/share/man/man1/
 BUILDTYPE ?= Release
-SHELL = /bin/bash
+SHELL = /bin/sh
+
 
 # inherit from env if set
 CC := $(CC)
@@ -12,6 +13,15 @@ LDFLAGS := $(LDFLAGS)
 WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow
 RELEASE_FLAGS := -O3 -DNDEBUG
 DEBUG_FLAGS := -O0 -DDEBUG -fno-inline-functions -fno-omit-frame-pointer
+
+
+OS := $(shell uname -o)
+ifeq ($(OS),FreeBSD)
+ADVSHELL = /usr/local/bin/bash
+else
+ADVSHELL = /bin/bash
+endif
+
 
 ifeq ($(BUILDTYPE),Release)
 	FINAL_FLAGS := -g $(WARNING_FLAGS) $(RELEASE_FLAGS)
@@ -111,7 +121,7 @@ fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-te
 	cmp $@.out $(patsubst %.checkbuf,%,$@)
 	rm $@.out $@.mbtiles
 
-parallel-test:
+parallel-test: $(eval SHELL:=$(ADVSHELL))
 	mkdir -p tests/parallel
 	perl -e 'for ($$i = 0; $$i < 20; $$i++) { $$lon = rand(360) - 180; $$lat = rand(180) - 90; $$k = rand(1); $$v = rand(1); print "{ \"type\": \"Feature\", \"properties\": { \"yes\": \"no\", \"who\": 1, \"$$k\": \"$$v\" }, \"geometry\": { \"type\": \"Point\", \"coordinates\": [ $$lon, $$lat ] } }\n"; }' > tests/parallel/in1.json
 	perl -e 'for ($$i = 0; $$i < 300000; $$i++) { $$lon = rand(360) - 180; $$lat = rand(180) - 90; print "{ \"type\": \"Feature\", \"properties\": { }, \"geometry\": { \"type\": \"Point\", \"coordinates\": [ $$lon, $$lat ] } }\n"; }' > tests/parallel/in2.json
