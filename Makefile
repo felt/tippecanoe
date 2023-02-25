@@ -15,7 +15,7 @@ RELEASE_FLAGS := -O3 -DNDEBUG
 DEBUG_FLAGS := -O0 -DDEBUG -fno-inline-functions -fno-omit-frame-pointer
 
 
-OS := $(shell uname -o)
+OS := $(shell uname -s)
 ifeq ($(OS),FreeBSD)
 ADVSHELL = /usr/local/bin/bash
 else
