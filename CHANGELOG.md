@@ -1,8 +1,10 @@
 ## 2.24.0
 
 * Take feature ordering into account when dropping points in the low zooms
+* Add --cluster-maxzoom option to limit zoom levels that receive clustering
+* Add `point_count_abbreviated` attribute to clustered features, for consistency with supercluster
 * Makefile changes to support FreeBSD
-* Add -r option to tile-join to specify a list of input files
+* Add -r option to tile-join to provide a file containing a list of input files
 
 ## 2.23.0
 
