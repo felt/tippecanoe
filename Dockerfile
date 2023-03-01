@@ -1,19 +1,20 @@
-# Start from ubuntu
-FROM ubuntu:16.04
+FROM ubuntu:22.04 AS tippacanoe-builder
 
-# Update repos and install dependencies
 RUN apt-get update \
-  && apt-get -y upgrade \
   && apt-get -y install build-essential libsqlite3-dev zlib1g-dev
 
-# Create a directory and copy in all files
-RUN mkdir -p /tmp/tippecanoe-src
-WORKDIR /tmp/tippecanoe-src
 COPY . /tmp/tippecanoe-src
+WORKDIR /tmp/tippecanoe-src
 
-# Build tippecanoe
-RUN make \
-  && make install
+RUN make 
 
-# Run the tests
 CMD make test
+
+# Using multistage build reduces the docker image size by alot by only copying the needed binaries
+FROM ubuntu:22.04
+RUN apt-get update \
+  && apt-get -y install libsqlite3-dev zlib1g-dev \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=tippacanoe-builder /tmp/tippecanoe-src/tippecanoe* /usr/local/bin/
+COPY --from=tippacanoe-builder /tmp/tippecanoe-src/tile-join /usr/local/bin/
+WORKDIR /app 
