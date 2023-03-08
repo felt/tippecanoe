@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-135.000000,-31.000000,-3.000000,79.000000",
 "bounds": "-135.000000,-31.000000,-3.000000,79.000000",
 "center": "-3.000000,0.000000,0",
 "description": "tests/overlap/out/-z0_-pC.json.check.mbtiles",

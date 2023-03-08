@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "0.000000,0.000000,0.000000,0.000000",
 "bounds": "0.000000,0.000000,0.000000,0.000000",
 "center": "0.000000,0.000000,0",
 "description": "tests/attribute-type/out/-z0_-Tinttype@int_-Tfloattype@float_-Tbooltype@bool_-Tstringtype@string.json.check.mbtiles",

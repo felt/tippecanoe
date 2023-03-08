@@ -1113,7 +1113,7 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 	}
 }
 
-void choose_first_zoom(long long *file_bbox, std::vector<struct reader> &readers, unsigned *iz, unsigned *ix, unsigned *iy, int minzoom, int buffer) {
+void choose_first_zoom(long long *file_bbox, long long *file_bbox1, long long *file_bbox2, std::vector<struct reader> &readers, unsigned *iz, unsigned *ix, unsigned *iy, int minzoom, int buffer) {
 	for (size_t i = 0; i < CPUS; i++) {
 		if (readers[i].file_bbox[0] < file_bbox[0]) {
 			file_bbox[0] = readers[i].file_bbox[0];
@@ -1127,6 +1127,16 @@ void choose_first_zoom(long long *file_bbox, std::vector<struct reader> &readers
 		if (readers[i].file_bbox[3] > file_bbox[3]) {
 			file_bbox[3] = readers[i].file_bbox[3];
 		}
+
+		file_bbox1[0] = std::min(file_bbox1[0], readers[i].file_bbox1[0]);
+		file_bbox1[1] = std::min(file_bbox1[1], readers[i].file_bbox1[1]);
+		file_bbox1[2] = std::max(file_bbox1[2], readers[i].file_bbox1[2]);
+		file_bbox1[3] = std::max(file_bbox1[3], readers[i].file_bbox1[3]);
+
+		file_bbox2[0] = std::min(file_bbox2[0], readers[i].file_bbox2[0]);
+		file_bbox2[1] = std::min(file_bbox2[1], readers[i].file_bbox2[1]);
+		file_bbox2[2] = std::max(file_bbox2[2], readers[i].file_bbox2[2]);
+		file_bbox2[3] = std::max(file_bbox2[3], readers[i].file_bbox2[3]);
 	}
 
 	// If the bounding box extends off the plane on either side,
@@ -1164,7 +1174,7 @@ void choose_first_zoom(long long *file_bbox, std::vector<struct reader> &readers
 	}
 }
 
-std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -1938,7 +1948,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	unlink(geomname);
 
 	unsigned iz = 0, ix = 0, iy = 0;
-	choose_first_zoom(file_bbox, readers, &iz, &ix, &iy, minzoom, buffer);
+	choose_first_zoom(file_bbox, file_bbox1, file_bbox2, readers, &iz, &ix, &iy, minzoom, buffer);
 
 	if (justx >= 0) {
 		iz = minzoom;
@@ -2512,6 +2522,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		perror("close pool");
 	}
 
+	// mbtiles-style bounding box and center
 	double minlat = 0, minlon = 0, maxlat = 0, maxlon = 0, midlat = 0, midlon = 0;
 
 	tile2lonlat(midx, midy, maxzoom, &minlon, &maxlat);
@@ -2536,6 +2547,17 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		midlon = maxlon;
 	}
 
+	// antimeridian-aware bounding box
+	double minlat2 = 0, minlon2 = 0, maxlat2 = 0, maxlon2 = 0;
+	// choose whichever of the two calculated bboxes is narrower
+	if (file_bbox2[2] - file_bbox2[0] < file_bbox1[2] - file_bbox1[0]) {
+		tile2lonlat(file_bbox2[0], file_bbox2[1], 32, &minlon2, &maxlat2);
+		tile2lonlat(file_bbox2[2], file_bbox2[3], 32, &maxlon2, &minlat2);
+	} else {
+		tile2lonlat(file_bbox1[0], file_bbox1[1], 32, &minlon2, &maxlat2);
+		tile2lonlat(file_bbox1[2], file_bbox1[3], 32, &maxlon2, &minlat2);
+	}
+
 	std::map<std::string, layermap_entry> merged_lm = merge_layermaps(layermaps);
 
 	for (auto ai = merged_lm.begin(); ai != merged_lm.end(); ++ai) {
@@ -2543,7 +2565,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		ai->second.maxzoom = maxzoom;
 	}
 
-	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies);
+	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies);
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, forcetable);
 	} else {
@@ -3499,9 +3521,12 @@ int main(int argc, char **argv) {
 
 	long long file_bbox[4] = {UINT_MAX, UINT_MAX, 0, 0};
 
+	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};  // standard -180 to 180 world plane
+	long long file_bbox2[4] = {0x1FFFFFFFF, 0xFFFFFFFF, 0x100000000, 0};  // 0 to 360 world plane
+
 	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
 								       : out_dir,
-				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
+				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
 
 	ret = std::get<0>(input_ret);
 

@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-77.478795,38.753598,-77.420581,38.788391",
 "bounds": "-77.478795,38.753598,-77.420581,38.788391",
 "center": "-77.431641,38.754050,11",
 "description": "tests/tl_2018_51685_roads/out/-Z11_-z11_--no-simplification-of-shared-nodes.json.check.mbtiles",

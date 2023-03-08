@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "174.721517,-37.166211,174.721564,-37.166209",
 "bounds": "174.721517,-37.166211,174.721564,-37.166209",
 "center": "174.721541,-37.166211,22",
 "description": "tests/single-polygons/out/-Z21_-zg_-D10_-d10.json.check.mbtiles",

@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-87.564090,38.490831,-87.251603,38.902199",
 "bounds": "-87.564090,38.490831,-87.251603,38.902199",
 "center": "-87.363281,38.685378,10",
 "description": "tests/knox/out/-zg_-P.json.check.mbtiles",
