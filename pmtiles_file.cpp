@@ -105,6 +105,9 @@ std::string metadata_to_pmtiles_json(metadata m) {
 	out(state, "generator", m.generator);
 	out(state, "generator_options", m.generator_options);
 
+	std::string bounds2 = std::to_string(m.minlon2) + "," + std::to_string(m.minlat2) + "," + std::to_string(m.maxlon2) + "," + std::to_string(m.maxlat2);
+	out(state, "antimeridian_adjusted_bounds", bounds2);
+
 	if (m.vector_layers_json.size() > 0) {
 		state.json_comma_newline();
 		state.json_write_string("vector_layers");
