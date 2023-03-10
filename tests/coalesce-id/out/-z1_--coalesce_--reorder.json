@@ -1,5 +1,5 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "0.023803,-85.040752,359.950215,85.002220",
+"antimeridian_adjusted_bounds": "0.023803,-85.040752,359.950215,83.645130",
 "bounds": "-180.000000,-85.051129,180.000000,83.645130",
 "center": "90.000000,42.525564,1",
 "description": "tests/coalesce-id/out/-z1_--coalesce_--reorder.json.check.mbtiles",
