@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "100.000000,0.000000,101.000000,1.000000",
 "bounds": "100.000000,0.000000,101.000000,1.000000",
 "center": "100.000000,0.000000,0",
 "description": "tests/polygon-winding/out/-z0_--reverse-source-polygon-winding.json.check.mbtiles",

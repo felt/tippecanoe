@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-123.173825,37.454389,-121.469214,37.929824",
 "bounds": "-123.173825,37.454389,-121.469214,37.929824",
 "center": "-122.255859,37.788049,11",
 "description": "tests/coalesce-tract/out/-P_--coalesce_--reorder_-z11_-Z11_-y_STATEFP10_-y_COUNTYFP10_-l_merged.json.check.mbtiles",

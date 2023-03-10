@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-123.750000,45.089036,-120.937500,47.040182",
 "bounds": "-123.750000,45.089036,-120.937500,47.040182",
 "center": "-122.662354,45.514045,7",
 "description": "tests/raw-tiles/raw-tiles",

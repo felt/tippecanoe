@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-175.220564,-41.299973,179.216647,64.150023",
 "bounds": "-175.220564,-41.299973,179.216647,64.150023",
 "center": "22.500000,53.746579,3",
 "description": "tests/ne_110m_populated_places/out/--extra-detail_30_--smallest-maximum-zoom-guess_3.json.check.mbtiles",

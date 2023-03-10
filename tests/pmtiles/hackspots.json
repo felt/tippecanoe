@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-122.682427,45.512331,-122.654961,45.569975",
 "bounds": "-122.682427,45.512331,-122.654961,45.569975",
 "center": "-122.662354,45.514045,14",
 "description": "tests/pmtiles/hackspots.pmtiles",

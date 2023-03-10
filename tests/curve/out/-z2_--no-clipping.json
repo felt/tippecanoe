@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "90.000000,-82.000000,332.000000,83.000000",
 "bounds": "-139.000000,-82.000000,170.000000,83.000000",
 "center": "-135.000000,75.782195,2",
 "description": "tests/curve/out/-z2_--no-clipping.json.check.mbtiles",

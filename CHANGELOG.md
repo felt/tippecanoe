@@ -1,7 +1,10 @@
+# 2.24.0
+
 * Add --cluster-maxzoom option to limit zoom levels that receive clustering
 * Add `point_count_abbreviated` attribute to clustered features, for consistency with supercluster
 * Makefile changes to support FreeBSD
 * Add -r option to tile-join to provide a file containing a list of input files
+* Add antimeridian_adjusted_bounds field to tileset metadata
 
 ## 2.23.0
 

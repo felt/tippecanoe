@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-70.552855,44.577264,-68.776061,46.574057",
 "bounds": "-70.552855,44.577264,-68.776061,46.574057",
 "center": "-69.609375,45.581133,8",
 "description": "tests/tl_2015_us_county/out/-z8.json.check.mbtiles",
