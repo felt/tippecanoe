@@ -992,9 +992,11 @@ The options are:
 .SS Filtering features and feature attributes
 .RS
 .IP \(bu 2
-\fB\fC\-x\fR \fIkey\fP or \fB\fC\-\-exclude=\fR\fIkey\fP: Remove attributes of type \fIkey\fP from the output. You can use this to remove the field you are matching against if you no longer need it after joining, or to remove any other attributes you don't want.
+\fB\fC\-x\fR \fIkey\fP or \fB\fC\-\-exclude=\fR\fIkey\fP: Remove attributes named \fIkey\fP from the output. You can use this to remove the field you are matching against if you no longer need it after joining, or to remove any other attributes you don't want. You can use multiple \fB\fC\-x\fR options to remove multiple attributes.
 .IP \(bu 2
 \fB\fC\-X\fR or \fB\fC\-\-exclude\-all\fR: Remove all attributes from the output.
+.IP \(bu 2
+\fB\fC\-y\fR \fIkey\fP or \fB\fC\-\-include=\fR\fIkey\fP: Remove all attributes except for those named \fIkey\fP from the output. You can use multiple \fB\fC\-y\fR options to retain multiple attributes.
 .IP \(bu 2
 \fB\fC\-i\fR or \fB\fC\-\-if\-matched\fR: Only include features that matched the CSV.
 .IP \(bu 2

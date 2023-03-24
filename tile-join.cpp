@@ -1147,6 +1147,7 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'y':
+			exclude_all = true;
 			include.insert(std::string(optarg));
 			break;
 
