@@ -165,11 +165,6 @@ struct entryv3 {
 	}
 };
 
-struct {
-	bool operator()(entryv3 a, entryv3 b) const {
-		return a.tile_id < b.tile_id;
-	}
-} entryv3_cmp;
 
 struct entry_zxy {
 	uint8_t z;
