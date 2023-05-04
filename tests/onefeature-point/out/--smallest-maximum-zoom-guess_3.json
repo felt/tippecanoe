@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-122.000000,37.000000,-122.000000,37.000000",
 "bounds": "-122.000000,37.000000,-122.000000,37.000000",
 "center": "-122.000000,37.000000,3",
 "description": "tests/onefeature-point/out/--smallest-maximum-zoom-guess_3.json.check.mbtiles",

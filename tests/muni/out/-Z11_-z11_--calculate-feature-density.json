@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-122.538670,37.705764,-12.240000,37.836443",
 "bounds": "-122.538670,37.705764,-12.240000,37.836443",
 "center": "-122.431641,37.788049,11",
 "description": "tests/muni/out/-Z11_-z11_--calculate-feature-density.json.check.mbtiles",

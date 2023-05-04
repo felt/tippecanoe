@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "138.063812,-10.009860,209.793590,9.775580",
 "bounds": "-174.543405,-10.009860,174.245778,9.775580",
 "center": "139.218750,9.775580,7",
 "description": "tests/islands/out/-d7_-z7_-pt_-pp.json.check.mbtiles",

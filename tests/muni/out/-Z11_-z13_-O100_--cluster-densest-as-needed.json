@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-122.538670,37.705764,-12.240000,37.836443",
 "bounds": "-122.538670,37.705764,-12.240000,37.836443",
 "center": "-122.453613,37.770713,13",
 "description": "tests/muni/out/-Z11_-z13_-O100_--cluster-densest-as-needed.json.check.mbtiles",

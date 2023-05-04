@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "3.757458,-84.969764,359.744029,85.007238",
 "bounds": "-179.320808,-85.051129,177.449262,85.051129",
 "center": "-174.375000,-52.349536,5",
 "description": "tests/accumulate/out/-z5_-Ethesum@sum_-Etheproduct@product_-Ethemax@max_-Ethemin@min_-Ethemean@mean_-Etheconcat@concat_-Ethecomma@comma.json.check.mbtiles",

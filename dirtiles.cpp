@@ -310,6 +310,7 @@ void dir_write_metadata(const char *outdir, const metadata &m) {
 		out(state, "maxzoom", std::to_string(m.maxzoom));
 		out(state, "center", std::to_string(m.center_lon) + "," + std::to_string(m.center_lat) + "," + std::to_string(m.center_z));
 		out(state, "bounds", std::to_string(m.minlon) + "," + std::to_string(m.minlat) + "," + std::to_string(m.maxlon) + "," + std::to_string(m.maxlat));
+		out(state, "antimeridian_adjusted_bounds", std::to_string(m.minlon2) + "," + std::to_string(m.minlat2) + "," + std::to_string(m.maxlon2) + "," + std::to_string(m.maxlat2));
 		out(state, "type", m.type);
 		if (m.attribution.size() > 0) {
 			out(state, "attribution", m.attribution);

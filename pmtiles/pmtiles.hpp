@@ -183,18 +183,6 @@ struct entry_zxy {
 	}
 };
 
-struct {
-	bool operator()(entry_zxy a, entry_zxy b) const {
-		if (a.z != b.z) {
-			return a.z < b.z;
-		}
-		if (a.x != b.x) {
-			return a.x < b.x;
-		}
-		return a.y < b.y;
-	}
-} entry_zxy_cmp;
-
 struct varint_too_long_exception : std::exception {
 	const char *what() const noexcept override {
 		return "varint too long exception";
@@ -311,14 +299,14 @@ void rotate(int64_t n, int64_t &x, int64_t &y, int64_t rx, int64_t ry) {
 }
 
 zxy t_on_level(uint8_t z, uint64_t pos) {
-	int64_t n = 1 << z;
+	int64_t n = 1LL << z;
 	int64_t rx, ry, s, t = pos;
 	int64_t tx = 0;
 	int64_t ty = 0;
 
 	for (s = 1; s < n; s *= 2) {
-		rx = 1 & (t / 2);
-		ry = 1 & (t ^ rx);
+		rx = 1LL & (t / 2);
+		ry = 1LL & (t ^ rx);
 		rotate(s, tx, ty, rx, ry);
 		tx += s * rx;
 		ty += s * ry;
@@ -385,28 +373,33 @@ entryv3 find_tile(const std::vector<entryv3> &entries, uint64_t tile_id) {
 
 inline zxy tileid_to_zxy(uint64_t tileid) {
 	uint64_t acc = 0;
-	uint8_t t_z = 0;
-	while (true) {
+	for (uint8_t t_z = 0; t_z < 32; t_z++) {
 		uint64_t num_tiles = (1LL << t_z) * (1LL << t_z);
 		if (acc + num_tiles > tileid) {
 			return t_on_level(t_z, tileid - acc);
 		}
 		acc += num_tiles;
-		t_z++;
 	}
+	throw std::overflow_error("tile zoom exceeds 64-bit limit");
 }
 
 inline uint64_t zxy_to_tileid(uint8_t z, uint32_t x, uint32_t y) {
+	if (z > 31) {
+		throw std::overflow_error("tile zoom exceeds 64-bit limit");
+	}
+	if (x > (1 << z) - 1 || y > (1 << z) - 1) {
+		throw std::overflow_error("tile x/y outside zoom level bounds");
+	}
 	uint64_t acc = 0;
 	for (uint8_t t_z = 0; t_z < z; t_z++) acc += (1LL << t_z) * (1LL << t_z);
-	int64_t n = 1 << z;
+	int64_t n = 1LL << z;
 	int64_t rx, ry, s, d = 0;
 	int64_t tx = x;
 	int64_t ty = y;
 	for (s = n / 2; s > 0; s /= 2) {
 		rx = (tx & s) > 0;
 		ry = (ty & s) > 0;
-		d += s * s * ((3 * rx) ^ ry);
+		d += s * s * ((3LL * rx) ^ ry);
 		rotate(s, tx, ty, rx, ry);
 	}
 	return acc + d;
@@ -491,7 +484,7 @@ inline std::tuple<std::string, std::string, int> build_root_leaves(const std::fu
 	std::vector<pmtiles::entryv3> root_entries;
 	std::string leaves_bytes;
 	int num_leaves = 0;
-	for (size_t i = 0; i <= entries.size(); i += leaf_size) {
+	for (size_t i = 0; i < entries.size(); i += leaf_size) {
 		num_leaves++;
 		int end = i + leaf_size;
 		if (i + leaf_size > entries.size()) {

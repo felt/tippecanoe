@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-175.220564,-41.299973,179.216647,64.150023",
 "bounds": "-105.029297,29.840644,-95.361328,39.774769",
 "center": "-95.361328,29.840644,0",
 "description": "tests/ne_110m_populated_places/out/-z0_--clip-bounding-box_-110,27,-92,52.json.check.mbtiles",

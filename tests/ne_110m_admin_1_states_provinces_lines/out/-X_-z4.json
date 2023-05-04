@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-124.213807,29.689480,-70.645734,49.005639",
 "bounds": "-124.213807,29.689480,-70.645734,49.005639",
 "center": "-78.750000,31.461472,4",
 "description": "tests/ne_110m_admin_1_states_provinces_lines/out/-X_-z4.json.check.mbtiles",

@@ -57,6 +57,7 @@ struct stats {
 	int maxzoom;
 	double midlat, midlon;
 	double minlat, minlon, maxlat, maxlon;
+	double minlat2, minlon2, maxlat2, maxlon2;
 	std::vector<struct strategy> strategies;
 };
 
@@ -716,6 +717,8 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	double minlon = INT_MAX;
 	double maxlat = INT_MIN;
 	double maxlon = INT_MIN;
+	double minlon2 = INT_MAX;
+	double maxlon2 = INT_MIN;
 	int zoom_for_bbox = -1;
 
 	while (readers != NULL && readers->zoom < 32) {
@@ -726,8 +729,8 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			// Only use highest zoom for bbox calculation
 			// to avoid z0 always covering the world
 
-			minlat = minlon = INT_MAX;
-			maxlat = maxlon = INT_MIN;
+			minlat = minlon = minlon2 = INT_MAX;
+			maxlat = maxlon = maxlon2 = INT_MIN;
 			zoom_for_bbox = r->zoom;
 		}
 
@@ -738,6 +741,14 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		minlon = min(lon1, minlon);
 		maxlat = max(lat1, maxlat);
 		maxlon = max(lon2, maxlon);
+
+		if (lon1 < 0) {
+			lon1 += 360;
+			lon2 += 360;
+		}
+
+		minlon2 = min(lon1, minlon2);
+		maxlon2 = max(lon2, maxlon2);
 
 		if (r->zoom >= minzoom && r->zoom <= maxzoom) {
 			zxy tile = zxy(r->zoom, r->x, r->y);
@@ -810,6 +821,11 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	st->maxlon = max(maxlon, st->maxlon);
 	st->minlat = min(minlat, st->minlat);
 	st->maxlat = max(maxlat, st->maxlat);
+
+	st->minlon2 = min(minlon2, st->minlon2);
+	st->maxlon2 = max(maxlon2, st->maxlon2);
+	st->minlat2 = min(minlat, st->minlat2);
+	st->maxlat2 = max(maxlat, st->maxlat2);
 
 	handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
 	layermap = merge_layermaps(layermaps);
@@ -1229,8 +1245,8 @@ int main(int argc, char **argv) {
 
 	struct stats st;
 	memset(&st, 0, sizeof(st));
-	st.minzoom = st.minlat = st.minlon = INT_MAX;
-	st.maxzoom = st.maxlat = st.maxlon = INT_MIN;
+	st.minzoom = st.minlat = st.minlon = st.minlat2 = st.minlon2 = INT_MAX;
+	st.maxzoom = st.maxlat = st.maxlon = st.maxlat2 = st.maxlon2 = INT_MIN;
 
 	std::map<std::string, layermap_entry> layermap;
 	std::string attribution;
@@ -1284,7 +1300,12 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
+	if (st.maxlon - st.minlon <= st.maxlon2 - st.minlon2) {
+		st.minlon2 = st.minlon;
+		st.maxlon2 = st.maxlon;
+	}
+
+	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
 
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, true);

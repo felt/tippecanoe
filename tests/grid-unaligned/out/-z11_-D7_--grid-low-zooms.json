@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "0.000000,0.000000,0.084070,0.057600",
 "bounds": "0.000000,0.000000,0.084070,0.057600",
 "center": "0.084070,0.057600,11",
 "description": "tests/grid-unaligned/out/-z11_-D7_--grid-low-zooms.json.check.mbtiles",

@@ -1,4 +1,5 @@
 { "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "117.203146,-31.489159,117.498457,-31.052744",
 "bounds": "117.203146,-31.489159,117.498457,-31.052744",
 "center": "117.290039,-31.391150,12",
 "description": "tests/wyalkatchem/out/-pk_-pf_-Z9_-z12_-ldata.json.check.mbtiles",
