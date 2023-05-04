@@ -22,8 +22,8 @@ struct projection *projection = &projections[0];
 void lonlat2tile(double lon, double lat, int zoom, long long *x, long long *y) {
 	// Place infinite and NaN coordinates off the edge of the Mercator plane
 
-	int lat_class = fpclassify(lat);
-	int lon_class = fpclassify(lon);
+	int lat_class = std::fpclassify(lat);
+	int lon_class = std::fpclassify(lon);
 	bool bad_lon = false;
 
 	if (lat_class == FP_INFINITE || lat_class == FP_NAN) {
@@ -74,8 +74,8 @@ void tile2lonlat(long long x, long long y, int zoom, double *lon, double *lat) {
 void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y) {
 	// Place infinite and NaN coordinates off the edge of the Mercator plane
 
-	int iy_class = fpclassify(iy);
-	int ix_class = fpclassify(ix);
+	int iy_class = std::fpclassify(iy);
+	int ix_class = std::fpclassify(ix);
 
 	if (iy_class == FP_INFINITE || iy_class == FP_NAN) {
 		iy = 40000000.0;
