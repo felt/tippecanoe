@@ -1,5 +1,8 @@
+* Take feature ordering into account when dropping points in the low zooms
+
 # 2.24.0
 
+>>>>>>> main
 * Add --cluster-maxzoom option to limit zoom levels that receive clustering
 * Add `point_count_abbreviated` attribute to clustered features, for consistency with supercluster
 * Makefile changes to support FreeBSD
