@@ -76,7 +76,7 @@ void aprintf(std::string *buf, const char *format, ...) {
 	free(tmp);
 }
 
-void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
+void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
 	bool was_compressed;
@@ -225,7 +225,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::st
 					continue;
 				}
 
-				if (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0) {
+				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
 					type_and_string tas;
 					tas.type = type;
 					tas.string = value;
@@ -258,7 +258,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::st
 
 							const char *sjoinkey = joinkey.c_str();
 
-							if (!exclude_all && exclude.count(joinkey) == 0 && exclude_attributes.count(joinkey) == 0 && attr_type != mvt_null) {
+							if (include.count(joinkey) || (!exclude_all && exclude.count(joinkey) == 0 && exclude_attributes.count(joinkey) == 0 && attr_type != mvt_null)) {
 								mvt_value outval;
 								if (attr_type == mvt_string) {
 									outval.type = mvt_string;
@@ -512,6 +512,7 @@ struct arg {
 	std::vector<std::string> *header = NULL;
 	std::map<std::string, std::vector<std::string>> *mapping = NULL;
 	std::set<std::string> *exclude = NULL;
+	std::set<std::string> *include = NULL;
 	std::set<std::string> *keep_layers = NULL;
 	std::set<std::string> *remove_layers = NULL;
 	int ifmatched = 0;
@@ -525,7 +526,7 @@ void *join_worker(void *v) {
 		mvt_tile tile;
 
 		for (size_t i = 0; i < ai->second.size(); i++) {
-			handle(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), *(a->exclude), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
+			handle(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
 		}
 
 		ai->second.clear();
@@ -560,7 +561,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter) {
+void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -571,6 +572,7 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 		args[i].header = &header;
 		args[i].mapping = &mapping;
 		args[i].exclude = &exclude;
+		args[i].include = &include;
 		args[i].keep_layers = &keep_layers;
 		args[i].remove_layers = &remove_layers;
 		args[i].ifmatched = ifmatched;
@@ -706,7 +708,7 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 	}
 }
 
-void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
+void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
 	std::vector<std::map<std::string, layermap_entry>> layermaps;
 	for (size_t i = 0; i < CPUS; i++) {
 		layermaps.push_back(std::map<std::string, layermap_entry>());
@@ -761,7 +763,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 
 		if (readers == NULL || readers->zoom != r->zoom || readers->x != r->x || readers->y != r->y) {
 			if (tasks.size() > 100 * CPUS) {
-				handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
+				handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter);
 				tasks.clear();
 			}
 		}
@@ -827,7 +829,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	st->minlat2 = min(minlat, st->minlat2);
 	st->maxlat2 = max(maxlat, st->maxlat2);
 
-	handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, ifmatched, keep_layers, remove_layers, filter);
+	handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter);
 	layermap = merge_layermaps(layermaps);
 
 	struct reader *next;
@@ -974,7 +976,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 }
 
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s [-f] [-i] [-pk] [-pC] [-c joins.csv] [-X] [-x exclude ...] [-r inputfile.txt ] -o new.mbtiles source.mbtiles ...\n", argv[0]);
+	fprintf(stderr, "Usage: %s [-f] [-i] [-pk] [-pC] [-c joins.csv] [-X] [-x exclude ...] [-y include ...] [-r inputfile.txt ] -o new.mbtiles source.mbtiles ...\n", argv[0]);
 	exit(EXIT_ARGS);
 }
 
@@ -1004,6 +1006,7 @@ int main(int argc, char **argv) {
 	std::map<std::string, std::vector<std::string>> mapping;
 
 	std::set<std::string> exclude;
+	std::set<std::string> include;
 	std::set<std::string> keep_layers;
 	std::set<std::string> remove_layers;
 
@@ -1021,6 +1024,7 @@ int main(int argc, char **argv) {
 		{"csv", required_argument, 0, 'c'},
 		{"exclude", required_argument, 0, 'x'},
 		{"exclude-all", no_argument, 0, 'X'},
+		{"include", required_argument, 0, 'y'},
 		{"layer", required_argument, 0, 'l'},
 		{"exclude-layer", required_argument, 0, 'L'},
 		{"quiet", no_argument, 0, 'q'},
@@ -1140,6 +1144,11 @@ int main(int argc, char **argv) {
 
 		case 'X':
 			exclude_all = true;
+			break;
+
+		case 'y':
+			exclude_all = true;
+			include.insert(std::string(optarg));
 			break;
 
 		case 'l':
@@ -1274,7 +1283,7 @@ int main(int argc, char **argv) {
 	std::string generator_options;
 	std::vector<strategy> strategies;
 
-	decode(readers, layermap, outdb, out_dir, &st, header, mapping, exclude, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
+	decode(readers, layermap, outdb, out_dir, &st, header, mapping, exclude, include, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
 
 	if (set_attribution.size() != 0) {
 		attribution = set_attribution;

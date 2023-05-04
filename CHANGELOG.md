@@ -1,3 +1,7 @@
+# 2.25.0
+
+* Add `--include`/`-y` option to tile-join
+
 # 2.24.0
 
 * Add --cluster-maxzoom option to limit zoom levels that receive clustering
