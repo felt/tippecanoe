@@ -573,6 +573,7 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
+				// should this change since we are now snapping as part of simplifying?
 				drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes);
 
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
@@ -2301,7 +2302,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				std::string layername = (*layer_unmaps)[p.segment][p.layer];
 				serial_val sv, sv2, sv3, sv4;
 				long long point_count = p.clustered + 1;
-				char abbrev[17]; // to_string(LLONG_MAX).length() / 1000 + 1;
+				char abbrev[17];  // to_string(LLONG_MAX).length() / 1000 + 1;
 
 				p.full_keys.push_back("clustered");
 				sv.type = mvt_bool;

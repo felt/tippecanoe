@@ -832,7 +832,7 @@ static double square_distance_from_line(long long point_x, long long point_y, lo
 }
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
-static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
+static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, double res) {
 	e = e * e;
 	std::stack<int> recursion_stack;
 
@@ -875,7 +875,10 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 
 		if (max_distance >= 0) {
 			// mark idx as necessary
-			geom[start + farthest_element_index].necessary = 1;
+			size_t k = start + farthest_element_index;
+			geom[k].necessary = 1;
+			geom[k].x = res * std::round((double) geom[k].x / res);
+			geom[k].y = res * std::round((double) geom[k].y / res);
 			kept++;
 
 			if (1 < farthest_element_index - first) {
@@ -961,6 +964,13 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 			geom[i].necessary = 1;
 			geom[j - 1].necessary = 1;
 
+			for (size_t k = i; k < j; k++) {
+				if (geom[k].necessary) {
+					geom[k].x = res * std::round((double) geom[k].x / res);
+					geom[k].y = res * std::round((double) geom[k].y / res);
+				}
+			}
+
 			// empirical mapping from douglas-peucker simplifications
 			// to visvalingam simplifications that yield similar
 			// output sizes
@@ -972,7 +982,7 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 				if (additional[A_VISVALINGAM]) {
 					visvalingam(geom, i, j, scale, retain);
 				} else {
-					douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
+					douglas_peucker(geom, i, j - i, res * simplification, 2, retain, res);
 				}
 			}
 			i = j - 1;

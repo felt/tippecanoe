@@ -1178,7 +1178,7 @@ int main(int argc, char **argv) {
 				std::string sa;
 				filearg = 1;
 				while (getline(read_file, sa)) {
-					char* c = const_cast<char*>(sa.c_str());
+					char *c = const_cast<char *>(sa.c_str());
 					reader *r = begin_reading(c);
 					struct reader **rr;
 					for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
@@ -1191,7 +1191,6 @@ int main(int argc, char **argv) {
 				}
 				read_file.close();
 			}
-
 		}
 
 		case 'q':
@@ -1261,7 +1260,6 @@ int main(int argc, char **argv) {
 	std::string attribution;
 	std::string description;
 	std::string name;
-
 
 	if (filearg == 0) {
 		for (i = optind; i < argc; i++) {
