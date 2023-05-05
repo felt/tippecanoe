@@ -933,6 +933,8 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 			geom[i].necessary = 1;
 		} else if (geom[i].op == VT_LINETO) {
 			geom[i].necessary = 0;
+			// if this is actually the endpoint, not an intermediate point,
+			// it will be marked as necessary below
 		} else {
 			geom[i].necessary = 1;
 		}
