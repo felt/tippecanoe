@@ -34,7 +34,7 @@
 #include <map>
 #include <cmath>
 
-#if  defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/param.h>
@@ -3521,7 +3521,7 @@ int main(int argc, char **argv) {
 
 	long long file_bbox[4] = {UINT_MAX, UINT_MAX, 0, 0};
 
-	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};  // standard -180 to 180 world plane
+	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};	      // standard -180 to 180 world plane
 	long long file_bbox2[4] = {0x1FFFFFFFF, 0xFFFFFFFF, 0x100000000, 0};  // 0 to 360 world plane
 
 	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles

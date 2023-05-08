@@ -554,7 +554,11 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 		// Only matters if simplification is set higher than the tiny polygon size.
 		// Tiny polygons that are part of a tiny multipolygon will still get simplified.
 		if (!p->reduced) {
-			if (t == VT_LINE) {
+			// These aren't necessarily actually no-ops until we scale down.
+			// Don't do it if we are trying to preserve intersections, because
+			// it might wipe out the intersection and spoil the matching even though
+			// it would leave something else within the same tile pixel.
+			if (t == VT_LINE && !prevent[P_SIMPLIFY_SHARED_NODES]) {
 				// continues to deduplicate to line_detail even if we have extra detail
 				geom = remove_noop(geom, t, 32 - z - line_detail);
 			}
@@ -2253,7 +2257,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					partials.push_back(p);
 
 					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
-					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
+					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS] && !prevent[P_SIMPLIFY_SHARED_NODES]) {
 						drawvec dv;
 
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
@@ -2284,7 +2288,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					just_shared_nodes.push_back(shared_nodes[i]);
 
 					draw d = shared_nodes[i];
-					i++;
+					i++;  // consume the first, point at the duplicate
 					while (i + 1 < shared_nodes.size() && shared_nodes[i + 1] == d) {
 						i++;
 					}
@@ -2301,7 +2305,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				std::string layername = (*layer_unmaps)[p.segment][p.layer];
 				serial_val sv, sv2, sv3, sv4;
 				long long point_count = p.clustered + 1;
-				char abbrev[17]; // to_string(LLONG_MAX).length() / 1000 + 1;
+				char abbrev[17];  // to_string(LLONG_MAX).length() / 1000 + 1;
 
 				p.full_keys.push_back("clustered");
 				sv.type = mvt_bool;

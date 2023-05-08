@@ -1,0 +1,22 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-86.017531,39.951130,-86.016514,39.954021",
+"bounds": "-86.017531,39.951130,-86.016514,39.954021",
+"center": "-86.017531,39.954021,11",
+"description": "tests/intersection/out/-Z11_-z11_--extra-detail_13_--no-simplification-of-shared-nodes.json.check.mbtiles",
+"format": "pbf",
+"generator_options": "./tippecanoe -q -a@ -f -o tests/intersection/out/-Z11_-z11_--extra-detail_13_--no-simplification-of-shared-nodes.json.check.mbtiles -Z11 -z11 --extra-detail 13 --no-simplification-of-shared-nodes tests/intersection/in.json",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":11,\"maxzoom\":11,\"fields\":{\"FULLNAME\":\"String\",\"LINEARID\":\"String\",\"MTFCC\":\"String\",\"RTTYP\":\"String\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":2,\"geometry\":\"LineString\",\"attributeCount\":4,\"attributes\":[{\"attribute\":\"FULLNAME\",\"count\":2,\"type\":\"string\",\"values\":[\"Fishers Pointe Blvd\",\"Fountainview Ln\"]},{\"attribute\":\"LINEARID\",\"count\":2,\"type\":\"string\",\"values\":[\"11074705426\",\"11074706697\"]},{\"attribute\":\"MTFCC\",\"count\":1,\"type\":\"string\",\"values\":[\"S1400\"]},{\"attribute\":\"RTTYP\",\"count\":1,\"type\":\"string\",\"values\":[\"M\"]}]}]}}",
+"maxzoom": "11",
+"minzoom": "11",
+"name": "tests/intersection/out/-Z11_-z11_--extra-detail_13_--no-simplification-of-shared-nodes.json.check.mbtiles",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 534, "y": 775 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 8192 }, "features": [
+{ "type": "Feature", "properties": { "LINEARID": "11074705426", "FULLNAME": "Fountainview Ln", "RTTYP": "M", "MTFCC": "S1400" }, "geometry": { "type": "LineString", "coordinates": [ [ -86.017456, 39.954014 ], [ -86.017520, 39.953668 ], [ -86.017520, 39.953257 ], [ -86.017456, 39.953093 ], [ -86.017284, 39.952961 ], [ -86.016576, 39.952648 ], [ -86.016512, 39.952468 ], [ -86.017134, 39.951497 ] ] } }
+,
+{ "type": "Feature", "properties": { "LINEARID": "11074706697", "FULLNAME": "Fishers Pointe Blvd", "RTTYP": "M", "MTFCC": "S1400" }, "geometry": { "type": "LineString", "coordinates": [ [ -86.017499, 39.951415 ], [ -86.017306, 39.951513 ], [ -86.017134, 39.951497 ], [ -86.017027, 39.951398 ], [ -86.016984, 39.951283 ], [ -86.017113, 39.951135 ] ] } }
+] }
+] }
+] }
