@@ -1,3 +1,11 @@
+# 2.26.0
+
+* Fix bugs in --no-simplification-of-shared-nodes
+* Updated dockerfile (jtmiclat)
+* Set build options to use C++-17 (james2432)
+* Use std::fpclassify instead of plain fpclassify (james)
+* Fix pmtiles warnings (bdon)
+
 # 2.25.0
 
 * Add `--include`/`-y` option to tile-join
