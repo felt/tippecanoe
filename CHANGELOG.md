@@ -1,3 +1,7 @@
+# 2.26.1
+
+* Avoid crashing if there is a polygon ring with only one point
+
 # 2.26.0
 
 * Fix bugs in --no-simplification-of-shared-nodes
