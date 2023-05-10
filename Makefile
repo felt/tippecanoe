@@ -7,8 +7,8 @@ SHELL = /bin/sh
 # inherit from env if set
 CC := $(CC)
 CXX := $(CXX)
-CFLAGS := $(CFLAGS)
-CXXFLAGS := $(CXXFLAGS) -std=c++17
+CFLAGS := $(CFLAGS) -fPIE
+CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE
 LDFLAGS := $(LDFLAGS)
 WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow
 RELEASE_FLAGS := -O3 -DNDEBUG
