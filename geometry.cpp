@@ -1049,6 +1049,16 @@ drawvec fix_polygon(drawvec &geom) {
 				}
 			}
 
+			// A polygon ring must contain at least three points
+			// (and really should contain four). If this one does
+			// not have enough, avoid a division by zero trying to
+			// calculate the centroid below.
+			if (j - i < 3) {
+				i = j - 1;
+				outer = 0;
+				continue;
+			}
+
 			// Make a temporary copy of the ring.
 			// Close it if it isn't closed.
 
