@@ -2212,8 +2212,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					kept++;
 
 					if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-						for (auto &g : sf.geometry) {
-							shared_nodes.push_back(g);
+						if (sf.t == VT_LINE) {
+							for (auto &g : sf.geometry) {
+								shared_nodes.push_back(g);
+							}
 						}
 					}
 
