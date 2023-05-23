@@ -151,7 +151,7 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 
 	// assume tabular schema with columns in header
 	size_t p_pos = 0;
-	while (p_pos < feature->properties()->size()) {
+	while (feature->properties() && p_pos < feature->properties()->size()) {
 		uint16_t col_idx;
 		memcpy(&col_idx, feature->properties()->data() + p_pos, sizeof(col_idx));
 
