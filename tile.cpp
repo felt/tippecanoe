@@ -1292,6 +1292,40 @@ long long choose_minextent(std::vector<long long> &extents, double f) {
 	return extents[(extents.size() - 1) * (1 - f)];
 }
 
+struct joint {
+	draw p1;
+	draw mid;
+	draw p2;
+
+	joint(draw one, draw hinge, draw two) {
+		if (one < two) {
+			p1 = one;
+			p2 = two;
+		} else {
+			p1 = two;
+			p2 = one;
+		}
+
+		mid = hinge;
+	}
+
+	bool operator<(const joint &o) const {
+		if (mid < o.mid) {
+			return true;
+		} else if (mid == o.mid) {
+			if (p1 < o.p1) {
+				return true;
+			} else if (p1 == o.p1) {
+				if (p2 < o.p2) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
 struct write_tile_args {
 	struct task *tasks = NULL;
 	char *stringpool = NULL;
@@ -1345,7 +1379,7 @@ struct write_tile_args {
 	bool compressed;
 };
 
-bool clip_to_tile(serial_feature &sf, int z, long long buffer, drawvec &shared_nodes) {
+bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	int quick = quick_check(sf.bbox, z, buffer);
 
 	if (z == 0) {
@@ -1391,7 +1425,7 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer, drawvec &shared_n
 			clipped = clip_lines(sf.geometry, z, buffer);
 		}
 		if (sf.t == VT_POLYGON) {
-			clipped = simple_clip_poly(sf.geometry, z, buffer, shared_nodes);
+			clipped = simple_clip_poly(sf.geometry, z, buffer, sf.edge_nodes);
 		}
 		if (sf.t == VT_POINT) {
 			clipped = clip_point(sf.geometry, z, buffer);
@@ -1440,7 +1474,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, drawvec &shared_nodes) {
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1483,7 +1517,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		(*original_features)++;
 
-		if (clip_to_tile(sf, z, buffer, shared_nodes)) {
+		if (clip_to_tile(sf, z, buffer)) {
 			continue;
 		}
 
@@ -1632,8 +1666,7 @@ void *run_prefilter(void *v) {
 	json_writer state(rpa->prefilter_fp);
 
 	while (1) {
-		drawvec dv;  // don't have a way to track tile-edge nodes through prefilter
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, dv);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1939,6 +1972,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		double coalesced_area = 0;
 		drawvec shared_nodes;
+		std::vector<joint> shared_joints;
 
 		int tile_detail = line_detail;
 		size_t skipped = 0;
@@ -2046,7 +2080,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, shared_nodes);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2216,6 +2250,83 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							for (auto &g : sf.geometry) {
 								shared_nodes.push_back(g);
 							}
+						} else if (sf.t == VT_POLYGON) {
+							sf.geometry = remove_noop(sf.geometry, sf.t, 0);
+
+							for (size_t i = 0; i < sf.geometry.size(); i++) {
+								if (sf.geometry[i].op == VT_MOVETO) {
+									size_t j;
+									for (j = i + 1; j < sf.geometry.size(); j++) {
+										if (sf.geometry[j].op != VT_LINETO) {
+											break;
+										}
+									}
+
+									// j - 1 because we don't want the duplicate last point
+									for (size_t k = i; k < j - 1; k++) {
+										shared_joints.emplace_back(
+											sf.geometry[k],
+											sf.geometry[(k + 1 - i) % (j - 1 - i) + i],
+											sf.geometry[(k + 2 - i) % (j - 1 - i) + i]);
+									}
+
+									// since the starting point is never simplified away,
+									// don't let it be simplified away in any other polygons either.
+									// Needs to appear twice here so that the check below will see
+									// it as appearing in multiple features.
+									shared_nodes.push_back(sf.geometry[i]);
+									shared_nodes.push_back(sf.geometry[i]);
+
+									// To avoid letting polygons get simplified away to nothing,
+									// also keep the furthest-away point from the initial point
+									// (which Douglas-Peucker simplification would keep anyway,
+									// if its search weren't being split up by polygon side).
+
+									double far = 0;
+									size_t which = i;
+									for (size_t k = i + 1; k < j - 1; k++) {
+										double xd = sf.geometry[k].x - sf.geometry[i].x;
+										double yd = sf.geometry[k].y - sf.geometry[i].y;
+										double d = xd * xd + yd * yd;
+										if (d > far) {
+											far = d;
+											which = k;
+										}
+									}
+
+									shared_nodes.push_back(sf.geometry[which]);
+									shared_nodes.push_back(sf.geometry[which]);
+
+									// And, likewise, the point most distant from those two points,
+									// which probably would also be the one that Douglas-Peucker
+									// would keep next.
+
+									far = 0;
+									double which2 = i;
+
+									for (size_t k = i + 1; k < j - 1; k++) {
+										double xd = sf.geometry[k].x - sf.geometry[i].x;
+										double yd = sf.geometry[k].y - sf.geometry[i].y;
+										double xd2 = sf.geometry[k].x - sf.geometry[which].x;
+										double yd2 = sf.geometry[k].y - sf.geometry[which].y;
+										double d = xd * xd + yd * yd + xd2 * xd2 + yd2 * yd2;
+										if (d > far) {
+											far = d;
+											which2 = k;
+										}
+									}
+
+									shared_nodes.push_back(sf.geometry[which2]);
+									shared_nodes.push_back(sf.geometry[which2]);
+
+									i = j - 1;
+								}
+							}
+						}
+
+						for (auto &p : sf.edge_nodes) {
+							shared_nodes.push_back(p);
+							shared_nodes.push_back(p);
 						}
 					}
 
@@ -2299,6 +2410,25 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			shared_nodes = just_shared_nodes;
+
+			std::sort(shared_joints.begin(), shared_joints.end());
+			for (size_t i = 0; i + 1 < shared_joints.size(); i++) {
+				if (shared_joints[i].mid == shared_joints[i + 1].mid) {
+					// printf("%lld,%lld: ", shared_joints[i].mid.x, shared_joints[i].mid.y);
+					if (shared_joints[i].p1 != shared_joints[i + 1].p1 ||
+					    shared_joints[i].p2 != shared_joints[i + 1].p2) {
+						shared_nodes.push_back(shared_joints[i].mid);
+						// printf("different\n");
+					} else {
+						// printf("same %lld,%lld to %lld,%lld\n", shared_joints[i].p1.x, shared_joints[i].p1.y, shared_joints[i].p2.x, shared_joints[i].p2.y);
+					}
+				} else {
+					// printf("only once %lld,%lld\n", shared_joints[i].mid.x, shared_joints[i].mid.y);
+				}
+			}
+
+			std::sort(shared_nodes.begin(), shared_nodes.end());
+			shared_joints.clear();
 		}
 
 		for (size_t i = 0; i < partials.size(); i++) {
