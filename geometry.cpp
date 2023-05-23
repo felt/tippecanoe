@@ -545,41 +545,38 @@ drawvec close_poly(drawvec &geom) {
 	return out;
 }
 
-static bool inside(draw d, int edge, long long minx, long long miny, long long maxx, long long maxy) {
+static bool inside(std::pair<double, double> d, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
 	case 0:  // top
-		return d.y > miny;
+		return d.second > miny;
 
 	case 1:  // right
-		return d.x < maxx;
+		return d.first < maxx;
 
 	case 2:  // bottom
-		return d.y < maxy;
+		return d.second < maxy;
 
 	case 3:  // left
-		return d.x > minx;
+		return d.first > minx;
 	}
 
 	fprintf(stderr, "internal error inside\n");
 	exit(EXIT_FAILURE);
 }
 
-static draw intersect(draw a, draw b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
-	// The casts to double are because the product of coordinates
-	// can overflow a long long if the tile buffer is large.
-
+static std::pair<double, double> intersect(std::pair<double, double> a, std::pair<double, double> b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
 	case 0:  // top
-		return draw(VT_LINETO, std::round(a.x + (double) (b.x - a.x) * (miny - a.y) / (b.y - a.y)), miny);
+		return std::pair<double, double>((a.first + (double) (b.first - a.first) * (miny - a.second) / (b.second - a.second)), miny);
 
 	case 1:  // right
-		return draw(VT_LINETO, maxx, std::round(a.y + (double) (b.y - a.y) * (maxx - a.x) / (b.x - a.x)));
+		return std::pair<double, double>(maxx, (a.second + (double) (b.second - a.second) * (maxx - a.first) / (b.first - a.first)));
 
 	case 2:  // bottom
-		return draw(VT_LINETO, std::round(a.x + (double) (b.x - a.x) * (maxy - a.y) / (b.y - a.y)), maxy);
+		return std::pair<double, double>((a.first + (double) (b.first - a.first) * (maxy - a.second) / (b.second - a.second)), maxy);
 
 	case 3:  // left
-		return draw(VT_LINETO, minx, std::round(a.y + (double) (b.y - a.y) * (minx - a.x) / (b.x - a.x)));
+		return std::pair<double, double>(minx, (a.second + (double) (b.second - a.second) * (minx - a.first) / (b.first - a.first)));
 	}
 
 	fprintf(stderr, "internal error intersecting\n");
@@ -587,18 +584,18 @@ static draw intersect(draw a, draw b, int edge, long long minx, long long miny, 
 }
 
 // http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
-static drawvec clip_poly1(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
-	drawvec out = geom;
+static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom, long long minx, long long miny, long long maxx, long long maxy) {
+	std::vector<std::pair<double, double>> out = geom;
 
 	for (int edge = 0; edge < 4; edge++) {
 		if (out.size() > 0) {
-			drawvec in = out;
+			std::vector<std::pair<double, double>> in = out;
 			out.resize(0);
 
-			draw S = in[in.size() - 1];
+			std::pair<double, double> S = in[in.size() - 1];
 
 			for (size_t e = 0; e < in.size(); e++) {
-				draw E = in[e];
+				std::pair<double, double> E = in[e];
 
 				if (inside(E, edge, minx, miny, maxx, maxy)) {
 					if (!inside(S, edge, minx, miny, maxx, maxy)) {
@@ -620,7 +617,7 @@ static drawvec clip_poly1(drawvec &geom, long long minx, long long miny, long lo
 		// places where it intersects the edge. Need to add
 		// another point to close the loop.
 
-		if (out[0].x != out[out.size() - 1].x || out[0].y != out[out.size() - 1].y) {
+		if (out[0].first != out[out.size() - 1].first || out[0].second != out[out.size() - 1].second) {
 			out.push_back(out[0]);
 		}
 
@@ -628,11 +625,6 @@ static drawvec clip_poly1(drawvec &geom, long long minx, long long miny, long lo
 			// fprintf(stderr, "Polygon degenerated to a line segment\n");
 			out.clear();
 			return out;
-		}
-
-		out[0].op = VT_MOVETO;
-		for (size_t i = 1; i < out.size(); i++) {
-			out[i].op = VT_LINETO;
 		}
 	}
 
@@ -651,19 +643,25 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 				}
 			}
 
-			drawvec tmp;
+			std::vector<std::pair<double, double>> tmp;
 			for (size_t k = i; k < j; k++) {
-				tmp.push_back(geom[k]);
+				double x = geom[k].x;
+				double y = geom[k].y;
+				tmp.emplace_back(x, y);
 			}
 			tmp = clip_poly1(tmp, minx, miny, maxx, maxy);
 			if (tmp.size() > 0) {
-				if (tmp[0].x != tmp[tmp.size() - 1].x || tmp[0].y != tmp[tmp.size() - 1].y) {
+				if (tmp[0].first != tmp[tmp.size() - 1].first || tmp[0].second != tmp[tmp.size() - 1].second) {
 					fprintf(stderr, "Internal error: Polygon ring not closed\n");
 					exit(EXIT_FAILURE);
 				}
 			}
 			for (size_t k = 0; k < tmp.size(); k++) {
-				out.push_back(tmp[k]);
+				if (k == 0) {
+					out.push_back(draw(VT_MOVETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+				} else {
+					out.push_back(draw(VT_LINETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+				}
 			}
 
 			i = j - 1;
