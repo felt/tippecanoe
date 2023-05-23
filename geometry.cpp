@@ -279,10 +279,8 @@ double get_mp_area(drawvec &geom) {
 
 	return ret;
 }
-/// @@@
-
-/// @@@
-static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawvec &out) {
+ 
+static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawvec &out, double scale) {
 	out.clear();
 
 	for (size_t i = 0; i < t.size(); i++) {
@@ -290,7 +288,7 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 			drawvec ring;
 
 			for (size_t k = 0; k < t[i][j].size(); k++) {
-				ring.push_back(draw((k == 0) ? VT_MOVETO : VT_LINETO, t[i][j][k].x, t[i][j][k].y));
+				ring.push_back(draw((k == 0) ? VT_MOVETO : VT_LINETO, std::round(t[i][j][k].x / scale), std::round(t[i][j][k].y / scale)));
 			}
 
 			if (ring.size() > 0 && ring[ring.size() - 1] != ring[0]) {
@@ -313,60 +311,15 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 }
 
 drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
-	mapbox::geometry::wagyu::wagyu<long long> wagyu;
-
 	geom = remove_noop(geom, VT_POLYGON, 0);
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			if (j >= i + 4) {
-				mapbox::geometry::linear_ring<long long> lr;
-
-				for (size_t k = i; k < j; k++) {
-					lr.push_back(mapbox::geometry::point<long long>(geom[k].x, geom[k].y));
-				}
-
-				if (lr.size() >= 3) {
-					wagyu.add_ring(lr);
-				}
-			}
-
-			i = j - 1;
-		}
-	}
-
-	if (clip) {
-		long long area = 0xFFFFFFFF;
-		if (z != 0) {
-			area = 1LL << (32 - z);
-		}
-		long long clip_buffer = buffer * area / 256;
-
-		mapbox::geometry::linear_ring<long long> lr;
-
-		lr.push_back(mapbox::geometry::point<long long>(-clip_buffer, -clip_buffer));
-		lr.push_back(mapbox::geometry::point<long long>(-clip_buffer, area + clip_buffer));
-		lr.push_back(mapbox::geometry::point<long long>(area + clip_buffer, area + clip_buffer));
-		lr.push_back(mapbox::geometry::point<long long>(area + clip_buffer, -clip_buffer));
-		lr.push_back(mapbox::geometry::point<long long>(-clip_buffer, -clip_buffer));
-
-		wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
-	}
-
 	mapbox::geometry::multi_polygon<long long> result;
-	try {
-		wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
-	} catch (std::runtime_error &e) {
-		FILE *f = fopen("/tmp/wagyu.log", "w");
-		fprintf(f, "%s\n", e.what());
-		fprintf(stderr, "%s\n", e.what());
-		fprintf(f, "[");
+
+	double scale = 16.0;
+
+	bool again = true;
+	while (again) {
+		mapbox::geometry::wagyu::wagyu<long long> wagyu;
+		again = false;
 
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
@@ -380,22 +333,12 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 				if (j >= i + 4) {
 					mapbox::geometry::linear_ring<long long> lr;
 
-					if (i != 0) {
-						fprintf(f, ",");
-					}
-					fprintf(f, "[");
-
 					for (size_t k = i; k < j; k++) {
-						lr.push_back(mapbox::geometry::point<long long>(geom[k].x, geom[k].y));
-						if (k != i) {
-							fprintf(f, ",");
-						}
-						fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
+						lr.push_back(mapbox::geometry::point<long long>(geom[k].x * scale, geom[k].y * scale));
 					}
-
-					fprintf(f, "]");
 
 					if (lr.size() >= 3) {
+						wagyu.add_ring(lr);
 					}
 				}
 
@@ -403,16 +346,94 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 			}
 		}
 
-		fprintf(f, "]");
-		fprintf(f, "\n\n\n\n\n");
+		if (clip) {
+			long long area = 0xFFFFFFFF;
+			if (z != 0) {
+				area = 1LL << (32 - z);
+			}
+			long long clip_buffer = buffer * area / 256;
 
-		fclose(f);
-		fprintf(stderr, "Internal error: Polygon cleaning failed. Log in /tmp/wagyu.log\n");
-		exit(EXIT_IMPOSSIBLE);
+			mapbox::geometry::linear_ring<long long> lr;
+
+			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
+			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * (area + clip_buffer)));
+			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * (area + clip_buffer)));
+			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * -clip_buffer));
+			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
+
+			wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
+		}
+
+		try {
+			result.clear();
+			wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+		} catch (std::runtime_error &e) {
+			FILE *f = fopen("/tmp/wagyu.log", "w");
+			fprintf(f, "%s\n", e.what());
+			fprintf(stderr, "%s\n", e.what());
+			fprintf(f, "[");
+
+			for (size_t i = 0; i < geom.size(); i++) {
+				if (geom[i].op == VT_MOVETO) {
+					size_t j;
+					for (j = i + 1; j < geom.size(); j++) {
+						if (geom[j].op != VT_LINETO) {
+							break;
+						}
+					}
+
+					if (j >= i + 4) {
+						mapbox::geometry::linear_ring<long long> lr;
+
+						if (i != 0) {
+							fprintf(f, ",");
+						}
+						fprintf(f, "[");
+
+						for (size_t k = i; k < j; k++) {
+							lr.push_back(mapbox::geometry::point<long long>(geom[k].x, geom[k].y));
+							if (k != i) {
+								fprintf(f, ",");
+							}
+							fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
+						}
+
+						fprintf(f, "]");
+
+						if (lr.size() >= 3) {
+						}
+					}
+
+					i = j - 1;
+				}
+			}
+
+			fprintf(f, "]");
+			fprintf(f, "\n\n\n\n\n");
+
+			fclose(f);
+			fprintf(stderr, "Internal error: Polygon cleaning failed. Log in /tmp/wagyu.log\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		if (scale != 1) {
+			for (auto const &outer : result) {
+				for (auto const &ring : outer) {
+					for (auto const &p : ring) {
+						if (p.x / scale != std::round(p.x / scale) ||
+						    p.y / scale != std::round(p.y / scale)) {
+							scale = 1;
+							again = true;
+							break;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	drawvec ret;
-	decode_clipped(result, ret);
+	decode_clipped(result, ret, scale);
 	return ret;
 }
 // @@@
@@ -554,9 +575,7 @@ drawvec close_poly(drawvec &geom) {
 
 	return out;
 }
-// @@@
 
-// @@@
 static bool inside(std::pair<double, double> d, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
 	case 0:	 // top

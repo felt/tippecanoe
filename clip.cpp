@@ -74,7 +74,8 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			if (t == VT_LINE) {
 				geom = clip_lines(geom, nz, buffer);
 			} else if (t == VT_POLYGON) {
-				geom = simple_clip_poly(geom, nz, buffer);
+                drawvec dv;
+				geom = simple_clip_poly(geom, nz, buffer, dv);
 			} else if (t == VT_POINT) {
 				geom = clip_point(geom, nz, buffer);
 			}
