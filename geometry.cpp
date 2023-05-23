@@ -712,7 +712,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 }
 
 drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy,
-			 long long ax, long long ay, long long bx, long long by, drawvec &shared_nodes) {
+			 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
@@ -730,7 +730,7 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 				double y = geom[k].y;
 				tmp.emplace_back(x, y);
 			}
-			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, shared_nodes);
+			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, edge_nodes);
 			if (tmp.size() > 0) {
 				if (tmp[0].first != tmp[tmp.size() - 1].first || tmp[0].second != tmp[tmp.size() - 1].second) {
 					fprintf(stderr, "Internal error: Polygon ring not closed\n");
@@ -760,12 +760,12 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 	return simple_clip_poly(geom, minx, miny, maxx, maxy, minx, miny, maxx, maxy, dv);
 }
 
-drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &shared_nodes) {
+drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &edge_nodes) {
 	long long area = 1LL << (32 - z);
 	long long clip_buffer = buffer * area / 256;
 
 	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer,
-				0, 0, area, area, shared_nodes);
+				0, 0, area, area, edge_nodes);
 }
 // @@@
 
@@ -1122,6 +1122,11 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
+
+	if (prevent[P_SIMPLIFY_SHARED_NODES] && z != 0) {
+		// additional vertices tagged as "retain" in write_tile when assembling shared nodes instead
+		retain = 0;
+	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
