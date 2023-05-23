@@ -858,18 +858,36 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		recursion_stack.pop();
 
 		double max_distance = -1;
-		int farthest_element_index = second;
+		int farthest_element_index;
+		if (geom[start + first] < geom[start + second]) {
+			farthest_element_index = second;
+		} else {
+			farthest_element_index = first;
+		}
 
 		// find index idx of element with max_distance
 		int i;
-		for (i = first + 1; i < second; i++) {
-			double temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+		if (geom[start + first] < geom[start + second]) {
+			for (i = first + 1; i < second; i++) {
+				double temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
 
-			double distance = std::fabs(temp_dist);
+				double distance = std::fabs(temp_dist);
 
-			if ((distance > e || kept < retain) && distance > max_distance) {
-				farthest_element_index = i;
-				max_distance = distance;
+				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
+			}
+		} else {
+			for (i = second - 1; i > first; i--) {
+				double temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+
+				double distance = std::fabs(temp_dist);
+
+				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
 			}
 		}
 
