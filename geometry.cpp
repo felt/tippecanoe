@@ -794,8 +794,8 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
 
 			if (c > 1) {  // clipped
-				out.push_back(draw(VT_MOVETO, x1, y1));
-				out.push_back(draw(VT_LINETO, x2, y2));
+				out.push_back(draw(VT_MOVETO, std::round(x1), std::round(y1)));
+				out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
 				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
 			} else if (c == 1) {  // unchanged
 				out.push_back(geom[i]);
