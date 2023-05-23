@@ -559,16 +559,16 @@ drawvec close_poly(drawvec &geom) {
 // @@@
 static bool inside(std::pair<double, double> d, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
-	case 0:  // top
+	case 0:	 // top
 		return d.second > miny;
 
-	case 1:  // right
+	case 1:	 // right
 		return d.first < maxx;
 
-	case 2:  // bottom
+	case 2:	 // bottom
 		return d.second < maxy;
 
-	case 3:  // left
+	case 3:	 // left
 		return d.first > minx;
 	}
 
@@ -578,16 +578,16 @@ static bool inside(std::pair<double, double> d, int edge, long long minx, long l
 
 static std::pair<double, double> intersect(std::pair<double, double> a, std::pair<double, double> b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
-	case 0:  // top
+	case 0:	 // top
 		return std::pair<double, double>((a.first + (double) (b.first - a.first) * (miny - a.second) / (b.second - a.second)), miny);
 
-	case 1:  // right
+	case 1:	 // right
 		return std::pair<double, double>(maxx, (a.second + (double) (b.second - a.second) * (maxx - a.first) / (b.first - a.first)));
 
-	case 2:  // bottom
+	case 2:	 // bottom
 		return std::pair<double, double>((a.first + (double) (b.first - a.first) * (maxy - a.second) / (b.second - a.second)), maxy);
 
-	case 3:  // left
+	case 3:	 // left
 		return std::pair<double, double>(minx, (a.second + (double) (b.second - a.second) * (minx - a.first) / (b.first - a.first)));
 	}
 
@@ -596,7 +596,9 @@ static std::pair<double, double> intersect(std::pair<double, double> a, std::pai
 }
 
 // http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
-static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom, long long minx, long long miny, long long maxx, long long maxy) {
+static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
+							 long long minx, long long miny, long long maxx, long long maxy,
+							 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes) {
 	std::vector<std::pair<double, double>> out = geom;
 
 	for (int edge = 0; edge < 4; edge++) {
@@ -609,13 +611,60 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 			for (size_t e = 0; e < in.size(); e++) {
 				std::pair<double, double> E = in[e];
 
-				if (inside(E, edge, minx, miny, maxx, maxy)) {
-					if (!inside(S, edge, minx, miny, maxx, maxy)) {
-						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));
+				if (!inside(S, edge, minx, miny, maxx, maxy)) {
+					// was outside the buffer
+
+					if (!inside(E, edge, minx, miny, maxx, maxy)) {
+						// still outside the buffer
+					} else if (!inside(E, edge, ax, ay, bx, by)) {
+						// outside the tile but inside the buffer
+						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
+						out.push_back(E);
+					} else {
+						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
+						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
+							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+						}
+						out.push_back(E);
 					}
-					out.push_back(E);
-				} else if (inside(S, edge, minx, miny, maxx, maxy)) {
-					out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));
+				} else if (!inside(S, edge, ax, ay, bx, by)) {
+					// was inside the buffer but outside the tile edge
+
+					if (!inside(E, edge, minx, miny, maxx, maxy)) {
+						// now outside the buffer
+						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
+					} else if (!inside(E, edge, ax, ay, bx, by)) {
+						// still outside the tile edge but inside the buffer
+						out.push_back(E);
+					} else {
+						// now inside the tile
+						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
+							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+						}
+						out.push_back(E);
+					}
+				} else {
+					// was inside the tile
+
+					if (!inside(E, edge, minx, miny, maxx, maxy)) {
+						// now outside the buffer
+						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
+						}
+						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
+					} else if (!inside(E, edge, ax, ay, bx, by)) {
+						// now inside the buffer but outside the tile edge
+						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
+							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+						}
+						out.push_back(E);
+					} else {
+						// still inside the tile
+						out.push_back(E);
+					}
 				}
 
 				S = E;
@@ -643,7 +692,8 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	return out;
 }
 
-drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
+drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy,
+			 long long ax, long long ay, long long bx, long long by, drawvec &shared_nodes) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
@@ -661,7 +711,7 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 				double y = geom[k].y;
 				tmp.emplace_back(x, y);
 			}
-			tmp = clip_poly1(tmp, minx, miny, maxx, maxy);
+			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, shared_nodes);
 			if (tmp.size() > 0) {
 				if (tmp[0].first != tmp[tmp.size() - 1].first || tmp[0].second != tmp[tmp.size() - 1].second) {
 					fprintf(stderr, "Internal error: Polygon ring not closed\n");
@@ -686,11 +736,17 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 	return out;
 }
 
-drawvec simple_clip_poly(drawvec &geom, int z, int buffer) {
+drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
+	drawvec dv;
+	return simple_clip_poly(geom, minx, miny, maxx, maxy, minx, miny, maxx, maxy, dv);
+}
+
+drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &shared_nodes) {
 	long long area = 1LL << (32 - z);
 	long long clip_buffer = buffer * area / 256;
 
-	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer);
+	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer,
+				0, 0, area, area, shared_nodes);
 }
 // @@@
 
@@ -1286,6 +1342,7 @@ drawvec fix_polygon(drawvec &geom) {
 	return out;
 }
 
+#if 0
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 	while (1) {
 		bool again = false;
@@ -1364,6 +1421,7 @@ std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 		geoms = out;
 	}
 }
+#endif
 
 // @@@
 #define INSIDE 0

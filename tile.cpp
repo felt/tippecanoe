@@ -1343,7 +1343,7 @@ struct write_tile_args {
 	bool compressed;
 };
 
-bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
+bool clip_to_tile(serial_feature &sf, int z, long long buffer, drawvec &shared_nodes) {
 	int quick = quick_check(sf.bbox, z, buffer);
 
 	if (z == 0) {
@@ -1389,7 +1389,7 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 			clipped = clip_lines(sf.geometry, z, buffer);
 		}
 		if (sf.t == VT_POLYGON) {
-			clipped = simple_clip_poly(sf.geometry, z, buffer);
+			clipped = simple_clip_poly(sf.geometry, z, buffer, shared_nodes);
 		}
 		if (sf.t == VT_POINT) {
 			clipped = clip_point(sf.geometry, z, buffer);
@@ -1438,7 +1438,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed) {
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, drawvec &shared_nodes) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1481,7 +1481,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		(*original_features)++;
 
-		if (clip_to_tile(sf, z, buffer)) {
+		if (clip_to_tile(sf, z, buffer, shared_nodes)) {
 			continue;
 		}
 
@@ -1630,7 +1630,8 @@ void *run_prefilter(void *v) {
 	json_writer state(rpa->prefilter_fp);
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed);
+		drawvec dv;  // don't have a way to track tile-edge nodes through prefilter
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, dv);
 		if (sf.t < 0) {
 			break;
 		}
@@ -2043,7 +2044,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, shared_nodes);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
