@@ -663,6 +663,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 						// now outside the buffer
 						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
 							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
+							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
 						}
 						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
 					} else if (!inside(E, edge, ax, ay, bx, by)) {
@@ -706,6 +707,9 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy,
 			 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes) {
 	drawvec out;
+	if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+		geom = remove_noop(geom, VT_POLYGON, 0);
+	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
@@ -903,8 +907,18 @@ int quick_check(long long *bbox, int z, long long buffer) {
 	long long min = 0;
 	long long area = 1LL << (32 - z);
 
+	// bbox entirely within the tile proper
+	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
+		return 1;
+	}
+
 	min -= buffer * area / 256;
 	area += buffer * area / 256;
+
+	// bbox entirely within the tile, including its buffer
+	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
+		return 3;
+	}
 
 	// bbox entirely outside the tile
 	if (bbox[0] > area || bbox[1] > area) {
@@ -912,11 +926,6 @@ int quick_check(long long *bbox, int z, long long buffer) {
 	}
 	if (bbox[2] < min || bbox[3] < min) {
 		return 0;
-	}
-
-	// bbox entirely within the tile
-	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
-		return 1;
 	}
 
 	// some overlap of edge
