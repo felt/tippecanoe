@@ -1406,9 +1406,17 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 		}
 	}
 
-	if (quick == 0) {
+	if (quick == 0) {  // entirely outside the tile
 		return true;
 	}
+
+	// if quick == 3 the feature touches the buffer, not just the tile proper,
+	// so we need to clip to add intersection points at the tile edge.
+
+	// if quick == 2 it touches the buffer and beyond, so likewise
+
+	// if quick == 1 we should be able to get away without clipping, because
+	// the feature is entirely within the tile proper.
 
 	// Can't accept the quick check if guaranteeing no duplication, since the
 	// overlap might have been in the buffer.
