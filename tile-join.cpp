@@ -84,11 +84,11 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::st
 	try {
 		if (!tile.decode(message, was_compressed)) {
 			fprintf(stderr, "Couldn't decompress tile %d/%u/%u\n", z, x, y);
-			exit(EXIT_FAILURE);
+			exit(EXIT_MVT);
 		}
 	} catch (std::exception const &e) {
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
-		exit(EXIT_FAILURE);
+		exit(EXIT_MVT);
 	}
 
 	for (size_t l = 0; l < tile.layers.size(); l++) {
