@@ -674,7 +674,7 @@ this minimum size and others will not be drawn at all, preserving the total area
 all of them should have had together.
 
 Features in the same tile that share the same type and attributes are coalesced
-together into a single geometry if you use `--coalesce`. You are strongly encouraged to use -x to exclude
+together into a single geometry if you use `--coalesce`. You are strongly encouraged to use `-x` to exclude
 any unnecessary attributes to reduce wasted file size.
 
 If a tile is larger than 500K, it will try encoding that tile at progressively
