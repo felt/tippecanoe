@@ -29,7 +29,7 @@ static void json_context(json_object *j) {
 	char *s = json_stringify(j);
 
 	if (strlen(s) >= 500) {
-		sprintf(s + 497, "...");
+		snprintf(s + 497, strlen(s) + 1 - 497, "...");
 	}
 
 	fprintf(stderr, "in JSON object %s\n", s);
