@@ -129,7 +129,7 @@ std::string metadata_to_pmtiles_json(metadata m) {
 	return compressed;
 }
 
-void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression, bool quiet, bool quiet_progress) {
+void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression, bool fquiet, bool fquiet_progress) {
 	sqlite3 *db;
 
 	if (sqlite3_open(fname, &db) != SQLITE_OK) {
@@ -203,8 +203,8 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 			idx = idx + 1;
 			double progress = ((double) idx / tile_ids.size()) * 100;
 			pmtiles::zxy zxy = pmtiles::tileid_to_zxy(tile_id);
-			if (!quiet && !quiet_progress && progress_time() && (int) progress != progress_reported) {
-				fprintf(stderr, "  %3.1f%%  %d/%u/%u  \r", 100.0 * progress, zxy.z, zxy.x, zxy.y);
+			if (!fquiet && !fquiet_progress && progress_time() && (int) progress != progress_reported) {
+				fprintf(stderr, "  %3.1f%%  %d/%u/%u  \r", progress, zxy.z, zxy.x, zxy.y);
 				progress_reported = (int) progress;
 				fflush(stderr);
 			}
