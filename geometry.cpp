@@ -860,8 +860,6 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		double max_distance = -1;
 		int farthest_element_index = second;
 
-        // printf("%d (%lld,%lld) to %d (%lld,%lld)\n", first, geom[first].x, geom[first].y, second, geom[second].x, geom[second].y);
-
 		// find index idx of element with max_distance
 		int i;
 		for (i = first + 1; i < second; i++) {
@@ -876,10 +874,6 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		}
 
 		if (max_distance >= 0) {
-            // printf("chose %d (%lld,%lld), %f\n", start + farthest_element_index,
-                // geom[start + farthest_element_index].x, geom[start + farthest_element_index].y,
-                // max_distance);
-
 			// mark idx as necessary
 			geom[start + farthest_element_index].necessary = 1;
 			kept++;
