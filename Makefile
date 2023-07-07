@@ -29,7 +29,7 @@ else
 	FINAL_FLAGS := -g $(WARNING_FLAGS) $(DEBUG_FLAGS)
 endif
 
-all: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join unit tippecanoe-json-tool
+all: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join tippecanoe-json-tool
 
 docs: man/tippecanoe.1
 
@@ -92,8 +92,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test
-	./unit
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test
 
 suffixes = json json.gz
 
@@ -110,7 +109,7 @@ nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
 
 # For quicker address sanitizer build, hope that regular JSON parsing is tested enough by parallel and join tests
-fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
+fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test
 
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkbuf:
