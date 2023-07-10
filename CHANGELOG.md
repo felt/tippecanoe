@@ -1,3 +1,5 @@
+* Do more of line simplification in integer coordinates, to make behavior consistent across platforms
+
 # 2.26.1
 
 * Avoid crashing if there is a polygon ring with only one point
