@@ -1,3 +1,5 @@
+* Reduce excessive logging during pmtiles conversion
+
 # 2.26.1
 
 * Avoid crashing if there is a polygon ring with only one point
