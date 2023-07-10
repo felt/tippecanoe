@@ -88,6 +88,7 @@ std::string attribute_for_id = "";
 size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
+std::map<std::string, std::string> set_attributes;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2786,6 +2787,7 @@ int main(int argc, char **argv) {
 		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
 		{"use-attribute-for-id", required_argument, 0, '~'},
 		{"single-precision", no_argument, &prevent[P_SINGLE_PRECISION], 1},
+		{"set-attribute", required_argument, 0, '~'},
 
 		{"Filtering features by attributes", 0, 0, 0},
 		{"feature-filter-file", required_argument, 0, 'J'},
@@ -2959,6 +2961,15 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
 				attribute_for_id = optarg;
+			} else if (strcmp(opt, "set-attribute") == 0) {
+                char *attr = optarg;
+                char *val = strchr(attr, ':');
+                if (val == NULL) {
+                    fprintf(stderr, "%s: --set-attribute must be followed by attribute:value, not %s\n", argv[0], optarg);
+                    exit(EXIT_ARGS);
+                }
+                *val = '\0';
+                val++;
 			} else if (strcmp(opt, "smallest-maximum-zoom-guess") == 0) {
 				maxzoom = MAX_ZOOM;
 				guess_maxzoom = true;

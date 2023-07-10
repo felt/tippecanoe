@@ -511,6 +511,8 @@ to specify how the named \fIattribute\fP is accumulated onto the attribute of th
 \fB\fC\-\-use\-attribute\-for\-id=\fR\fIname\fP: Use the attribute with the specified \fIname\fP as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use \fB\fC\-aI\fR to convert it to a number.)
 .IP \(bu 2
 \fB\fC\-pN\fR or \fB\fC\-\-single\-precision\fR: Write double\-precision numeric attribute values to tiles as single\-precision to reduce tile size.
+.IP \(bu 2
+\fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
 .RE
 .SS Filtering features by attributes
 .RS
@@ -863,7 +865,7 @@ this minimum size and others will not be drawn at all, preserving the total area
 all of them should have had together.
 .PP
 Features in the same tile that share the same type and attributes are coalesced
-together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \-x to exclude
+together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \fB\fC\-x\fR to exclude
 any unnecessary attributes to reduce wasted file size.
 .PP
 If a tile is larger than 500K, it will try encoding that tile at progressively
