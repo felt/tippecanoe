@@ -10,6 +10,7 @@
 #include "pmtiles_file.hpp"
 #include "mvt.hpp"
 #include "write_json.hpp"
+#include "main.hpp"
 
 bool pmtiles_has_suffix(const char *filename) {
 	if (filename == nullptr) {
@@ -128,7 +129,7 @@ std::string metadata_to_pmtiles_json(metadata m) {
 	return compressed;
 }
 
-void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression, bool quiet, bool quiet_progress) {
+void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression, bool fquiet, bool fquiet_progress) {
 	sqlite3 *db;
 
 	if (sqlite3_open(fname, &db) != SQLITE_OK) {
@@ -197,12 +198,14 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 		tmp_ostream.open(tmpname.c_str(), std::ios::out | std::ios::binary);
 
 		int idx = 0;
+		int progress_reported = -1;
 		for (auto const &tile_id : tile_ids) {
 			idx = idx + 1;
 			double progress = ((double) idx / tile_ids.size()) * 100;
 			pmtiles::zxy zxy = pmtiles::tileid_to_zxy(tile_id);
-			if (!quiet && !quiet_progress) {
+			if (!fquiet && !fquiet_progress && progress_time() && (int) progress != progress_reported) {
 				fprintf(stderr, "  %3.1f%%  %d/%u/%u  \r", progress, zxy.z, zxy.x, zxy.y);
+				progress_reported = (int) progress;
 				fflush(stderr);
 			}
 			sqlite3_bind_int(map_stmt, 1, zxy.z);

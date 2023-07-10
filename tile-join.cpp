@@ -52,6 +52,10 @@ int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
 
+bool progress_time() {
+	return false;
+}
+
 struct stats {
 	int minzoom;
 	int maxzoom;
