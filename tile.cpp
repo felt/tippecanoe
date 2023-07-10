@@ -2331,11 +2331,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				p.full_keys.push_back("point_count_abbreviated");
 				sv4.type = mvt_string;
 				if (point_count >= 10000) {
-					sprintf(abbrev, "%.0fk", point_count / 1000.0);
+					snprintf(abbrev, sizeof(abbrev), "%.0fk", point_count / 1000.0);
 				} else if (point_count >= 1000) {
-					sprintf(abbrev, "%.1fk", point_count / 1000.0);
+					snprintf(abbrev, sizeof(abbrev), "%.1fk", point_count / 1000.0);
 				} else {
-					sprintf(abbrev, "%lld", point_count);
+					snprintf(abbrev, sizeof(abbrev), "%lld", point_count);
 				}
 				sv4.s = abbrev;
 				p.full_values.push_back(sv4);
@@ -3021,7 +3021,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 		int subfd[TEMP_FILES];
 		for (size_t j = 0; j < TEMP_FILES; j++) {
 			char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX" XSTRINGIFY(INT_MAX)) + 1];
-			sprintf(geomname, "%s/geom%zu.XXXXXXXX", tmpdir, j);
+			snprintf(geomname, sizeof(geomname), "%s/geom%zu.XXXXXXXX", tmpdir, j);
 			subfd[j] = mkstemp_cloexec(geomname);
 			// printf("%s\n", geomname);
 			if (subfd[j] < 0) {

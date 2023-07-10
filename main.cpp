@@ -723,9 +723,9 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 		sub_geompos[i] = 0;
 
 		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		sprintf(geomname, "%s%s", tmpdir, "/geom.XXXXXXXX");
+		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
 		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		sprintf(indexname, "%s%s", tmpdir, "/index.XXXXXXXX");
+		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
 
 		geomfds[i] = mkstemp_cloexec(geomname);
 		if (geomfds[i] < 0) {
@@ -1187,10 +1187,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
 		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
 
-		sprintf(poolname, "%s%s", tmpdir, "/pool.XXXXXXXX");
-		sprintf(treename, "%s%s", tmpdir, "/tree.XXXXXXXX");
-		sprintf(geomname, "%s%s", tmpdir, "/geom.XXXXXXXX");
-		sprintf(indexname, "%s%s", tmpdir, "/index.XXXXXXXX");
+		snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
+		snprintf(treename, sizeof(treename), "%s%s", tmpdir, "/tree.XXXXXXXX");
+		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
+		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
 
 		r->poolfd = mkstemp_cloexec(poolname);
 		if (r->poolfd < 0) {
@@ -1649,7 +1649,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				// Serial reading of chunks that are then parsed in parallel
 
 				char readname[strlen(tmpdir) + strlen("/read.XXXXXXXX") + 1];
-				sprintf(readname, "%s%s", tmpdir, "/read.XXXXXXXX");
+				snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
 				int readfd = mkstemp_cloexec(readname);
 				if (readfd < 0) {
 					perror(readname);
@@ -1702,7 +1702,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 							checkdisk(&readers);
 							ahead = 0;
 
-							sprintf(readname, "%s%s", tmpdir, "/read.XXXXXXXX");
+							snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
 							readfd = mkstemp_cloexec(readname);
 							if (readfd < 0) {
 								perror(readname);
@@ -1837,7 +1837,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-	sprintf(poolname, "%s%s", tmpdir, "/pool.XXXXXXXX");
+	snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
 
 	int poolfd = mkstemp_cloexec(poolname);
 	if (poolfd < 0) {
@@ -1917,7 +1917,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-	sprintf(indexname, "%s%s", tmpdir, "/index.XXXXXXXX");
+	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
 
 	int indexfd = mkstemp_cloexec(indexname);
 	if (indexfd < 0) {
@@ -1933,7 +1933,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	unlink(indexname);
 
 	char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-	sprintf(geomname, "%s%s", tmpdir, "/geom.XXXXXXXX");
+	snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
 
 	int geomfd = mkstemp_cloexec(geomname);
 	if (geomfd < 0) {

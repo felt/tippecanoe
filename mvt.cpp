@@ -481,7 +481,7 @@ static std::string quote(std::string const &s) {
 			buf.push_back(ch);
 		} else if (ch < ' ') {
 			char tmp[7];
-			sprintf(tmp, "\\u%04x", ch);
+			snprintf(tmp, sizeof(tmp), "\\u%04x", ch);
 			buf.append(std::string(tmp));
 		} else {
 			buf.push_back(ch);
