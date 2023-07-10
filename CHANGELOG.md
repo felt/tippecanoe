@@ -1,3 +1,4 @@
+* Do more of line simplification in integer coordinates, to make behavior consistent across platforms
 * Reduce excessive logging during pmtiles conversion
 
 # 2.26.1

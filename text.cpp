@@ -46,7 +46,7 @@ std::string check_utf8(std::string s) {
 					out += " ";
 				}
 				char tmp[6];
-				sprintf(tmp, "0x%02X", s[i + j] & 0xFF);
+				snprintf(tmp, sizeof(tmp), "0x%02X", s[i + j] & 0xFF);
 				out += std::string(tmp);
 			}
 			out += ")";
