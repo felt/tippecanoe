@@ -2731,7 +2731,15 @@ void set_attribute_value(const char *arg) {
 	std::string name = std::string(arg, s - arg);
 	std::string value = std::string(s + 1);
 
-	// set_attribute_accum(attribute_accum, name, type);
+	serial_val val;
+	if (isdigit(value[0]) || value[0] == '-') {
+		val.type = mvt_double;
+	} else {
+		val.type = mvt_string;
+	}
+
+	val.s = value;
+	set_attributes.insert(std::pair<std::string, serial_val>(name, val));
 }
 
 void parse_json_source(const char *arg, struct source &src) {
