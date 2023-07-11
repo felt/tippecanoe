@@ -2659,11 +2659,11 @@ void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, c
 
 			if (k->type != JSON_STRING) {
 				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *av, arg, i);
-                exit(EXIT_JSON);
+				exit(EXIT_JSON);
 			}
 			if (v->type != JSON_STRING) {
 				fprintf(stderr, "%s: -E%s: value %zu not a string\n", *av, arg, i);
-                exit(EXIT_JSON);
+				exit(EXIT_JSON);
 			}
 
 			set_attribute_accum(attribute_accum, k->value.string.string, v->value.string.string);
