@@ -503,6 +503,10 @@ If the type is \fB\fCint\fR and the original attribute was floating\-point, it i
 that are dropped, coalesced\-as\-needed, or clustered. The \fIoperation\fP may be
 \fB\fCsum\fR, \fB\fCproduct\fR, \fB\fCmean\fR, \fB\fCmax\fR, \fB\fCmin\fR, \fB\fCconcat\fR, or \fB\fCcomma\fR
 to specify how the named \fIattribute\fP is accumulated onto the attribute of the same name in a feature that does survive.
+The attributes and operations may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute={"attr": "operation", "attr2", "operation2"}\fR\&.
+.IP \(bu 2
+\fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
+The attributes and values may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute={"attr": value, "attr2", value}\fR\&.
 .IP \(bu 2
 \fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .IP \(bu 2
@@ -511,8 +515,6 @@ to specify how the named \fIattribute\fP is accumulated onto the attribute of th
 \fB\fC\-\-use\-attribute\-for\-id=\fR\fIname\fP: Use the attribute with the specified \fIname\fP as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use \fB\fC\-aI\fR to convert it to a number.)
 .IP \(bu 2
 \fB\fC\-pN\fR or \fB\fC\-\-single\-precision\fR: Write double\-precision numeric attribute values to tiles as single\-precision to reduce tile size.
-.IP \(bu 2
-\fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
 .RE
 .SS Filtering features by attributes
 .RS

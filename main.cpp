@@ -2613,15 +2613,7 @@ void set_attribute_type(std::map<std::string, int> &attribute_types, const char 
 	attribute_types.insert(std::pair<std::string, int>(name, t));
 }
 
-void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, const char *arg) {
-	const char *s = strchr(arg, ':');
-	if (s == NULL) {
-		fprintf(stderr, "-E%s option must be in the form -Ename:method\n", arg);
-		exit(EXIT_ARGS);
-	}
-
-	std::string name = std::string(arg, s - arg);
-	std::string type = std::string(s + 1);
+void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, std::string name, std::string type) {
 	attribute_op t;
 
 	if (type == "sum") {
@@ -2644,6 +2636,54 @@ void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, c
 	}
 
 	attribute_accum.insert(std::pair<std::string, attribute_op>(name, t));
+}
+
+void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, const char *arg) {
+	if (*arg == '{') {
+		json_pull *jp = json_begin_string(arg);
+		json_object *o = json_read_tree(jp);
+
+		if (o == NULL) {
+			fprintf(stderr, "%s: -E%s: %s\n", *av, arg, jp->error);
+			exit(EXIT_JSON);
+		}
+
+		if (o->type != JSON_HASH) {
+			fprintf(stderr, "%s: -E%s: not a JSON object\n", *av, arg);
+			exit(EXIT_JSON);
+		}
+
+		for (size_t i = 0; i < o->value.object.length; i++) {
+			json_object *k = o->value.object.keys[i];
+			json_object *v = o->value.object.values[i];
+
+			if (k->type != JSON_STRING) {
+				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *av, arg, i);
+                exit(EXIT_JSON);
+			}
+			if (v->type != JSON_STRING) {
+				fprintf(stderr, "%s: -E%s: value %zu not a string\n", *av, arg, i);
+                exit(EXIT_JSON);
+			}
+
+			set_attribute_accum(attribute_accum, k->value.string.string, v->value.string.string);
+		}
+
+		json_free(o);
+		json_end(jp);
+		return;
+	}
+
+	const char *s = strchr(arg, ':');
+	if (s == NULL) {
+		fprintf(stderr, "-E%s option must be in the form -Ename:method\n", arg);
+		exit(EXIT_ARGS);
+	}
+
+	std::string name = std::string(arg, s - arg);
+	std::string type = std::string(s + 1);
+
+	set_attribute_accum(attribute_accum, name, type);
 }
 
 void parse_json_source(const char *arg, struct source &src) {
@@ -2962,14 +3002,14 @@ int main(int argc, char **argv) {
 			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
 				attribute_for_id = optarg;
 			} else if (strcmp(opt, "set-attribute") == 0) {
-                char *attr = optarg;
-                char *val = strchr(attr, ':');
-                if (val == NULL) {
-                    fprintf(stderr, "%s: --set-attribute must be followed by attribute:value, not %s\n", argv[0], optarg);
-                    exit(EXIT_ARGS);
-                }
-                *val = '\0';
-                val++;
+				char *attr = optarg;
+				char *val = strchr(attr, ':');
+				if (val == NULL) {
+					fprintf(stderr, "%s: --set-attribute must be followed by attribute:value, not %s\n", argv[0], optarg);
+					exit(EXIT_ARGS);
+				}
+				*val = '\0';
+				val++;
 			} else if (strcmp(opt, "smallest-maximum-zoom-guess") == 0) {
 				maxzoom = MAX_ZOOM;
 				guess_maxzoom = true;
