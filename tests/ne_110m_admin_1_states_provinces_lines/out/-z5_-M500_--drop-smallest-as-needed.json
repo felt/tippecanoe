@@ -1,7 +1,7 @@
 { "type": "FeatureCollection", "properties": {
 "antimeridian_adjusted_bounds": "-124.213807,29.689480,-70.645734,49.005639",
 "bounds": "-124.213807,29.689480,-70.645734,49.005639",
-"center": "-118.125000,44.951199,5",
+"center": "-95.625000,44.951199,5",
 "description": "tests/ne_110m_admin_1_states_provinces_lines/out/-z5_-M500_--drop-smallest-as-needed.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/ne_110m_admin_1_states_provinces_lines/out/-z5_-M500_--drop-smallest-as-needed.json.check.mbtiles -z5 -M500 --drop-smallest-as-needed tests/ne_110m_admin_1_states_provinces_lines/in.json",

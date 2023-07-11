@@ -29,6 +29,10 @@ int minzoom = 0;
 int maxzoom = 32;
 bool force = false;
 
+bool progress_time() {
+	return false;
+}
+
 void do_stats(mvt_tile &tile, size_t size, bool compressed, int z, unsigned x, unsigned y, json_writer &state) {
 	state.json_write_hash();
 

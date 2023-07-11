@@ -52,6 +52,10 @@ int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
 
+bool progress_time() {
+	return false;
+}
+
 struct stats {
 	int minzoom;
 	int maxzoom;
@@ -81,8 +85,13 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::st
 	int features_added = 0;
 	bool was_compressed;
 
-	if (!tile.decode(message, was_compressed)) {
-		fprintf(stderr, "Couldn't decompress tile %d/%u/%u\n", z, x, y);
+	try {
+		if (!tile.decode(message, was_compressed)) {
+			fprintf(stderr, "Couldn't decompress tile %d/%u/%u\n", z, x, y);
+			exit(EXIT_MVT);
+		}
+	} catch (std::exception const &e) {
+		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
 		exit(EXIT_MVT);
 	}
 
