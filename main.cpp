@@ -64,6 +64,7 @@
 #include "evaluator.hpp"
 #include "text.hpp"
 #include "errors.hpp"
+#include "read_json.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -88,7 +89,7 @@ std::string attribute_for_id = "";
 size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
-std::map<std::string, std::string> set_attributes;
+std::map<std::string, serial_val> set_attributes;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2686,6 +2687,53 @@ void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, c
 	set_attribute_accum(attribute_accum, name, type);
 }
 
+void set_attribute_value(const char *arg) {
+	if (*arg == '{') {
+		json_pull *jp = json_begin_string(arg);
+		json_object *o = json_read_tree(jp);
+
+		if (o == NULL) {
+			fprintf(stderr, "%s: --set-attribute %s: %s\n", *av, arg, jp->error);
+			exit(EXIT_JSON);
+		}
+
+		if (o->type != JSON_HASH) {
+			fprintf(stderr, "%s: --set-attribute %s: not a JSON object\n", *av, arg);
+			exit(EXIT_JSON);
+		}
+
+		for (size_t i = 0; i < o->value.object.length; i++) {
+			json_object *k = o->value.object.keys[i];
+			json_object *v = o->value.object.values[i];
+
+			if (k->type != JSON_STRING) {
+				fprintf(stderr, "%s: --set-attribute %s: key %zu not a string\n", *av, arg, i);
+				exit(EXIT_JSON);
+			}
+
+			serial_val val;
+			stringify_value(v, val.type, val.s, "json", 1, o);
+
+			set_attributes.insert(std::pair<std::string, serial_val>(k->value.string.string, val));
+		}
+
+		json_free(o);
+		json_end(jp);
+		return;
+	}
+
+	const char *s = strchr(arg, ':');
+	if (s == NULL) {
+		fprintf(stderr, "--set-attribute %s option must be in the form --set-attribute name:value\n", arg);
+		exit(EXIT_ARGS);
+	}
+
+	std::string name = std::string(arg, s - arg);
+	std::string value = std::string(s + 1);
+
+	// set_attribute_accum(attribute_accum, name, type);
+}
+
 void parse_json_source(const char *arg, struct source &src) {
 	json_pull *jp = json_begin_string(arg);
 	json_object *o = json_read_tree(jp);
@@ -3002,14 +3050,7 @@ int main(int argc, char **argv) {
 			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
 				attribute_for_id = optarg;
 			} else if (strcmp(opt, "set-attribute") == 0) {
-				char *attr = optarg;
-				char *val = strchr(attr, ':');
-				if (val == NULL) {
-					fprintf(stderr, "%s: --set-attribute must be followed by attribute:value, not %s\n", argv[0], optarg);
-					exit(EXIT_ARGS);
-				}
-				*val = '\0';
-				val++;
+				set_attribute_value(optarg);
 			} else if (strcmp(opt, "smallest-maximum-zoom-guess") == 0) {
 				maxzoom = MAX_ZOOM;
 				guess_maxzoom = true;
