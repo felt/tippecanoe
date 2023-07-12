@@ -1684,7 +1684,7 @@ draw centerOfMass(const drawvec &dv, size_t start, size_t end, draw centre) {
 		double areaFactor = 1 / (6 * area);
 
 		// Compute the final coordinates, adding back the values that have been neutralized
-		return draw(VT_MOVETO, translation.x + areaFactor * sx, translation.y + areaFactor * sy);
+		return draw(VT_MOVETO, ROUND(translation.x + areaFactor * sx), ROUND(translation.y + areaFactor * sy));
 	}
 }
 
@@ -1820,7 +1820,7 @@ struct candidate {
 
 drawvec polygon_to_anchor(const drawvec &geom) {
 	size_t start = 0, end = 0;
-	size_t best_area = 0;
+	double best_area = 0;
 	std::vector<sorty> points;
 
 	// find the largest outer ring, which will be the best thing
@@ -2042,13 +2042,13 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 		spiral_dist = spiral_dist * exp(log(z) * 1.2);
 	}
 
-	const long long label_spacing = spiral_dist * (tx2 - tx1);
+	const long long label_spacing = ROUND(spiral_dist * (tx2 - tx1));
 
-	long long x1 = floor(std::min(bx1 - wx, bx2 - wx) / label_spacing);
-	long long x2 = ceil(std::max(bx1 - wx, bx2 - wx) / label_spacing);
+	long long x1 = (long long) floor(std::min(bx1 - wx, bx2 - wx) / label_spacing);
+	long long x2 = (long long) ceil(std::max(bx1 - wx, bx2 - wx) / label_spacing);
 
-	long long y1 = floor(std::min(by1 - wy, by2 - wy) / label_spacing - 0.5);
-	long long y2 = ceil(std::max(by1 - wy, by2 - wy) / label_spacing);
+	long long y1 = (long long) floor(std::min(by1 - wy, by2 - wy) / label_spacing - 0.5);
+	long long y2 = (long long) ceil(std::max(by1 - wy, by2 - wy) / label_spacing);
 
 	for (long long lx = x1; lx <= x2; lx++) {
 		for (long long ly = y1; ly <= y2; ly++) {
