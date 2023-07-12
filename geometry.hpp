@@ -26,7 +26,7 @@ struct draw {
 
 	draw(int nop, long long nx, long long ny)
 	    : x(nx),
-	      op(nop),
+	      op((signed char) nop),
 	      y(ny),
 	      necessary(0) {
 	}

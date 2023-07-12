@@ -23,6 +23,8 @@
 #include "errors.hpp"
 #include "projection.hpp"
 
+#define ROUND(n) ((long long) std::round(n))
+
 static int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 
 drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
@@ -85,8 +87,8 @@ drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long 
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
-		geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
+		geom[i].x = ROUND((double) geom[i].x / (1LL << (32 - detail - z)));
+		geom[i].y = ROUND((double) geom[i].y / (1LL << (32 - detail - z)));
 	}
 }
 
@@ -108,7 +110,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && std::round((double) geom[i].x / (1LL << shift)) == x && std::round((double) geom[i].y / (1LL << shift)) == y) {
+		if (geom[i].op == VT_LINETO && ROUND((double) geom[i].x / (1LL << shift)) == x && ROUND((double) geom[i].y / (1LL << shift)) == y) {
 			continue;
 		}
 
@@ -116,8 +118,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 			out.push_back(geom[i]);
 		} else { /* moveto or lineto */
 			out.push_back(geom[i]);
-			x = std::round((double) geom[i].x / (1LL << shift));
-			y = std::round((double) geom[i].y / (1LL << shift));
+			x = ROUND((double) geom[i].x / (1LL << shift));
+			y = ROUND((double) geom[i].y / (1LL << shift));
 		}
 	}
 
@@ -156,7 +158,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
-				if (i > 0 && geom[i - 1].op == VT_LINETO && std::round((double) geom[i - 1].x / (1LL << shift)) == std::round((double) geom[i].x / (1LL << shift)) && std::round((double) geom[i - 1].y / (1LL << shift)) == std::round((double) geom[i].y / (1LL << shift))) {
+				if (i > 0 && geom[i - 1].op == VT_LINETO && ROUND((double) geom[i - 1].x / (1LL << shift)) == ROUND((double) geom[i].x / (1LL << shift)) && ROUND((double) geom[i - 1].y / (1LL << shift)) == ROUND((double) geom[i].y / (1LL << shift))) {
 					continue;
 				}
 			}
@@ -282,7 +284,7 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 			drawvec ring;
 
 			for (size_t k = 0; k < t[i][j].size(); k++) {
-				ring.push_back(draw((k == 0) ? VT_MOVETO : VT_LINETO, std::round(t[i][j][k].x / scale), std::round(t[i][j][k].y / scale)));
+				ring.push_back(draw((k == 0) ? VT_MOVETO : VT_LINETO, ROUND(t[i][j][k].x / scale), ROUND(t[i][j][k].y / scale)));
 			}
 
 			if (ring.size() > 0 && ring[ring.size() - 1] != ring[0]) {
@@ -328,7 +330,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 					mapbox::geometry::linear_ring<long long> lr;
 
 					for (size_t k = i; k < j; k++) {
-						lr.push_back(mapbox::geometry::point<long long>(geom[k].x * scale, geom[k].y * scale));
+						lr.push_back(mapbox::geometry::point<long long>(ROUND(geom[k].x * scale), ROUND(geom[k].y * scale)));
 					}
 
 					if (lr.size() >= 3) {
@@ -349,11 +351,11 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 
 			mapbox::geometry::linear_ring<long long> lr;
 
-			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
-			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * (area + clip_buffer)));
-			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * (area + clip_buffer)));
-			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * -clip_buffer));
-			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
+			lr.push_back(mapbox::geometry::point<long long>(ROUND(scale * -clip_buffer), ROUND(scale * -clip_buffer)));
+			lr.push_back(mapbox::geometry::point<long long>(ROUND(scale * -clip_buffer), ROUND(scale * (area + clip_buffer))));
+			lr.push_back(mapbox::geometry::point<long long>(ROUND(scale * (area + clip_buffer)), ROUND(scale * (area + clip_buffer))));
+			lr.push_back(mapbox::geometry::point<long long>(ROUND(scale * (area + clip_buffer)), ROUND(scale * -clip_buffer)));
+			lr.push_back(mapbox::geometry::point<long long>(ROUND(scale * -clip_buffer), ROUND(scale * -clip_buffer)));
 
 			wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
 		}
@@ -414,8 +416,8 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 			for (auto const &outer : result) {
 				for (auto const &ring : outer) {
 					for (auto const &p : ring) {
-						if (p.x / scale != std::round(p.x / scale) ||
-						    p.y / scale != std::round(p.y / scale)) {
+						if (p.x / scale != ROUND(p.x / scale) ||
+						    p.y / scale != ROUND(p.y / scale)) {
 							scale = 1;
 							again = true;
 							break;
@@ -489,7 +491,7 @@ void check_polygon(drawvec &geom) {
 		fprintf(stderr, "Internal error: self-intersecting polygon\n");
 	}
 
-	size_t outer_start = -1;
+	ssize_t outer_start = -1;
 	size_t outer_len = 0;
 
 	for (size_t i = 0; i < geom.size(); i++) {
@@ -515,7 +517,7 @@ void check_polygon(drawvec &geom) {
 					if (!pnpoly(geom, outer_start, outer_len, geom[k].x, geom[k].y)) {
 						bool on_edge = false;
 
-						for (size_t l = outer_start; l < outer_start + outer_len; l++) {
+						for (ssize_t l = outer_start; l < outer_start + (ssize_t) outer_len; l++) {
 							if (geom[k].x == geom[l].x || geom[k].y == geom[l].y) {
 								on_edge = true;
 								break;
@@ -635,7 +637,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
 						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
 							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
-							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+							edge_nodes.push_back(draw(VT_MOVETO, ROUND(out.back().first), ROUND(out.back().second)));
 						}
 						out.push_back(E);
 					}
@@ -652,7 +654,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 						// now inside the tile
 						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
 							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
-							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+							edge_nodes.push_back(draw(VT_MOVETO, ROUND(out.back().first), ROUND(out.back().second)));
 						}
 						out.push_back(E);
 					}
@@ -663,14 +665,14 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 						// now outside the buffer
 						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
 							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
-							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+							edge_nodes.push_back(draw(VT_MOVETO, ROUND(out.back().first), ROUND(out.back().second)));
 						}
 						out.push_back(intersect(S, E, edge, minx, miny, maxx, maxy));  // on buffer edge
 					} else if (!inside(E, edge, ax, ay, bx, by)) {
 						// now inside the buffer but outside the tile edge
 						if (prevent[P_SIMPLIFY_SHARED_NODES]) {
 							out.push_back(intersect(S, E, edge, ax, ay, bx, by));  // on tile boundary
-							edge_nodes.push_back(draw(VT_MOVETO, std::round(out.back().first), std::round(out.back().second)));
+							edge_nodes.push_back(draw(VT_MOVETO, ROUND(out.back().first), ROUND(out.back().second)));
 						}
 						out.push_back(E);
 					} else {
@@ -735,9 +737,9 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 			}
 			for (size_t k = 0; k < tmp.size(); k++) {
 				if (k == 0) {
-					out.push_back(draw(VT_MOVETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+					out.push_back(draw(VT_MOVETO, ROUND(tmp[k].first), ROUND(tmp[k].second)));
 				} else {
-					out.push_back(draw(VT_LINETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+					out.push_back(draw(VT_LINETO, ROUND(tmp[k].first), ROUND(tmp[k].second)));
 				}
 			}
 
@@ -807,11 +809,11 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 					if (area > 0 && *accum_area > pixel * pixel) {
 						// XXX use centroid;
 
-						out.push_back(draw(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
+						out.push_back(draw(VT_MOVETO, ROUND(geom[i].x - pixel / 2), ROUND(geom[i].y - pixel / 2)));
+						out.push_back(draw(VT_LINETO, ROUND(geom[i].x - pixel / 2 + pixel), ROUND(geom[i].y - pixel / 2)));
+						out.push_back(draw(VT_LINETO, ROUND(geom[i].x - pixel / 2 + pixel), ROUND(geom[i].y - pixel / 2 + pixel)));
+						out.push_back(draw(VT_LINETO, ROUND(geom[i].x - pixel / 2), ROUND(geom[i].y - pixel / 2 + pixel)));
+						out.push_back(draw(VT_LINETO, ROUND(geom[i].x - pixel / 2), ROUND(geom[i].y - pixel / 2)));
 						includes_dust = true;
 
 						*accum_area -= pixel * pixel;
@@ -964,8 +966,8 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
 
 			if (c > 1) {  // clipped
-				out.push_back(draw(VT_MOVETO, std::round(x1), std::round(y1)));
-				out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
+				out.push_back(draw(VT_MOVETO, ROUND(x1), ROUND(y1)));
+				out.push_back(draw(VT_LINETO, ROUND(x2), ROUND(y2)));
 				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
 			} else if (c == 1) {  // unchanged
 				out.push_back(geom[i]);
@@ -992,8 +994,8 @@ static long long square_distance_from_line(long long point_x, long long point_y,
 		u = 0;
 	}
 
-	long long x = std::round(segA_x + u * p2x);
-	long long y = std::round(segA_y + u * p2y);
+	long long x = ROUND(segA_x + u * p2x);
+	long long y = ROUND(segA_y + u * p2y);
 
 	long long dx = x - point_x;
 	long long dy = y - point_y;
@@ -1095,12 +1097,12 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 			int c = clip(&x1, &y1, &x2, &y2, 0, 0, extent, extent);
 
 			if (c > 1) {  // clipped
-				if (std::round(x1) != geom[i - 1].x || std::round(y1) != geom[i - 1].y) {
-					out.push_back(draw(VT_LINETO, std::round(x1), std::round(y1)));
+				if (ROUND(x1) != geom[i - 1].x || ROUND(y1) != geom[i - 1].y) {
+					out.push_back(draw(VT_LINETO, ROUND(x1), ROUND(y1)));
 					out[out.size() - 1].necessary = 1;
 				}
-				if (std::round(x2) != geom[i - 0].x || std::round(y2) != geom[i - 0].y) {
-					out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
+				if (ROUND(x2) != geom[i - 0].x || ROUND(y2) != geom[i - 0].y) {
+					out.push_back(draw(VT_LINETO, ROUND(x2), ROUND(y2)));
 					out[out.size() - 1].necessary = 1;
 				}
 			}
@@ -1528,8 +1530,8 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 	double scale = 1 << (32 - detail - z);
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x = std::round(geom[i].x / scale);
-		geom[i].y = std::round(geom[i].y / scale);
+		geom[i].x = ROUND(geom[i].x / scale);
+		geom[i].y = ROUND(geom[i].y / scale);
 	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
