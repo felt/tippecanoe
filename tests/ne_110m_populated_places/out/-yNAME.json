@@ -10179,7 +10179,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 1556, "y": 2316 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "NAME": "Rio de Janeiro" }, "geometry": { "type": "Point", "coordinates": [ -43.226974, -22.923081 ] } }
+{ "type": "Feature", "properties": { "NAME": "Rio de Janeiro" }, "geometry": { "type": "Point", "coordinates": [ -43.226953, -22.923081 ] } }
 ] }
 ] }
 ,
@@ -10809,7 +10809,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 2403, "y": 1689 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "NAME": "Cairo" }, "geometry": { "type": "Point", "coordinates": [ 31.248014, 30.051897 ] } }
+{ "type": "Feature", "properties": { "NAME": "Cairo" }, "geometry": { "type": "Point", "coordinates": [ 31.248035, 30.051897 ] } }
 ] }
 ] }
 ,
@@ -13365,7 +13365,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 14, "x": 6224, "y": 9264 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "NAME": "Rio de Janeiro" }, "geometry": { "type": "Point", "coordinates": [ -43.226969, -22.923076 ] } }
+{ "type": "Feature", "properties": { "NAME": "Rio de Janeiro" }, "geometry": { "type": "Point", "coordinates": [ -43.226963, -22.923076 ] } }
 ] }
 ] }
 ,
@@ -14007,7 +14007,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 14, "x": 9614, "y": 6756 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "NAME": "Cairo" }, "geometry": { "type": "Point", "coordinates": [ 31.248019, 30.051906 ] } }
+{ "type": "Feature", "properties": { "NAME": "Cairo" }, "geometry": { "type": "Point", "coordinates": [ 31.248025, 30.051906 ] } }
 ] }
 ] }
 ,

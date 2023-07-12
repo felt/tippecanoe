@@ -135,7 +135,7 @@ int integer_zoom(std::string where, std::string text) {
 		fprintf(stderr, "%s: Expected integer zoom level in \"tippecanoe\" GeoJSON extension, not %s\n", where.c_str(), text.c_str());
 		exit(EXIT_JSON);
 	}
-	return d;
+	return (int) std::round(d);
 }
 
 std::string format_commandline(int argc, char **argv) {

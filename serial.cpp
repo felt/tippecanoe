@@ -370,8 +370,8 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 				// is already supposed to be aligned to tile boundaries (but is not, exactly,
 				// because of rounding error during projection).
 
-				geom[i].x = std::round(x * scale);
-				geom[i].y = std::round(y * scale);
+				geom[i].x = (long long) std::round(x * scale);
+				geom[i].y = (long long) std::round(y * scale);
 			} else {
 				geom[i].x = SHIFT_RIGHT(x);
 				geom[i].y = SHIFT_RIGHT(y);

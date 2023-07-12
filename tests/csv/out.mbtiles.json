@@ -1,5 +1,5 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-175.220565,-41.299988,179.216647,64.150024",
+"antimeridian_adjusted_bounds": "-175.220564,-41.299988,179.216647,64.150024",
 "bounds": "-180.000000,-41.299988,180.000000,85.051129",
 "center": "0.000000,0.000000,0",
 "description": "tests/csv/out.mbtiles",
