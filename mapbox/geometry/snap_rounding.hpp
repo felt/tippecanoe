@@ -160,8 +160,8 @@ void check_intersection(std::vector<std::vector<point<T>>> &segments, size_t a, 
 		T s02_x = segments[a][0].x - segments[b][0].x;
 		T s02_y = segments[a][0].y - segments[b][0].y;
 
-		double s = (s10_x * s02_y - s10_y * s02_x) / (long double) denom;
-		double t = (s32_x * s02_y - s32_y * s02_x) / (long double) denom;
+		double s = (s10_x * s02_y - s10_y * s02_x) / (double) denom;
+		double t = (s32_x * s02_y - s32_y * s02_x) / (double) denom;
 
 		if (t >= 0 && t <= 1 && s >= 0 && s <= 1) {
 			T x = (T) round(segments[a][0].x + t * s10_x);
