@@ -97,12 +97,18 @@ test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test p
 
 suffixes = json json.gz
 
-# Work around Makefile and filename punctuation limits: _ for space, @ for :, % for /
+# Work around Makefile and filename punctuation limits:
+# _ for argument-separator space
+# %20 for quoted space
+# %22 for quoted quote
+# %3a for :
+# %2f for /
+
 testargs = \
     $(subst %20,' ',\
         $(subst %22,'"',\
-            $(subst @,:,\
-                $(subst %,/,\
+            $(subst %3a,:,\
+                $(subst %2f,/,\
                     $(subst _, ,$(1))))))
 
 %.json.check:
