@@ -2290,12 +2290,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 									// (which Douglas-Peucker simplification would keep anyway,
 									// if its search weren't being split up by polygon side).
 
-									double far = 0;
+									long long far = 0;
 									size_t which = i;
 									for (size_t k = i + 1; k < j - 1; k++) {
-										double xd = sf.geometry[k].x - sf.geometry[i].x;
-										double yd = sf.geometry[k].y - sf.geometry[i].y;
-										double d = xd * xd + yd * yd;
+										long long xd = sf.geometry[k].x - sf.geometry[i].x;
+										long long yd = sf.geometry[k].y - sf.geometry[i].y;
+										long long d = xd * xd + yd * yd;
 										if (d > far) {
 											far = d;
 											which = k;
@@ -2310,14 +2310,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 									// would keep next.
 
 									far = 0;
-									double which2 = i;
+									size_t which2 = i;
 
 									for (size_t k = i + 1; k < j - 1; k++) {
-										double xd = sf.geometry[k].x - sf.geometry[i].x;
-										double yd = sf.geometry[k].y - sf.geometry[i].y;
-										double xd2 = sf.geometry[k].x - sf.geometry[which].x;
-										double yd2 = sf.geometry[k].y - sf.geometry[which].y;
-										double d = xd * xd + yd * yd + xd2 * xd2 + yd2 * yd2;
+										long long xd = sf.geometry[k].x - sf.geometry[i].x;
+										long long yd = sf.geometry[k].y - sf.geometry[i].y;
+										long long xd2 = sf.geometry[k].x - sf.geometry[which].x;
+										long long yd2 = sf.geometry[k].y - sf.geometry[which].y;
+										long long d = xd * xd + yd * yd + xd2 * xd2 + yd2 * yd2;
 										if (d > far) {
 											far = d;
 											which2 = k;
