@@ -474,6 +474,37 @@ struct partial {
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
+
+	partial(serial_feature &sf, int z_, int tx_, int ty_, int line_detail_, int maxzoom_, double simplification_) {
+		geoms.clear();
+		geoms.push_back(sf.geometry);
+
+		layer = sf.layer;
+		t = sf.t;
+		segment = sf.segment;
+		original_seq = sf.seq;
+		keys = sf.keys;
+		values = sf.values;
+		full_keys = sf.full_keys;
+		full_values = sf.full_values;
+		id = sf.id;
+		has_id = sf.has_id;
+		index = sf.index;
+		label_point = sf.label_point;
+		extent = sf.extent;
+
+		z = z_;
+		tx = tx_;
+		ty = ty_;
+		line_detail = line_detail_;
+		extra_detail = line_detail_;
+		maxzoom = maxzoom_;
+		simplification = simplification_;
+
+		coalesced = false;
+		renamed = -1;
+		clustered = 0;
+	}
 };
 
 struct partial_arg {
@@ -1013,7 +1044,6 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	std::vector<drawvec> simplified_arcs;
 
-	size_t count = 0;
 	for (auto ai = arcs.begin(); ai != arcs.end(); ++ai) {
 		if (simplified_arcs.size() < ai->second + 1) {
 			simplified_arcs.resize(ai->second + 1);
@@ -1032,7 +1062,6 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 		} else {
 			simplified_arcs[ai->second] = dv;
 		}
-		count++;
 	}
 
 	// If necessary, merge some adjacent polygons into some other polygons
@@ -1882,6 +1911,20 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
+bool better_center(const serial_feature &a, const partial &b, long long x, long long y) {
+	long long dax = a.geometry[0].x - x;
+	long long day = a.geometry[0].y - y;
+
+	long long dbx = b.geoms[0][0].x - x;
+	long long dby = b.geoms[0][0].y - y;
+
+	if (dax * dax + day * day < dbx * dbx + dby * dby) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1952,6 +1995,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			geompos[i] = 0;
 			within[i] = 0;
 		}
+
+		long long cluster_xsum = 0;
+		long long cluster_ysum = 0;
+		size_t cluster_count = 0;
 
 		if (*geompos_in != og) {
 			if (compressed_input) {
@@ -2071,8 +2118,26 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.dropped) {
 				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+
+					if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0) {
+						cluster_xsum += sf.geometry[0].x;
+						cluster_ysum += sf.geometry[0].y;
+						cluster_count++;
+
+						if (better_center(sf, partials[which_partial], cluster_xsum / cluster_count, cluster_ysum / cluster_count)) {
+							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
+							// XXX fix accumulated attributes
+						}
+					}
+
 					strategy->dropped_by_rate++;
 					continue;
+				}
+			} else {  // not dropped, so start of new pseudocluster
+				if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0) {
+					cluster_xsum = sf.geometry[0].x;
+					cluster_ysum = sf.geometry[0].y;
+					cluster_count = 0;
 				}
 			}
 
@@ -2216,33 +2281,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 					}
 
-					partial p;
-					p.geoms.push_back(sf.geometry);
-					p.layer = sf.layer;
-					p.t = sf.t;
-					p.segment = sf.segment;
-					p.original_seq = sf.seq;
-					p.reduced = reduced;
-					p.coalesced = false;
-					p.z = z;
-					p.tx = tx;
-					p.ty = ty;
-					p.line_detail = line_detail;
-					p.extra_detail = line_detail;
-					p.maxzoom = maxzoom;
-					p.keys = sf.keys;
-					p.values = sf.values;
-					p.full_keys = sf.full_keys;
-					p.full_values = sf.full_values;
+					partial p(sf, z, tx, ty, line_detail, maxzoom, simplification);
 					p.spacing = spacing;
-					p.simplification = simplification;
-					p.id = sf.id;
-					p.has_id = sf.has_id;
-					p.index = sf.index;
-					p.label_point = sf.label_point;
-					p.renamed = -1;
-					p.extent = sf.extent;
-					p.clustered = 0;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						p.extra_detail = extra_detail;
