@@ -2124,10 +2124,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						cluster_ysum += sf.geometry[0].y;
 						cluster_count++;
 
+						partials[which_partial].geoms[0][0].x = cluster_xsum / cluster_count;
+						partials[which_partial].geoms[0][0].y = cluster_ysum / cluster_count;
+
+#if 0
 						if (better_center(sf, partials[which_partial], cluster_xsum / cluster_count, cluster_ysum / cluster_count)) {
 							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
 							// XXX fix accumulated attributes
 						}
+#endif
 					}
 
 					strategy->dropped_by_rate++;

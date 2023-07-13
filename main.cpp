@@ -277,7 +277,7 @@ struct drop_state {
 	double gap;
 	unsigned long long previndex;
 	double interval;
-	double seq;
+	double seq;  // floating point because interval is
 };
 
 struct drop_densest {
@@ -292,8 +292,8 @@ struct drop_densest {
 
 int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
 	int feature_minzoom = 0;
-	unsigned xx, yy;
-	decode_index(ix->ix, &xx, &yy);
+	// unsigned xx, yy;
+	// decode_index(ix->ix, &xx, &yy);
 
 	if (gamma >= 0 && (ix->t == VT_POINT ||
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
@@ -301,11 +301,42 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
+		ssize_t chosen = maxzoom + 1;
 		for (ssize_t i = maxzoom; i >= 0; i--) {
-			if (ds[i].seq >= 0) {
-				ds[i].seq -= ds[i].interval;
-			} else {
+			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
+
+				// As in, the feature we are looking at
+				// appears in zooms i + 1 through maxzoom
+				for (ssize_t j = i + 1; j <= maxzoom; j++) {
+					ds[j].previndex = ix->ix;
+				}
+
+				chosen = i + 1;
+				break;
+			} else {
+				ds[i].seq -= ds[i].interval;
+			}
+		}
+
+		// This feature was not chosen, so check whether there was
+		// a big gap between it and the last feature we did choose at
+		// some zoom level, in which case we will go ahead and push it
+		// out at that zoom level and above, even though it's not really
+		// time yet.
+
+		for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
+#if 0
+                printf("zoom %zd: %llu vs %llu, gap %llu, want %llu\n", i, ix->ix, ds[i].previndex, ix->ix - ds[i].previndex,
+                         ((1LL << (32 - i)) / 8) * ((1LL << (32 - i)) / 8));
+#endif
+			if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / 32) * ((1LL << (32 - i)) / 32)) {
+				feature_minzoom = i;
+
+				for (ssize_t j = i; j <= maxzoom; j++) {
+					ds[j].previndex = ix->ix;
+				}
+
 				break;
 			}
 		}
@@ -2898,7 +2929,7 @@ int main(int argc, char **argv) {
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
 		{"cluster-distance", required_argument, 0, 'K'},
 		{"cluster-maxzoom", required_argument, 0, 'k'},
-		{"prefer-cluster-centers", no_argument, &additional[A_PREFER_CLUSTER_CENTERS], 1},
+		{"move-points-to-cluster-centroids", no_argument, &additional[A_PREFER_CLUSTER_CENTERS], 1},
 
 		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
 		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
