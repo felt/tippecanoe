@@ -2137,7 +2137,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0) {
 					cluster_xsum = sf.geometry[0].x;
 					cluster_ysum = sf.geometry[0].y;
-					cluster_count = 0;
+					cluster_count = 1;
 				}
 			}
 
