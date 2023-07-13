@@ -1911,20 +1911,6 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
-bool better_center(const serial_feature &a, const partial &b, long long x, long long y) {
-	long long dax = a.geometry[0].x - x;
-	long long day = a.geometry[0].y - y;
-
-	long long dbx = b.geoms[0][0].x - x;
-	long long dby = b.geoms[0][0].y - y;
-
-	if (dax * dax + day * day < dbx * dbx + dby * dby) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -2119,27 +2105,20 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 
-					if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0) {
+					if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0 && sf.t == VT_POINT) {
 						cluster_xsum += sf.geometry[0].x;
 						cluster_ysum += sf.geometry[0].y;
 						cluster_count++;
 
 						partials[which_partial].geoms[0][0].x = cluster_xsum / cluster_count;
 						partials[which_partial].geoms[0][0].y = cluster_ysum / cluster_count;
-
-#if 0
-						if (better_center(sf, partials[which_partial], cluster_xsum / cluster_count, cluster_ysum / cluster_count)) {
-							partials[which_partial] = partial(sf, z, tx, ty, line_detail, maxzoom, simplification);
-							// XXX fix accumulated attributes
-						}
-#endif
 					}
 
 					strategy->dropped_by_rate++;
 					continue;
 				}
 			} else {  // not dropped, so start of new pseudocluster
-				if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0) {
+				if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0 && sf.t == VT_POINT) {
 					cluster_xsum = sf.geometry[0].x;
 					cluster_ysum = sf.geometry[0].y;
 					cluster_count = 1;
