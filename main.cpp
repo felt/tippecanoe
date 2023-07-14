@@ -64,6 +64,7 @@
 #include "evaluator.hpp"
 #include "text.hpp"
 #include "errors.hpp"
+#include "read_json.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -88,6 +89,7 @@ std::string attribute_for_id = "";
 size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
+std::map<std::string, serial_val> set_attributes;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2612,15 +2614,7 @@ void set_attribute_type(std::map<std::string, int> &attribute_types, const char 
 	attribute_types.insert(std::pair<std::string, int>(name, t));
 }
 
-void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, const char *arg) {
-	const char *s = strchr(arg, ':');
-	if (s == NULL) {
-		fprintf(stderr, "-E%s option must be in the form -Ename:method\n", arg);
-		exit(EXIT_ARGS);
-	}
-
-	std::string name = std::string(arg, s - arg);
-	std::string type = std::string(s + 1);
+void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, std::string name, std::string type) {
 	attribute_op t;
 
 	if (type == "sum") {
@@ -2643,6 +2637,109 @@ void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, c
 	}
 
 	attribute_accum.insert(std::pair<std::string, attribute_op>(name, t));
+}
+
+void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, const char *arg) {
+	if (*arg == '{') {
+		json_pull *jp = json_begin_string(arg);
+		json_object *o = json_read_tree(jp);
+
+		if (o == NULL) {
+			fprintf(stderr, "%s: -E%s: %s\n", *av, arg, jp->error);
+			exit(EXIT_JSON);
+		}
+
+		if (o->type != JSON_HASH) {
+			fprintf(stderr, "%s: -E%s: not a JSON object\n", *av, arg);
+			exit(EXIT_JSON);
+		}
+
+		for (size_t i = 0; i < o->value.object.length; i++) {
+			json_object *k = o->value.object.keys[i];
+			json_object *v = o->value.object.values[i];
+
+			if (k->type != JSON_STRING) {
+				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *av, arg, i);
+				exit(EXIT_JSON);
+			}
+			if (v->type != JSON_STRING) {
+				fprintf(stderr, "%s: -E%s: value %zu not a string\n", *av, arg, i);
+				exit(EXIT_JSON);
+			}
+
+			set_attribute_accum(attribute_accum, k->value.string.string, v->value.string.string);
+		}
+
+		json_free(o);
+		json_end(jp);
+		return;
+	}
+
+	const char *s = strchr(arg, ':');
+	if (s == NULL) {
+		fprintf(stderr, "-E%s option must be in the form -Ename:method\n", arg);
+		exit(EXIT_ARGS);
+	}
+
+	std::string name = std::string(arg, s - arg);
+	std::string type = std::string(s + 1);
+
+	set_attribute_accum(attribute_accum, name, type);
+}
+
+void set_attribute_value(const char *arg) {
+	if (*arg == '{') {
+		json_pull *jp = json_begin_string(arg);
+		json_object *o = json_read_tree(jp);
+
+		if (o == NULL) {
+			fprintf(stderr, "%s: --set-attribute %s: %s\n", *av, arg, jp->error);
+			exit(EXIT_JSON);
+		}
+
+		if (o->type != JSON_HASH) {
+			fprintf(stderr, "%s: --set-attribute %s: not a JSON object\n", *av, arg);
+			exit(EXIT_JSON);
+		}
+
+		for (size_t i = 0; i < o->value.object.length; i++) {
+			json_object *k = o->value.object.keys[i];
+			json_object *v = o->value.object.values[i];
+
+			if (k->type != JSON_STRING) {
+				fprintf(stderr, "%s: --set-attribute %s: key %zu not a string\n", *av, arg, i);
+				exit(EXIT_JSON);
+			}
+
+			serial_val val;
+			stringify_value(v, val.type, val.s, "json", 1, o);
+
+			set_attributes.insert(std::pair<std::string, serial_val>(k->value.string.string, val));
+		}
+
+		json_free(o);
+		json_end(jp);
+		return;
+	}
+
+	const char *s = strchr(arg, ':');
+	if (s == NULL) {
+		fprintf(stderr, "--set-attribute %s option must be in the form --set-attribute name:value\n", arg);
+		exit(EXIT_ARGS);
+	}
+
+	std::string name = std::string(arg, s - arg);
+	std::string value = std::string(s + 1);
+
+	serial_val val;
+	if (isdigit(value[0]) || value[0] == '-') {
+		val.type = mvt_double;
+	} else {
+		val.type = mvt_string;
+	}
+
+	val.s = value;
+	set_attributes.insert(std::pair<std::string, serial_val>(name, val));
 }
 
 void parse_json_source(const char *arg, struct source &src) {
@@ -2786,6 +2883,7 @@ int main(int argc, char **argv) {
 		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
 		{"use-attribute-for-id", required_argument, 0, '~'},
 		{"single-precision", no_argument, &prevent[P_SINGLE_PRECISION], 1},
+		{"set-attribute", required_argument, 0, '~'},
 
 		{"Filtering features by attributes", 0, 0, 0},
 		{"feature-filter-file", required_argument, 0, 'J'},
@@ -2959,6 +3057,8 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
 				attribute_for_id = optarg;
+			} else if (strcmp(opt, "set-attribute") == 0) {
+				set_attribute_value(optarg);
 			} else if (strcmp(opt, "smallest-maximum-zoom-guess") == 0) {
 				maxzoom = MAX_ZOOM;
 				guess_maxzoom = true;

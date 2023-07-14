@@ -503,6 +503,10 @@ If the type is \fB\fCint\fR and the original attribute was floating\-point, it i
 that are dropped, coalesced\-as\-needed, or clustered. The \fIoperation\fP may be
 \fB\fCsum\fR, \fB\fCproduct\fR, \fB\fCmean\fR, \fB\fCmax\fR, \fB\fCmin\fR, \fB\fCconcat\fR, or \fB\fCcomma\fR
 to specify how the named \fIattribute\fP is accumulated onto the attribute of the same name in a feature that does survive.
+The attributes and operations may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute='{"attr": "operation", "attr2", "operation2"}'\fR\&.
+.IP \(bu 2
+\fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
+The attributes and values may also be specified as JSON keys and values: \fB\fC\-\-set\-attribute='{"attr": value, "attr2", value}'\fR\&.
 .IP \(bu 2
 \fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .IP \(bu 2
@@ -863,7 +867,7 @@ this minimum size and others will not be drawn at all, preserving the total area
 all of them should have had together.
 .PP
 Features in the same tile that share the same type and attributes are coalesced
-together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \-x to exclude
+together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \fB\fC\-x\fR to exclude
 any unnecessary attributes to reduce wasted file size.
 .PP
 If a tile is larger than 500K, it will try encoding that tile at progressively

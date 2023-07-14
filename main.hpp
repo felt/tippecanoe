@@ -5,8 +5,10 @@
 #include <atomic>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "json_logger.hpp"
+#include "serial.hpp"
 
 struct index {
 	long long start = 0;
@@ -58,6 +60,7 @@ extern std::string attribute_for_id;
 extern int tiny_polygon_size;
 extern size_t limit_tile_feature_count;
 extern size_t limit_tile_feature_count_at_maxzoom;
+extern std::map<std::string, serial_val> set_attributes;
 
 struct order_field {
 	std::string name;
