@@ -1200,6 +1200,7 @@ int main(int argc, char **argv) {
 				}
 				read_file.close();
 			}
+			break;
 		}
 
 		case 'q':
