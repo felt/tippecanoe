@@ -326,19 +326,19 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		// out at that zoom level and above, even though it's not really
 		// time yet.
 
-        if (maximum_point_gap > 0) {
-            for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
-                if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / maximum_point_gap) * ((1LL << (32 - i)) / maximum_point_gap)) {
-                    feature_minzoom = i;
+		if (maximum_point_gap > 0) {
+			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
+				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / maximum_point_gap) * ((1LL << (32 - i)) / maximum_point_gap)) {
+					feature_minzoom = i;
 
-                    for (ssize_t j = i; j <= maxzoom; j++) {
-                        ds[j].previndex = ix->ix;
-                    }
+					for (ssize_t j = i; j <= maxzoom; j++) {
+						ds[j].previndex = ix->ix;
+					}
 
-                    break;
-                }
-            }
-        }
+					break;
+				}
+			}
+		}
 
 		// XXX manage_gap
 	}
