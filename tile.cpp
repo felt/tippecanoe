@@ -474,37 +474,6 @@ struct partial {
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
-
-	partial(serial_feature &sf, int z_, int tx_, int ty_, int line_detail_, int maxzoom_, double simplification_) {
-		geoms.clear();
-		geoms.push_back(sf.geometry);
-
-		layer = sf.layer;
-		t = sf.t;
-		segment = sf.segment;
-		original_seq = sf.seq;
-		keys = sf.keys;
-		values = sf.values;
-		full_keys = sf.full_keys;
-		full_values = sf.full_values;
-		id = sf.id;
-		has_id = sf.has_id;
-		index = sf.index;
-		label_point = sf.label_point;
-		extent = sf.extent;
-
-		z = z_;
-		tx = tx_;
-		ty = ty_;
-		line_detail = line_detail_;
-		extra_detail = line_detail_;
-		maxzoom = maxzoom_;
-		simplification = simplification_;
-
-		coalesced = false;
-		renamed = -1;
-		clustered = 0;
-	}
 };
 
 struct partial_arg {
@@ -2265,8 +2234,33 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 					}
 
-					partial p(sf, z, tx, ty, line_detail, maxzoom, simplification);
+					partial p;
+					p.geoms.push_back(sf.geometry);
+					p.layer = sf.layer;
+					p.t = sf.t;
+					p.segment = sf.segment;
+					p.original_seq = sf.seq;
+					p.reduced = reduced;
+					p.coalesced = false;
+					p.z = z;
+					p.tx = tx;
+					p.ty = ty;
+					p.line_detail = line_detail;
+					p.extra_detail = line_detail;
+					p.maxzoom = maxzoom;
+					p.keys = sf.keys;
+					p.values = sf.values;
+					p.full_keys = sf.full_keys;
+					p.full_values = sf.full_values;
 					p.spacing = spacing;
+					p.simplification = simplification;
+					p.id = sf.id;
+					p.has_id = sf.has_id;
+					p.index = sf.index;
+					p.label_point = sf.label_point;
+					p.renamed = -1;
+					p.extent = sf.extent;
+					p.clustered = 0;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						p.extra_detail = extra_detail;
