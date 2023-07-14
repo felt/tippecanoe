@@ -90,7 +90,7 @@ size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
-unsigned long long maximum_point_gap = 0;
+unsigned long long preserve_point_density_threshold = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -326,9 +326,9 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		// out at that zoom level and above, even though it's not really
 		// time yet.
 
-		if (maximum_point_gap > 0) {
+		if (preserve_point_density_threshold > 0) {
 			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
-				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / maximum_point_gap) * ((1LL << (32 - i)) / maximum_point_gap)) {
+				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
 					for (ssize_t j = i; j <= maxzoom; j++) {
@@ -2929,7 +2929,7 @@ int main(int argc, char **argv) {
 		{"cluster-distance", required_argument, 0, 'K'},
 		{"cluster-maxzoom", required_argument, 0, 'k'},
 		{"move-points-to-cluster-centroids", no_argument, &additional[A_PREFER_CLUSTER_CENTERS], 1},
-		{"maximum-point-gap", required_argument, 0, '~'},
+		{"preserve-point-density-threshold", required_argument, 0, '~'},
 
 		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
 		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
@@ -3137,8 +3137,8 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "%s: --drop-denser can be at most 100\n", argv[0]);
 					exit(EXIT_ARGS);
 				}
-			} else if (strcmp(opt, "maximum-point-gap") == 0) {
-				maximum_point_gap = atoll_require(optarg, "Maximum point gap");
+			} else if (strcmp(opt, "preserve-point-density-threshold") == 0) {
+				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
