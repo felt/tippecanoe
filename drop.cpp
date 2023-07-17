@@ -12,9 +12,8 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
 			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
 		for (ssize_t i = 0; i <= maxzoom; i++) {
-			// This zoom level is now lighter on features than it should be.
+			// This zoom level is now lighter on features
 			ds[i].error -= 1.0;
-			// printf("z%zd: error %f with interval %f\n", i, ds[i].error, ds[i].interval);
 		}
 
 		ssize_t chosen = maxzoom + 1;
@@ -25,11 +24,10 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 
 				// this feature now appears in this zoom level and all higher zoom levels,
 				// so each of them has this feature as its last feature, and each of them
-				// is now one feature heavier than before.
+				// is now one feature (which has a weight of `interval`) heavier than before.
 				for (ssize_t j = i; j <= maxzoom; j++) {
 					ds[j].previndex = ix->ix;
 					ds[j].error += ds[j].interval;
-					// printf("z%zd: now error %f\n", j, ds[j].error);
 				}
 
 				chosen = i;
@@ -47,9 +45,10 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
-					// this feature now appears in this zoom level and all higher zoom levels below `chosen`,
+					// this feature now appears in this zoom level and all higher zoom levels
+					// (below `chosen`, beyond which were already credited with this feature)
 					// so each of them has this feature as its last feature, and each of them
-					// is now one feature heavier than before.
+					// is now one feature (which has a weight of `interval`) heavier than before.
 					for (ssize_t j = i; j < chosen; j++) {
 						ds[j].previndex = ix->ix;
 						ds[j].error += ds[j].interval;
@@ -70,7 +69,6 @@ void prep_drop_states(struct drop_state ds[], int maxzoom, int basezoom, double 
 	}
 
 	// Needs to be signed for interval calculation
-	// printf("prep! max %d, base %d, rate %f\n", maxzoom, basezoom, droprate);
 	for (ssize_t i = 0; i <= maxzoom; i++) {
 		ds[i].previndex = 0;
 		ds[i].interval = 1;  // every feature appears in every zoom level at or above the basezoom
@@ -86,7 +84,6 @@ void prep_drop_states(struct drop_state ds[], int maxzoom, int basezoom, double 
 			// ...
 			// basezoom - n:        (droprate ^ n)
 			ds[i].interval = std::exp(std::log(droprate) * (basezoom - i));
-			// printf("%zd: interval %f\n", i, ds[i].interval);
 		}
 
 		ds[i].error = 0;
