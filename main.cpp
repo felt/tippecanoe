@@ -90,6 +90,7 @@ size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
+unsigned long long preserve_point_density_threshold = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -277,7 +278,7 @@ struct drop_state {
 	double gap;
 	unsigned long long previndex;
 	double interval;
-	double seq;
+	double seq;  // floating point because interval is
 };
 
 struct drop_densest {
@@ -292,8 +293,6 @@ struct drop_densest {
 
 int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
 	int feature_minzoom = 0;
-	unsigned xx, yy;
-	decode_index(ix->ix, &xx, &yy);
 
 	if (gamma >= 0 && (ix->t == VT_POINT ||
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
@@ -301,12 +300,43 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
+		ssize_t chosen = maxzoom + 1;
 		for (ssize_t i = maxzoom; i >= 0; i--) {
-			if (ds[i].seq >= 0) {
-				ds[i].seq -= ds[i].interval;
-			} else {
+			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
+
+				// The feature we are pushing out
+				// appears in zooms i + 1 through maxzoom,
+				// so track where that was so we can make sure
+				// not to cluster something else that is *too*
+				// far away into it.
+				for (ssize_t j = i + 1; j <= maxzoom; j++) {
+					ds[j].previndex = ix->ix;
+				}
+
+				chosen = i + 1;
 				break;
+			} else {
+				ds[i].seq -= ds[i].interval;
+			}
+		}
+
+		// If this feature has been chosen only for a high zoom level,
+		// check whether at a low zoom level it is nevertheless too far
+		// from the last feature chosen for that low zoom, in which case
+		// we will go ahead and push it out.
+
+		if (preserve_point_density_threshold > 0) {
+			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
+				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
+					feature_minzoom = i;
+
+					for (ssize_t j = i; j <= maxzoom; j++) {
+						ds[j].previndex = ix->ix;
+					}
+
+					break;
+				}
 			}
 		}
 
@@ -2898,6 +2928,7 @@ int main(int argc, char **argv) {
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
 		{"cluster-distance", required_argument, 0, 'K'},
 		{"cluster-maxzoom", required_argument, 0, 'k'},
+		{"preserve-point-density-threshold", required_argument, 0, '~'},
 
 		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
 		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
@@ -3105,6 +3136,8 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "%s: --drop-denser can be at most 100\n", argv[0]);
 					exit(EXIT_ARGS);
 				}
+			} else if (strcmp(opt, "preserve-point-density-threshold") == 0) {
+				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);

@@ -1013,7 +1013,6 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	std::vector<drawvec> simplified_arcs;
 
-	size_t count = 0;
 	for (auto ai = arcs.begin(); ai != arcs.end(); ++ai) {
 		if (simplified_arcs.size() < ai->second + 1) {
 			simplified_arcs.resize(ai->second + 1);
@@ -1032,7 +1031,6 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 		} else {
 			simplified_arcs[ai->second] = dv;
 		}
-		count++;
 	}
 
 	// If necessary, merge some adjacent polygons into some other polygons

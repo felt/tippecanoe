@@ -581,6 +581,8 @@ preference to retaining points in sparse areas and dropping points in dense area
 \fB\fC\-k\fR \fIzoom\fP or \fB\fC\-\-cluster\-maxzoom=\fR\fIzoom\fP: Max zoom on which to cluster points if clustering is enabled.
 .IP \(bu 2
 \fB\fC\-kg\fR or \fB\fC\-\-cluster\-maxzoom=g\fR: Set \fB\fC\-\-cluster\-maxzoom=\fR to \fB\fCmaxzoom \- 1\fR so that all features are visible at the maximum zoom level.
+.IP \(bu 2
+\fB\fC\-\-preserve\-point\-density\-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specfied drop rate would normally call for it, so that low\-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
 .RE
 .SS Dropping a fraction of features to keep under tile size limits
 .RS
