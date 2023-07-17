@@ -1951,10 +1951,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			within[i] = 0;
 		}
 
-		long long cluster_xsum = 0;
-		long long cluster_ysum = 0;
-		size_t cluster_count = 0;
-
 		if (*geompos_in != og) {
 			if (compressed_input) {
 				if (geoms->within) {
@@ -2073,24 +2069,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.dropped) {
 				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
-
-					if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0 && sf.t == VT_POINT) {
-						cluster_xsum += sf.geometry[0].x;
-						cluster_ysum += sf.geometry[0].y;
-						cluster_count++;
-
-						partials[which_partial].geoms[0][0].x = cluster_xsum / cluster_count;
-						partials[which_partial].geoms[0][0].y = cluster_ysum / cluster_count;
-					}
-
 					strategy->dropped_by_rate++;
 					continue;
-				}
-			} else {  // not dropped, so start of new pseudocluster
-				if (additional[A_PREFER_CLUSTER_CENTERS] && sf.geometry.size() > 0 && sf.t == VT_POINT) {
-					cluster_xsum = sf.geometry[0].x;
-					cluster_ysum = sf.geometry[0].y;
-					cluster_count = 1;
 				}
 			}
 

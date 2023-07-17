@@ -2928,7 +2928,6 @@ int main(int argc, char **argv) {
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
 		{"cluster-distance", required_argument, 0, 'K'},
 		{"cluster-maxzoom", required_argument, 0, 'k'},
-		{"move-points-to-cluster-centroids", no_argument, &additional[A_PREFER_CLUSTER_CENTERS], 1},
 		{"preserve-point-density-threshold", required_argument, 0, '~'},
 
 		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},

@@ -461,7 +461,6 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-K` _distance_ or `--cluster-distance=`_distance_: Cluster points (as with `--cluster-densest-as-needed`, but without the experimental discovery process) that are approximately within _distance_ of each other. The units are tile coordinates within a nominally 256-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See `--cluster-densest-as-needed` below for behavior.
  * `-k` _zoom_ or `--cluster-maxzoom=`_zoom_: Max zoom on which to cluster points if clustering is enabled.
  * `-kg` or `--cluster-maxzoom=g`: Set `--cluster-maxzoom=` to `maxzoom - 1` so that all features are visible at the maximum zoom level.
- * `--move-points-to-cluster-centroids`: Treat dot-dropping as a kind of clustering: instead of placing low-zoom points at their original specified locations, place them at the centroid of that location and the locations of adjacent points that were dropped.
  * `--preserve-point-density-threshold=`_level_: At the low zoom levels, do not reduce point density below the specified _level_, even if the specfied drop rate would normally call for it, so that low-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
 
 ### Dropping a fraction of features to keep under tile size limits
