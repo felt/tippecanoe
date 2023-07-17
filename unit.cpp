@@ -35,7 +35,5 @@ TEST_CASE("prep drop states", "[prep_drop_state]") {
 	REQUIRE(ds[16].interval == 1);
 	REQUIRE(ds[15].interval == 2);
 	REQUIRE(ds[14].interval == 4);
-
-	// to fix: because of floating point error this is not quite true
-	// REQUIRE(ds[0].interval == 65536);
+	REQUIRE(ds[0].interval == 65536);
 }
