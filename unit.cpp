@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
 #include "text.hpp"
+#include "drop.hpp"
 
 TEST_CASE("UTF-8 enforcement", "[utf8]") {
 	REQUIRE(check_utf8("") == std::string(""));
@@ -18,3 +19,9 @@ TEST_CASE("UTF-8 truncation", "[trunc]") {
 	REQUIRE(truncate16("0123456789😀😬😁😂😃😄😅😆", 17) == std::string("0123456789😀😬😁"));
 	REQUIRE(truncate16("0123456789あいうえおかきくけこさ", 16) == std::string("0123456789あいうえおか"));
 }
+
+TEST_CASE("index structure packing", "[index]") {
+	REQUIRE(sizeof(struct index) == 32);
+}
+
+unsigned int additional[256] = {0};

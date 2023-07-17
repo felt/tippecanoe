@@ -65,6 +65,7 @@
 #include "text.hpp"
 #include "errors.hpp"
 #include "read_json.hpp"
+#include "drop.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -90,7 +91,6 @@ size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
-unsigned long long preserve_point_density_threshold = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -274,13 +274,6 @@ static void insert(struct mergelist *m, struct mergelist **head, unsigned char *
 	*head = m;
 }
 
-struct drop_state {
-	double gap;
-	unsigned long long previndex;
-	double interval;
-	double seq;  // floating point because interval is
-};
-
 struct drop_densest {
 	unsigned long long gap;
 	size_t seq;
@@ -290,61 +283,6 @@ struct drop_densest {
 		return gap > o.gap;
 	}
 };
-
-int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
-	int feature_minzoom = 0;
-
-	if (gamma >= 0 && (ix->t == VT_POINT ||
-			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
-			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
-		for (ssize_t i = maxzoom; i >= 0; i--) {
-			ds[i].seq++;
-		}
-		ssize_t chosen = maxzoom + 1;
-		for (ssize_t i = maxzoom; i >= 0; i--) {
-			if (ds[i].seq < 0) {
-				feature_minzoom = i + 1;
-
-				// The feature we are pushing out
-				// appears in zooms i + 1 through maxzoom,
-				// so track where that was so we can make sure
-				// not to cluster something else that is *too*
-				// far away into it.
-				for (ssize_t j = i + 1; j <= maxzoom; j++) {
-					ds[j].previndex = ix->ix;
-				}
-
-				chosen = i + 1;
-				break;
-			} else {
-				ds[i].seq -= ds[i].interval;
-			}
-		}
-
-		// If this feature has been chosen only for a high zoom level,
-		// check whether at a low zoom level it is nevertheless too far
-		// from the last feature chosen for that low zoom, in which case
-		// we will go ahead and push it out.
-
-		if (preserve_point_density_threshold > 0) {
-			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
-				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
-					feature_minzoom = i;
-
-					for (ssize_t j = i; j <= maxzoom; j++) {
-						ds[j].previndex = ix->ix;
-					}
-
-					break;
-				}
-			}
-		}
-
-		// XXX manage_gap
-	}
-
-	return feature_minzoom;
-}
 
 static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, double gamma, struct drop_state *ds) {
 	struct mergelist *head = NULL;

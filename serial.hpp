@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include "geometry.hpp"
 #include "mbtiles.hpp"
+#include "drop.hpp"  // for struct index
 #include "jsonpull/jsonpull.h"
 
 size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, std::atomic<long long> *fpos, const char *fname);
