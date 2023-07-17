@@ -293,8 +293,6 @@ struct drop_densest {
 
 int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
 	int feature_minzoom = 0;
-	// unsigned xx, yy;
-	// decode_index(ix->ix, &xx, &yy);
 
 	if (gamma >= 0 && (ix->t == VT_POINT ||
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
@@ -307,8 +305,11 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
 
-				// As in, the feature we are looking at
-				// appears in zooms i + 1 through maxzoom
+				// The feature we are pushing out
+				// appears in zooms i + 1 through maxzoom,
+				// so track where that was so we can make sure
+				// not to cluster something else that is *too*
+				// far away into it.
 				for (ssize_t j = i + 1; j <= maxzoom; j++) {
 					ds[j].previndex = ix->ix;
 				}
@@ -320,11 +321,10 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 			}
 		}
 
-		// This feature was not chosen, so check whether there was
-		// a big gap between it and the last feature we did choose at
-		// some zoom level, in which case we will go ahead and push it
-		// out at that zoom level and above, even though it's not really
-		// time yet.
+		// If this feature has been chosen only for a high zoom level,
+		// check whether at a low zoom level it is nevertheless too far
+		// from the last feature chosen for that low zoom, in which case
+		// we will go ahead and push it out.
 
 		if (preserve_point_density_threshold > 0) {
 			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
