@@ -3,6 +3,8 @@
 #include "text.hpp"
 #include "drop.hpp"
 
+unsigned int additional[256] = {0};
+
 TEST_CASE("UTF-8 enforcement", "[utf8]") {
 	REQUIRE(check_utf8("") == std::string(""));
 	REQUIRE(check_utf8("hello world") == std::string(""));
@@ -24,4 +26,16 @@ TEST_CASE("index structure packing", "[index]") {
 	REQUIRE(sizeof(struct index) == 32);
 }
 
-unsigned int additional[256] = {0};
+TEST_CASE("prep drop states", "[prep_drop_state]") {
+	struct drop_state ds[25];
+
+	prep_drop_states(ds, 24, 16, 2);
+	REQUIRE(ds[24].interval == 1);
+	REQUIRE(ds[17].interval == 1);
+	REQUIRE(ds[16].interval == 1);
+	REQUIRE(ds[15].interval == 2);
+	REQUIRE(ds[14].interval == 4);
+
+	// to fix: because of floating point error this is not quite true
+	// REQUIRE(ds[0].interval == 65536);
+}

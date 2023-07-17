@@ -985,21 +985,6 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 	}
 }
 
-void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double droprate) {
-	// Needs to be signed for interval calculation
-	for (ssize_t i = 0; i <= maxzoom; i++) {
-		ds[i].gap = 0;
-		ds[i].previndex = 0;
-		ds[i].interval = 0;
-
-		if (i < basezoom) {
-			ds[i].interval = std::exp(std::log(droprate) * (basezoom - i));
-		}
-
-		ds[i].seq = 0;
-	}
-}
-
 static size_t calc_memsize() {
 	size_t mem;
 
