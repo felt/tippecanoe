@@ -13,7 +13,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
 		for (ssize_t i = 0; i <= maxzoom; i++) {
 			// This zoom level is now lighter on features than it should be.
-			ds[i].error -= 1.0 / ds[i].interval;
+			ds[i].error -= 1.0;
 			// printf("z%zd: error %f with interval %f\n", i, ds[i].error, ds[i].interval);
 		}
 
@@ -28,7 +28,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 				// is now one feature heavier than before.
 				for (ssize_t j = i; j <= maxzoom; j++) {
 					ds[j].previndex = ix->ix;
-					ds[j].error += ds[j].interval / ds[j].interval;
+					ds[j].error += ds[j].interval;
 					// printf("z%zd: now error %f\n", j, ds[j].error);
 				}
 
@@ -52,7 +52,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 					// is now one feature heavier than before.
 					for (ssize_t j = i; j < chosen; j++) {
 						ds[j].previndex = ix->ix;
-						ds[j].error += ds[j].interval / ds[j].interval;
+						ds[j].error += ds[j].interval;
 					}
 
 					break;
