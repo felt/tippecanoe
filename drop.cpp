@@ -64,10 +64,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state ds[], int maxzoom, 
 }
 
 void prep_drop_states(struct drop_state ds[], int maxzoom, int basezoom, double droprate) {
-	if (basezoom < 0) {
-		basezoom = maxzoom;
-	}
-
 	// Needs to be signed for interval calculation
 	for (ssize_t i = 0; i <= maxzoom; i++) {
 		ds[i].previndex = 0;

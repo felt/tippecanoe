@@ -1056,7 +1056,11 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 	}
 
 	struct drop_state ds[maxzoom + 1];
-	prep_drop_states(ds, maxzoom, basezoom, droprate);
+	if (maxzoom < 0 || droprate <= 0) {  // not guessed with -zg yet
+		prep_drop_states(ds, 0, 0, 1);
+	} else {
+		prep_drop_states(ds, maxzoom, basezoom, droprate);
+	}
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
 	long long availfiles_before = availfiles;
