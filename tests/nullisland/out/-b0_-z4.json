@@ -9,7 +9,7 @@
 "maxzoom": "4",
 "minzoom": "0",
 "name": "tests/nullisland/out/-b0_-z4.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":4},{\"dropped_by_rate\":8,\"tiny_polygons\":12},{\"dropped_by_rate\":8},{\"dropped_by_rate\":3},{}]",
+"strategies": "[{\"dropped_by_rate\":4},{\"dropped_by_rate\":8,\"tiny_polygons\":12},{\"dropped_by_rate\":8},{\"dropped_by_rate\":5},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -168,8 +168,6 @@
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, -0.999705 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
-,
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.999756, 0.000000 ] } }
 ] }
 ] }
 ,
@@ -184,8 +182,6 @@
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, 0.999705 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
-,
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.999756, 0.000000 ] } }
 ] }
 ] }
 ,

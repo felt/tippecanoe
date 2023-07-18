@@ -9,7 +9,7 @@
 "maxzoom": "14",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":242},{\"dropped_by_rate\":268},{\"dropped_by_rate\":255},{\"dropped_by_rate\":248},{\"dropped_by_rate\":207},{\"dropped_by_rate\":139},{\"dropped_by_rate\":78},{\"dropped_by_rate\":33},{\"dropped_by_rate\":13},{\"dropped_by_rate\":5},{\"dropped_by_rate\":4},{\"dropped_by_rate\":2},{\"dropped_by_rate\":1},{},{}]",
+"strategies": "[{\"dropped_by_rate\":242},{\"dropped_by_rate\":268},{\"dropped_by_rate\":255},{\"dropped_by_rate\":248},{\"dropped_by_rate\":207},{\"dropped_by_rate\":139},{\"dropped_by_rate\":78},{\"dropped_by_rate\":33},{\"dropped_by_rate\":13},{\"dropped_by_rate\":6},{\"dropped_by_rate\":5},{\"dropped_by_rate\":3},{\"dropped_by_rate\":1},{},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -5854,8 +5854,6 @@
 { "type": "FeatureCollection", "properties": { "zoom": 9, "x": 277, "y": 262 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "NAME": "Brazzaville" }, "geometry": { "type": "Point", "coordinates": [ 15.282669, -4.257228 ] } }
-,
-{ "type": "Feature", "properties": { "NAME": "Kinshasa" }, "geometry": { "type": "Point", "coordinates": [ 15.313053, -4.327754 ] } }
 ] }
 ] }
 ,
@@ -7428,8 +7426,6 @@
 { "type": "FeatureCollection", "properties": { "zoom": 10, "x": 555, "y": 524 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "NAME": "Brazzaville" }, "geometry": { "type": "Point", "coordinates": [ 15.282755, -4.257228 ] } }
-,
-{ "type": "Feature", "properties": { "NAME": "Kinshasa" }, "geometry": { "type": "Point", "coordinates": [ 15.313053, -4.327754 ] } }
 ] }
 ] }
 ,
@@ -9560,8 +9556,6 @@
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 1478, "y": 984 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "NAME": "Colombo" }, "geometry": { "type": "Point", "coordinates": [ 79.857774, 6.931965 ] } }
-,
-{ "type": "Feature", "properties": { "NAME": "Sri Jawewardenepura Kotte" }, "geometry": { "type": "Point", "coordinates": [ 79.949999, 6.900013 ] } }
 ] }
 ] }
 ,
