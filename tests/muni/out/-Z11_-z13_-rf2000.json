@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-rf2000.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":2551},{\"dropped_by_rate\":1539},{}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":2549},{\"dropped_by_rate\":1539},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -209,17 +209,17 @@
 ,
 { "type": "Feature", "properties": { "name": "Font Blvd & Cambon Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.474298, 37.715908 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Font Blvd & Chumasero Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.473183, 37.715196 ] } }
-,
 { "type": "Feature", "properties": { "name": "Chumasero Dr & Font Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.473140, 37.714992 ] } }
+,
+{ "type": "Feature", "properties": { "name": "Junipero Serra Blvd & 19th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.472367, 37.717742 ] } }
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472281, 37.716893 ] } }
 ,
+{ "type": "Feature", "properties": { "name": "19th Ave & Randolph St" }, "geometry": { "type": "Point", "coordinates": [ -122.471681, 37.716180 ] } }
+,
 { "type": "Feature", "properties": { "name": "Junipero Serra Blvd & Font Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.471895, 37.714618 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Brotherhood Way & Summit Way  NW-FS/sb" }, "geometry": { "type": "Point", "coordinates": [ -122.474556, 37.713770 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Chumasero Dr & Galindo Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.473140, 37.714075 ] } }
+{ "type": "Feature", "properties": { "name": "Brotherhood Way & Summit Way SE-FS/SB" }, "geometry": { "type": "Point", "coordinates": [ -122.474470, 37.713600 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Chumasero Dr & Brotherhood Way" }, "geometry": { "type": "Point", "coordinates": [ -122.472925, 37.713294 ] } }
 ,
@@ -239,9 +239,9 @@
 ,
 { "type": "Feature", "properties": { "name": "Alemany Blvd & St Charles Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.469449, 37.710341 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Arch St&Alemany St" }, "geometry": { "type": "Point", "coordinates": [ -122.467132, 37.711563 ] } }
+{ "type": "Feature", "properties": { "name": "Brotherhood Way & Arch ST" }, "geometry": { "type": "Point", "coordinates": [ -122.466874, 37.712344 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Alemany Blvd & Arch St" }, "geometry": { "type": "Point", "coordinates": [ -122.466874, 37.711631 ] } }
+{ "type": "Feature", "properties": { "name": "Alemany Blvd & Arch St" }, "geometry": { "type": "Point", "coordinates": [ -122.467175, 37.711427 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Alemany Blvd & Victoria St" }, "geometry": { "type": "Point", "coordinates": [ -122.465072, 37.711835 ] } }
 ,
@@ -265,7 +265,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Plymouth Ave & Minerva St" }, "geometry": { "type": "Point", "coordinates": [ -122.456102, 37.715841 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Plymouth Ave & Lobos St" }, "geometry": { "type": "Point", "coordinates": [ -122.456145, 37.714992 ] } }
+{ "type": "Feature", "properties": { "name": "Plymouth Ave & Lobos St" }, "geometry": { "type": "Point", "coordinates": [ -122.456059, 37.714822 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Sagamore St & Capitol Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.458892, 37.711495 ] } }
 ,
@@ -287,13 +287,13 @@
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Flournoy St" }, "geometry": { "type": "Point", "coordinates": [ -122.459064, 37.706810 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & GoeThe St" }, "geometry": { "type": "Point", "coordinates": [ -122.457089, 37.707353 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Evergreen St" }, "geometry": { "type": "Point", "coordinates": [ -122.456532, 37.707421 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448635, 37.718455 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450395, 37.716282 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448592, 37.718285 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450309, 37.716248 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450352, 37.716044 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Broad St" }, "geometry": { "type": "Point", "coordinates": [ -122.453442, 37.713294 ] } }
 ,
@@ -307,7 +307,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442627, 37.714686 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Morse St & Lowell St" }, "geometry": { "type": "Point", "coordinates": [ -122.446275, 37.710952 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Allison St" }, "geometry": { "type": "Point", "coordinates": [ -122.442627, 37.714483 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Foote Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.444601, 37.712853 ] } }
 ,
@@ -317,23 +317,23 @@
 ,
 { "type": "Feature", "properties": { "name": "Alemany Blvd & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442369, 37.717640 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.441082, 37.716723 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.441125, 37.716452 ] } }
+,
+{ "type": "Feature", "properties": { "name": "Mission St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440782, 37.716621 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.440867, 37.716486 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & Amazon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440395, 37.717131 ] } }
+{ "type": "Feature", "properties": { "name": "London St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440181, 37.716180 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "GENEVA AVE & MISSION ST" }, "geometry": { "type": "Point", "coordinates": [ -122.440739, 37.716418 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.439623, 37.715671 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.439280, 37.715705 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Madrid St" }, "geometry": { "type": "Point", "coordinates": [ -122.437563, 37.714754 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave & Madrid St" }, "geometry": { "type": "Point", "coordinates": [ -122.438035, 37.715128 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Naples St & Brunswick St" }, "geometry": { "type": "Point", "coordinates": [ -122.437992, 37.711801 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Naples St & Seville St" }, "geometry": { "type": "Point", "coordinates": [ -122.437906, 37.711665 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Naples St & Curtis St" }, "geometry": { "type": "Point", "coordinates": [ -122.438507, 37.711088 ] } }
+{ "type": "Feature", "properties": { "name": "Curtis St & Prague St" }, "geometry": { "type": "Point", "coordinates": [ -122.437949, 37.710205 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Naples St & Amazon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.435203, 37.715501 ] } }
 ,
@@ -4537,7 +4537,11 @@
 ,
 { "type": "Feature", "properties": { "name": "Font Blvd & Cambon Dr" }, "geometry": { "type": "Point", "coordinates": [ -122.474298, 37.715908 ] } }
 ,
+{ "type": "Feature", "properties": { "name": "Junipero Serra Blvd & 19th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.472367, 37.717742 ] } }
+,
 { "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472281, 37.716893 ] } }
+,
+{ "type": "Feature", "properties": { "name": "19th Ave & Randolph St" }, "geometry": { "type": "Point", "coordinates": [ -122.471681, 37.716180 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Plymouth Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.456059, 37.718149 ] } }
 ,
@@ -4547,9 +4551,9 @@
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448635, 37.718455 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450395, 37.716282 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448592, 37.718285 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450309, 37.716248 ] } }
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450352, 37.716044 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Niagra Ave & Alemany Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.443271, 37.716893 ] } }
 ,
@@ -4557,13 +4561,13 @@
 ,
 { "type": "Feature", "properties": { "name": "Alemany Blvd & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442369, 37.717640 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.441082, 37.716723 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.441125, 37.716452 ] } }
+,
+{ "type": "Feature", "properties": { "name": "Mission St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440782, 37.716621 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.440867, 37.716486 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & Amazon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440395, 37.717131 ] } }
-,
-{ "type": "Feature", "properties": { "name": "GENEVA AVE & MISSION ST" }, "geometry": { "type": "Point", "coordinates": [ -122.440739, 37.716418 ] } }
+{ "type": "Feature", "properties": { "name": "London St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440181, 37.716180 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Naples St & Italy Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.434773, 37.716112 ] } }
 ,
@@ -4773,7 +4777,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Chumasero Dr & Font Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.473054, 37.714822 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472818, 37.717368 ] } }
+{ "type": "Feature", "properties": { "name": "Junipero Serra Blvd & 19th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.472367, 37.717742 ] } }
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472260, 37.716893 ] } }
 ,
@@ -4783,7 +4787,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Brotherhood Way & Church Access Rd SW-NS-SB" }, "geometry": { "type": "Point", "coordinates": [ -122.475564, 37.714126 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Brotherhood Way & Summit Way  NW-FS/sb" }, "geometry": { "type": "Point", "coordinates": [ -122.474556, 37.713753 ] } }
+{ "type": "Feature", "properties": { "name": "Brotherhood Way & Summit Way SE-FS/SB" }, "geometry": { "type": "Point", "coordinates": [ -122.474470, 37.713583 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Chumasero Dr & Galindo Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.473161, 37.714058 ] } }
 ,
@@ -4851,7 +4855,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Plymouth Ave & Minerva St" }, "geometry": { "type": "Point", "coordinates": [ -122.456124, 37.715858 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Plymouth Ave & Lobos St" }, "geometry": { "type": "Point", "coordinates": [ -122.456124, 37.715009 ] } }
+{ "type": "Feature", "properties": { "name": "Plymouth Ave & Lobos St" }, "geometry": { "type": "Point", "coordinates": [ -122.456038, 37.714839 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Sagamore St & Capitol Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.458870, 37.711478 ] } }
 ,
@@ -4883,21 +4887,21 @@
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Flournoy St" }, "geometry": { "type": "Point", "coordinates": [ -122.459064, 37.706810 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & GoeThe St" }, "geometry": { "type": "Point", "coordinates": [ -122.457068, 37.707353 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Evergreen St" }, "geometry": { "type": "Point", "coordinates": [ -122.456532, 37.707404 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448635, 37.718472 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.448592, 37.718285 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450395, 37.716282 ] } }
-,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450330, 37.716248 ] } }
+,
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450438, 37.716078 ] } }
+,
+{ "type": "Feature", "properties": { "name": "San Jose Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.450352, 37.716061 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Broad St" }, "geometry": { "type": "Point", "coordinates": [ -122.453442, 37.713311 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Broad St" }, "geometry": { "type": "Point", "coordinates": [ -122.453141, 37.713294 ] } }
-,
-{ "type": "Feature", "properties": { "name": "San Jose Ave & Farallones St" }, "geometry": { "type": "Point", "coordinates": [ -122.452219, 37.714160 ] } }
 ,
 { "type": "Feature", "properties": { "name": "San Jose Ave & Farallones St" }, "geometry": { "type": "Point", "coordinates": [ -122.452133, 37.714143 ] } }
 ,
@@ -4909,7 +4913,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Mt Vernon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442648, 37.714703 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & Lowell St" }, "geometry": { "type": "Point", "coordinates": [ -122.446532, 37.711461 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Allison St" }, "geometry": { "type": "Point", "coordinates": [ -122.442627, 37.714483 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Morse St & Lowell St" }, "geometry": { "type": "Point", "coordinates": [ -122.446253, 37.710969 ] } }
 ,
@@ -4925,19 +4929,19 @@
 ,
 { "type": "Feature", "properties": { "name": "Alemany Blvd & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.442369, 37.717657 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.441082, 37.716706 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.441168, 37.716503 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.441146, 37.716452 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.440867, 37.716469 ] } }
+{ "type": "Feature", "properties": { "name": "Mission St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440782, 37.716638 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mission St & Amazon Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440395, 37.717148 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.440867, 37.716469 ] } }
 ,
 { "type": "Feature", "properties": { "name": "GENEVA AVE & MISSION ST" }, "geometry": { "type": "Point", "coordinates": [ -122.440739, 37.716401 ] } }
 ,
 { "type": "Feature", "properties": { "name": "London St & Geneva Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.440202, 37.716180 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Geneva Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.439301, 37.715705 ] } }
+{ "type": "Feature", "properties": { "name": "Geneva Ave & Paris St" }, "geometry": { "type": "Point", "coordinates": [ -122.439601, 37.715671 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geneva Ave & Madrid St" }, "geometry": { "type": "Point", "coordinates": [ -122.438035, 37.715145 ] } }
 ,
@@ -4947,7 +4951,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Naples St & Seville St" }, "geometry": { "type": "Point", "coordinates": [ -122.437885, 37.711665 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Naples St & Curtis St" }, "geometry": { "type": "Point", "coordinates": [ -122.438507, 37.711071 ] } }
+{ "type": "Feature", "properties": { "name": "Munich St & Naples St" }, "geometry": { "type": "Point", "coordinates": [ -122.438228, 37.711156 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Curtis St & Prague St" }, "geometry": { "type": "Point", "coordinates": [ -122.437949, 37.710205 ] } }
 ,
@@ -7591,7 +7595,7 @@
 ,
 { "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472968, 37.717317 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Junipero Serra Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.472818, 37.717368 ] } }
+{ "type": "Feature", "properties": { "name": "Junipero Serra Blvd & 19th Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.472367, 37.717742 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Plymouth Ave & Lakeview Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.456210, 37.718455 ] } }
 ,
