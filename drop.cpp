@@ -79,7 +79,7 @@ void prep_drop_states(struct drop_state ds[], int maxzoom, int basezoom, double 
 			// basezoom - 2:   6.25 (droprate ^ 2)
 			// ...
 			// basezoom - n:        (droprate ^ n)
-			ds[i].interval = std::powf(droprate, basezoom - i);
+			ds[i].interval = std::pow(droprate, basezoom - i);
 		}
 
 		ds[i].error = 0;
