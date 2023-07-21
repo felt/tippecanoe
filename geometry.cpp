@@ -186,36 +186,6 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec close_poly(drawvec &geom) {
-	drawvec out;
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			if (j - 1 > i) {
-				if (geom[j - 1].x != geom[i].x || geom[j - 1].y != geom[i].y) {
-					fprintf(stderr, "Internal error: polygon not closed\n");
-				}
-			}
-
-			for (size_t n = i; n < j - 1; n++) {
-				out.push_back(geom[n]);
-			}
-			out.push_back(draw(VT_CLOSEPATH, 0, 0));
-
-			i = j - 1;
-		}
-	}
-
-	return out;
-}
-
 drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;

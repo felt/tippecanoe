@@ -41,10 +41,21 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			// Convert feature geometry to world coordinates
 
 			long long tilesize = 1LL << (32 - oz);	// source tile size in world coordinates
+			draw ring_closure(0, 0, 0);
+
 			for (auto const &g : feature.geometry) {
-				geom.emplace_back(g.op,
-						  g.x * tilesize / layer.extent + ox * tilesize,
-						  g.y * tilesize / layer.extent + oy * tilesize);
+				if (g.op == mvt_closepath) {
+					geom.push_back(ring_closure);
+				} else {
+					geom.emplace_back(g.op,
+							  g.x * tilesize / layer.extent + ox * tilesize,
+							  g.y * tilesize / layer.extent + oy * tilesize);
+
+					if (g.op == mvt_moveto) {
+						ring_closure = geom.back();
+						ring_closure.op = mvt_lineto;
+					}
+				}
 			}
 
 			// Now offset from world coordinates to output tile coordinates,
@@ -75,6 +86,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			geom = remove_noop(geom, t, 0);
 			if (t == VT_POLYGON) {
 				geom = clean_or_clip_poly(geom, 0, 0, false);
+				geom = close_poly(geom);
 			}
 
 			// Add geometry to output feature
