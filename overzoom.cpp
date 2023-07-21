@@ -53,10 +53,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			for (auto &g : geom) {
 				g.x -= nx * outtilesize;
 				g.y -= ny * outtilesize;
-
-				// printf("%lld,%lld ", g.x, g.y);
 			}
-			// printf("\n");
 
 			// Clip to output tile
 
@@ -68,21 +65,9 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 				geom = clip_point(geom, nz, buffer);
 			}
 
-			// printf("points now: ");
-			for (auto const &g : geom) {
-				// printf("%lld,%lld ", g.x, g.y);
-			}
-			// printf("\n");
-
 			// Scale to output tile extent
 
 			to_tile_scale(geom, nz, detail);
-
-			// printf("scale, now: ");
-			for (auto const &g : geom) {
-				// printf("%lld,%lld ", g.x, g.y);
-			}
-			// printf("\n");
 
 			// Clean polygon geometries
 
@@ -97,16 +82,18 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			}
 			outfeature.type = t;
 
-			// Feature ID
-
-			if (feature.has_id) {
-				outfeature.has_id = true;
-				outfeature.id = feature.id;
-			}
-
-			// XXX attributes
+			// ID and attributes, if it didn't get clipped away
 
 			if (outfeature.geometry.size() > 0) {
+				if (feature.has_id) {
+					outfeature.has_id = true;
+					outfeature.id = feature.id;
+				}
+
+				for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+					outlayer.tag(outfeature, layer.keys[feature.tags[i]], layer.values[feature.tags[i + 1]]);
+				}
+
 				outlayer.features.push_back(outfeature);
 			}
 		}
