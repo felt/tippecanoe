@@ -69,10 +69,26 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 
             to_tile_scale(geom, nz, detail);
 
+            // Clean polygon geometries
+
+            if (t == VT_POLYGON) {
+                geom = clean_or_clip_poly(geom, 0, 0, false);
+            }
+
+            // Add geometry to output feature
+
+            for (auto const &g : geom) {
+                outfeature.geometry.emplace_back(g.op, g.x, g.y);
+            }
+
+            // Feature ID
+
             if (feature.has_id) {
                 outfeature.has_id = true;
                 outfeature.id = feature.id;
             }
+
+            // XXX attributes
 
             outlayer.features.push_back(outfeature);
         }
@@ -80,7 +96,11 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
         outtile.layers.push_back(outlayer);
     }
 
-    return "";
+    std::string pbf = outtile.encode();
+    std::string compressed;
+    compress(pbf, compressed, true);
+
+    return compressed;
 }
 
 void usage(char **argv) {
