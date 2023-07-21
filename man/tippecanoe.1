@@ -503,6 +503,10 @@ If the type is \fB\fCint\fR and the original attribute was floating\-point, it i
 that are dropped, coalesced\-as\-needed, or clustered. The \fIoperation\fP may be
 \fB\fCsum\fR, \fB\fCproduct\fR, \fB\fCmean\fR, \fB\fCmax\fR, \fB\fCmin\fR, \fB\fCconcat\fR, or \fB\fCcomma\fR
 to specify how the named \fIattribute\fP is accumulated onto the attribute of the same name in a feature that does survive.
+The attributes and operations may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute='{"attr": "operation", "attr2", "operation2"}'\fR\&.
+.IP \(bu 2
+\fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
+The attributes and values may also be specified as JSON keys and values: \fB\fC\-\-set\-attribute='{"attr": value, "attr2", value}'\fR\&.
 .IP \(bu 2
 \fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .IP \(bu 2
@@ -577,6 +581,8 @@ preference to retaining points in sparse areas and dropping points in dense area
 \fB\fC\-k\fR \fIzoom\fP or \fB\fC\-\-cluster\-maxzoom=\fR\fIzoom\fP: Max zoom on which to cluster points if clustering is enabled.
 .IP \(bu 2
 \fB\fC\-kg\fR or \fB\fC\-\-cluster\-maxzoom=g\fR: Set \fB\fC\-\-cluster\-maxzoom=\fR to \fB\fCmaxzoom \- 1\fR so that all features are visible at the maximum zoom level.
+.IP \(bu 2
+\fB\fC\-\-preserve\-point\-density\-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specfied drop rate would normally call for it, so that low\-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
 .RE
 .SS Dropping a fraction of features to keep under tile size limits
 .RS
@@ -863,7 +869,7 @@ this minimum size and others will not be drawn at all, preserving the total area
 all of them should have had together.
 .PP
 Features in the same tile that share the same type and attributes are coalesced
-together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \-x to exclude
+together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \fB\fC\-x\fR to exclude
 any unnecessary attributes to reduce wasted file size.
 .PP
 If a tile is larger than 500K, it will try encoding that tile at progressively

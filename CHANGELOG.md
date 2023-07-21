@@ -1,5 +1,14 @@
+# 2.28.0
+
+* Add --preserve-point-density-threshold option to reduce blank areas of the map at low zooms
+* Fix tile-join bug where use of --read-from would also accidentally enable --quiet
+
+# 2.27.0
+
 * Do more of line simplification in integer coordinates, to make behavior consistent across platforms
 * Reduce excessive logging during pmtiles conversion
+* Add --set-attribute option
+* Accept JSON form of --accumulate-attribute
 
 # 2.26.1
 

@@ -405,6 +405,9 @@ be reduced to the maximum that can be used with the specified _maxzoom_.
    that are dropped, coalesced-as-needed, or clustered. The _operation_ may be
    `sum`, `product`, `mean`, `max`, `min`, `concat`, or `comma`
    to specify how the named _attribute_ is accumulated onto the attribute of the same name in a feature that does survive.
+   The attributes and operations may also be specified as JSON keys and values: `--accumulate-attribute='{"attr": "operation", "attr2", "operation2"}'`.
+ * `--set-attribute` _attribute_`:`_value_: Set the value of the specified _attribute_ in each feature to the specified _value_. This is mostly useful to give an attribute in each feature an initial value for `--accumulate-attribute`.
+   The attributes and values may also be specified as JSON keys and values: `--set-attribute='{"attr": value, "attr2", value}'`.
  * `-pe` or `--empty-csv-columns-are-null`: Treat empty CSV columns as nulls rather than as empty strings.
  * `-aI` or `--convert-stringified-ids-to-numbers`: If a feature ID is the string representation of a number, convert it to a plain number to use as the feature ID.
  * `--use-attribute-for-id=`*name*: Use the attribute with the specified *name* as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use `-aI` to convert it to a number.)
@@ -458,6 +461,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-K` _distance_ or `--cluster-distance=`_distance_: Cluster points (as with `--cluster-densest-as-needed`, but without the experimental discovery process) that are approximately within _distance_ of each other. The units are tile coordinates within a nominally 256-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See `--cluster-densest-as-needed` below for behavior.
  * `-k` _zoom_ or `--cluster-maxzoom=`_zoom_: Max zoom on which to cluster points if clustering is enabled.
  * `-kg` or `--cluster-maxzoom=g`: Set `--cluster-maxzoom=` to `maxzoom - 1` so that all features are visible at the maximum zoom level.
+ * `--preserve-point-density-threshold=`_level_: At the low zoom levels, do not reduce point density below the specified _level_, even if the specfied drop rate would normally call for it, so that low-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
 
 ### Dropping a fraction of features to keep under tile size limits
 
