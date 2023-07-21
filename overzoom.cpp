@@ -55,7 +55,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
                 g.y -= ny * outtilesize;
             }
 
-            // Clip to tile
+            // Clip to output tile
 
             if (t == VT_LINE) {
                 geom = clip_lines(geom, nz, buffer);
@@ -64,6 +64,10 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
             } else if (t == VT_POINT) {
                 geom = clip_point(geom, nz, buffer);
             }
+
+            // Scale to output tile extent
+
+            to_tile_scale(geom, nz, detail);
 
             if (feature.has_id) {
                 outfeature.has_id = true;
