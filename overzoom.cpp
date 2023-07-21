@@ -53,7 +53,10 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
             for (auto &g : geom) {
                 g.x -= nx * outtilesize;
                 g.y -= ny * outtilesize;
+
+                // printf("%lld,%lld ", g.x, g.y);
             }
+            // printf("\n");
 
             // Clip to output tile
 
@@ -65,9 +68,21 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
                 geom = clip_point(geom, nz, buffer);
             }
 
+            // printf("points now: ");
+            for (auto const &g : geom) {
+                // printf("%lld,%lld ", g.x, g.y);
+            }
+            // printf("\n");
+
             // Scale to output tile extent
 
             to_tile_scale(geom, nz, detail);
+
+            // printf("scale, now: ");
+            for (auto const &g : geom) {
+                // printf("%lld,%lld ", g.x, g.y);
+            }
+            // printf("\n");
 
             // Clean polygon geometries
 
@@ -80,6 +95,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
             for (auto const &g : geom) {
                 outfeature.geometry.emplace_back(g.op, g.x, g.y);
             }
+            outfeature.type = t;
 
             // Feature ID
 
@@ -90,7 +106,9 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 
             // XXX attributes
 
-            outlayer.features.push_back(outfeature);
+            if (outfeature.geometry.size() > 0) {
+                outlayer.features.push_back(outfeature);
+            }
         }
 
         outtile.layers.push_back(outlayer);
