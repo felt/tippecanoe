@@ -148,4 +148,5 @@ int main(int argc, char **argv) {
 
 	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny);
 	fwrite(out.c_str(), sizeof(char), out.size(), stdout);
+	return 0;
 }
