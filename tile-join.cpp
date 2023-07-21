@@ -129,8 +129,8 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::st
 
 		if (layer.extent != outlayer.extent) {
 			if (layer.extent > outlayer.extent) {
-				// this always scales up the existing layer up instead of
-				// scaling down the layer being added, because the assumption is that
+				// this always scales up the existing layer instead of scaling down
+				// the layer that is being added, because the assumption is that
 				// scaling up is safe while scaling down requires geometry cleaning.
 
 				for (size_t i = 0; i < outlayer.features.size(); i++) {
