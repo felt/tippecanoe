@@ -121,7 +121,6 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 	return out;
 }
 
-
 #define INSIDE 0
 #define LEFT 1
 #define RIGHT 2
@@ -204,7 +203,6 @@ int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymi
 		return changed + 1;
 	}
 }
-
 
 static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawvec &out) {
 	out.clear();
@@ -340,7 +338,6 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 	return ret;
 }
 
-
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	for (size_t i = 0; i < geom.size(); i++) {
 		geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
@@ -425,7 +422,6 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 
 	return out;
 }
-
 
 double get_area_scaled(const drawvec &geom, size_t i, size_t j) {
 	const double max_exact_double = (double) ((1LL << 53) - 1);
@@ -532,4 +528,3 @@ double get_mp_area(drawvec &geom) {
 
 	return ret;
 }
-
