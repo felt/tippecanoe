@@ -339,9 +339,16 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip) {
 }
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
-	for (size_t i = 0; i < geom.size(); i++) {
-		geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
-		geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
+	if (32 - detail - z < 0) {
+		for (size_t i = 0; i < geom.size(); i++) {
+			geom[i].x = std::round((double) geom[i].x * (1LL << (-(32 - detail - z))));
+			geom[i].y = std::round((double) geom[i].y * (1LL << (-(32 - detail - z))));
+		}
+	} else {
+		for (size_t i = 0; i < geom.size(); i++) {
+			geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
+			geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
+		}
 	}
 }
 
@@ -363,7 +370,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && std::round((double) geom[i].x / (1LL << shift)) == x && std::round((double) geom[i].y / (1LL << shift)) == y) {
+		if (geom[i].op == VT_LINETO && (long long) std::round((double) geom[i].x / (1LL << shift)) == x && (long long) std::round((double) geom[i].y / (1LL << shift)) == y) {
 			continue;
 		}
 
@@ -411,7 +418,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
-				if (i > 0 && geom[i - 1].op == VT_LINETO && std::round((double) geom[i - 1].x / (1LL << shift)) == std::round((double) geom[i].x / (1LL << shift)) && std::round((double) geom[i - 1].y / (1LL << shift)) == std::round((double) geom[i].y / (1LL << shift))) {
+				if (i > 0 && geom[i - 1].op == VT_LINETO && (long long) std::round((double) geom[i - 1].x / (1LL << shift)) == (long long) std::round((double) geom[i].x / (1LL << shift)) && (long long) std::round((double) geom[i - 1].y / (1LL << shift)) == (long long) std::round((double) geom[i].y / (1LL << shift))) {
 					continue;
 				}
 			}
