@@ -10,7 +10,7 @@ extern char *optarg;
 extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
-int buffer = 16;  // tippecanoe-style: mvtjbuffer == extent * buffer / 256;
+int buffer = 16;  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny) {
 	mvt_tile tile, outtile;
