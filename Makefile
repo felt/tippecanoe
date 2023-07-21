@@ -33,13 +33,14 @@ all: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join unit tippecanoe
 
 docs: man/tippecanoe.1
 
-install: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join tippecanoe-json-tool
+install: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join tippecanoe-json-tool tippecanoe-overzoom
 	mkdir -p $(PREFIX)/bin
 	mkdir -p $(MANDIR)
 	cp tippecanoe $(PREFIX)/bin/tippecanoe
 	cp tippecanoe-enumerate $(PREFIX)/bin/tippecanoe-enumerate
 	cp tippecanoe-decode $(PREFIX)/bin/tippecanoe-decode
 	cp tippecanoe-json-tool $(PREFIX)/bin/tippecanoe-json-tool
+	cp tippecanoe-overzoom $(PREFIX)/bin/tippecanoe-overzoom
 	cp tile-join $(PREFIX)/bin/tile-join
 	cp man/tippecanoe.1 $(MANDIR)/tippecanoe.1
 
