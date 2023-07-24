@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string>
+#include <set>
 #include "errors.hpp"
 #include "mvt.hpp"
 #include "geometry.hpp"
@@ -11,6 +12,8 @@ extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 16;  // tippecanoe-style: mvt buffer == extent * buffer / 256;
+
+std::set<std::string> keep;
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny) {
 	mvt_tile tile, outtile;
@@ -105,21 +108,29 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 				}
 
 				for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-					outlayer.tag(outfeature, layer.keys[feature.tags[i]], layer.values[feature.tags[i + 1]]);
+					if (keep.size() == 0 || keep.find(layer.keys[feature.tags[i]]) != keep.end()) {
+						outlayer.tag(outfeature, layer.keys[feature.tags[i]], layer.values[feature.tags[i + 1]]);
+					}
 				}
 
 				outlayer.features.push_back(outfeature);
 			}
 		}
 
-		outtile.layers.push_back(outlayer);
+		if (outlayer.features.size() > 0) {
+			outtile.layers.push_back(outlayer);
+		}
 	}
 
-	std::string pbf = outtile.encode();
-	std::string compressed;
-	compress(pbf, compressed, true);
+	if (outtile.layers.size() > 0) {
+		std::string pbf = outtile.encode();
+		std::string compressed;
+		compress(pbf, compressed, true);
 
-	return compressed;
+		return compressed;
+	} else {
+		return "";
+	}
 }
 
 void usage(char **argv) {
@@ -131,8 +142,12 @@ void usage(char **argv) {
 int main(int argc, char **argv) {
 	int i;
 
-	while ((i = getopt(argc, argv, "")) != -1) {
+	while ((i = getopt(argc, argv, "y:")) != -1) {
 		switch (i) {
+		case 'y':
+			keep.insert(optarg);
+			break;
+
 		default:
 			usage(argv);
 		}
