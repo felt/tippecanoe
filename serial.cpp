@@ -630,8 +630,19 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	}
 
 	for (auto &kv : set_attributes) {
-		sf.full_keys.push_back(kv.first);
-		sf.full_values.push_back(kv.second);
+		bool found = false;
+		for (size_t i = 0; i < sf.full_keys.size(); i++) {
+			if (sf.full_keys[i] == kv.first) {
+				sf.full_values[i] = kv.second;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			sf.full_keys.push_back(kv.first);
+			sf.full_values.push_back(kv.second);
+		}
 	}
 
 	for (ssize_t i = (ssize_t) sf.full_keys.size() - 1; i >= 0; i--) {
