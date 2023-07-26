@@ -1,3 +1,5 @@
+# 2.28.1
+
 * Allow --set-attribute to override an existing attribute value
 
 # 2.28.0
