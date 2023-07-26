@@ -1112,11 +1112,11 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 
 			if (c > 1) {  // clipped
 				if (x1 != geom[i - 1].x || y1 != geom[i - 1].y) {
-					out.push_back(draw(VT_LINETO, x1, y1));
+					out.push_back(draw(VT_LINETO, std::round(x1), std::round(y1)));
 					out[out.size() - 1].necessary = 1;
 				}
 				if (x2 != geom[i - 0].x || y2 != geom[i - 0].y) {
-					out.push_back(draw(VT_LINETO, x2, y2));
+					out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
 					out[out.size() - 1].necessary = 1;
 				}
 			}
