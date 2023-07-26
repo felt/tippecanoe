@@ -1,3 +1,5 @@
+* Allow --set-attribute to override an existing attribute value
+
 # 2.28.0
 
 * Add --preserve-point-density-threshold option to reduce blank areas of the map at low zooms
