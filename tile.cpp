@@ -587,6 +587,7 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 	}
 
 	if (t == VT_LINE && additional[A_REVERSE]) {
+		geom = remove_noop(geom, t, 0);
 		geom = reorder_lines(geom);
 	}
 

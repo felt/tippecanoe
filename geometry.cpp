@@ -1210,13 +1210,16 @@ drawvec reorder_lines(drawvec &geom) {
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
 			if (i != 0) {
+				// moveto is not at the start, so it is not simple
 				return geom;
 			}
 		} else if (geom[i].op == VT_LINETO) {
 			if (i == 0) {
+				// lineto is at the start: can't happen
 				return geom;
 			}
 		} else {
+			// something other than moveto or lineto: can't happen
 			return geom;
 		}
 	}
@@ -1234,7 +1237,9 @@ drawvec reorder_lines(drawvec &geom) {
 			out.push_back(geom[geom.size() - 1 - i]);
 		}
 		out[0].op = VT_MOVETO;
-		out[out.size() - 1].op = VT_LINETO;
+		if (out.size() > 1) {
+			out[out.size() - 1].op = VT_LINETO;
+		}
 		return out;
 	}
 
