@@ -110,11 +110,14 @@ drawvec from_tile_scale(drawvec const &geom, int z, int detail) {
 drawvec remove_noop(drawvec geom, int type, int shift) {
 	// first pass: remove empty linetos
 
-	long long x = 0, y = 0;
+	long long ox = 0, oy = 0;
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && (long long) std::round((double) geom[i].x / (1LL << shift)) == x && (long long) std::round((double) geom[i].y / (1LL << shift)) == y) {
+		long long nx = std::round((double) geom[i].x / (1LL << shift));
+		long long ny = std::round((double) geom[i].y / (1LL << shift));
+
+		if (geom[i].op == VT_LINETO && nx == ox && ny == oy) {
 			continue;
 		}
 
@@ -122,8 +125,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 			out.push_back(geom[i]);
 		} else { /* moveto or lineto */
 			out.push_back(geom[i]);
-			x = std::round((double) geom[i].x / (1LL << shift));
-			y = std::round((double) geom[i].y / (1LL << shift));
+			ox = nx;
+			oy = ny;
 		}
 	}
 
@@ -136,14 +139,17 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
 				if (i + 1 >= geom.size()) {
+					// followed by end-of-geometry: not needed
 					continue;
 				}
 
 				if (geom[i + 1].op == VT_MOVETO) {
+					// followed by another moveto: not needed
 					continue;
 				}
 
 				if (geom[i + 1].op == VT_CLOSEPATH) {
+					// followed by closepath: not possible
 					fprintf(stderr, "Shouldn't happen\n");
 					i++;  // also remove unused closepath
 					continue;
@@ -161,8 +167,10 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 		out.resize(0);
 
 		for (size_t i = 0; i < geom.size(); i++) {
-			if (geom[i].op == VT_MOVETO) {
-				if (i > 0 && geom[i - 1].op == VT_LINETO && (long long) std::round((double) geom[i - 1].x / (1LL << shift)) == (long long) std::round((double) geom[i].x / (1LL << shift)) && (long long) std::round((double) geom[i - 1].y / (1LL << shift)) == (long long) std::round((double) geom[i].y / (1LL << shift))) {
+			if (i > 1 && geom[i].op == VT_MOVETO) {
+				if (geom[i - 1].op == VT_LINETO &&
+				    std::round((double) geom[i - 1].x / (1LL << shift)) == std::round((double) geom[i].x / (1LL << shift)) &&
+				    std::round((double) geom[i - 1].y / (1LL << shift)) == std::round((double) geom[i].y / (1LL << shift))) {
 					continue;
 				}
 			}
