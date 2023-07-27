@@ -533,7 +533,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Douglass St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.438529, 37.751121 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Castro St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434173, 37.751257 ] } }
+{ "type": "Feature", "properties": { "name": "Castro St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434173, 37.751240 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Diamond St & 26th St" }, "geometry": { "type": "Point", "coordinates": [ -122.435911, 37.747881 ] } }
 ,
@@ -781,7 +781,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Precita Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.419088, 37.746931 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "24th St & Harrison St" }, "geometry": { "type": "Point", "coordinates": [ -122.411749, 37.752581 ] } }
+{ "type": "Feature", "properties": { "name": "24th St & Harrison St" }, "geometry": { "type": "Point", "coordinates": [ -122.411728, 37.752581 ] } }
 ,
 { "type": "Feature", "properties": { "name": "C. Chavez St&Harrison St" }, "geometry": { "type": "Point", "coordinates": [ -122.411385, 37.748339 ] } }
 ,
@@ -807,7 +807,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Bryant St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.409067, 37.753056 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "25th St & Potrero Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.406685, 37.751410 ] } }
+{ "type": "Feature", "properties": { "name": "25th St & Potrero Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.406664, 37.751410 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Bay Shore Blvd & Oakdale Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.405183, 37.742876 ] } }
 ,
@@ -1447,7 +1447,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Diamond St & 25th St" }, "geometry": { "type": "Point", "coordinates": [ -122.436211, 37.749654 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Castro St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434183, 37.751257 ] } }
+{ "type": "Feature", "properties": { "name": "Castro St & 24th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434183, 37.751249 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Castro St & 25th St" }, "geometry": { "type": "Point", "coordinates": [ -122.434044, 37.749807 ] } }
 ,
@@ -1951,7 +1951,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Folsom St & 25th St" }, "geometry": { "type": "Point", "coordinates": [ -122.414045, 37.751003 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "24th St & Harrison St" }, "geometry": { "type": "Point", "coordinates": [ -122.411749, 37.752589 ] } }
+{ "type": "Feature", "properties": { "name": "24th St & Harrison St" }, "geometry": { "type": "Point", "coordinates": [ -122.411739, 37.752589 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Folsom St & Cesar Chavez St" }, "geometry": { "type": "Point", "coordinates": [ -122.413595, 37.748110 ] } }
 ,
@@ -1973,7 +1973,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Silver Ave & Mission St" }, "geometry": { "type": "Point", "coordinates": [ -122.431405, 37.728901 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Trumbull St & Congdon St" }, "geometry": { "type": "Point", "coordinates": [ -122.426244, 37.730844 ] } }
+{ "type": "Feature", "properties": { "name": "Trumbull St & Congdon St" }, "geometry": { "type": "Point", "coordinates": [ -122.426244, 37.730836 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mission St & Richland Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.424699, 37.735621 ] } }
 ,
@@ -2015,7 +2015,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Bryant St & 26th St" }, "geometry": { "type": "Point", "coordinates": [ -122.408906, 37.749688 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "25th St & Potrero Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.406685, 37.751410 ] } }
+{ "type": "Feature", "properties": { "name": "25th St & Potrero Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.406675, 37.751410 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Kansas St & 25th St" }, "geometry": { "type": "Point", "coordinates": [ -122.402222, 37.751885 ] } }
 ,
@@ -2371,7 +2371,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Connecticut St & 19th St" }, "geometry": { "type": "Point", "coordinates": [ -122.397330, 37.761148 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "20th St & Missouri St" }, "geometry": { "type": "Point", "coordinates": [ -122.396429, 37.759994 ] } }
+{ "type": "Feature", "properties": { "name": "20th St & Missouri St" }, "geometry": { "type": "Point", "coordinates": [ -122.396429, 37.759986 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Arkansas St & Madera St" }, "geometry": { "type": "Point", "coordinates": [ -122.397888, 37.755974 ] } }
 ,

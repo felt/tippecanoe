@@ -57,8 +57,8 @@ void lonlat2tile(double lon, double lat, int zoom, long long *x, long long *y) {
 	double lat_rad = lat * M_PI / 180;
 	unsigned long long n = 1LL << zoom;
 
-	long long llx = n * ((lon + 180) / 360);
-	long long lly = n * (1 - (log(tan(lat_rad) + 1 / cos(lat_rad)) / M_PI)) / 2;
+	long long llx = std::round(n * ((lon + 180) / 360));
+	long long lly = std::round(n * (1 - (log(tan(lat_rad) + 1 / cos(lat_rad)) / M_PI)) / 2);
 
 	*x = llx;
 	*y = lly;
@@ -84,8 +84,8 @@ void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y) 
 		ix = 40000000.0;
 	}
 
-	*x = ix * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31);
-	*y = ((1LL << 32) - 1) - (iy * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31));
+	*x = std::round(ix * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31));
+	*y = std::round(((1LL << 32) - 1) - (iy * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31)));
 
 	if (zoom != 0) {
 		*x = std::round((double) *x / (1LL << (32 - zoom)));

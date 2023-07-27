@@ -3,7 +3,7 @@
 ,
 { "zoom": 11, "x": 327, "y": 792, "bytes": 6533, "compressed": true, "layers": { "muni": { "points": 528, "lines": 0, "polygons": 0, "extent": 4096 } } }
 ,
-{ "zoom": 11, "x": 327, "y": 791, "bytes": 45271, "compressed": true, "layers": { "muni": { "points": 4284, "lines": 0, "polygons": 0, "extent": 4096 }, "subway": { "points": 19, "lines": 0, "polygons": 0, "extent": 4096 } } }
+{ "zoom": 11, "x": 327, "y": 791, "bytes": 45265, "compressed": true, "layers": { "muni": { "points": 4284, "lines": 0, "polygons": 0, "extent": 4096 }, "subway": { "points": 19, "lines": 0, "polygons": 0, "extent": 4096 } } }
 ,
 { "zoom": 11, "x": 954, "y": 791, "bytes": 75, "compressed": true, "layers": { "muni": { "points": 12, "lines": 0, "polygons": 0, "extent": 4096 } } }
 ]
