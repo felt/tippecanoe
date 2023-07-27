@@ -978,11 +978,11 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (i > 0 && (geom[i - 1].op == VT_MOVETO || geom[i - 1].op == VT_LINETO) && geom[i].op == VT_LINETO) {
-			double x1 = geom[i - 1].x;
-			double y1 = geom[i - 1].y;
+			long long x1 = geom[i - 1].x;
+			long long y1 = geom[i - 1].y;
 
-			double x2 = geom[i - 0].x;
-			double y2 = geom[i - 0].y;
+			long long x2 = geom[i - 0].x;
+			long long y2 = geom[i - 0].y;
 
 			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
 
@@ -1110,11 +1110,11 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (i > 0 && geom[i].op == VT_LINETO && (geom[i - 1].op == VT_MOVETO || geom[i - 1].op == VT_LINETO)) {
-			double x1 = geom[i - 1].x;
-			double y1 = geom[i - 1].y;
+			long long x1 = geom[i - 1].x;
+			long long y1 = geom[i - 1].y;
 
-			double x2 = geom[i - 0].x;
-			double y2 = geom[i - 0].y;
+			long long x2 = geom[i - 0].x;
+			long long y2 = geom[i - 0].y;
 
 			int c = clip(&x1, &y1, &x2, &y2, 0, 0, extent, extent);
 
@@ -1476,7 +1476,7 @@ std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 #define BOTTOM 4
 #define TOP 8
 
-static int computeOutCode(double x, double y, double xmin, double ymin, double xmax, double ymax) {
+static int computeOutCode(long long x, long long y, long long xmin, long long ymin, long long xmax, long long ymax) {
 	int code = INSIDE;
 
 	if (x < xmin) {
@@ -1494,7 +1494,7 @@ static int computeOutCode(double x, double y, double xmin, double ymin, double x
 	return code;
 }
 
-int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax) {
+int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax) {
 	int outcode0 = computeOutCode(*x0, *y0, xmin, ymin, xmax, ymax);
 	int outcode1 = computeOutCode(*x1, *y1, xmin, ymin, xmax, ymax);
 	int accept = 0;
@@ -1509,10 +1509,12 @@ int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymi
 		} else {
 			// failed both tests, so calculate the line segment to clip
 			// from an outside point to an intersection with clip edge
-			double x = *x0, y = *y0;
+			long long x = *x0, y = *y0;
 
 			// At least one endpoint is outside the clip rectangle; pick it.
 			int outcodeOut = outcode0 ? outcode0 : outcode1;
+
+			// XXX truncating division
 
 			// Now find the intersection point;
 			// use formulas y = y0 + slope * (x - x0), x = x0 + (1 / slope) * (y - y0)
