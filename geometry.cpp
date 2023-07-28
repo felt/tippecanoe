@@ -1004,7 +1004,7 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 }
 // @@@
 
-static double square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+static long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	double something = p2x * p2x + p2y * p2y;
@@ -1051,7 +1051,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		int first = recursion_stack.top();
 		recursion_stack.pop();
 
-		double max_distance = -1;
+		long long max_distance = -1;
 		int farthest_element_index;
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = second;
@@ -1063,9 +1063,9 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		int i;
 		if (geom[start + first] < geom[start + second]) {
 			for (i = first + 1; i < second; i++) {
-				double temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
 
-				double distance = std::fabs(temp_dist);
+				long long distance = std::llabs(temp_dist);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -1074,9 +1074,9 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 			}
 		} else {
 			for (i = second - 1; i > first; i--) {
-				double temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
 
-				double distance = std::fabs(temp_dist);
+				long long distance = std::llabs(temp_dist);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -1120,11 +1120,11 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 
 			if (c > 1) {  // clipped
 				if (x1 != geom[i - 1].x || y1 != geom[i - 1].y) {
-					out.push_back(draw(VT_LINETO, std::round(x1), std::round(y1)));
+					out.push_back(draw(VT_LINETO, x1, y1));
 					out[out.size() - 1].necessary = 1;
 				}
 				if (x2 != geom[i - 0].x || y2 != geom[i - 0].y) {
-					out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
+					out.push_back(draw(VT_LINETO, x2, y2));
 					out[out.size() - 1].necessary = 1;
 				}
 			}
