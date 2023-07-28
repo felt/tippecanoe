@@ -1005,19 +1005,20 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 // @@@
 
 static long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+	const long long scale = 1024;
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
-	double something = p2x * p2x + p2y * p2y;
-	double u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / something;
+	long long something = p2x * p2x + p2y * p2y;
+	long long u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) * scale / something;
 
-	if (u > 1) {
-		u = 1;
+	if (u > scale) {
+		u = scale;
 	} else if (u < 0) {
 		u = 0;
 	}
 
-	long long x = std::round(segA_x + u * p2x);
-	long long y = std::round(segA_y + u * p2y);
+	long long x = std::round(segA_x + u * p2x / scale);
+	long long y = std::round(segA_y + u * p2y / scale);
 
 	long long dx = x - point_x;
 	long long dy = y - point_y;
