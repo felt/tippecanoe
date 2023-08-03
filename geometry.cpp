@@ -1009,7 +1009,7 @@ static long long square_distance_from_line(long long point_x, long long point_y,
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	long long something = p2x * p2x + p2y * p2y;
-	long long u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) * scale / something;
+	double u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) * scale / something;
 
 	if (u > scale) {
 		u = scale;
@@ -1030,19 +1030,20 @@ static long long square_distance_from_line(long long point_x, long long point_y,
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
 	e = e * e;
 	std::stack<int> recursion_stack;
+    printf("doug of %d\n", n);
 
-	{
-		int left_border = 0;
-		int right_border = 1;
-		// Sweep linerarily over array and identify those ranges that need to be checked
-		do {
-			if (geom[start + right_border].necessary) {
-				recursion_stack.push(left_border);
-				recursion_stack.push(right_border);
-				left_border = right_border;
-			}
-			++right_border;
-		} while (right_border < n);
+	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
+		fprintf(stderr, "endpoints not marked necessary\n");
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	int prev = 0;
+	for (int here = 1; here < n; here++) {
+		if (geom[start + here].necessary) {
+			recursion_stack.push(prev);
+			recursion_stack.push(here);
+            prev = here;
+		}
 	}
 
 	while (!recursion_stack.empty()) {
@@ -1051,6 +1052,8 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		recursion_stack.pop();
 		int first = recursion_stack.top();
 		recursion_stack.pop();
+
+        printf("sub-doug of %d\n", second - first + 1);
 
 		long long max_distance = -1;
 		int farthest_element_index;
@@ -1094,10 +1097,14 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 			if (1 < farthest_element_index - first) {
 				recursion_stack.push(first);
 				recursion_stack.push(farthest_element_index);
+
+                printf("split1: %d to %d, %d\n", first, farthest_element_index, farthest_element_index - first + 1);
 			}
 			if (1 < second - farthest_element_index) {
 				recursion_stack.push(farthest_element_index);
 				recursion_stack.push(second);
+
+                printf("split2: %d to %d, %d\n", farthest_element_index, second, second - farthest_element_index + 1);
 			}
 		}
 	}
@@ -1338,7 +1345,7 @@ drawvec fix_polygon(drawvec &geom) {
 				long long xd = ring[a].x - xtotal;
 				long long yd = ring[a].y - ytotal;
 				long long d2 = xd * xd + yd * yd;
-				if (d2 > dist2) {
+				if (d2 > dist2 || (d2 == dist2 && ring[a] < ring[furthest])) {
 					dist2 = d2;
 					furthest = a;
 				}
@@ -1351,7 +1358,7 @@ drawvec fix_polygon(drawvec &geom) {
 				long long xd = ring[a].x - ring[furthest].x;
 				long long yd = ring[a].y - ring[furthest].y;
 				long long d2 = xd * xd + yd * yd;
-				if (d2 > dist2b) {
+				if (d2 > dist2b || (d2 == dist2b && ring[a] < ring[furthestb])) {
 					dist2b = d2;
 					furthestb = a;
 				}
