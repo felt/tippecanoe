@@ -96,7 +96,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test
 	./unit
 
 suffixes = json json.gz
@@ -269,6 +269,11 @@ enumerate-test:
 	./tippecanoe-enumerate tests/ne_110m_admin_0_countries/out/enum.mbtiles > tests/ne_110m_admin_0_countries/out/enum.check
 	cmp tests/ne_110m_admin_0_countries/out/enum.check tests/ne_110m_admin_0_countries/out/enum
 	rm tests/ne_110m_admin_0_countries/out/enum.mbtiles tests/ne_110m_admin_0_countries/out/enum.check
+
+overzoom-test: tippecanoe-overzoom
+	./tippecanoe-overzoom -o tests/pbf/13-1310-3166.pbf tests/pbf/11-327-791.pbf 11/327/791 13/1310/3166
+	./tippecanoe-decode tests/pbf/13-1310-3166.pbf 13 1310 3166 > tests/pbf/13-1310-3166.pbf.json.check
+	cmp tests/pbf/13-1310-3166.pbf.json.check tests/pbf/13-1310-3166.pbf.json
 
 join-test: tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'

@@ -11,7 +11,7 @@ extern char *optarg;
 extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
-int buffer = 16;  // tippecanoe-style: mvt buffer == extent * buffer / 256;
+int buffer = 5;  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 
 std::set<std::string> keep;
 
@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
 	}
 
 	int nz, nx, ny;
-	if (sscanf(argv[optind + 1], "%d/%d/%d", &nz, &nx, &ny) != 3) {
+	if (sscanf(argv[optind + 2], "%d/%d/%d", &nz, &nx, &ny) != 3) {
 		fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 1]);
 		usage(argv);
 	}
