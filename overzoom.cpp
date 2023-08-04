@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
 	int i;
 	const char *outfile = NULL;
 
-	while ((i = getopt(argc, argv, "y:o:")) != -1) {
+	while ((i = getopt(argc, argv, "y:o:d:b:")) != -1) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
@@ -151,6 +151,14 @@ int main(int argc, char **argv) {
 
 		case 'o':
 			outfile = optarg;
+			break;
+
+		case 'd':
+			detail = atoi(optarg);
+			break;
+
+		case 'b':
+			buffer = atoi(optarg);
 			break;
 
 		default:
