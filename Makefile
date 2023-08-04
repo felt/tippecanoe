@@ -276,8 +276,8 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/13-1310-3166.pbf 13 1310 3166 > tests/pbf/13-1310-3166.pbf.json.check
 	cmp tests/pbf/13-1310-3166.pbf.json.check tests/pbf/13-1310-3166.pbf.json
 	rm tests/pbf/13-1310-3166.pbf tests/pbf/13-1310-3166.pbf.json.check
-	# Different detail and buffer
-	./tippecanoe-overzoom -d8 -b30 -o tests/pbf/13-1310-3166-8-30.pbf tests/pbf/11-327-791.pbf 11/327/791 13/1310/3166
+	# Different detail and buffer, and attribute stripping
+	./tippecanoe-overzoom -d8 -b30 -y NAME -y name -y scalerank -o tests/pbf/13-1310-3166-8-30.pbf tests/pbf/11-327-791.pbf 11/327/791 13/1310/3166
 	./tippecanoe-decode tests/pbf/13-1310-3166-8-30.pbf 13 1310 3166 > tests/pbf/13-1310-3166-8-30.pbf.json.check
 	cmp tests/pbf/13-1310-3166-8-30.pbf.json.check tests/pbf/13-1310-3166-8-30.pbf.json
 	rm tests/pbf/13-1310-3166-8-30.pbf tests/pbf/13-1310-3166-8-30.pbf.json.check
