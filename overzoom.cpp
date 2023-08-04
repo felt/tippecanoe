@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
 
 	int nz, nx, ny;
 	if (sscanf(argv[optind + 2], "%d/%d/%d", &nz, &nx, &ny) != 3) {
-		fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 1]);
+		fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 2]);
 		usage(argv);
 	}
 
