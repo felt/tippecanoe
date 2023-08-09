@@ -1,0 +1,17 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 13, "x": 1310, "y": 3166 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "ne_10m_land", "version": 2, "extent": 256 }, "features": [
+{ "type": "Feature", "properties": { "scalerank": 0 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.388897, 37.792151 ], [ -122.387867, 37.790930 ], [ -122.387009, 37.778720 ], [ -122.382545, 37.774514 ], [ -122.382545, 37.766101 ], [ -122.382889, 37.763794 ], [ -122.382545, 37.763116 ], [ -122.382545, 37.749272 ], [ -122.436790, 37.749272 ], [ -122.436790, 37.792151 ], [ -122.388897, 37.792151 ] ] ] } }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "layer": "ne_10m_populated_places", "version": 2, "extent": 256 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "San Francisco" }, "geometry": { "type": "Point", "coordinates": [ -122.399540, 37.784283 ] } }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "layer": "ne_10m_roads", "version": 2, "extent": 256 }, "features": [
+{ "type": "Feature", "properties": { "scalerank": 4, "name": "101" }, "geometry": { "type": "LineString", "coordinates": [ [ -122.407265, 37.767865 ], [ -122.412586, 37.781841 ], [ -122.419453, 37.788760 ], [ -122.432156, 37.792151 ] ] } }
+,
+{ "type": "Feature", "properties": { "scalerank": 3, "name": "80" }, "geometry": { "type": "LineString", "coordinates": [ [ -122.407265, 37.767865 ], [ -122.388210, 37.785232 ], [ -122.382545, 37.789981 ] ] } }
+,
+{ "type": "Feature", "properties": { "scalerank": 4, "name": "280" }, "geometry": { "type": "LineString", "coordinates": [ [ -122.406406, 37.749272 ], [ -122.405548, 37.752258 ], [ -122.407265, 37.767865 ] ] } }
+] }
+] }

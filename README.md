@@ -960,3 +960,25 @@ Join block geometries to employment attributes:
 ```
 $ tippecanoe-json-tool -c in_wac_S000_JT00_2015.csv tl_2010_18157_tabblock10.sort.json > blocks-wac.json
 ```
+
+tippecanoe-overzoom
+===================
+
+The `tippecanoe-overzoom` utility creates a vector tile from one of its parent tiles,
+clipping and scaling the geometry from the parent tile and excluding features that
+are clipped away. The idea is that if you create very high resolution tiles
+(using `--extra-detail`) at a moderate zoom level, you can use `tippecanoe-overzoom`
+to turn those into moderate detail tiles at high zoom levels, for the benefit of
+renderers that cannot internally overzoom high-resolution tiles without losing
+some of the precision. Running:
+
+    tippecanoe-overzoom -o out.mvt.gz inz/inx/iny outz/outx/outy in.mvt.gz
+
+reads tile `inz/inx/iny` of `in.mvt.gz` and produces tile `outz/outx/outy` of `out.mvt.gz`.
+
+### Options
+
+ * `-b` *buffer*: Set the tile buffer in the output tile (default 5)
+ * `-d` *detail*: Set the detail of the output tile (default 12)
+ * `-y` *attribute*: Retain the specified *attribute* in the output features. All attributes that are not named in a `-y` option will be removed.
+
