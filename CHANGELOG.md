@@ -1,3 +1,7 @@
+# 2.29.0
+
+* Add tippecanoe-overzoom tool
+
 # 2.28.1
 
 * Allow --set-attribute to override an existing attribute value
