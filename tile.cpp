@@ -1906,6 +1906,24 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
+// do not allow coalescing geometries that cross tile boundaries
+bool coalescable(drawvec const &geom, int z) {
+	long long tile_extent = (1LL << 32) >> z;
+
+	for (size_t i = 1; i < geom.size(); i++) {
+		if (geom[i].op == VT_LINETO) {
+			if ((geom[i - 1].x < 0) != (geom[i].x < 0) ||
+			    (geom[i - 1].x > tile_extent) != (geom[i].x > tile_extent) ||
+			    (geom[i - 1].y < 0) != (geom[i].y < 0) ||
+			    (geom[i - 1].y > tile_extent) != (geom[i].y > tile_extent)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -2137,7 +2155,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.gap < (long long) mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (sf.gap < (long long) mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX) &&
+				    coalescable(sf.geometry, z) && coalescable(partials[which_partial].geoms[0], z)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
@@ -2156,7 +2175,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
+				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent) &&
+				    coalescable(sf.geometry, z) && coalescable(partials[which_partial].geoms[0], z)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
@@ -2178,8 +2198,22 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
+			// Even though this only explicitly refers to A_COALESCE_FRACTION_AS_NEEDED, it also
+			// applies to A_DROP_FRACTION_AS_NEEDED and P_DYNAMIC_DROP, which are now also
+			// constrained against dropping features that cross tile boundaries, because
+			// the same fraction_accum logic drives all of them.
+			//
+			// A_DROP_DENSEST_AS_NEEDED and A_DROP_SMALLEST_AS_NEEDED don't need this check,
+			// because the features' density and size are calculated globally, so each feature
+			// is either included or excluded the same way in all the tiles that it appears in,
+			// unlike the feature fraction, which counts features independently in each tile.
+			//
+			// This is probably an argument for doing the fraction globally too, but I'm not
+			// sure where to drive it from. A global sequence number?
+
 			fraction_accum += fraction;
-			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX) &&
+			    coalescable(sf.geometry, z) && coalescable(partials[which_partial].geoms[0], z)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
