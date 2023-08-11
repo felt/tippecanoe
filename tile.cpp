@@ -331,7 +331,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent, long long gap) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -424,6 +424,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.label_point = label_point;
 					sf.extent = extent;
 					sf.feature_minzoom = feature_minzoom;
+					sf.gap = gap;
 
 					for (size_t i = 0; i < metakeys.size(); i++) {
 						sf.keys.push_back(metakeys[i]);
@@ -1438,7 +1439,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed) {
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, unsigned long long *previndex) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1489,9 +1490,33 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			(*unclipped_features)++;
 		}
 
+		// calculate the interfeature gap if it hasn't already been calculated,
+		// so drop-densest can be consistent across tiles
+		if (sf.gap < 0) {
+			sf.gap = sf.index - *previndex;
+		}
+
+		// give points an extent if they didn't already have one,
+		// so drop-smallest can work on points
+		if (sf.extent <= 0) {
+			if (sf.t == VT_POINT) {
+				if (*previndex >= sf.index) {
+					sf.extent = 1;
+				} else {
+					double radius = sqrt(sf.index - *previndex) / 4.0;
+					sf.extent = M_PI * radius * radius;
+					if (sf.extent < 1) {
+						sf.extent = 1;
+					}
+				}
+			}
+		}
+
+		*previndex = sf.index;
+
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
+				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent, sf.gap);
 			}
 		}
 
@@ -1628,9 +1653,10 @@ struct run_prefilter_args {
 void *run_prefilter(void *v) {
 	run_prefilter_args *rpa = (run_prefilter_args *) v;
 	json_writer state(rpa->prefilter_fp);
+	unsigned long long previndex = 0;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &previndex);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1918,8 +1944,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		double fraction_accum = 0;
 
-		unsigned long long previndex = 0, density_previndex = 0, merge_previndex = 0;
-		unsigned long long extent_previndex = 0;
+		unsigned long long previndex = 0, density_previndex = 0, extent_previndex = 0;
 		double scale = (double) (1LL << (64 - 2 * (z + 8)));
 		double gap = 0, density_gap = 0;
 		double spacing = 0;
@@ -2043,27 +2068,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &extent_previndex);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
 
 			if (sf.t < 0) {
 				break;
-			}
-
-			if (sf.t == VT_POINT) {
-				if (extent_previndex >= sf.index) {
-					sf.extent = 1;
-				} else {
-					double radius = sqrt(sf.index - extent_previndex) / 4.0;
-					sf.extent = M_PI * radius * radius;
-					if (sf.extent < 1) {
-						sf.extent = 1;
-					}
-				}
-
-				extent_previndex = sf.index;
 			}
 
 			if (sf.dropped) {
@@ -2094,7 +2105,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if ((sf.gap < 0 || sf.gap < (long long) mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].clustered++;
 
 					if (partials[which_partial].t == VT_POINT &&
@@ -2117,7 +2128,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (sf.gap < (long long) mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
@@ -2126,7 +2137,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (sf.gap < (long long) mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
@@ -2273,7 +2284,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			merge_previndex = sf.index;
 			coalesced_area = 0;
 		}
 

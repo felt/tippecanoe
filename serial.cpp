@@ -225,6 +225,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
 	}
+	serialize_long_long(s, sf->gap);
 	if (sf->label_point != 0) {
 		serialize_ulong_long(s, sf->label_point);
 	}
@@ -274,6 +275,7 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	deserialize_int(&cp, &sf.segment);
 
 	sf.index = 0;
+	sf.gap = -1;
 	sf.label_point = 0;
 	sf.extent = 0;
 
@@ -282,6 +284,7 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
 	}
+	deserialize_long_long(&cp, &sf.gap);
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
 		deserialize_ulong_long(&cp, &sf.label_point);
 	}
@@ -606,6 +609,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	} else {
 		sf.index = 0;
 	}
+
+	sf.gap = -1;  // will be calculated during z0
 
 	if (sst->layermap->count(sf.layername) == 0) {
 		sst->layermap->insert(std::pair<std::string, layermap_entry>(sf.layername, layermap_entry(sst->layermap->size())));
