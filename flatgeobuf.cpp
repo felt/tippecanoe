@@ -368,7 +368,7 @@ void parse_flatgeobuf(std::vector<struct serialization_state> *sst, const char *
 	auto h_geometry_type = header->geometry_type();
 
 	long long feature_sequence_id = -1;
-	int index_size = 0;
+	long long index_size = 0;
 	if (node_size > 0) {
 		if (!quiet) {
 			fprintf(stderr, "detected indexed FlatGeobuf: assigning feature IDs by sequence\n");
