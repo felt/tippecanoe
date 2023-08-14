@@ -2081,18 +2081,47 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
+		// Postponed features are ones that are unsuitable for the first feature,
+		// because they cross the tile boundary and therefore may be dropped
+		// in different tiles, so they are deferred until the  other features
+		// of the tile have been handled.
+		bool still_reading = true;
+		std::vector<serial_feature> postponed;
+
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
 
-			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &extent_previndex);
-			} else {
-				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
-			}
+			if (still_reading) {
+				if (prefilter == NULL) {
+					sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &extent_previndex);
+				} else {
+					sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
+				}
 
-			if (sf.t < 0) {
-				break;
+				if (sf.t < 0) {
+					still_reading = false;
+				} else {
+					if (partials.size() == 0 &&
+					    (additional[A_CLUSTER_DENSEST_AS_NEEDED] ||
+					     additional[A_COALESCE_DENSEST_AS_NEEDED] ||
+					     additional[A_COALESCE_SMALLEST_AS_NEEDED] ||
+					     additional[A_DROP_DENSEST_AS_NEEDED] ||
+					     additional[A_DROP_SMALLEST_AS_NEEDED] ||
+					     additional[A_COALESCE_FRACTION_AS_NEEDED]) &&
+					    !coalescable(sf.geometry, z)) {
+						postponed.push_back(sf);
+						continue;  // to the next next_feature, parse_feature, or postponed feature
+					}
+				}
+			}
+			if (!still_reading) {
+				if (postponed.size() == 0) {
+					break;	// from the feature-reading loop
+				}
+
+				sf = postponed[0];
+				postponed.erase(postponed.begin());
 			}
 
 			if (sf.dropped) {
