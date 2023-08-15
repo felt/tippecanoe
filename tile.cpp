@@ -455,6 +455,23 @@ struct partial {
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
+
+	void coalesce_geometry(drawvec const &dv) {
+		geoms.push_back(dv);
+		if (t == VT_POLYGON && dv.size() > 30) {
+			drawvec out;
+
+			for (auto const &geom : geoms) {
+				for (auto const &p : geom) {
+					out.push_back(p);
+				}
+			}
+
+			out = clean_or_clip_poly(out, 0, 0, false);
+			geoms.clear();
+			geoms.push_back(out);
+		}
+	}
 };
 
 struct partial_arg {
@@ -2166,7 +2183,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 				if (sf.gap < (long long) mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX) &&
 				    coalescable(sf.geometry, z) && coalescable(partials[which_partial].geoms[0], z)) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesce_geometry(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2186,7 +2203,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent) &&
 				    coalescable(sf.geometry, z) && coalescable(partials[which_partial].geoms[0], z)) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesce_geometry(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2224,7 +2241,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX) &&
 			    coalescable(sf.geometry, z) && coalescable(partials[which_partial].geoms[0], z)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					partials[which_partial].coalesce_geometry(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
