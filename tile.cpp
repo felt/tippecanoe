@@ -331,8 +331,8 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent, long long gap) {
-	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
+void rewrite(serial_feature const &feature, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, int child_shards, int max_zoom_increment, unsigned *initial_x, unsigned *initial_y) {
+	if (feature.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
 
@@ -342,7 +342,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = bbox[k] / (1 << (32 - nextzoom - 8));
+			bbox2[k] = feature.bbox[k] / (1 << (32 - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.
@@ -370,8 +370,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 		}
 
 		drawvec geom2;
-		for (size_t i = 0; i < geom.size(); i++) {
-			geom2.push_back(draw(geom[i].op, SHIFT_RIGHT(geom[i].x + sx), SHIFT_RIGHT(geom[i].y + sy)));
+		for (size_t i = 0; i < feature.geometry.size(); i++) {
+			geom2.push_back(draw(feature.geometry[i].op, SHIFT_RIGHT(feature.geometry[i].x + sx), SHIFT_RIGHT(feature.geometry[i].y + sy)));
 		}
 
 		for (xo = bbox2[0]; xo <= bbox2[2]; xo++) {
@@ -408,32 +408,12 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 						within[j] = 1;
 					}
 
-					serial_feature sf;
-					sf.layer = layer;
-					sf.segment = segment;
-					sf.seq = seq;
-					sf.t = t;
-					sf.has_id = has_id;
-					sf.id = id;
-					sf.has_tippecanoe_minzoom = tippecanoe_minzoom != -1;
-					sf.tippecanoe_minzoom = tippecanoe_minzoom;
-					sf.has_tippecanoe_maxzoom = tippecanoe_maxzoom != -1;
-					sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
+					serial_feature sf = feature;
 					sf.geometry = geom2;
-					sf.index = index;
-					sf.label_point = label_point;
-					sf.extent = extent;
-					sf.feature_minzoom = feature_minzoom;
-					sf.gap = gap;
 
-					for (size_t i = 0; i < metakeys.size(); i++) {
-						sf.keys.push_back(metakeys[i]);
-						sf.values.push_back(metavals[i]);
-					}
-
-					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
-					geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
-					geomfile[j]->fwrite_check(feature.c_str(), sizeof(char), feature.size(), &geompos[j], fname);
+					std::string feature_out = serialize_feature(&sf, SHIFT_RIGHT(initial_x[sf.segment]), SHIFT_RIGHT(initial_y[sf.segment]));
+					geomfile[j]->serialize_long_long(feature_out.size(), &geompos[j], fname);
+					geomfile[j]->fwrite_check(feature_out.c_str(), sizeof(char), feature_out.size(), &geompos[j], fname);
 				}
 			}
 		}
@@ -1516,7 +1496,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent, sf.gap);
+				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, initial_x, initial_y);
 			}
 		}
 

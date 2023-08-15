@@ -263,9 +263,11 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	sf.has_id = false;
 	if (sf.layer & (1 << FLAG_MINZOOM)) {
 		deserialize_int(&cp, &sf.tippecanoe_minzoom);
+		sf.has_tippecanoe_minzoom = true;
 	}
 	if (sf.layer & (1 << FLAG_MAXZOOM)) {
 		deserialize_int(&cp, &sf.tippecanoe_maxzoom);
+		sf.has_tippecanoe_maxzoom = true;
 	}
 	if (sf.layer & (1 << FLAG_ID)) {
 		sf.has_id = true;
