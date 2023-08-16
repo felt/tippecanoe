@@ -32,7 +32,11 @@ significant travel corridor.
 Installation
 ------------
 
-For this fork you will need to build from the source repository:
+The easiest way to install tippecanoe on OSX is with [Homebrew](http://brew.sh/):
+
+$ brew install tippecanoe
+
+On Ubuntu it will usually be easiest to build from the source repository:
 
 ```sh
 $ git clone https://github.com/felt/tippecanoe.git
