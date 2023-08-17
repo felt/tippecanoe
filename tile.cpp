@@ -3238,14 +3238,14 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 					z = args[thread].wrote_zoom;
 				}
 
-                if (args[thread].still_dropping) {
-                    if (additional[A_EXTEND_ZOOMS] && z == maxzoom && maxzoom < MAX_ZOOM) {
-                        maxzoom++;
-                    } else if (extend_zooms_max > 0 && z == maxzoom && maxzoom < MAX_ZOOM) {
-                        maxzoom++;
-                        extend_zooms_max--;
-                    }
-                }
+				if (args[thread].still_dropping) {
+					if (additional[A_EXTEND_ZOOMS] && z == maxzoom && maxzoom < MAX_ZOOM) {
+						maxzoom++;
+					} else if (extend_zooms_max > 0 && z == maxzoom && maxzoom < MAX_ZOOM) {
+						maxzoom++;
+						extend_zooms_max--;
+					}
+				}
 			}
 
 			if ((size_t) z >= strategies.size()) {

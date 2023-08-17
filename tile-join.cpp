@@ -80,7 +80,7 @@ void aprintf(std::string *buf, const char *format, ...) {
 	free(tmp);
 }
 
-void handle(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
+void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
 	bool was_compressed;
@@ -378,6 +378,7 @@ struct reader {
 	long long sorty = 0;
 	long long y = 0;
 	int z_flag = 0;
+	int maxzoom_so_far = 0;
 
 	std::string data = "";
 
@@ -530,6 +531,7 @@ struct arg {
 	std::set<std::string> *remove_layers = NULL;
 	int ifmatched = 0;
 	json_object *filter = NULL;
+	struct reader *readers = NULL;
 };
 
 void *join_worker(void *v) {
@@ -538,8 +540,19 @@ void *join_worker(void *v) {
 	for (auto ai = a->inputs.begin(); ai != a->inputs.end(); ++ai) {
 		mvt_tile tile;
 
+		for (struct reader *r = a->readers; r != NULL; r = r->next) {
+			if (r->maxzoom_so_far < ai->first.z) {
+				// if this reader did not produce any tiles at this zoom level,
+				// and is not ready to produce any tiles at this zoom level,
+				// it is a candidate for overzooming this tile from whatever
+				// zoom level it did produce last.
+
+				printf("overzooming %lld/%lld/%lld from zoom %d\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far);
+			}
+		}
+
 		for (size_t i = 0; i < ai->second.size(); i++) {
-			handle(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
+			append_tile(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
 		}
 
 		ai->second.clear();
@@ -574,7 +587,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter) {
+void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct reader *readers) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -590,6 +603,7 @@ void handle_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<st
 		args[i].remove_layers = &remove_layers;
 		args[i].ifmatched = ifmatched;
 		args[i].filter = filter;
+		args[i].readers = readers;
 	}
 
 	size_t count = 0;
@@ -737,9 +751,12 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	int zoom_for_bbox = -1;
 
 	while (readers != NULL && readers->zoom < 32) {
+		// pull a reader off the front of the queue,
+		// process whatever tile it has ready to read
 		reader *r = readers;
 		readers = readers->next;
 		r->next = NULL;
+
 		if (r->zoom != zoom_for_bbox) {
 			// Only use highest zoom for bbox calculation
 			// to avoid z0 always covering the world
@@ -747,6 +764,10 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			minlat = minlon = minlon2 = INT_MAX;
 			maxlat = maxlon = maxlon2 = INT_MIN;
 			zoom_for_bbox = r->zoom;
+		}
+
+		if (r->zoom > r->maxzoom_so_far) {
+			r->maxzoom_so_far = r->zoom;
 		}
 
 		double lat1, lon1, lat2, lon2;
@@ -776,7 +797,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 
 		if (readers == NULL || readers->zoom != r->zoom || readers->x != r->x || readers->y != r->y) {
 			if (tasks.size() > 100 * CPUS) {
-				handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter);
+				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 				tasks.clear();
 			}
 		}
@@ -820,8 +841,10 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			}
 		}
 
-		struct reader **rr;
+		// put the reader back onto the queue,
+		// in whatever sequence its next tile calls for
 
+		struct reader **rr;
 		for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
 			if (*r < **rr) {
 				break;
@@ -842,7 +865,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	st->minlat2 = min(minlat, st->minlat2);
 	st->maxlat2 = max(maxlat, st->maxlat2);
 
-	handle_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter);
+	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 	layermap = merge_layermaps(layermaps);
 
 	struct reader *next;

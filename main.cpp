@@ -3140,7 +3140,7 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(opt, "preserve-point-density-threshold") == 0) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
-            } else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
+			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
