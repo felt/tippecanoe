@@ -341,6 +341,8 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
  * `-ae` or `--extend-zooms-if-still-dropping`: Increase the maxzoom if features are still being dropped at that zoom level.
    The detail and simplification options that ordinarily apply only to the maximum zoom level will apply both to the originally
    specified maximum zoom and to any levels added beyond that.
+ * `extend-zooms-if-still-dropping-maximum=`_count_: Increase the maxzoom if features are still being dropped at that zoom level
+   by up to _count_ zoom levels.
  * `-R` _zoom_`/`_x_`/`_y_ or `--one-tile=`_zoom_`/`_x_`/`_y_: Set the minzoom and maxzoom to _zoom_ and produce only
    the single specified tile at that zoom level.
 

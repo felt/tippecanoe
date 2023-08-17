@@ -332,7 +332,7 @@ struct ordercmp {
 } ordercmp;
 
 void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
-	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS])) {
+	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
 
@@ -3238,9 +3238,14 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 					z = args[thread].wrote_zoom;
 				}
 
-				if (additional[A_EXTEND_ZOOMS] && z == maxzoom && args[thread].still_dropping && maxzoom < MAX_ZOOM) {
-					maxzoom++;
-				}
+                if (args[thread].still_dropping) {
+                    if (additional[A_EXTEND_ZOOMS] && z == maxzoom && maxzoom < MAX_ZOOM) {
+                        maxzoom++;
+                    } else if (extend_zooms_max > 0 && z == maxzoom && maxzoom < MAX_ZOOM) {
+                        maxzoom++;
+                        extend_zooms_max--;
+                    }
+                }
 			}
 
 			if ((size_t) z >= strategies.size()) {
