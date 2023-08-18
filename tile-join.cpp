@@ -551,15 +551,19 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 			const char *data = (const char *) sqlite3_column_blob(stmt, 0);
 			size_t len = sqlite3_column_bytes(stmt, 0);
 
-			printf("len is %zu\n", len);
 			source = std::string(data, len);
-		} else {
-			printf("no tile %lld/%lld/%lld\n", parent_tile.z, parent_tile.x, parent_tile.y);
 		}
 
 		sqlite3_finalize(stmt);
+	} else if (r->pmtiles_map != NULL) {
+		uint64_t tile_offset;
+		uint32_t tile_length;
+		std::tie(tile_offset, tile_length) = pmtiles_get_tile(r->pmtiles_map, parent_tile.z, parent_tile.x, parent_tile.y);
+		if (tile_length > 0) {
+			source = std::string(r->pmtiles_map + tile_offset, tile_length);
+		}
 	} else {
-		printf("no db\n");
+		source = dir_read_tile(r->dirbase, parent_tile);
 	}
 
 	if (pthread_mutex_unlock(&retrieve_lock) != 0) {
@@ -568,10 +572,7 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 
 	if (source.size() != 0) {
 		std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, 12, 5, std::set<std::string>());
-		printf("returning %zu for %lld/%lld/%lld\n", ret.size(), tile.z, tile.x, tile.y);
 		return ret;
-	} else {
-		printf("source is empty\n");
 	}
 
 	return "";
@@ -607,11 +608,10 @@ void *join_worker(void *v) {
 				// it is a candidate for overzooming this tile from whatever
 				// zoom level it did produce last.
 
-				printf("overzooming %lld/%lld/%lld from zoom %d in %s\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far, r->name.c_str());
+				// printf("overzooming %lld/%lld/%lld from zoom %d in %s\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far, r->name.c_str());
 				std::string overzoomed = retrieve_overzoom(r, ai->first);
 				if (overzoomed.size() != 0) {
 					ai->second.push_back(overzoomed);
-					printf("got something\n");
 				}
 			}
 		}
