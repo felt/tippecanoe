@@ -40,6 +40,7 @@
 #include "jsonpull/jsonpull.h"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "geometry.hpp"
 
 int pk = false;
 int pC = false;
@@ -519,18 +520,52 @@ struct reader *begin_reading(char *fname) {
 
 std::string retrieve_overzoom(struct reader *r, zxy tile) {
 	// lock around sqlite3 access
-	static pthread_mutex_t retrieve_lock;
-	std::string ret = "";
+	static pthread_mutex_t retrieve_lock = PTHREAD_MUTEX_INITIALIZER;
+
+	zxy parent_tile = tile;
+	while (parent_tile.z > r->maxzoom_so_far) {
+		parent_tile.z--;
+		parent_tile.x /= 2;
+		parent_tile.y /= 2;
+	}
 
 	if (pthread_mutex_lock(&retrieve_lock) != 0) {
 		perror("pthread_mutex_lock");
+	}
+
+	std::string source;
+	if (r->db != NULL) {
+		const char *sql = "SELECT tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?;";
+		sqlite3_stmt *stmt;
+		if (sqlite3_prepare_v2(r->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+			fprintf(stderr, "%s: select failed: %s\n", r->name.c_str(), sqlite3_errmsg(r->db));
+			exit(EXIT_SQLITE);
+		}
+
+		sqlite3_bind_int(stmt, 1, parent_tile.z);
+		sqlite3_bind_int(stmt, 2, parent_tile.x);
+		sqlite3_bind_int(stmt, 3, parent_tile.y);
+
+		if (sqlite3_step(stmt) == SQLITE_ROW) {
+			const char *data = (const char *) sqlite3_column_blob(r->stmt, 3);
+			size_t len = sqlite3_column_bytes(r->stmt, 3);
+
+			source = std::string(data, len);
+		}
+
+		sqlite3_finalize(stmt);
 	}
 
 	if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 		perror("pthread_mutex_unlock");
 	}
 
-	return ret;
+	if (source.size() != 0) {
+		std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, 12, 5, std::set<std::string>());
+		return ret;
+	}
+
+	return "";
 }
 
 struct arg {
