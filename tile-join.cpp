@@ -544,16 +544,22 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 
 		sqlite3_bind_int(stmt, 1, parent_tile.z);
 		sqlite3_bind_int(stmt, 2, parent_tile.x);
+		// sqlite3_bind_int(stmt, 3, parent_tile.y);
 		sqlite3_bind_int(stmt, 3, (1LL << parent_tile.z) - 1 - parent_tile.y);
 
 		if (sqlite3_step(stmt) == SQLITE_ROW) {
-			const char *data = (const char *) sqlite3_column_blob(r->stmt, 1);
-			size_t len = sqlite3_column_bytes(r->stmt, 1);
+			const char *data = (const char *) sqlite3_column_blob(stmt, 0);
+			size_t len = sqlite3_column_bytes(stmt, 0);
 
+			printf("len is %zu\n", len);
 			source = std::string(data, len);
+		} else {
+			printf("no tile %lld/%lld/%lld\n", parent_tile.z, parent_tile.x, parent_tile.y);
 		}
 
 		sqlite3_finalize(stmt);
+	} else {
+		printf("no db\n");
 	}
 
 	if (pthread_mutex_unlock(&retrieve_lock) != 0) {
@@ -562,7 +568,10 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 
 	if (source.size() != 0) {
 		std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, 12, 5, std::set<std::string>());
+		printf("returning %zu for %lld/%lld/%lld\n", ret.size(), tile.z, tile.x, tile.y);
 		return ret;
+	} else {
+		printf("source is empty\n");
 	}
 
 	return "";
@@ -602,6 +611,7 @@ void *join_worker(void *v) {
 				std::string overzoomed = retrieve_overzoom(r, ai->first);
 				if (overzoomed.size() != 0) {
 					ai->second.push_back(overzoomed);
+					printf("got something\n");
 				}
 			}
 		}
