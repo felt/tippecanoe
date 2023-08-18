@@ -11,7 +11,7 @@ extern char *optarg;
 extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
-int buffer = 5;  // tippecanoe-style: mvt buffer == extent * buffer / 256;
+int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 
 std::set<std::string> keep;
 
