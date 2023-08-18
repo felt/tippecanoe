@@ -586,9 +586,14 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 	for (auto const &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();
 
+		int det = detail;
+		if (det <= 0) {
+			det = std::round(log(layer.extent) / log(2));
+		}
+
 		outlayer.name = layer.name;
 		outlayer.version = layer.version;
-		outlayer.extent = 1LL << detail;
+		outlayer.extent = 1LL << det;
 
 		for (auto const &feature : layer.features) {
 			mvt_feature outfeature;
@@ -636,7 +641,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 
 			// Scale to output tile extent
 
-			to_tile_scale(geom, nz, detail);
+			to_tile_scale(geom, nz, det);
 
 			// Clean geometries
 

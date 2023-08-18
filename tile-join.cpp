@@ -53,6 +53,9 @@ int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
 
+bool want_overzoom = false;
+int buffer = 5;
+
 bool progress_time() {
 	return false;
 }
@@ -571,7 +574,7 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 	}
 
 	if (source.size() != 0) {
-		std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, 12, 5, std::set<std::string>());
+		std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>());
 		return ret;
 	}
 
@@ -601,17 +604,18 @@ void *join_worker(void *v) {
 	for (auto ai = a->inputs.begin(); ai != a->inputs.end(); ++ai) {
 		mvt_tile tile;
 
-		for (struct reader *r = a->readers; r != NULL; r = r->next) {
-			if (r->maxzoom_so_far < ai->first.z) {
-				// if this reader did not produce any tiles at this zoom level,
-				// and is not ready to produce any tiles at this zoom level,
-				// it is a candidate for overzooming this tile from whatever
-				// zoom level it did produce last.
+		if (want_overzoom) {
+			for (struct reader *r = a->readers; r != NULL; r = r->next) {
+				if (r->maxzoom_so_far < ai->first.z) {
+					// if this reader did not produce any tiles at this zoom level,
+					// and is not ready to produce any tiles at this zoom level,
+					// it is a candidate for overzooming this tile from whatever
+					// zoom level it did produce last.
 
-				// printf("overzooming %lld/%lld/%lld from zoom %d in %s\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far, r->name.c_str());
-				std::string overzoomed = retrieve_overzoom(r, ai->first);
-				if (overzoomed.size() != 0) {
-					ai->second.push_back(overzoomed);
+					std::string overzoomed = retrieve_overzoom(r, ai->first);
+					if (overzoomed.size() != 0) {
+						ai->second.push_back(overzoomed);
+					}
 				}
 			}
 		}
@@ -958,8 +962,10 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
 				int maxz = min(sqlite3_column_int(r->stmt, 0), maxzoom);
 
-				if (st->maxzoom >= 0 && maxz != st->maxzoom) {
-					fprintf(stderr, "Warning: mismatched maxzooms: %d in %s vs previous %d\n", maxz, r->name.c_str(), st->maxzoom);
+				if (!want_overzoom) {
+					if (st->maxzoom >= 0 && maxz != st->maxzoom) {
+						fprintf(stderr, "Warning: mismatched maxzooms: %d in %s vs previous %d\n", maxz, r->name.c_str(), st->maxzoom);
+					}
 				}
 
 				st->maxzoom = max(st->maxzoom, maxz);
@@ -1117,6 +1123,8 @@ int main(int argc, char **argv) {
 		{"output", required_argument, 0, 'o'},
 		{"output-to-directory", required_argument, 0, 'e'},
 		{"force", no_argument, 0, 'f'},
+		{"overzoom", no_argument, 0, 'O'},
+		{"buffer", required_argument, 0, 'b'},
 		{"if-matched", no_argument, 0, 'i'},
 		{"attribution", required_argument, 0, 'A'},
 		{"name", required_argument, 0, 'n'},
@@ -1180,6 +1188,14 @@ int main(int argc, char **argv) {
 
 		case 'f':
 			force = 1;
+			break;
+
+		case 'O':
+			want_overzoom = true;
+			break;
+
+		case 'b':
+			buffer = atoi(optarg);
 			break;
 
 		case 'i':
@@ -1335,6 +1351,11 @@ int main(int argc, char **argv) {
 
 	if (minzoom > maxzoom) {
 		fprintf(stderr, "%s: Minimum zoom -Z%d cannot be greater than maxzoom -z%d\n", argv[0], minzoom, maxzoom);
+		exit(EXIT_ARGS);
+	}
+
+	if (buffer < 0) {
+		fprintf(stderr, "%s: buffer cannot be less than 0\n", argv[0]);
 		exit(EXIT_ARGS);
 	}
 

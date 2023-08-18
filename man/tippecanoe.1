@@ -968,6 +968,13 @@ The options are:
 .IP \(bu 2
 \fB\fC\-r\fR or \fB\fC\-\-read\-from\fR: list of input mbtiles to read from.
 .RE
+.SS Overzooming
+.RS
+.IP \(bu 2
+\fB\fC\-\-overzoom\fR: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
+.IP \(bu 2
+\fB\fC\-\-buffer=\fR\fIpixels\fP or \fB\fC\-b\fR \fIpixels\fP: Set the size of the tile buffer in the overzoomed tiles.
+.RE
 .SS Tileset description and attribution
 .RS
 .IP \(bu 2

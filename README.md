@@ -767,6 +767,11 @@ The options are:
  * `-f` or `--force`: Remove *out.mbtiles* if it already exists.
  * `-r` or `--read-from`: list of input mbtiles to read from.
 
+### Overzooming
+
+ * `--overzoom`: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
+ * `--buffer=`_pixels_ or `-b` _pixels_: Set the size of the tile buffer in the overzoomed tiles.
+
 ### Tileset description and attribution
 
  * `-A` *attribution* or `--attribution=`*attribution*: Set the attribution string.
