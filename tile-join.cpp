@@ -544,11 +544,11 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 
 		sqlite3_bind_int(stmt, 1, parent_tile.z);
 		sqlite3_bind_int(stmt, 2, parent_tile.x);
-		sqlite3_bind_int(stmt, 3, parent_tile.y);
+		sqlite3_bind_int(stmt, 3, (1LL << parent_tile.z) - 1 - parent_tile.y);
 
 		if (sqlite3_step(stmt) == SQLITE_ROW) {
-			const char *data = (const char *) sqlite3_column_blob(r->stmt, 3);
-			size_t len = sqlite3_column_bytes(r->stmt, 3);
+			const char *data = (const char *) sqlite3_column_blob(r->stmt, 1);
+			size_t len = sqlite3_column_bytes(r->stmt, 1);
 
 			source = std::string(data, len);
 		}
@@ -598,7 +598,7 @@ void *join_worker(void *v) {
 				// it is a candidate for overzooming this tile from whatever
 				// zoom level it did produce last.
 
-				printf("overzooming %lld/%lld/%lld from zoom %d\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far);
+				printf("overzooming %lld/%lld/%lld from zoom %d in %s\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far, r->name.c_str());
 				std::string overzoomed = retrieve_overzoom(r, ai->first);
 				if (overzoomed.size() != 0) {
 					ai->second.push_back(overzoomed);
