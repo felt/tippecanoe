@@ -517,6 +517,22 @@ struct reader *begin_reading(char *fname) {
 	return r;
 }
 
+std::string retrieve_overzoom(struct reader *r, zxy tile) {
+	// lock around sqlite3 access
+	static pthread_mutex_t retrieve_lock;
+	std::string ret = "";
+
+	if (pthread_mutex_lock(&retrieve_lock) != 0) {
+		perror("pthread_mutex_lock");
+	}
+
+	if (pthread_mutex_unlock(&retrieve_lock) != 0) {
+		perror("pthread_mutex_unlock");
+	}
+
+	return ret;
+}
+
 struct arg {
 	std::map<zxy, std::vector<std::string>> inputs{};
 	std::map<zxy, std::string> outputs{};
@@ -548,6 +564,10 @@ void *join_worker(void *v) {
 				// zoom level it did produce last.
 
 				printf("overzooming %lld/%lld/%lld from zoom %d\n", ai->first.z, ai->first.x, ai->first.y, r->maxzoom_so_far);
+				std::string overzoomed = retrieve_overzoom(r, ai->first);
+				if (overzoomed.size() != 0) {
+					ai->second.push_back(overzoomed);
+				}
 			}
 		}
 
