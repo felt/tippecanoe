@@ -516,18 +516,6 @@ struct reader *begin_reading(char *fname) {
 
 		r->dirtiles = enumerate_dirtiles(fname, minzoom, maxzoom);
 		r->dirbase = fname;
-
-		if (r->dirtiles.size() == 0) {
-			r->zoom = 32;
-		} else {
-			r->zoom = r->dirtiles[0].z;
-			r->x = r->dirtiles[0].x;
-			r->y = r->dirtiles[0].y;
-			r->sorty = (1LL << r->zoom) - 1 - r->y;
-			r->data = dir_read_tile(r->dirbase, r->dirtiles[0]);
-
-			r->dirtiles.erase(r->dirtiles.begin());
-		}
 	} else if (pmtiles_has_suffix(fname)) {
 		int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
 		r->pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
@@ -543,18 +531,6 @@ struct reader *begin_reading(char *fname) {
 
 		r->pmtiles_entries = pmtiles_entries_tms(r->pmtiles_map, minzoom, maxzoom);
 		std::reverse(r->pmtiles_entries.begin(), r->pmtiles_entries.end());
-
-		if (r->pmtiles_entries.size() == 0) {
-			r->zoom = 32;
-		} else {
-			r->zoom = r->pmtiles_entries.back().z;
-			r->x = r->pmtiles_entries.back().x;
-			r->y = r->pmtiles_entries.back().y;
-			r->sorty = (1LL << r->zoom) - 1 - r->y;
-
-			r->data = std::string(r->pmtiles_map + r->pmtiles_entries.back().offset, r->pmtiles_entries.back().length);
-			r->pmtiles_entries.pop_back();
-		}
 	} else {
 		sqlite3 *db;
 
@@ -580,22 +556,12 @@ struct reader *begin_reading(char *fname) {
 		r->db = db;
 		r->stmt = stmt;
 		r->next = NULL;
-
-		if (sqlite3_step(stmt) == SQLITE_ROW) {
-			r->zoom = sqlite3_column_int(stmt, 0);
-			r->x = sqlite3_column_int(stmt, 1);
-			r->sorty = sqlite3_column_int(stmt, 2);
-			r->y = (1LL << r->zoom) - 1 - r->sorty;
-
-			const char *data = (const char *) sqlite3_column_blob(stmt, 3);
-			size_t len = sqlite3_column_bytes(stmt, 3);
-
-			r->data = std::string(data, len);
-		} else {
-			r->zoom = 32;
-		}
 	}
 
+	// The reason this prefetches is so the reader queue can be
+	// priority-ordered, so the one with the next relevant tile
+	// is first in line.
+	r->advance();
 	return r;
 }
 
@@ -918,6 +884,9 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			}
 		}
 
+		// The reason this prefetches is so the reader queue can be
+		// priority-ordered, so the one with the next relevant tile
+		// is first in line.
 		r->advance();
 
 		// put the reader back onto the queue,
@@ -1307,6 +1276,8 @@ int main(int argc, char **argv) {
 				while (getline(read_file, sa)) {
 					char *c = const_cast<char *>(sa.c_str());
 					reader *r = begin_reading(c);
+
+					// put the new reader in priority order
 					struct reader **rr;
 					for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
 						if (*r < **rr) {
@@ -1397,8 +1368,9 @@ int main(int argc, char **argv) {
 	if (filearg == 0) {
 		for (i = optind; i < argc; i++) {
 			reader *r = begin_reading(argv[i]);
-			struct reader **rr;
 
+			// put the new reader in priority order
+			struct reader **rr;
 			for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
 				if (*r < **rr) {
 					break;
