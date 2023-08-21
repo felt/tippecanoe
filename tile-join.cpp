@@ -503,60 +503,60 @@ struct reader {
 
 		return false;
 	}
+
+	reader(const char *fname) {
+		name = fname;
+		struct stat st;
+		if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
+			db = NULL;
+			stmt = NULL;
+			next = NULL;
+
+			dirtiles = enumerate_dirtiles(fname, minzoom, maxzoom);
+			dirbase = fname;
+		} else if (pmtiles_has_suffix(fname)) {
+			int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
+			pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
+
+			if (pmtiles_map == MAP_FAILED) {
+				perror("mmap in decode");
+				exit(EXIT_MEMORY);
+			}
+			if (close(pmtiles_fd) != 0) {
+				perror("close");
+				exit(EXIT_CLOSE);
+			}
+
+			pmtiles_entries = pmtiles_entries_tms(pmtiles_map, minzoom, maxzoom);
+			std::reverse(pmtiles_entries.begin(), pmtiles_entries.end());
+		} else {
+			if (sqlite3_open(fname, &db) != SQLITE_OK) {
+				fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
+				exit(EXIT_SQLITE);
+			}
+
+			char *err = NULL;
+			if (sqlite3_exec(db, "PRAGMA integrity_check;", NULL, NULL, &err) != SQLITE_OK) {
+				fprintf(stderr, "%s: integrity_check: %s\n", fname, err);
+				exit(EXIT_SQLITE);
+			}
+
+			const char *sql = "SELECT zoom_level, tile_column, tile_row, tile_data from tiles order by zoom_level, tile_column, tile_row;";
+			sqlite3_stmt *query;
+
+			if (sqlite3_prepare_v2(db, sql, -1, &query, NULL) != SQLITE_OK) {
+				fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
+				exit(EXIT_SQLITE);
+			}
+
+			stmt = query;
+			next = NULL;
+		}
+	}
 };
 
 struct reader *begin_reading(char *fname) {
-	struct reader *r = new reader;
-	r->name = fname;
-	struct stat st;
-	if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
-		r->db = NULL;
-		r->stmt = NULL;
-		r->next = NULL;
-
-		r->dirtiles = enumerate_dirtiles(fname, minzoom, maxzoom);
-		r->dirbase = fname;
-	} else if (pmtiles_has_suffix(fname)) {
-		int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
-		r->pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
-
-		if (r->pmtiles_map == MAP_FAILED) {
-			perror("mmap in decode");
-			exit(EXIT_MEMORY);
-		}
-		if (close(pmtiles_fd) != 0) {
-			perror("close");
-			exit(EXIT_CLOSE);
-		}
-
-		r->pmtiles_entries = pmtiles_entries_tms(r->pmtiles_map, minzoom, maxzoom);
-		std::reverse(r->pmtiles_entries.begin(), r->pmtiles_entries.end());
-	} else {
-		sqlite3 *db;
-
-		if (sqlite3_open(fname, &db) != SQLITE_OK) {
-			fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
-			exit(EXIT_SQLITE);
-		}
-
-		char *err = NULL;
-		if (sqlite3_exec(db, "PRAGMA integrity_check;", NULL, NULL, &err) != SQLITE_OK) {
-			fprintf(stderr, "%s: integrity_check: %s\n", fname, err);
-			exit(EXIT_SQLITE);
-		}
-
-		const char *sql = "SELECT zoom_level, tile_column, tile_row, tile_data from tiles order by zoom_level, tile_column, tile_row;";
-		sqlite3_stmt *stmt;
-
-		if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-			fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
-			exit(EXIT_SQLITE);
-		}
-
-		r->db = db;
-		r->stmt = stmt;
-		r->next = NULL;
-	}
+	struct reader *r = new reader(fname);
 
 	// The reason this prefetches is so the reader queue can be
 	// priority-ordered, so the one with the next relevant tile
