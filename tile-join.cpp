@@ -397,6 +397,84 @@ struct reader {
 	char *pmtiles_map = NULL;
 	std::vector<pmtiles::entry_zxy> pmtiles_entries;
 
+	void advance() {
+		if (db != NULL) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				zoom = sqlite3_column_int(stmt, 0);
+				x = sqlite3_column_int(stmt, 1);
+				sorty = sqlite3_column_int(stmt, 2);
+				y = (1LL << zoom) - 1 - sorty;
+				const char *s = (const char *) sqlite3_column_blob(stmt, 3);
+				size_t len = sqlite3_column_bytes(stmt, 3);
+
+				data = std::string(s, len);
+			} else {
+				zoom = 32;
+			}
+		} else if (pmtiles_map != NULL) {
+			if (pmtiles_entries.size() == 0) {
+				zoom = 32;
+			} else {
+				zoom = pmtiles_entries.back().z;
+				x = pmtiles_entries.back().x;
+				y = pmtiles_entries.back().y;
+				sorty = (1LL << zoom) - 1 - y;
+				data = std::string(pmtiles_map + pmtiles_entries.back().offset, pmtiles_entries.back().length);
+
+				pmtiles_entries.pop_back();
+			}
+		} else {
+			if (dirtiles.size() == 0) {
+				zoom = 32;
+			} else {
+				zoom = dirtiles[0].z;
+				x = dirtiles[0].x;
+				y = dirtiles[0].y;
+				sorty = (1LL << zoom) - 1 - y;
+				data = dir_read_tile(dirbase, dirtiles[0]);
+
+				dirtiles.erase(dirtiles.begin());
+			}
+		}
+	}
+
+	std::string get_tile(zxy tile) {
+		std::string source;
+
+		if (db != NULL) {
+			const char *sql = "SELECT tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?;";
+			sqlite3_stmt *query;
+			if (sqlite3_prepare_v2(db, sql, -1, &query, NULL) != SQLITE_OK) {
+				fprintf(stderr, "%s: select failed: %s\n", name.c_str(), sqlite3_errmsg(db));
+				exit(EXIT_SQLITE);
+			}
+
+			sqlite3_bind_int(query, 1, tile.z);
+			sqlite3_bind_int(query, 2, tile.x);
+			sqlite3_bind_int(query, 3, (1LL << tile.z) - 1 - tile.y);
+
+			if (sqlite3_step(query) == SQLITE_ROW) {
+				const char *s = (const char *) sqlite3_column_blob(query, 0);
+				size_t len = sqlite3_column_bytes(query, 0);
+
+				source = std::string(s, len);
+			}
+
+			sqlite3_finalize(query);
+		} else if (pmtiles_map != NULL) {
+			uint64_t tile_offset;
+			uint32_t tile_length;
+			std::tie(tile_offset, tile_length) = pmtiles_get_tile(pmtiles_map, tile.z, tile.x, tile.y);
+			if (tile_length > 0) {
+				source = std::string(pmtiles_map + tile_offset, tile_length);
+			}
+		} else {
+			source = dir_read_tile(dirbase, tile);
+		}
+
+		return source;
+	}
+
 	bool operator<(const struct reader &r) const {
 		if (zoom < r.zoom) {
 			return true;
@@ -536,38 +614,7 @@ std::string retrieve_overzoom(struct reader *r, zxy tile) {
 		perror("pthread_mutex_lock");
 	}
 
-	std::string source;
-	if (r->db != NULL) {
-		const char *sql = "SELECT tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?;";
-		sqlite3_stmt *stmt;
-		if (sqlite3_prepare_v2(r->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-			fprintf(stderr, "%s: select failed: %s\n", r->name.c_str(), sqlite3_errmsg(r->db));
-			exit(EXIT_SQLITE);
-		}
-
-		sqlite3_bind_int(stmt, 1, parent_tile.z);
-		sqlite3_bind_int(stmt, 2, parent_tile.x);
-		// sqlite3_bind_int(stmt, 3, parent_tile.y);
-		sqlite3_bind_int(stmt, 3, (1LL << parent_tile.z) - 1 - parent_tile.y);
-
-		if (sqlite3_step(stmt) == SQLITE_ROW) {
-			const char *data = (const char *) sqlite3_column_blob(stmt, 0);
-			size_t len = sqlite3_column_bytes(stmt, 0);
-
-			source = std::string(data, len);
-		}
-
-		sqlite3_finalize(stmt);
-	} else if (r->pmtiles_map != NULL) {
-		uint64_t tile_offset;
-		uint32_t tile_length;
-		std::tie(tile_offset, tile_length) = pmtiles_get_tile(r->pmtiles_map, parent_tile.z, parent_tile.x, parent_tile.y);
-		if (tile_length > 0) {
-			source = std::string(r->pmtiles_map + tile_offset, tile_length);
-		}
-	} else {
-		source = dir_read_tile(r->dirbase, parent_tile);
-	}
+	std::string source = r->get_tile(parent_tile);
 
 	if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 		perror("pthread_mutex_unlock");
@@ -871,44 +918,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			}
 		}
 
-		if (r->db != NULL) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				r->zoom = sqlite3_column_int(r->stmt, 0);
-				r->x = sqlite3_column_int(r->stmt, 1);
-				r->sorty = sqlite3_column_int(r->stmt, 2);
-				r->y = (1LL << r->zoom) - 1 - r->sorty;
-				const char *data = (const char *) sqlite3_column_blob(r->stmt, 3);
-				size_t len = sqlite3_column_bytes(r->stmt, 3);
-
-				r->data = std::string(data, len);
-			} else {
-				r->zoom = 32;
-			}
-		} else if (r->pmtiles_map != NULL) {
-			if (r->pmtiles_entries.size() == 0) {
-				r->zoom = 32;
-			} else {
-				r->zoom = r->pmtiles_entries.back().z;
-				r->x = r->pmtiles_entries.back().x;
-				r->y = r->pmtiles_entries.back().y;
-				r->sorty = (1LL << r->zoom) - 1 - r->y;
-				r->data = std::string(r->pmtiles_map + r->pmtiles_entries.back().offset, r->pmtiles_entries.back().length);
-
-				r->pmtiles_entries.pop_back();
-			}
-		} else {
-			if (r->dirtiles.size() == 0) {
-				r->zoom = 32;
-			} else {
-				r->zoom = r->dirtiles[0].z;
-				r->x = r->dirtiles[0].x;
-				r->y = r->dirtiles[0].y;
-				r->sorty = (1LL << r->zoom) - 1 - r->y;
-				r->data = dir_read_tile(r->dirbase, r->dirtiles[0]);
-
-				r->dirtiles.erase(r->dirtiles.begin());
-			}
-		}
+		r->advance();
 
 		// put the reader back onto the queue,
 		// in whatever sequence its next tile calls for
