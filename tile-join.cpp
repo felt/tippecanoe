@@ -397,7 +397,15 @@ struct reader {
 	char *pmtiles_map = NULL;
 	std::vector<pmtiles::entry_zxy> pmtiles_entries;
 
+	std::pair<zxy, std::string> current() {
+		return std::pair<zxy, std::string>(zxy(zoom, x, y), data);
+	}
+
 	void advance() {
+		if (zoom > maxzoom_so_far) {
+			maxzoom_so_far = zoom;
+		}
+
 		if (db != NULL) {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
 				zoom = sqlite3_column_int(stmt, 0);
@@ -504,6 +512,46 @@ struct reader {
 		return false;
 	}
 
+	std::string retrieve_overzoom(zxy tile) {
+		// lock around sqlite3 access
+		static pthread_mutex_t retrieve_lock = PTHREAD_MUTEX_INITIALIZER;
+
+		zxy parent_tile = tile;
+		while (parent_tile.z > maxzoom_so_far) {
+			parent_tile.z--;
+			parent_tile.x /= 2;
+			parent_tile.y /= 2;
+		}
+
+		if (pthread_mutex_lock(&retrieve_lock) != 0) {
+			perror("pthread_mutex_lock");
+		}
+
+		std::string source = get_tile(parent_tile);
+
+		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
+			perror("pthread_mutex_unlock");
+		}
+
+		if (source.size() != 0) {
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>());
+			return ret;
+		}
+
+		return "";
+	}
+
+	void close() {
+		if (pmtiles_map) {
+			db = pmtilesmeta2tmp(name.c_str(), pmtiles_map);
+			// json, strategies
+		} else if (db == NULL) {
+			db = dirmeta2tmp(dirbase.c_str());
+		} else {
+			sqlite3_finalize(stmt);
+		}
+	}
+
 	reader(const char *fname) {
 		name = fname;
 		struct stat st;
@@ -522,7 +570,7 @@ struct reader {
 				perror("mmap in decode");
 				exit(EXIT_MEMORY);
 			}
-			if (close(pmtiles_fd) != 0) {
+			if (::close(pmtiles_fd) != 0) {
 				perror("close");
 				exit(EXIT_CLOSE);
 			}
@@ -565,35 +613,6 @@ struct reader *begin_reading(char *fname) {
 	return r;
 }
 
-std::string retrieve_overzoom(struct reader *r, zxy tile) {
-	// lock around sqlite3 access
-	static pthread_mutex_t retrieve_lock = PTHREAD_MUTEX_INITIALIZER;
-
-	zxy parent_tile = tile;
-	while (parent_tile.z > r->maxzoom_so_far) {
-		parent_tile.z--;
-		parent_tile.x /= 2;
-		parent_tile.y /= 2;
-	}
-
-	if (pthread_mutex_lock(&retrieve_lock) != 0) {
-		perror("pthread_mutex_lock");
-	}
-
-	std::string source = r->get_tile(parent_tile);
-
-	if (pthread_mutex_unlock(&retrieve_lock) != 0) {
-		perror("pthread_mutex_unlock");
-	}
-
-	if (source.size() != 0) {
-		std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>());
-		return ret;
-	}
-
-	return "";
-}
-
 struct arg {
 	std::map<zxy, std::vector<std::string>> inputs{};
 	std::map<zxy, std::string> outputs{};
@@ -625,7 +644,7 @@ void *join_worker(void *v) {
 					// it is a candidate for overzooming this tile from whatever
 					// zoom level it did produce last.
 
-					std::string overzoomed = retrieve_overzoom(r, ai->first);
+					std::string overzoomed = r->retrieve_overzoom(ai->first);
 					if (overzoomed.size() != 0) {
 						ai->second.push_back(overzoomed);
 					}
@@ -839,22 +858,20 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		readers = readers->next;
 		r->next = NULL;
 
-		if (r->zoom != zoom_for_bbox) {
+		std::pair<zxy, std::string> current = r->current();
+
+		if (current.first.z != zoom_for_bbox) {
 			// Only use highest zoom for bbox calculation
 			// to avoid z0 always covering the world
 
 			minlat = minlon = minlon2 = INT_MAX;
 			maxlat = maxlon = maxlon2 = INT_MIN;
-			zoom_for_bbox = r->zoom;
-		}
-
-		if (r->zoom > r->maxzoom_so_far) {
-			r->maxzoom_so_far = r->zoom;
+			zoom_for_bbox = current.first.z;
 		}
 
 		double lat1, lon1, lat2, lon2;
-		tile2lonlat(r->x, r->y, r->zoom, &lon1, &lat1);
-		tile2lonlat(r->x + 1, r->y + 1, r->zoom, &lon2, &lat2);
+		tile2lonlat(current.first.x, current.first.y, current.first.z, &lon1, &lat1);
+		tile2lonlat(current.first.x + 1, current.first.y + 1, current.first.z, &lon2, &lat2);
 		minlat = min(lat2, minlat);
 		minlon = min(lon1, minlon);
 		maxlat = max(lat1, maxlat);
@@ -868,16 +885,16 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		minlon2 = min(lon1, minlon2);
 		maxlon2 = max(lon2, maxlon2);
 
-		if (r->zoom >= minzoom && r->zoom <= maxzoom) {
-			zxy tile = zxy(r->zoom, r->x, r->y);
+		if (current.first.z >= minzoom && current.first.z <= maxzoom) {
+			zxy tile = current.first;
 			if (tasks.count(tile) == 0) {
 				tasks.insert(std::pair<zxy, std::vector<std::string>>(tile, std::vector<std::string>()));
 			}
 			auto f = tasks.find(tile);
-			f->second.push_back(r->data);
+			f->second.push_back(current.second);
 		}
 
-		if (readers == NULL || readers->zoom != r->zoom || readers->x != r->x || readers->y != r->y) {
+		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
 			if (tasks.size() > 100 * CPUS) {
 				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 				tasks.clear();
@@ -919,27 +936,19 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	struct reader *next;
 	for (struct reader *r = readers; r != NULL; r = next) {
 		next = r->next;
+		r->close();
 
-		sqlite3 *db = r->db;
-		if (r->pmtiles_map) {
-			db = pmtilesmeta2tmp(r->name.c_str(), r->pmtiles_map);
-			// json, strategies
-		} else if (db == NULL) {
-			db = dirmeta2tmp(r->dirbase.c_str());
-		} else {
-			sqlite3_finalize(r->stmt);
-		}
-
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'minzoom'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				int minz = max(sqlite3_column_int(r->stmt, 0), minzoom);
+		sqlite3_stmt *stmt;
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'minzoom'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				int minz = max(sqlite3_column_int(stmt, 0), minzoom);
 				st->minzoom = min(st->minzoom, minz);
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'maxzoom'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				int maxz = min(sqlite3_column_int(r->stmt, 0), maxzoom);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'maxzoom'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				int maxz = min(sqlite3_column_int(stmt, 0), maxzoom);
 
 				if (!want_overzoom) {
 					if (st->maxzoom >= 0 && maxz != st->maxzoom) {
@@ -949,38 +958,38 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 
 				st->maxzoom = max(st->maxzoom, maxz);
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'center'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'center'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				if (s != NULL) {
 					sscanf((char *) s, "%lf,%lf", &st->midlon, &st->midlat);
 				}
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'attribution'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'attribution'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				if (s != NULL) {
 					attribution = std::string((char *) s);
 				}
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'description'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'description'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				if (s != NULL) {
 					description = std::string((char *) s);
 				}
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'name'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'name'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				if (s != NULL) {
 					if (name.size() == 0) {
 						name = std::string((char *) s);
@@ -992,11 +1001,11 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 					}
 				}
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'bounds'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'bounds'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				if (s != NULL) {
 					if (sscanf((char *) s, "%lf,%lf,%lf,%lf", &minlon, &minlat, &maxlon, &maxlat) == 4) {
 						st->minlon = min(minlon, st->minlon);
@@ -1006,11 +1015,11 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 					}
 				}
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'json'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'json'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 
 				if (s != NULL) {
 					json_pull *jp = json_begin_string((const char *) s);
@@ -1027,11 +1036,11 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 				}
 			}
 
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'generator_options'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'generator_options'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				if (s != NULL) {
 					if (generator_options.size() != 0) {
 						generator_options.append("; ");
@@ -1041,19 +1050,19 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 					}
 				}
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
-		if (sqlite3_prepare_v2(db, "SELECT value from metadata where name = 'strategies'", -1, &r->stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(r->stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(r->stmt, 0);
+		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'strategies'", -1, &stmt, NULL) == SQLITE_OK) {
+			if (sqlite3_step(stmt) == SQLITE_ROW) {
+				const unsigned char *s = sqlite3_column_text(stmt, 0);
 				handle_strategies(s, strategies);
 			}
-			sqlite3_finalize(r->stmt);
+			sqlite3_finalize(stmt);
 		}
 
-		// Closes either real db or temp mirror of metadata.json
-		if (sqlite3_close(db) != SQLITE_OK) {
-			fprintf(stderr, "Could not close database: %s\n", sqlite3_errmsg(db));
+		// Closes either real r->db or temp mirror of metadata.json
+		if (sqlite3_close(r->db) != SQLITE_OK) {
+			fprintf(stderr, "Could not close database: %s\n", sqlite3_errmsg(r->db));
 			exit(EXIT_CLOSE);
 		}
 
