@@ -381,11 +381,15 @@ struct reader {
 	long long x = 0;
 	long long y = 0;
 	int z_flag = 0;
-	bool done = false;
 	std::string data = "";
 
+	// "done" means we have read all of the real tiles from the source.
+	// The iterator will continue to produce overzoomed tiles after it is "done."
+	bool done = false;
+
 	int maxzoom_so_far = -1;
-	std::set<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
+	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
+	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
 
 	std::vector<zxy> dirtiles;
 	std::string dirbase;
@@ -403,6 +407,26 @@ struct reader {
 	}
 
 	void advance() {
+		if (done) {
+			if (!want_overzoom) {
+				fprintf(stderr, "overzoom advance called without -O\n");
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			if (overzoomed_tiles.size() == 0) {
+				next_overzoom();
+			}
+
+			auto xy = overzoomed_tiles.front();
+			overzoomed_tiles.erase(overzoomed_tiles.begin());
+
+			x = xy.first;
+			y = xy.second;
+
+			data = retrieve_overzoom(zxy(zoom, x, y));
+			return;
+		}
+
 		if (db != NULL) {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
 				zoom = sqlite3_column_int(stmt, 0);
@@ -414,12 +438,10 @@ struct reader {
 
 				data = std::string(s, len);
 			} else {
-				zoom = 32;
 				done = true;
 			}
 		} else if (pmtiles_map != NULL) {
 			if (pmtiles_entries.size() == 0) {
-				zoom = 32;
 				done = true;
 			} else {
 				zoom = pmtiles_entries.back().z;
@@ -431,7 +453,6 @@ struct reader {
 			}
 		} else {
 			if (dirtiles.size() == 0) {
-				zoom = 32;
 				done = true;
 			} else {
 				zoom = dirtiles[0].z;
@@ -443,12 +464,38 @@ struct reader {
 			}
 		}
 
-		if (!done && zoom > maxzoom_so_far) {
-			maxzoom_so_far = zoom;
-			tiles_at_maxzoom_so_far.clear();
+		if (done) {
+			if (want_overzoom) {
+				next_overzoom();
+				advance();
+			} else {
+				zoom = 32;
+			}
+		} else {
+			if (zoom > maxzoom_so_far) {
+				maxzoom_so_far = zoom;
+				tiles_at_maxzoom_so_far.clear();
+			}
+
+			tiles_at_maxzoom_so_far.push_back(std::pair<unsigned, unsigned>(x, y));
+		}
+	}
+
+	void next_overzoom() {
+		zoom++;
+		overzoomed_tiles.clear();
+
+		long long scale = (1LL << zoom) / (1LL << maxzoom_so_far);
+
+		for (auto const &xy : tiles_at_maxzoom_so_far) {
+			for (long long xx = 0; xx < scale; xx++) {
+				for (long long yy = 0; yy < scale; yy++) {
+					overzoomed_tiles.push_back(std::pair<unsigned, unsigned>(xy.first * scale + xx, xy.second * scale + yy));
+				}
+			}
 		}
 
-		tiles_at_maxzoom_so_far.insert(std::pair<unsigned, unsigned>(x, y));
+		std::sort(overzoomed_tiles.begin(), overzoomed_tiles.end());
 	}
 
 	std::string get_tile(zxy tile) {
@@ -656,22 +703,6 @@ void *join_worker(void *v) {
 
 	for (auto ai = a->inputs.begin(); ai != a->inputs.end(); ++ai) {
 		mvt_tile tile;
-
-		if (want_overzoom) {
-			for (struct reader *r = a->readers; r != NULL; r = r->next) {
-				if (r->maxzoom_so_far < ai->first.z) {
-					// if this reader did not produce any tiles at this zoom level,
-					// and is not ready to produce any tiles at this zoom level,
-					// it is a candidate for overzooming this tile from whatever
-					// zoom level it did produce last.
-
-					std::string overzoomed = r->retrieve_overzoom(ai->first);
-					if (overzoomed.size() != 0) {
-						ai->second.push_back(overzoomed);
-					}
-				}
-			}
-		}
 
 		for (size_t i = 0; i < ai->second.size(); i++) {
 			append_tile(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
