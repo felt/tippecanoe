@@ -379,13 +379,13 @@ double max(double a, double b) {
 struct reader {
 	long long zoom = 0;
 	long long x = 0;
-	long long sorty = 0;
 	long long y = 0;
 	int z_flag = 0;
-	int maxzoom_so_far = 0;
 	bool done = false;
-
 	std::string data = "";
+
+	int maxzoom_so_far = -1;
+	std::set<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
 
 	std::vector<zxy> dirtiles;
 	std::string dirbase;
@@ -407,8 +407,8 @@ struct reader {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
 				zoom = sqlite3_column_int(stmt, 0);
 				x = sqlite3_column_int(stmt, 1);
-				sorty = sqlite3_column_int(stmt, 2);
-				y = (1LL << zoom) - 1 - sorty;
+				int tms_y = sqlite3_column_int(stmt, 2);
+				y = (1LL << zoom) - 1 - tms_y;
 				const char *s = (const char *) sqlite3_column_blob(stmt, 3);
 				size_t len = sqlite3_column_bytes(stmt, 3);
 
@@ -425,7 +425,6 @@ struct reader {
 				zoom = pmtiles_entries.back().z;
 				x = pmtiles_entries.back().x;
 				y = pmtiles_entries.back().y;
-				sorty = (1LL << zoom) - 1 - y;
 				data = std::string(pmtiles_map + pmtiles_entries.back().offset, pmtiles_entries.back().length);
 
 				pmtiles_entries.pop_back();
@@ -438,7 +437,6 @@ struct reader {
 				zoom = dirtiles[0].z;
 				x = dirtiles[0].x;
 				y = dirtiles[0].y;
-				sorty = (1LL << zoom) - 1 - y;
 				data = dir_read_tile(dirbase, dirtiles[0]);
 
 				dirtiles.erase(dirtiles.begin());
@@ -447,7 +445,10 @@ struct reader {
 
 		if (!done && zoom > maxzoom_so_far) {
 			maxzoom_so_far = zoom;
+			tiles_at_maxzoom_so_far.clear();
 		}
+
+		tiles_at_maxzoom_so_far.insert(std::pair<unsigned, unsigned>(x, y));
 	}
 
 	std::string get_tile(zxy tile) {
@@ -502,10 +503,13 @@ struct reader {
 			return false;
 		}
 
-		if (sorty < r.sorty) {
+		int sorty = (1LL << zoom) - 1 - y;
+		int r_sorty = (1LL << r.zoom) - 1 - r.y;
+
+		if (sorty < r_sorty) {
 			return true;
 		}
-		if (sorty > r.sorty) {
+		if (sorty > r_sorty) {
 			return false;
 		}
 
