@@ -383,6 +383,7 @@ struct reader {
 	long long y = 0;
 	int z_flag = 0;
 	int maxzoom_so_far = 0;
+	bool done = false;
 
 	std::string data = "";
 
@@ -402,10 +403,6 @@ struct reader {
 	}
 
 	void advance() {
-		if (zoom > maxzoom_so_far) {
-			maxzoom_so_far = zoom;
-		}
-
 		if (db != NULL) {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
 				zoom = sqlite3_column_int(stmt, 0);
@@ -418,10 +415,12 @@ struct reader {
 				data = std::string(s, len);
 			} else {
 				zoom = 32;
+				done = true;
 			}
 		} else if (pmtiles_map != NULL) {
 			if (pmtiles_entries.size() == 0) {
 				zoom = 32;
+				done = true;
 			} else {
 				zoom = pmtiles_entries.back().z;
 				x = pmtiles_entries.back().x;
@@ -434,6 +433,7 @@ struct reader {
 		} else {
 			if (dirtiles.size() == 0) {
 				zoom = 32;
+				done = true;
 			} else {
 				zoom = dirtiles[0].z;
 				x = dirtiles[0].x;
@@ -443,6 +443,10 @@ struct reader {
 
 				dirtiles.erase(dirtiles.begin());
 			}
+		}
+
+		if (!done && zoom > maxzoom_so_far) {
+			maxzoom_so_far = zoom;
 		}
 	}
 
@@ -539,6 +543,19 @@ struct reader {
 		}
 
 		return "";
+	}
+
+	bool all_done() {
+		if (!done) {
+			return false;
+		}
+
+		for (struct reader *r = next; r != NULL; r = r->next) {
+			if (!r->done) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	void close() {
@@ -851,7 +868,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	double maxlon2 = INT_MIN;
 	int zoom_for_bbox = -1;
 
-	while (readers != NULL && readers->zoom < 32) {
+	while (readers != NULL && !readers->all_done()) {
 		// pull a reader off the front of the queue,
 		// process whatever tile it has ready to read
 		reader *r = readers;
