@@ -495,7 +495,9 @@ struct reader {
 				tiles_at_maxzoom_so_far.clear();
 			}
 
-			tiles_at_maxzoom_so_far.push_back(std::pair<unsigned, unsigned>(x, y));
+			if (want_overzoom) {
+				tiles_at_maxzoom_so_far.push_back(std::pair<unsigned, unsigned>(x, y));
+			}
 		}
 	}
 
