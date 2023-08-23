@@ -4,6 +4,7 @@
 #include <vector>
 #include <atomic>
 #include <set>
+#include <string>
 #include <sqlite3.h>
 #include <stdio.h>
 
