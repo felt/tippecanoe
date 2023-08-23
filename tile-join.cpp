@@ -376,6 +376,24 @@ double max(double a, double b) {
 	}
 }
 
+struct tilecmp {
+	bool operator()(std::pair<unsigned, unsigned> const &a, std::pair<unsigned, unsigned> const &b) {
+		// must match behavior of reader::operator<()
+
+		if (a.first < b.first) {
+			return true;
+		}
+		if (a.first == b.first) {
+			// Y sorts backwards, in TMS order
+			if (a.second > b.second) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+} tilecmp;
+
 struct reader {
 	long long zoom = 0;
 	long long x = 0;
@@ -495,7 +513,7 @@ struct reader {
 			}
 		}
 
-		std::sort(overzoomed_tiles.begin(), overzoomed_tiles.end());
+		std::sort(overzoomed_tiles.begin(), overzoomed_tiles.end(), tilecmp);
 	}
 
 	std::string get_tile(zxy tile) {
@@ -536,6 +554,8 @@ struct reader {
 	}
 
 	bool operator<(const struct reader &r) const {
+		// must match behavior of tilecmp
+
 		if (zoom < r.zoom) {
 			return true;
 		}
