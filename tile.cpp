@@ -3209,6 +3209,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			}
 
 			bool again = false;
+			bool extended = false;
 			for (size_t thread = 0; thread < threads; thread++) {
 				void *retval;
 
@@ -3249,12 +3250,16 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				}
 
 				if (args[thread].still_dropping) {
-					if (additional[A_EXTEND_ZOOMS] && z == maxzoom && maxzoom < MAX_ZOOM) {
-						maxzoom++;
-					} else if (extend_zooms_max > 0 && z == maxzoom && maxzoom < MAX_ZOOM) {
-						maxzoom++;
-						extend_zooms_max--;
+					if ((additional[A_EXTEND_ZOOMS] > extend_zooms_max > 0) && z == maxzoom && maxzoom < MAX_ZOOM) {
+						extended = true;
 					}
+				}
+			}
+
+			if (extended) {
+				maxzoom++;
+				if (extend_zooms_max > 0) {
+					extend_zooms_max--;
 				}
 			}
 
