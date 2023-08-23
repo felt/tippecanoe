@@ -55,7 +55,6 @@ struct serial_feature {
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
-	long long gap = -1;
 	unsigned long long label_point = 0;
 	long long extent = 0;
 
