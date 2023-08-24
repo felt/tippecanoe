@@ -394,31 +394,127 @@ struct tilecmp {
 	}
 } tilecmp;
 
+// The `reader` is an iterator through the tiles of a tileset,
+// in z/x/tms_y order.
+//
+// The basic idea is that it is used like this:
+//
+//  void blah(const char *fname) {
+//      reader r(fname);
+//
+//      for (; !r.all_done(); r.advance()) {
+//          std::pair<zxy, std::string> tile = r.current();
+//          whatever(tile);
+//      }
+//
+//      r.close();
+//  }
+//
+// The complication is that you can actually keep calling current()
+// and advance() after the reader claims to be done, in which case
+// it will produce overzoomed tiles generated from the tiles in
+// the maxzoom tileset. The parent tiles for those overzoomed tiles
+// are retrieved internally using get_tile() rather than through the
+// main iteration query.
+
 struct reader {
+	// z/x/y and data of the current tile
 	long long zoom = 0;
 	long long x = 0;
 	long long y = 0;
-	int z_flag = 0;
 	std::string data = "";
 
 	// "done" means we have read all of the real tiles from the source.
 	// The iterator will continue to produce overzoomed tiles after it is "done."
 	bool done = false;
 
+	// for overzooming
 	int maxzoom_so_far = -1;
 	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
 	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
 
-	std::vector<zxy> dirtiles;
-	std::string dirbase;
-	std::string name;
-
+	// for iterating mbtiles
 	sqlite3 *db = NULL;
 	sqlite3_stmt *stmt = NULL;
 	struct reader *next = NULL;
 
+	// for iterating dirtiles
+	std::vector<zxy> dirtiles;
+	std::string dirbase;
+	std::string name;
+
+	// for iterating pmtiles
 	char *pmtiles_map = NULL;
 	std::vector<pmtiles::entry_zxy> pmtiles_entries;
+
+	reader(const char *fname) {
+		name = fname;
+		struct stat st;
+		if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
+			db = NULL;
+			stmt = NULL;
+			next = NULL;
+
+			dirtiles = enumerate_dirtiles(fname, minzoom, maxzoom);
+			dirbase = fname;
+		} else if (pmtiles_has_suffix(fname)) {
+			int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
+			pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
+
+			if (pmtiles_map == MAP_FAILED) {
+				perror("mmap in decode");
+				exit(EXIT_MEMORY);
+			}
+			if (::close(pmtiles_fd) != 0) {
+				perror("close");
+				exit(EXIT_CLOSE);
+			}
+
+			pmtiles_entries = pmtiles_entries_tms(pmtiles_map, minzoom, maxzoom);
+			std::reverse(pmtiles_entries.begin(), pmtiles_entries.end());
+		} else {
+			if (sqlite3_open(fname, &db) != SQLITE_OK) {
+				fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
+				exit(EXIT_SQLITE);
+			}
+
+			char *err = NULL;
+			if (sqlite3_exec(db, "PRAGMA integrity_check;", NULL, NULL, &err) != SQLITE_OK) {
+				fprintf(stderr, "%s: integrity_check: %s\n", fname, err);
+				exit(EXIT_SQLITE);
+			}
+
+			const char *sql = "SELECT zoom_level, tile_column, tile_row, tile_data from tiles order by zoom_level, tile_column, tile_row;";
+			sqlite3_stmt *query;
+
+			if (sqlite3_prepare_v2(db, sql, -1, &query, NULL) != SQLITE_OK) {
+				fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
+				exit(EXIT_SQLITE);
+			}
+
+			stmt = query;
+			next = NULL;
+		}
+	}
+
+	// Checks the done status not only of this reader but also
+	// the others chained to it in the queue
+	//
+	// Does this actually also need to check whether there are overzoomed
+	// tiles that have not yet been returned for a zoom level that has been
+	// started? FIXME
+	bool all_done() {
+		if (!done) {
+			return false;
+		}
+
+		for (struct reader *r = next; r != NULL; r = r->next) {
+			if (!r->done) {
+				return false;
+			}
+		}
+		return true;
+	}
 
 	std::pair<zxy, std::string> current() {
 		return std::pair<zxy, std::string>(zxy(zoom, x, y), data);
@@ -501,6 +597,17 @@ struct reader {
 		}
 	}
 
+	void close() {
+		if (pmtiles_map) {
+			db = pmtilesmeta2tmp(name.c_str(), pmtiles_map);
+			// json, strategies
+		} else if (db == NULL) {
+			db = dirmeta2tmp(dirbase.c_str());
+		} else {
+			sqlite3_finalize(stmt);
+		}
+	}
+
 	void next_overzoom() {
 		zoom++;
 		overzoomed_tiles.clear();
@@ -555,6 +662,8 @@ struct reader {
 		return source;
 	}
 
+	// Sort in z/x/tms_y order, because that is the order of the
+	// straightforward query of the mbtiles tiles table.
 	bool operator<(const struct reader &r) const {
 		// must match behavior of tilecmp
 
@@ -616,80 +725,6 @@ struct reader {
 		}
 
 		return "";
-	}
-
-	bool all_done() {
-		if (!done) {
-			return false;
-		}
-
-		for (struct reader *r = next; r != NULL; r = r->next) {
-			if (!r->done) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	void close() {
-		if (pmtiles_map) {
-			db = pmtilesmeta2tmp(name.c_str(), pmtiles_map);
-			// json, strategies
-		} else if (db == NULL) {
-			db = dirmeta2tmp(dirbase.c_str());
-		} else {
-			sqlite3_finalize(stmt);
-		}
-	}
-
-	reader(const char *fname) {
-		name = fname;
-		struct stat st;
-		if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
-			db = NULL;
-			stmt = NULL;
-			next = NULL;
-
-			dirtiles = enumerate_dirtiles(fname, minzoom, maxzoom);
-			dirbase = fname;
-		} else if (pmtiles_has_suffix(fname)) {
-			int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
-			pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
-
-			if (pmtiles_map == MAP_FAILED) {
-				perror("mmap in decode");
-				exit(EXIT_MEMORY);
-			}
-			if (::close(pmtiles_fd) != 0) {
-				perror("close");
-				exit(EXIT_CLOSE);
-			}
-
-			pmtiles_entries = pmtiles_entries_tms(pmtiles_map, minzoom, maxzoom);
-			std::reverse(pmtiles_entries.begin(), pmtiles_entries.end());
-		} else {
-			if (sqlite3_open(fname, &db) != SQLITE_OK) {
-				fprintf(stderr, "%s: %s\n", fname, sqlite3_errmsg(db));
-				exit(EXIT_SQLITE);
-			}
-
-			char *err = NULL;
-			if (sqlite3_exec(db, "PRAGMA integrity_check;", NULL, NULL, &err) != SQLITE_OK) {
-				fprintf(stderr, "%s: integrity_check: %s\n", fname, err);
-				exit(EXIT_SQLITE);
-			}
-
-			const char *sql = "SELECT zoom_level, tile_column, tile_row, tile_data from tiles order by zoom_level, tile_column, tile_row;";
-			sqlite3_stmt *query;
-
-			if (sqlite3_prepare_v2(db, sql, -1, &query, NULL) != SQLITE_OK) {
-				fprintf(stderr, "%s: select failed: %s\n", fname, sqlite3_errmsg(db));
-				exit(EXIT_SQLITE);
-			}
-
-			stmt = query;
-			next = NULL;
-		}
 	}
 };
 
@@ -926,13 +961,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	int zoom_for_bbox = -1;
 
 	while (readers != NULL && !readers->all_done()) {
-		// pull a reader off the front of the queue,
-		// process whatever tile it has ready to read
-		reader *r = readers;
-		readers = readers->next;
-		r->next = NULL;
-
-		std::pair<zxy, std::string> current = r->current();
+		std::pair<zxy, std::string> current = readers->current();
 
 		if (current.first.z != zoom_for_bbox) {
 			// Only use highest zoom for bbox calculation
@@ -978,7 +1007,13 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		// The reason this prefetches is so the reader queue can be
 		// priority-ordered, so the one with the next relevant tile
 		// is first in line.
-		r->advance();
+		readers->advance();
+
+		// pull the reader off the front of the queue for reordering
+
+		reader *r = readers;
+		readers = readers->next;
+		r->next = NULL;
 
 		// put the reader back onto the queue,
 		// in whatever sequence its next tile calls for
