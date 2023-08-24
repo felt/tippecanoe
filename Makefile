@@ -413,7 +413,6 @@ join-test: tile-join
 	./tile-join --overzoom -f -o tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles
 	./tippecanoe-decode tests/ne_110m_ocean/join/joined.mbtiles > tests/ne_110m_ocean/join/joined.mbtiles.json.check
 	cmp tests/ne_110m_ocean/join/joined.mbtiles.json.check tests/ne_110m_ocean/join/joined.mbtiles.json
-	# BUG: tiles 4/15/3, 4/15/2, 4/15/1, and 4/15/0 should be ocean, but are currently missing
 	rm -f tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/joined.mbtiles.json.check
 
 join-filter-test:

@@ -423,6 +423,7 @@ struct reader {
 	long long x = 0;
 	long long y = 0;
 	std::string data = "";
+	bool current_tile_is_overzoomed = false;
 
 	// "done" means we have read all of the real tiles from the source.
 	// The iterator will continue to produce overzoomed tiles after it is "done."
@@ -432,6 +433,7 @@ struct reader {
 	int maxzoom_so_far = -1;
 	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
 	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
+	bool overzoom_consumed_at_this_zoom = false;
 
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
@@ -498,13 +500,16 @@ struct reader {
 	}
 
 	// Checks the done status not only of this reader but also
-	// the others chained to it in the queue
+	// the others chained to it in the queue.
 	//
-	// Does this actually also need to check whether there are overzoomed
-	// tiles that have not yet been returned for a zoom level that has been
-	// started? FIXME
+	// Also claims not to be done if at least one overzoomed tile
+	// has been consumed at this zoom level, in which case they should
+	// all allowed to be consumed before stopping.
 	bool all_done() {
 		if (!done) {
+			return false;
+		}
+		if (overzoom_consumed_at_this_zoom) {
 			return false;
 		}
 
@@ -512,11 +517,18 @@ struct reader {
 			if (!r->done) {
 				return false;
 			}
+			if (r->overzoom_consumed_at_this_zoom) {
+				return false;
+			}
 		}
 		return true;
 	}
 
 	std::pair<zxy, std::string> current() {
+		if (current_tile_is_overzoomed) {
+			overzoom_consumed_at_this_zoom = true;
+		}
+
 		return std::pair<zxy, std::string>(zxy(zoom, x, y), data);
 	}
 
@@ -529,6 +541,7 @@ struct reader {
 
 			if (overzoomed_tiles.size() == 0) {
 				next_overzoom();
+				overzoom_consumed_at_this_zoom = false;
 			}
 
 			auto xy = overzoomed_tiles.front();
@@ -536,10 +549,13 @@ struct reader {
 
 			x = xy.first;
 			y = xy.second;
-
 			data = retrieve_overzoom(zxy(zoom, x, y));
+			current_tile_is_overzoomed = true;
+
 			return;
 		}
+
+		current_tile_is_overzoomed = false;
 
 		if (db != NULL) {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -623,6 +639,7 @@ struct reader {
 		}
 
 		std::sort(overzoomed_tiles.begin(), overzoomed_tiles.end(), tilecmp);
+		overzoom_consumed_at_this_zoom = false;
 	}
 
 	std::string get_tile(zxy tile) {
