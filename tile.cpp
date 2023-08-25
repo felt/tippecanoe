@@ -640,6 +640,10 @@ void *partial_feature_worker(void *v) {
 		std::vector<drawvec> geoms;  // artifact of former polygon-splitting to reduce geometric complexity
 		geoms.push_back(geom);
 		(*partials)[i].geoms = geoms;
+
+		if (t == VT_POLYGON && !prevent[P_POLYGON_SPLIT]) {
+			geoms = chop_polygon(geoms);
+		}
 	}
 
 	return NULL;
