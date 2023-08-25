@@ -255,11 +255,13 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 					if (*accum_hole > pixel * pixel) {
 						// XXX use centroid;
 
+						// winding is backward from above because this is a hole
 						out.push_back(draw(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
 						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2));
 						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
+
 						includes_dust = true;
 
 						*accum_hole -= pixel * pixel;
