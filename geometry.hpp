@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <atomic>
+#include <set>
+#include <string>
 #include <sqlite3.h>
 #include <stdio.h>
 
@@ -87,5 +89,8 @@ drawvec clip_lines(drawvec &geom, long long x1, long long y1, long long x2, long
 drawvec clip_point(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain);
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
+
+std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
+		     int detail, int buffer, std::set<std::string> const &keep);
 
 #endif

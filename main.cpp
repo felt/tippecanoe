@@ -91,6 +91,7 @@ size_t limit_tile_feature_count_at_maxzoom = 0;
 unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
+long long extend_zooms_max = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2892,6 +2893,7 @@ int main(int argc, char **argv) {
 		{"minimum-zoom", required_argument, 0, 'Z'},
 		{"smallest-maximum-zoom-guess", required_argument, 0, '~'},
 		{"extend-zooms-if-still-dropping", no_argument, &additional[A_EXTEND_ZOOMS], 1},
+		{"extend-zooms-if-still-dropping-maximum", required_argument, 0, '~'},
 		{"one-tile", required_argument, 0, 'R'},
 
 		{"Tile resolution", 0, 0, 0},
@@ -3138,6 +3140,8 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(opt, "preserve-point-density-threshold") == 0) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
+			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
+				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
@@ -3585,7 +3589,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (extra_detail >= 0) {
+	if (extra_detail >= 0 || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) {
 		geometry_scale = 0;
 	} else {
 		geometry_scale = 32 - (full_detail + maxzoom);

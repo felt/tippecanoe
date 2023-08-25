@@ -345,6 +345,8 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
  * `-ae` or `--extend-zooms-if-still-dropping`: Increase the maxzoom if features are still being dropped at that zoom level.
    The detail and simplification options that ordinarily apply only to the maximum zoom level will apply both to the originally
    specified maximum zoom and to any levels added beyond that.
+ * `--extend-zooms-if-still-dropping-maximum=`_count_: Increase the maxzoom if features are still being dropped at that zoom level
+   by up to _count_ zoom levels.
  * `-R` _zoom_`/`_x_`/`_y_ or `--one-tile=`_zoom_`/`_x_`/`_y_: Set the minzoom and maxzoom to _zoom_ and produce only
    the single specified tile at that zoom level.
 
@@ -768,6 +770,11 @@ The options are:
  * `-e` *directory* or `--output-to-directory=`*directory*: Write the new tiles to the specified directory instead of to an mbtiles file.
  * `-f` or `--force`: Remove *out.mbtiles* if it already exists.
  * `-r` or `--read-from`: list of input mbtiles to read from.
+
+### Overzooming
+
+ * `--overzoom`: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
+ * `--buffer=`_pixels_ or `-b` _pixels_: Set the size of the tile buffer in the overzoomed tiles.
 
 ### Tileset description and attribution
 

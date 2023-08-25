@@ -67,7 +67,7 @@ tippecanoe-enumerate: enumerate.o
 tippecanoe-decode: decode.o projection.o mvt.o write_json.o text.o jsonpull/jsonpull.o dirtiles.o pmtiles_file.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3
 
-tile-join: tile-join.o projection.o mbtiles.o mvt.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o
+tile-join: tile-join.o projection.o mbtiles.o mvt.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o
@@ -404,8 +404,16 @@ join-test: tile-join
 	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/join-population/empty.dirtiles > tests/join-population/empty.out.json.check
 	cmp tests/join-population/empty.out.json.check tests/join-population/empty.out.json
 	rm -rf tests/join-population/empty.dirtiles tests/join-population/empty.out.dirtiles tests/join-population/empty.out.json.check
-
-
+	#
+	# Test overzooming of tilesets with different maxzooms
+	#
+	mkdir -p tests/ne_110m_ocean/join
+	./tippecanoe -q -z2 -f -o tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/in.json
+	./tippecanoe -q -z4 -d8 -y name -f -o tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_admin_0_countries/in.json.gz
+	./tile-join --overzoom -f -o tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles
+	./tippecanoe-decode -x generator tests/ne_110m_ocean/join/joined.mbtiles > tests/ne_110m_ocean/join/joined.mbtiles.json.check
+	cmp tests/ne_110m_ocean/join/joined.mbtiles.json.check tests/ne_110m_ocean/join/joined.mbtiles.json
+	rm -f tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/joined.mbtiles.json.check
 
 join-filter-test:
 	# Comes out different from the direct tippecanoe run because null attributes are lost
