@@ -626,6 +626,15 @@ void *partial_feature_worker(void *v) {
 						geom.clear();
 					}
 				}
+
+#if 0
+				if (!(prevent[P_SIMPLIFY] || (z == (*partials)[i].maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+					// there may be another opportunity for more simplification after geometry cleaning
+					geom = simplify_lines(geom, 32, 0, false, (*partials)[i].simplification, 4, drawvec());
+					// in which case we need to clean again
+					geom = clean_or_clip_poly(geom, 0, 0, false);
+				}
+#endif
 			}
 		}
 
@@ -1914,7 +1923,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int line_detail;
 	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
 		long long count = 0;
-		double accum_area = 0;
+		double accum_area = 0, accum_hole = 0;
 
 		double fraction_accum = 0;
 
@@ -2185,9 +2194,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			bool reduced = false;
 			if (sf.t == VT_POLYGON) {
 				if (!prevent[P_TINY_POLYGON_REDUCTION] && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &accum_hole, &sf, &tiny_feature);
 					if (reduced) {
 						strategy->tiny_polygons++;
+
+						// extending zooms without a cap will often extend too far, so don't risk it
+						if (extend_zooms_max > 0) {
+							arg->still_dropping = true;
+						}
 					}
 					if (sf.geometry.size() == 0) {
 						continue;
@@ -2508,8 +2522,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
 					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
-					layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
-										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+					if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
+											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+					}
 				}
 
 				if (layer_features[x].type == VT_POLYGON) {
@@ -3249,6 +3265,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				if (extend_zooms_max > 0) {
 					extend_zooms_max--;
 				}
+				again = true;  // since detail or simplification may be different at maxzoom than at other zooms
 			}
 
 			if ((size_t) z >= strategies.size()) {
