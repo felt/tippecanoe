@@ -186,7 +186,7 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
+drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area, double *accum_hole, serial_feature *this_feature, serial_feature *tiny_feature) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
 	bool includes_real = false;
@@ -222,7 +222,7 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 				// OR it is an inner ring and we haven't output an outer ring for it to be
 				// cut out of, so we are just subtracting its area from the tiny polygon
 				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
+				if ((area > 0 && area <= pixel * pixel) || (area < 0 && -area <= pixel * pixel && !included_last_outer)) {
 					// printf("area is only %f vs %lld so using square\n", area, pixel * pixel);
 
 					*accum_area += area;
@@ -243,10 +243,30 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 						included_last_outer = false;
 					}
 				}
+
+				// this is a tiny hole, and we have a real outer ring that we can cut it out of,
+				// so accumulate some hole, and if we have enough to be worth cutting, cut it out.
+				//
+				// these hole areas are accumulated separately rather than just decrementing
+				// the accumulated area, because otherwise it is possible to accumulate enough
+				// negative area to lose entire outer rings in the process of getting back up to 0.
+				else if (area < 0 && -area <= pixel * pixel && included_last_outer) {
+					*accum_hole -= area;
+					if (*accum_hole > pixel * pixel) {
+						// XXX use centroid;
+
+						out.push_back(draw(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel));
+						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
+						includes_dust = true;
+
+						*accum_hole -= pixel * pixel;
+					}
+				}
+
 				// i.e., this ring is large enough that it gets to represent itself
-				// or it is a tiny hole out of a real polygon, which we are still treating
-				// as a real geometry because otherwise we can accumulate enough tiny holes
-				// that we will drop the next several outer rings getting back up to 0.
 				else {
 					// printf("area is %f so keeping instead of %lld\n", area, pixel * pixel);
 

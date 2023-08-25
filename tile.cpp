@@ -1914,7 +1914,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int line_detail;
 	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
 		long long count = 0;
-		double accum_area = 0;
+		double accum_area = 0, accum_hole = 0;
 
 		double fraction_accum = 0;
 
@@ -2185,7 +2185,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			bool reduced = false;
 			if (sf.t == VT_POLYGON) {
 				if (!prevent[P_TINY_POLYGON_REDUCTION] && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &accum_hole, &sf, &tiny_feature);
 					if (reduced) {
 						strategy->tiny_polygons++;
 					}
