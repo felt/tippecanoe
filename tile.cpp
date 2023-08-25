@@ -626,6 +626,13 @@ void *partial_feature_worker(void *v) {
 						geom.clear();
 					}
 				}
+
+				if (!(prevent[P_SIMPLIFY] || (z == (*partials)[i].maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+					// there may be another opportunity for more simplification after geometry cleaning
+					geom = simplify_lines(geom, 32, 0, false, (*partials)[i].simplification, 4, drawvec());
+					// in which case we need to clean again
+					geom = clean_or_clip_poly(geom, 0, 0, false);
+				}
 			}
 		}
 
@@ -2508,8 +2515,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
 					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
-					layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
-										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+					if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
+											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+					}
 				}
 
 				if (layer_features[x].type == VT_POLYGON) {
