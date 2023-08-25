@@ -403,6 +403,9 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
 The detail and simplification options that ordinarily apply only to the maximum zoom level will apply both to the originally
 specified maximum zoom and to any levels added beyond that.
 .IP \(bu 2
+\fB\fC\-\-extend\-zooms\-if\-still\-dropping\-maximum=\fR\fIcount\fP: Increase the maxzoom if features are still being dropped at that zoom level
+by up to \fIcount\fP zoom levels.
+.IP \(bu 2
 \fB\fC\-R\fR \fIzoom\fP\fB\fC/\fR\fIx\fP\fB\fC/\fR\fIy\fP or \fB\fC\-\-one\-tile=\fR\fIzoom\fP\fB\fC/\fR\fIx\fP\fB\fC/\fR\fIy\fP: Set the minzoom and maxzoom to \fIzoom\fP and produce only
 the single specified tile at that zoom level.
 .RE
@@ -964,6 +967,13 @@ The options are:
 \fB\fC\-f\fR or \fB\fC\-\-force\fR: Remove \fIout.mbtiles\fP if it already exists.
 .IP \(bu 2
 \fB\fC\-r\fR or \fB\fC\-\-read\-from\fR: list of input mbtiles to read from.
+.RE
+.SS Overzooming
+.RS
+.IP \(bu 2
+\fB\fC\-\-overzoom\fR: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
+.IP \(bu 2
+\fB\fC\-\-buffer=\fR\fIpixels\fP or \fB\fC\-b\fR \fIpixels\fP: Set the size of the tile buffer in the overzoomed tiles.
 .RE
 .SS Tileset description and attribution
 .RS

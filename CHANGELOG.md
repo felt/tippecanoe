@@ -1,3 +1,8 @@
+# 2.30.0
+
+* Add --extend-zooms-if-still-dropping-maximum option
+* Add --overzoom option to tile-join
+
 # 2.29.0
 
 * Add tippecanoe-overzoom tool
