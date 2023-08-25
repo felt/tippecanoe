@@ -411,7 +411,7 @@ join-test: tile-join
 	./tippecanoe -q -z2 -f -o tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/in.json
 	./tippecanoe -q -z4 -d8 -y name -f -o tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_admin_0_countries/in.json.gz
 	./tile-join --overzoom -f -o tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles
-	./tippecanoe-decode tests/ne_110m_ocean/join/joined.mbtiles > tests/ne_110m_ocean/join/joined.mbtiles.json.check
+	./tippecanoe-decode -x generator tests/ne_110m_ocean/join/joined.mbtiles > tests/ne_110m_ocean/join/joined.mbtiles.json.check
 	cmp tests/ne_110m_ocean/join/joined.mbtiles.json.check tests/ne_110m_ocean/join/joined.mbtiles.json
 	rm -f tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/joined.mbtiles.json.check
 
