@@ -2195,6 +2195,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &accum_hole, &sf, &tiny_feature);
 					if (reduced) {
 						strategy->tiny_polygons++;
+						arg->still_dropping = true;
 					}
 					if (sf.geometry.size() == 0) {
 						continue;
@@ -3258,6 +3259,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				if (extend_zooms_max > 0) {
 					extend_zooms_max--;
 				}
+				again = true;  // since detail or simplification may be different at maxzoom than at other zooms
 			}
 
 			if ((size_t) z >= strategies.size()) {
