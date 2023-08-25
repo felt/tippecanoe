@@ -221,8 +221,10 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 				// in a tiny polygon rather than letting it represent itself,
 				// OR it is an inner ring and we haven't output an outer ring for it to be
 				// cut out of, so we are just subtracting its area from the tiny polygon
-				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && -area <= pixel * pixel && !included_last_outer)) {
+				// rather than trying to deal with it geometrically (even if it is too big
+				// to really be considered a tiny polygon, which shouldn't happen because
+				// it should be smaller than its outer ring, which was considered tiny).
+				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
 					// printf("area is only %f vs %lld so using square\n", area, pixel * pixel);
 
 					*accum_area += area;
