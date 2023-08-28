@@ -296,9 +296,9 @@ If your input is formatted as newline-delimited GeoJSON, use `-P` to make input 
 
 ### Tileset description and attribution
 
- * `-n` _name_ or `--name=`_name_: Human-readable name for the tileset (default file.json)
- * `-A` _text_ or `--attribution=`_text_: Attribution (HTML) to be shown with maps that use data from this tileset.
- * `-N` _description_ or `--description=`_description_: Description for the tileset (default file.mbtiles)
+ * `-n <name>` or `--name=<name>`: Human-readable name for the tileset (default file.json)
+ * `-A <text>` or `--attribution=<text>`: Attribution (HTML) to be shown with maps that use data from this tileset.
+ * `-N <description>` or `--description=<description>`: Description for the tileset (default file.mbtiles)
 
 ### Input files and layer names
 
