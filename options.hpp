@@ -39,7 +39,6 @@
 #define P_CLIPPING ((int) 'c')
 #define P_DUPLICATION ((int) 'D')
 #define P_TINY_POLYGON_REDUCTION ((int) 't')
-#define P_TINY_POLYGON_REDUCTION_AT_MAXZOOM ((int) 'T')
 #define P_TILE_COMPRESSION ((int) 'C')
 #define P_TILE_STATS ((int) 'g')
 #define P_USE_SOURCE_POLYGON_WINDING ((int) 'w')
