@@ -9,7 +9,7 @@
 "maxzoom": "4",
 "minzoom": "0",
 "name": "tests/ne_110m_ocean/join/ocean.mbtiles + tests/ne_110m_ocean/join/countries.mbtiles",
-"strategies": "[{},{\"tiny_polygons\":2},{\"tiny_polygons\":3},{\"tiny_polygons\":12},{\"tiny_polygons\":23}]",
+"strategies": "[{},{},{},{},{\"tiny_polygons\":4}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
