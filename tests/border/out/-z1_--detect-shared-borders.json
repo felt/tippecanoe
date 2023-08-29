@@ -9,6 +9,7 @@
 "maxzoom": "1",
 "minzoom": "0",
 "name": "tests/border/out/-z1_--detect-shared-borders.json.check.mbtiles",
+"strategies": "[{\"tiny_polygons\":1},{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

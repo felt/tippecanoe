@@ -8,7 +8,6 @@
 "maxzoom": "9",
 "minzoom": "8",
 "name": "tests/allow-existing/both.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{\"tiny_polygons\":1},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

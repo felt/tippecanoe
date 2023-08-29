@@ -2138,14 +2138,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 				// so we shouldn't expect to find anything small that we can related this feature to.
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
-				if (sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
 					partials[which_partial].geoms.push_back(sf.geometry);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
@@ -2182,18 +2182,25 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 			fraction_accum -= 1;
 
-			bool reduced = false;
-			if (sf.t == VT_POLYGON) {
+			bool still_need_simplification_after_reduction = false;
+			if (sf.t == VT_POLYGON && sf.geometry.size() > 0) {
+				bool simplified_away_by_reduction = false;
+
 				if (!prevent[P_TINY_POLYGON_REDUCTION] && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
-					if (reduced) {
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, &sf, &tiny_feature);
+					if (simplified_away_by_reduction) {
 						strategy->tiny_polygons++;
 					}
 					if (sf.geometry.size() == 0) {
 						continue;
 					}
+				} else {
+					still_need_simplification_after_reduction = true;  // reduction skipped, so always simplify
 				}
+			} else {
+				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
 			}
+
 			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
 				if (line_is_too_small(sf.geometry, z, line_detail)) {
 					continue;
@@ -2220,7 +2227,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.t = sf.t;
 					p.segment = sf.segment;
 					p.original_seq = sf.seq;
-					p.reduced = reduced;
+					p.reduced = !still_need_simplification_after_reduction;
 					p.coalesced = false;
 					p.z = z;
 					p.tx = tx;

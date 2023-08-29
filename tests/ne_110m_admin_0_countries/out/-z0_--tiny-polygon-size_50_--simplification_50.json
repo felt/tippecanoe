@@ -9,7 +9,7 @@
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z0_--tiny-polygon-size_50_--simplification_50.json.check.mbtiles",
-"strategies": "[{\"tiny_polygons\":90}]",
+"strategies": "[{\"tiny_polygons\":109}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

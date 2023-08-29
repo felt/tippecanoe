@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-ae_-zg_-M5000_--drop-fraction-as-needed.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":160,\"tile_size_desired\":39209},{\"dropped_as_needed\":188,\"tile_size_desired\":25164},{\"dropped_as_needed\":190,\"tiny_polygons\":2,\"tile_size_desired\":21198},{\"dropped_as_needed\":180,\"tiny_polygons\":9,\"tile_size_desired\":10761},{\"dropped_as_needed\":145,\"tiny_polygons\":17,\"tile_size_desired\":6604},{\"tiny_polygons\":47}]",
+"strategies": "[{\"dropped_as_needed\":160,\"tile_size_desired\":39209},{\"dropped_as_needed\":188,\"tile_size_desired\":25164},{\"dropped_as_needed\":190,\"tile_size_desired\":21198},{\"dropped_as_needed\":180,\"tile_size_desired\":10761},{\"dropped_as_needed\":145,\"tile_size_desired\":6604},{\"tiny_polygons\":2}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
