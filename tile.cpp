@@ -2222,7 +2222,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.t = sf.t;
 					p.segment = sf.segment;
 					p.original_seq = sf.seq;
-					p.reduced = !still_need_simplification_after_reduction;
+
+                    if (sf.t == VT_POLYGON) {
+                        p.reduced = !still_need_simplification_after_reduction;
+                    } else {
+                        p.reduced = false;
+                    }
+
 					p.coalesced = false;
 					p.z = z;
 					p.tx = tx;
