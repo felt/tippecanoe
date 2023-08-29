@@ -1,3 +1,7 @@
+# 2.30.1
+
+* Fix spurious reports of tiny polygons and 0-length LineStrings in "strategies"
+
 # 2.30.0
 
 * Add --extend-zooms-if-still-dropping-maximum option
