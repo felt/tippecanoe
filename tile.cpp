@@ -2194,8 +2194,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (sf.geometry.size() == 0) {
 						continue;
 					}
+				} else {
+					still_need_simplification_after_reduction = true;  // reduction skipped, so always simplify
 				}
+			} else {
+				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
 			}
+
 			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
 				if (line_is_too_small(sf.geometry, z, line_detail)) {
 					continue;
@@ -2222,13 +2227,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.t = sf.t;
 					p.segment = sf.segment;
 					p.original_seq = sf.seq;
-
-                    if (sf.t == VT_POLYGON) {
-                        p.reduced = !still_need_simplification_after_reduction;
-                    } else {
-                        p.reduced = false;
-                    }
-
+					p.reduced = !still_need_simplification_after_reduction;
 					p.coalesced = false;
 					p.z = z;
 					p.tx = tx;
