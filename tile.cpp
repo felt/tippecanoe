@@ -2182,13 +2182,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 			fraction_accum -= 1;
 
-			bool reduced = false;
-			if (sf.t == VT_POLYGON) {
+			bool still_need_simplification_after_reduction = false;
+			if (sf.t == VT_POLYGON && sf.geometry.size() > 0) {
 				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
 						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
+				bool simplified_away_by_reduction = false;
+
 				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &reduced, &accum_area, &sf, &tiny_feature);
-					if (reduced) {
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, &sf, &tiny_feature);
+					if (simplified_away_by_reduction) {
 						strategy->tiny_polygons++;
 					}
 					if (sf.geometry.size() == 0) {
@@ -2222,7 +2224,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.t = sf.t;
 					p.segment = sf.segment;
 					p.original_seq = sf.seq;
-					p.reduced = reduced;
+					p.reduced = !still_need_simplification_after_reduction;
 					p.coalesced = false;
 					p.z = z;
 					p.tx = tx;

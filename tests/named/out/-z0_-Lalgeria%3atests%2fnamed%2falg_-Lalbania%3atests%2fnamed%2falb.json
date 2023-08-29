@@ -9,6 +9,7 @@
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/named/out/-z0_-Lalgeria%3atests%2fnamed%2falg_-Lalbania%3atests%2fnamed%2falb.json.check.mbtiles",
+"strategies": "[{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

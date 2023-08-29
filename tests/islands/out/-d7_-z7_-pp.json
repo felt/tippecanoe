@@ -9,7 +9,7 @@
 "maxzoom": "7",
 "minzoom": "0",
 "name": "tests/islands/out/-d7_-z7_-pp.json.check.mbtiles",
-"strategies": "[{\"tiny_polygons\":2},{\"tiny_polygons\":5},{\"tiny_polygons\":3},{},{},{},{\"tiny_polygons\":1},{\"tiny_polygons\":10}]",
+"strategies": "[{\"tiny_polygons\":2},{\"tiny_polygons\":5},{\"tiny_polygons\":4},{\"tiny_polygons\":4},{},{},{},{\"tiny_polygons\":7}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

@@ -186,14 +186,15 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
+drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
 	bool includes_real = false;
 	bool includes_dust = false;
 
-	*reduced = true;
 	bool included_last_outer = false;
+	*still_needs_simplification = false;
+	*reduced_away = false;
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
@@ -223,9 +224,9 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 				// cut out of, so we are just subtracting its area from the tiny polygon
 				// rather than trying to deal with it geometrically
 				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
-					// printf("area is only %f vs %lld so using square\n", area, pixel * pixel);
-
 					*accum_area += area;
+					*reduced_away = true;
+
 					if (area > 0 && *accum_area > pixel * pixel) {
 						// XXX use centroid;
 
@@ -248,21 +249,23 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double
 				// as a real geometry because otherwise we can accumulate enough tiny holes
 				// that we will drop the next several outer rings getting back up to 0.
 				else {
-					// printf("area is %f so keeping instead of %lld\n", area, pixel * pixel);
-
 					for (size_t k = i; k < j && k < geom.size(); k++) {
 						out.push_back(geom[k]);
 					}
 
 					// which means that the overall polygon has a real geometry,
 					// which means that it gets to be simplified.
-					*reduced = false;
+					*still_needs_simplification = true;
 					includes_real = true;
 
 					if (area > 0) {
 						included_last_outer = true;
 					}
 				}
+			} else {
+				// area is 0: doesn't count as either having been reduced away,
+				// since it was probably just degenerate from having been clipped,
+				// or as needing simplification, since it produces no output.
 			}
 
 			i = j - 1;

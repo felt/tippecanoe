@@ -68,7 +68,7 @@ drawvec clip_point(drawvec &geom, int z, long long buffer);
 drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip);
 drawvec simple_clip_poly(drawvec &geom, int z, int buffer);
 drawvec close_poly(drawvec &geom);
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *reduced, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);
+drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);
 int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
 drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);

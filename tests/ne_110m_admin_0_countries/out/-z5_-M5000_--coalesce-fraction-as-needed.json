@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z5_-M5000_--coalesce-fraction-as-needed.json.check.mbtiles",
-"strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tile_size_desired\":39204},{\"coalesced_as_needed\":217,\"tile_size_desired\":25156},{\"coalesced_as_needed\":218,\"tiny_polygons\":2,\"tile_size_desired\":21207},{\"coalesced_as_needed\":227,\"tiny_polygons\":4,\"tile_size_desired\":10753},{\"coalesced_as_needed\":192,\"tiny_polygons\":13,\"tile_size_desired\":6588},{\"tiny_polygons\":46}]",
+"strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tiny_polygons\":2,\"tile_size_desired\":39204},{\"coalesced_as_needed\":217,\"tile_size_desired\":25156},{\"coalesced_as_needed\":218,\"tile_size_desired\":21207},{\"coalesced_as_needed\":227,\"tile_size_desired\":10753},{\"coalesced_as_needed\":192,\"tile_size_desired\":6588},{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

@@ -9,6 +9,7 @@
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/polygon-winding/out/-z0_--reverse-source-polygon-winding.json.check.mbtiles",
+"strategies": "[{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
