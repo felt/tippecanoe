@@ -1,6 +1,7 @@
-# 2.30.2
+# 2.31.0
 
 * Fix tile-join crash when trying to join empty tilesets
+* Add --no-tiny-polygon-reduction-at-maximum-zoom option
 
 # 2.30.1
 
