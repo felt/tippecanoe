@@ -1004,12 +1004,37 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 }
 // @@@
 
+static long long square_distance_from_line_fp(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+	long long p2x = segB_x - segA_x;
+	long long p2y = segB_y - segA_y;
+	double something = p2x * p2x + p2y * p2y;
+	double u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / something;
+
+	if (u > 1) {
+		u = 1;
+	} else if (u < 0) {
+		u = 0;
+	}
+
+	long long x = std::round(segA_x + u * p2x);
+	long long y = std::round(segA_y + u * p2y);
+
+	long long dx = x - point_x;
+	long long dy = y - point_y;
+
+	long long out = dx * dx + dy * dy;
+	printf("%lld,%lld  %f %f   %lld,%lld  %lld,%lld makes %lld (fp)\n", p2x, p2y, something, u, x, y, dx, dy, out);
+	return out;
+}
+
 static long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+	long long fpversion = square_distance_from_line_fp(point_x, point_y, segA_x, segA_y, segB_x, segB_y);
+
 	const long long scale = 1024;
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	long long something = p2x * p2x + p2y * p2y;
-	double u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) * scale / something;
+	double u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something / scale);
 
 	if (u > scale) {
 		u = scale;
@@ -1023,14 +1048,24 @@ static long long square_distance_from_line(long long point_x, long long point_y,
 	long long dx = x - point_x;
 	long long dy = y - point_y;
 
-	return dx * dx + dy * dy;
+	long long out = dx * dx + dy * dy;
+
+	printf("%lld,%lld  %lld  %f   %lld,%lld  %lld,%lld makes %lld\n", p2x, p2y, something, u, x, y, dx, dy, out);
+	if (fpversion > out) {
+		printf("%.3f ", (double) fpversion / out);
+	} else {
+		printf("%.3f ", (double) out / fpversion);
+	}
+	printf("for %lld,%lld in %lld,%lld to %lld,%lld:  fp %lld vs quant %lld\n", point_x, point_y, segA_x, segA_y, segB_x, segB_y, fpversion, out);
+
+	return out;
 }
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
 	e = e * e;
 	std::stack<int> recursion_stack;
-    printf("doug of %d\n", n);
+	printf("doug of %d\n", n);
 
 	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
 		fprintf(stderr, "endpoints not marked necessary\n");
@@ -1042,7 +1077,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		if (geom[start + here].necessary) {
 			recursion_stack.push(prev);
 			recursion_stack.push(here);
-            prev = here;
+			prev = here;
 		}
 	}
 
@@ -1053,7 +1088,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		int first = recursion_stack.top();
 		recursion_stack.pop();
 
-        printf("sub-doug of %d\n", second - first + 1);
+		printf("sub-doug of %d\n", second - first + 1);
 
 		long long max_distance = -1;
 		int farthest_element_index;
@@ -1098,13 +1133,13 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 				recursion_stack.push(first);
 				recursion_stack.push(farthest_element_index);
 
-                printf("split1: %d to %d, %d\n", first, farthest_element_index, farthest_element_index - first + 1);
+				printf("split1: %d to %d, %d\n", first, farthest_element_index, farthest_element_index - first + 1);
 			}
 			if (1 < second - farthest_element_index) {
 				recursion_stack.push(farthest_element_index);
 				recursion_stack.push(second);
 
-                printf("split2: %d to %d, %d\n", farthest_element_index, second, second - farthest_element_index + 1);
+				printf("split2: %d to %d, %d\n", farthest_element_index, second, second - farthest_element_index + 1);
 			}
 		}
 	}
