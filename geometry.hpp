@@ -65,7 +65,7 @@ void to_tile_scale(drawvec &geom, int z, int detail);
 drawvec from_tile_scale(drawvec const &geom, int z, int detail);
 drawvec remove_noop(drawvec geom, int type, int shift);
 drawvec clip_point(drawvec &geom, int z, long long buffer);
-drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip);
+drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
 drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &shared_nodes);
 drawvec close_poly(drawvec &geom);
 drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);

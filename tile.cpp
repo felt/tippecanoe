@@ -573,7 +573,9 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 					// clean coalesced polygons before simplification to avoid
 					// introducing shards between shapes that otherwise would have
 					// unioned exactly
-					geom = clean_or_clip_poly(geom, 0, 0, false);
+					//
+					// don't try to scale up because these are still world coordinates
+					geom = clean_or_clip_poly(geom, 0, 0, false, false);
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -614,7 +616,8 @@ void *partial_feature_worker(void *v) {
 			// Give Clipper a chance to try to fix it.
 			{
 				drawvec before = geom;
-				geom = clean_or_clip_poly(geom, 0, 0, false);
+				// we can try scaling up because this is now tile scale
+				geom = clean_or_clip_poly(geom, 0, 0, false, true);
 				if (additional[A_DEBUG_POLYGON]) {
 					check_polygon(geom);
 				}
@@ -2396,7 +2399,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
-									g = clean_or_clip_poly(g, 0, 0, false);
+									// don't scale up because this is still world coordinates
+									g = clean_or_clip_poly(g, 0, 0, false, false);
 								}
 							}
 						}
@@ -2668,7 +2672,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (layer_features[x].type == VT_POLYGON) {
 					if (layer_features[x].coalesced) {
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false);
+						// we can try scaling up because this is tile coordinates
+						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
 					}
 
 					layer_features[x].geom = close_poly(layer_features[x].geom);
