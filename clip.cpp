@@ -88,7 +88,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 
 			geom = remove_noop(geom, t, 0);
 			if (t == VT_POLYGON) {
-				geom = clean_or_clip_poly(geom, 0, 0, false);
+				geom = clean_or_clip_poly(geom, 0, 0, false, false);
 				geom = close_poly(geom);
 			}
 
