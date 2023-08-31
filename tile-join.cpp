@@ -544,6 +544,13 @@ struct reader {
 				overzoom_consumed_at_this_zoom = false;
 			}
 
+			if (overzoomed_tiles.size() == 0) {
+				// we have nothing to overzoom; give up
+				current_tile_is_overzoomed = false;
+				zoom = 32;
+				return;
+			}
+
 			auto xy = overzoomed_tiles.front();
 			overzoomed_tiles.erase(overzoomed_tiles.begin());
 
