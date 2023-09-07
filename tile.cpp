@@ -1435,7 +1435,7 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 			clipped = clip_lines(sf.geometry, z, buffer);
 		}
 		if (sf.t == VT_POLYGON) {
-			clipped = simple_clip_poly(sf.geometry, z, buffer, sf.edge_nodes);
+			clipped = simple_clip_poly(sf.geometry, z, buffer, sf.edge_nodes, prevent[P_SIMPLIFY_SHARED_NODES]);
 		}
 		if (sf.t == VT_POINT) {
 			clipped = clip_point(sf.geometry, z, buffer);
