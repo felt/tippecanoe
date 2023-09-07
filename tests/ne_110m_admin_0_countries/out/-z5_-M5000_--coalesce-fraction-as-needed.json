@@ -9,23 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z5_-M5000_--coalesce-fraction-as-needed.json.check.mbtiles",
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-"strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tiny_polygons\":2,\"tile_size_desired\":39204},{\"coalesced_as_needed\":217,\"tile_size_desired\":25156},{\"coalesced_as_needed\":218,\"tile_size_desired\":21207},{\"coalesced_as_needed\":227,\"tile_size_desired\":10753},{\"coalesced_as_needed\":192,\"tile_size_desired\":6588},{\"tiny_polygons\":1}]",
-=======
-"strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tile_size_desired\":39203},{\"coalesced_as_needed\":217,\"tile_size_desired\":25157},{\"coalesced_as_needed\":218,\"tiny_polygons\":2,\"tile_size_desired\":21207},{\"coalesced_as_needed\":227,\"tiny_polygons\":4,\"tile_size_desired\":10753},{\"coalesced_as_needed\":192,\"tiny_polygons\":13,\"tile_size_desired\":6588},{\"tiny_polygons\":46}]",
->>>>>>> 16f61fc (Scale geometry up before wagyu to prevent changes from precision loss)
-=======
-"strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tile_size_desired\":39222},{\"coalesced_as_needed\":217,\"tile_size_desired\":25157},{\"coalesced_as_needed\":218,\"tiny_polygons\":2,\"tile_size_desired\":21207},{\"coalesced_as_needed\":227,\"tiny_polygons\":4,\"tile_size_desired\":10753},{\"coalesced_as_needed\":192,\"tiny_polygons\":13,\"tile_size_desired\":6588},{\"tiny_polygons\":46}]",
->>>>>>> 644a9ce (Was still truncating instead of rounding in projection)
-=======
-"strategies": "[{\"coalesced_as_needed\":704,\"detail_reduced\":3,\"tile_size_desired\":39670},{\"coalesced_as_needed\":217,\"tile_size_desired\":25209},{\"coalesced_as_needed\":219,\"tiny_polygons\":2,\"tile_size_desired\":21224},{\"coalesced_as_needed\":226,\"tiny_polygons\":4,\"tile_size_desired\":10755},{\"coalesced_as_needed\":192,\"tiny_polygons\":13,\"tile_size_desired\":6588},{\"tiny_polygons\":46}]",
->>>>>>> d6e33c4 (Stay in integers in line simplification)
-=======
-"strategies": "[{\"coalesced_as_needed\":159,\"tile_size_desired\":26154},{\"coalesced_as_needed\":180,\"tile_size_desired\":17130},{\"coalesced_as_needed\":180,\"tiny_polygons\":2,\"tile_size_desired\":14761},{\"coalesced_as_needed\":168,\"tiny_polygons\":7,\"tile_size_desired\":8076},{\"coalesced_as_needed\":84,\"tiny_polygons\":18,\"tile_size_desired\":5304},{\"tiny_polygons\":46}]",
->>>>>>> c5b6eb5 (All the tests change again)
+"strategies": "[{\"coalesced_as_needed\":159,\"tile_size_desired\":26154},{\"coalesced_as_needed\":180,\"tile_size_desired\":17130},{\"coalesced_as_needed\":180,\"tile_size_desired\":14761},{\"coalesced_as_needed\":168,\"tile_size_desired\":8076},{\"coalesced_as_needed\":84,\"tile_size_desired\":5304},{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
