@@ -2280,6 +2280,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 											break;
 										}
 									}
+									printf("%zu: ", j - i);
 
 									// j - 1 because we don't want the duplicate last point
 									for (size_t k = i; k < j - 1; k++) {
@@ -2288,6 +2289,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 											sf.geometry[(k + 1 - i) % (j - 1 - i) + i],
 											sf.geometry[(k + 2 - i) % (j - 1 - i) + i]);
 									}
+
+									printf("%lld,%lld ", sf.geometry[i].x, sf.geometry[i].y);
 
 									// since the starting point is never simplified away,
 									// don't let it be simplified away in any other polygons either.
@@ -2307,12 +2310,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 										double xd = sf.geometry[k].x - sf.geometry[i].x;
 										double yd = sf.geometry[k].y - sf.geometry[i].y;
 										double d = xd * xd + yd * yd;
-										if (d > far) {
+										if (d > far ||
+										    ((d == far) && (sf.geometry[k] < sf.geometry[which]))) {
 											far = d;
 											which = k;
 										}
 									}
 
+									printf("%lld,%lld ", sf.geometry[which].x, sf.geometry[which].y);
 									shared_nodes.push_back(sf.geometry[which]);
 									shared_nodes.push_back(sf.geometry[which]);
 
@@ -2330,12 +2335,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 										double yd2 = sf.geometry[k].y - sf.geometry[which].y;
 										double d1 = xd * xd + yd * yd;
 										double d2 = xd2 * xd2 + yd2 * yd2;
-										if (d1 + d2 > far && d1 != 0 && d2 != 0) {
+										if (d1 != 0 && d2 != 0 &&
+										    (d1 + d2 > far ||
+										     ((d1 + d2 == far) && (sf.geometry[k] < sf.geometry[which2])))) {
 											far = d1 + d2;
 											which2 = k;
 										}
 									}
 
+									printf("%lld,%lld\n", sf.geometry[which2].x, sf.geometry[which2].y);
 									shared_nodes.push_back(sf.geometry[which2]);
 									shared_nodes.push_back(sf.geometry[which2]);
 

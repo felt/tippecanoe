@@ -763,7 +763,9 @@ drawvec fix_polygon(drawvec &geom) {
 				}
 			}
 
-			// then figure out which point is furthest from *that*
+			// then figure out which point is furthest from *that*,
+			// which will hopefully be a good origin point since it should be
+			// at a far edge of the shape.
 			long long dist2b = 0;
 			long long furthestb = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
@@ -785,6 +787,7 @@ drawvec fix_polygon(drawvec &geom) {
 			// Copy ring into output, fixing the moveto/lineto ops if necessary because of
 			// reversal or closing
 
+			printf("chose %lld,%lld for ring of size %zu\n", ring[furthestb].x, ring[furthestb].y, ring.size());
 			for (size_t a = 0; a < ring.size(); a++) {
 				size_t a2 = (a + furthestb) % (ring.size() - 1);
 
