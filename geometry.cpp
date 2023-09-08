@@ -383,7 +383,7 @@ size_t bits(long long n) {
 	return 64;
 }
 
-static long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long divisor) {
+long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long divisor) {
 	// long long fpversion = square_distance_from_line_fp(point_x, point_y, segA_x, segA_y, segB_x, segB_y);
 
 	if (divisor != 1) {

@@ -2329,16 +2329,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 									size_t which2 = i;
 
 									for (size_t k = i + 1; k < j - 1; k++) {
-										double xd = sf.geometry[k].x - sf.geometry[i].x;
-										double yd = sf.geometry[k].y - sf.geometry[i].y;
-										double xd2 = sf.geometry[k].x - sf.geometry[which].x;
-										double yd2 = sf.geometry[k].y - sf.geometry[which].y;
-										double d1 = xd * xd + yd * yd;
-										double d2 = xd2 * xd2 + yd2 * yd2;
-										if (d1 != 0 && d2 != 0 &&
-										    (d1 + d2 > far ||
-										     ((d1 + d2 == far) && (sf.geometry[k] < sf.geometry[which2])))) {
-											far = d1 + d2;
+										long long d = square_distance_from_line(sf.geometry[k].x, sf.geometry[k].y,
+															sf.geometry[i].x, sf.geometry[i].y,
+															sf.geometry[which].x, sf.geometry[which].y,
+															16);
+										if ((d > far) ||
+										    ((d == far) && (sf.geometry[k] < sf.geometry[which2]))) {
+											far = d;
 											which2 = k;
 										}
 									}
