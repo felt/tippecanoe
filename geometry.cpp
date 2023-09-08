@@ -433,6 +433,22 @@ static long long square_distance_from_line(long long point_x, long long point_y,
 	return out;
 }
 
+#if 0
+struct stackcmp {
+    drawvec &geom;
+    int offset;
+
+    stackcmp(drawvec &geom_), int offset_) geom : geom_, offset : offset_ { }
+
+    bool operator()(const int &a, const int &b) {
+        if (geom[offset + a] < geom[offset + b]) {
+            return true;
+        } else if (geom[offset + a] 
+        return a.original_seq < b.original_seq;
+    }
+};
+#endif
+
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, long long scale) {
 	e = e * e;
@@ -444,14 +460,25 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		exit(EXIT_IMPOSSIBLE);
 	}
 
+	printf("%d: ", n);
 	int prev = 0;
 	for (int here = 1; here < n; here++) {
 		if (geom[start + here].necessary) {
 			recursion_stack.push(prev);
 			recursion_stack.push(here);
+			if (geom[start + here] < geom[start + prev]) {
+				printf("%lld,%lld to %lld,%lld   ", geom[start + here].x, geom[start + here].y, geom[start + prev].x, geom[start + prev].y);
+			} else {
+				printf("%lld,%lld to %lld,%lld   ", geom[start + prev].x, geom[start + prev].y, geom[start + here].x, geom[start + here].y);
+			}
 			prev = here;
+			if (retain > 0) {
+				retain--;
+			}
 		}
 	}
+	printf("\n");
+	// std::sort(recursion_stack.begin(), recursion_stack.end(), stackcmp(geom, start));
 
 	while (!recursion_stack.empty()) {
 		// pop next element
@@ -464,36 +491,54 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 
 		long long max_distance = -1;
 		int farthest_element_index;
-		if (geom[start + first] < geom[start + second]) {
-			farthest_element_index = second;
-		} else {
-			farthest_element_index = first;
-		}
 
 		// find index idx of element with max_distance
 		int i;
+		size_t looked = 0;
 		if (geom[start + first] < geom[start + second]) {
+			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
+				looked++;
 				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, scale);
 
 				long long distance = std::llabs(temp_dist);
+				printf("%d %lld,%lld to %lld,%lld try %lld,%lld %lld\n", n,
+				       geom[start + first].x, geom[start + first].y,
+				       geom[start + second].x, geom[start + second].y,
+				       geom[start + i].x, geom[start + i].y,
+				       distance);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
 					max_distance = distance;
 				}
 			}
+			printf("%d %lld,%lld to %lld,%lld choose %lld,%lld %lld %zu\n", n,
+			       geom[start + first].x, geom[start + first].y,
+			       geom[start + second].x, geom[start + second].y,
+			       geom[start + farthest_element_index].x, geom[start + farthest_element_index].y, max_distance, looked);
 		} else {
+			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, scale);
+				looked++;
+				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, scale);
 
 				long long distance = std::llabs(temp_dist);
+				printf("%d %lld,%lld to %lld,%lld try %lld,%lld %lld\n", n,
+				       geom[start + second].x, geom[start + second].y,
+				       geom[start + first].x, geom[start + first].y,
+				       geom[start + i].x, geom[start + i].y,
+				       distance);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
 					max_distance = distance;
 				}
 			}
+			printf("%d %lld,%lld to %lld,%lld choose %lld,%lld %lld rev %zu\n", n,
+			       geom[start + second].x, geom[start + second].y,
+			       geom[start + first].x, geom[start + first].y,
+			       geom[start + farthest_element_index].x, geom[start + farthest_element_index].y, max_distance, looked);
 		}
 
 		if (max_distance >= 0) {
@@ -501,17 +546,32 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 			geom[start + farthest_element_index].necessary = 1;
 			kept++;
 
-			if (1 < farthest_element_index - first) {
-				recursion_stack.push(first);
-				recursion_stack.push(farthest_element_index);
+			if (geom[start + first] < geom[start + second]) {
+				if (1 < farthest_element_index - first) {
+					recursion_stack.push(first);
+					recursion_stack.push(farthest_element_index);
 
-				// printf("split1: %d to %d, %d\n", first, farthest_element_index, farthest_element_index - first + 1);
-			}
-			if (1 < second - farthest_element_index) {
-				recursion_stack.push(farthest_element_index);
-				recursion_stack.push(second);
+					// printf("split1: %d to %d, %d\n", first, farthest_element_index, farthest_element_index - first + 1);
+				}
+				if (1 < second - farthest_element_index) {
+					recursion_stack.push(farthest_element_index);
+					recursion_stack.push(second);
 
-				// printf("split2: %d to %d, %d\n", farthest_element_index, second, second - farthest_element_index + 1);
+					// printf("split2: %d to %d, %d\n", farthest_element_index, second, second - farthest_element_index + 1);
+				}
+			} else {
+				if (1 < second - farthest_element_index) {
+					recursion_stack.push(farthest_element_index);
+					recursion_stack.push(second);
+
+					// printf("split2: %d to %d, %d\n", farthest_element_index, second, second - farthest_element_index + 1);
+				}
+				if (1 < farthest_element_index - first) {
+					recursion_stack.push(first);
+					recursion_stack.push(farthest_element_index);
+
+					// printf("split1: %d to %d, %d\n", first, farthest_element_index, farthest_element_index - first + 1);
+				}
 			}
 		}
 	}
