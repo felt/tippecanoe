@@ -1298,9 +1298,8 @@ struct joint {
 	draw p1;
 	draw mid;
 	draw p2;
-	size_t ring;
 
-	joint(draw one, draw hinge, draw two, size_t r) {
+	joint(draw one, draw hinge, draw two) {
 		if (one < two) {
 			p1 = one;
 			p2 = two;
@@ -1310,7 +1309,6 @@ struct joint {
 		}
 
 		mid = hinge;
-		ring = r;
 	}
 
 	bool operator<(const joint &o) const {
@@ -2286,20 +2284,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 									// j - 1 because we don't want the duplicate last point
 									for (size_t k = i; k < j - 1; k++) {
-										if (sf.geometry[k] == sf.geometry[(k + 1 - i) % (j - 1 - i) + i]) {
-											abort();
-										}
-
-										if (sf.geometry[(k + 1 - i) % (j - 1 - i) + i] ==
-										    sf.geometry[(k + 2 - i) % (j - 1 - i) + i]) {
-											abort();
-										}
-
 										shared_joints.emplace_back(
 											sf.geometry[k],
 											sf.geometry[(k + 1 - i) % (j - 1 - i) + i],
-											sf.geometry[(k + 2 - i) % (j - 1 - i) + i],
-											seq);
+											sf.geometry[(k + 2 - i) % (j - 1 - i) + i]);
 									}
 
 									printf("%lld,%lld ", sf.geometry[i].x, sf.geometry[i].y);
@@ -2453,13 +2441,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			for (size_t i = 0; i + 1 < shared_joints.size(); i++) {
 				if (shared_joints[i].mid == shared_joints[i + 1].mid) {
 					// printf("%lld,%lld: ", shared_joints[i].mid.x, shared_joints[i].mid.y);
-					if ((shared_joints[i].p1 != shared_joints[i + 1].p1 ||
-					     shared_joints[i].p2 != shared_joints[i + 1].p2) &&
-					    (shared_joints[i].ring != shared_joints[i + 1].ring)) {
+					if (shared_joints[i].p1 != shared_joints[i + 1].p1 ||
+					    shared_joints[i].p2 != shared_joints[i + 1].p2) {
 						shared_nodes.push_back(shared_joints[i].mid);
-						double lon, lat;
-						tile2lonlat(shared_joints[i].mid.x, shared_joints[i].mid.y, 32, &lon, &lat);
-						printf("{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"Point\",\"coordinates\":[%f,%f]}}\n", lon, lat);
 						// printf("different\n");
 					} else {
 						// printf("same %lld,%lld to %lld,%lld\n", shared_joints[i].p1.x, shared_joints[i].p1.y, shared_joints[i].p2.x, shared_joints[i].p2.y);
