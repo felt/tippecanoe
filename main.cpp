@@ -3590,7 +3590,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (extra_detail >= 0 || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) {
+	if (extra_detail >= 0 || prevent[P_SIMPLIFY_SHARED_NODES] || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) {
 		geometry_scale = 0;
 	} else {
 		geometry_scale = 32 - (full_detail + maxzoom);
