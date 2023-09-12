@@ -12,8 +12,6 @@
 #include <sqlite3.h>
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
-#include <mapbox/geometry/wagyu/wagyu.hpp>
-#include <mapbox/geometry/wagyu/quick_clip.hpp>
 #include <mapbox/geometry/snap_rounding.hpp>
 #include "geometry.hpp"
 #include "projection.hpp"
@@ -346,6 +344,7 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
+#if 0
 static long long square_distance_from_line_fp(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
@@ -382,6 +381,7 @@ size_t bits(long long n) {
 	}
 	return 64;
 }
+#endif
 
 long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long divisor) {
 	// long long fpversion = square_distance_from_line_fp(point_x, point_y, segA_x, segA_y, segB_x, segB_y);
@@ -399,9 +399,11 @@ long long square_distance_from_line(long long point_x, long long point_y, long l
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	// printf("%lld %zu  %lld %zu   %lld %zu  %lld %zu\n", p2x, bits(p2x), (point_x - segA_x), bits(point_x - segA_x), p2y, bits(p2y), (point_y - segA_y), bits(point_y - segA_y));
+#if 0
 	if (bits(p2x) + bits(point_x - segA_x) > 63 || bits(p2y) + bits(point_y - segA_y) > 63) {
 		printf("overflow with divisor %lld\n", divisor);
 	}
+#endif
 	long long something = p2x * p2x + p2y * p2y;
 	double u = 0 == (something / scale) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something / scale);
 
@@ -418,7 +420,7 @@ long long square_distance_from_line(long long point_x, long long point_y, long l
 	long long dy = y - point_y;
 
 	long long out = dx * dx + dy * dy;
-	out *= divisor;
+	out *= divisor * divisor;  // squared because this is squared distance
 
 #if 0
 	printf("%lld,%lld  %lld  %f   %lld,%lld  %lld,%lld makes %lld\n", p2x, p2y, something, u, x, y, dx, dy, out);
@@ -452,6 +454,7 @@ struct stackcmp {
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, long long scale) {
 	e = e * e;
+	// printf("distance %f\n", e);
 	std::stack<int> recursion_stack;
 	// printf("doug of %d\n", n);
 
@@ -460,16 +463,16 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	printf("%d: ", n);
+	// printf("%d: ", n);
 	int prev = 0;
 	for (int here = 1; here < n; here++) {
 		if (geom[start + here].necessary) {
 			recursion_stack.push(prev);
 			recursion_stack.push(here);
 			if (geom[start + here] < geom[start + prev]) {
-				printf("%lld,%lld to %lld,%lld   ", geom[start + here].x, geom[start + here].y, geom[start + prev].x, geom[start + prev].y);
+				// printf("%lld,%lld to %lld,%lld   ", geom[start + here].x, geom[start + here].y, geom[start + prev].x, geom[start + prev].y);
 			} else {
-				printf("%lld,%lld to %lld,%lld   ", geom[start + prev].x, geom[start + prev].y, geom[start + here].x, geom[start + here].y);
+				// printf("%lld,%lld to %lld,%lld   ", geom[start + prev].x, geom[start + prev].y, geom[start + here].x, geom[start + here].y);
 			}
 			prev = here;
 			if (retain > 0) {
@@ -477,7 +480,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 			}
 		}
 	}
-	printf("\n");
+	// printf("\n");
 	// std::sort(recursion_stack.begin(), recursion_stack.end(), stackcmp(geom, start));
 
 	while (!recursion_stack.empty()) {
@@ -494,51 +497,56 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 
 		// find index idx of element with max_distance
 		int i;
-		size_t looked = 0;
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				looked++;
 				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, scale);
 
 				long long distance = std::llabs(temp_dist);
+#if 0
 				printf("%d %lld,%lld to %lld,%lld try %lld,%lld %lld\n", n,
 				       geom[start + first].x, geom[start + first].y,
 				       geom[start + second].x, geom[start + second].y,
 				       geom[start + i].x, geom[start + i].y,
 				       distance);
+#endif
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
 					max_distance = distance;
 				}
 			}
+#if 0
 			printf("%d %lld,%lld to %lld,%lld choose %lld,%lld %lld %zu\n", n,
 			       geom[start + first].x, geom[start + first].y,
 			       geom[start + second].x, geom[start + second].y,
 			       geom[start + farthest_element_index].x, geom[start + farthest_element_index].y, max_distance, looked);
+#endif
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				looked++;
 				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, scale);
 
 				long long distance = std::llabs(temp_dist);
+#if 0
 				printf("%d %lld,%lld to %lld,%lld try %lld,%lld %lld\n", n,
 				       geom[start + second].x, geom[start + second].y,
 				       geom[start + first].x, geom[start + first].y,
 				       geom[start + i].x, geom[start + i].y,
 				       distance);
+#endif
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
 					max_distance = distance;
 				}
 			}
+#if 0
 			printf("%d %lld,%lld to %lld,%lld choose %lld,%lld %lld rev %zu\n", n,
 			       geom[start + second].x, geom[start + second].y,
 			       geom[start + first].x, geom[start + first].y,
 			       geom[start + farthest_element_index].x, geom[start + farthest_element_index].y, max_distance, looked);
+#endif
 		}
 
 		if (max_distance >= 0) {
@@ -847,7 +855,6 @@ drawvec fix_polygon(drawvec &geom) {
 			// Copy ring into output, fixing the moveto/lineto ops if necessary because of
 			// reversal or closing
 
-			printf("chose %lld,%lld for ring of size %zu\n", ring[furthestb].x, ring[furthestb].y, ring.size());
 			for (size_t a = 0; a < ring.size(); a++) {
 				size_t a2 = (a + furthestb) % (ring.size() - 1);
 

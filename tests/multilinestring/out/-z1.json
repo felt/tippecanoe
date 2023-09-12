@@ -14,7 +14,7 @@
 }, "features": [
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ 33.046875, 70.728979 ], [ 1.757812, -16.299051 ] ], [ [ -17.226562, 60.586967 ], [ -34.101562, 17.644022 ] ] ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ 33.046875, 70.728979 ], [ -1.054688, 18.979026 ], [ 1.757812, -16.299051 ] ], [ [ -17.226562, 60.586967 ], [ -34.101562, 17.644022 ] ] ] } }
 ] }
 ] }
 ,
@@ -26,7 +26,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ 3.515625, 29.036961 ], [ 0.000000, 21.371244 ], [ 0.000000, 5.878332 ], [ 0.747070, -3.513421 ] ], [ [ -17.226562, 60.586967 ], [ -34.101562, 17.644022 ] ] ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ 3.515625, 29.036961 ], [ 0.000000, 21.371244 ], [ -1.054688, 18.979026 ], [ 0.000000, 5.878332 ], [ 0.747070, -3.513421 ] ], [ [ -17.226562, 60.586967 ], [ -34.101562, 17.644022 ] ] ] } }
 ] }
 ] }
 ,
@@ -38,7 +38,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 33.046875, 70.728979 ], [ 0.000000, 21.371244 ], [ 0.000000, 5.878332 ], [ 0.483398, 0.000000 ], [ 0.747070, -3.513421 ] ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 33.046875, 70.728979 ], [ 0.000000, 21.371244 ], [ -1.054688, 18.979026 ], [ 0.000000, 5.878332 ], [ 0.483398, 0.000000 ], [ 0.747070, -3.513421 ] ] } }
 ] }
 ] }
 ] }

@@ -2280,7 +2280,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 											break;
 										}
 									}
-									printf("%zu: ", j - i);
 
 									// j - 1 because we don't want the duplicate last point
 									for (size_t k = i; k < j - 1; k++) {
@@ -2289,8 +2288,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 											sf.geometry[(k + 1 - i) % (j - 1 - i) + i],
 											sf.geometry[(k + 2 - i) % (j - 1 - i) + i]);
 									}
-
-									printf("%lld,%lld ", sf.geometry[i].x, sf.geometry[i].y);
 
 									// since the starting point is never simplified away,
 									// don't let it be simplified away in any other polygons either.
@@ -2317,7 +2314,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 										}
 									}
 
-									printf("%lld,%lld ", sf.geometry[which].x, sf.geometry[which].y);
 									shared_nodes.push_back(sf.geometry[which]);
 									shared_nodes.push_back(sf.geometry[which]);
 
@@ -2340,7 +2336,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 										}
 									}
 
-									printf("%lld,%lld\n", sf.geometry[which2].x, sf.geometry[which2].y);
 									shared_nodes.push_back(sf.geometry[which2]);
 									shared_nodes.push_back(sf.geometry[which2]);
 

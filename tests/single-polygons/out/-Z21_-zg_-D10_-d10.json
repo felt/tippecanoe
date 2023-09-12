@@ -55,7 +55,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 22, "x": 4132805, "y": 2564182 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 1024 }, "features": [
-{ "type": "Feature", "properties": { "seq": 7 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ] ] ] } }
+{ "type": "Feature", "properties": { "seq": 7 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ], [ 174.721518, -37.166210 ] ] ] } }
 ,
 { "type": "Feature", "properties": { "seq": 9 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 174.721520, -37.166210 ], [ 174.721520, -37.166210 ], [ 174.721520, -37.166210 ], [ 174.721519, -37.166210 ], [ 174.721520, -37.166210 ] ] ] } }
 ,

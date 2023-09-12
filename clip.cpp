@@ -1,8 +1,6 @@
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
 #include <mapbox/geometry/wagyu/wagyu.hpp>
-#include <mapbox/geometry/wagyu/quick_clip.hpp>
-#include <mapbox/geometry/snap_rounding.hpp>
 #include "geometry.hpp"
 #include "errors.hpp"
 #include "compression.hpp"
