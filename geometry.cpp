@@ -383,7 +383,7 @@ size_t bits(long long n) {
 }
 #endif
 
-long long square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long divisor) {
+long long distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long divisor) {
 	// long long fpversion = square_distance_from_line_fp(point_x, point_y, segA_x, segA_y, segB_x, segB_y);
 
 	if (divisor != 1) {
@@ -420,7 +420,7 @@ long long square_distance_from_line(long long point_x, long long point_y, long l
 	long long dy = y - point_y;
 
 	long long out = dx * dx + dy * dy;
-	out *= divisor * divisor;  // squared because this is squared distance
+	out = std::round(sqrt(out)) * divisor;
 
 #if 0
 	printf("%lld,%lld  %lld  %f   %lld,%lld  %lld,%lld makes %lld\n", p2x, p2y, something, u, x, y, dx, dy, out);
@@ -453,7 +453,6 @@ struct stackcmp {
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, long long scale) {
-	e = e * e;
 	// printf("distance %f\n", e);
 	std::stack<int> recursion_stack;
 	// printf("doug of %d\n", n);
@@ -500,7 +499,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, scale);
+				long long temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, scale);
 
 				long long distance = std::llabs(temp_dist);
 #if 0
@@ -525,7 +524,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				long long temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, scale);
+				long long temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, scale);
 
 				long long distance = std::llabs(temp_dist);
 #if 0
@@ -1154,26 +1153,26 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 		return 0;  // outside the polygon is as bad as it gets
 	}
 
-	double closest = INFINITY;  // square of closest distance to the border
+	double closest = INFINITY;  // closest distance to the border
 
 	for (size_t i = 0; i < dv.size(); i++) {
 		double dx = dv[i].x - x;
 		double dy = dv[i].y - y;
-		double squared = dx * dx + dy * dy;
-		if (squared < closest) {
-			closest = squared;
+		double dist = sqrt(dx * dx + dy * dy);
+		if (dist < closest) {
+			closest = dist;
 		}
 
 		if (i > 0 && dv[i].op == VT_LINETO) {
 			// division by 16 to avoid overflow with z0 coordinates
-			squared = square_distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y, 16);
-			if (squared < closest) {
-				closest = squared;
+			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y, 16);
+			if (dist < closest) {
+				closest = dist;
 			}
 		}
 	}
 
-	return sqrt(closest);
+	return closest;
 }
 
 struct sorty {
