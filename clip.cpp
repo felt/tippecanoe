@@ -6,6 +6,377 @@
 #include "compression.hpp"
 #include "mvt.hpp"
 
+static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
+							 long long minx, long long miny, long long maxx, long long maxy,
+							 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes,
+							 bool prevent_simplify_shared_nodes);
+
+drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy,
+			 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes, bool prevent_simplify_shared_nodes) {
+	drawvec out;
+	if (prevent_simplify_shared_nodes) {
+		geom = remove_noop(geom, VT_POLYGON, 0);
+	}
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			std::vector<std::pair<double, double>> tmp;
+			for (size_t k = i; k < j; k++) {
+				double x = geom[k].x;
+				double y = geom[k].y;
+				tmp.emplace_back(x, y);
+			}
+			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, edge_nodes, prevent_simplify_shared_nodes);
+			if (tmp.size() > 0) {
+				if (tmp[0].first != tmp[tmp.size() - 1].first || tmp[0].second != tmp[tmp.size() - 1].second) {
+					fprintf(stderr, "Internal error: Polygon ring not closed\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+			for (size_t k = 0; k < tmp.size(); k++) {
+				if (k == 0) {
+					out.push_back(draw(VT_MOVETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+				} else {
+					out.push_back(draw(VT_LINETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+				}
+			}
+
+			i = j - 1;
+		} else {
+			fprintf(stderr, "Unexpected operation in polygon %d\n", (int) geom[i].op);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	return out;
+}
+
+drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy, bool prevent_simplify_shared_nodes) {
+	drawvec dv;
+	return simple_clip_poly(geom, minx, miny, maxx, maxy, minx, miny, maxx, maxy, dv, prevent_simplify_shared_nodes);
+}
+
+drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &edge_nodes, bool prevent_simplify_shared_nodes) {
+	long long area = 1LL << (32 - z);
+	long long clip_buffer = buffer * area / 256;
+
+	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer,
+				0, 0, area, area, edge_nodes, prevent_simplify_shared_nodes);
+}
+
+drawvec clip_point(drawvec &geom, int z, long long buffer) {
+	long long min = 0;
+	long long area = 1LL << (32 - z);
+
+	min -= buffer * area / 256;
+	area += buffer * area / 256;
+
+	return clip_point(geom, min, min, area, area);
+}
+
+drawvec clip_point(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
+	drawvec out;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].x >= minx && geom[i].y >= miny && geom[i].x <= maxx && geom[i].y <= maxy) {
+			out.push_back(geom[i]);
+		}
+	}
+
+	return out;
+}
+
+drawvec clip_lines(drawvec &geom, int z, long long buffer) {
+	long long min = 0;
+	long long area = 1LL << (32 - z);
+	min -= buffer * area / 256;
+	area += buffer * area / 256;
+
+	return clip_lines(geom, min, min, area, area);
+}
+
+drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
+	drawvec out;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (i > 0 && (geom[i - 1].op == VT_MOVETO || geom[i - 1].op == VT_LINETO) && geom[i].op == VT_LINETO) {
+			long long x1 = geom[i - 1].x;
+			long long y1 = geom[i - 1].y;
+
+			long long x2 = geom[i - 0].x;
+			long long y2 = geom[i - 0].y;
+
+			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
+
+			if (c > 1) {  // clipped
+				out.push_back(draw(VT_MOVETO, std::round(x1), std::round(y1)));
+				out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
+				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
+			} else if (c == 1) {  // unchanged
+				out.push_back(geom[i]);
+			} else {  // clipped away entirely
+				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
+			}
+		} else {
+			out.push_back(geom[i]);
+		}
+	}
+
+	return out;
+}
+
+#define INSIDE 0
+#define LEFT 1
+#define RIGHT 2
+#define BOTTOM 4
+#define TOP 8
+
+static int computeOutCode(long long x, long long y, long long xmin, long long ymin, long long xmax, long long ymax) {
+	int code = INSIDE;
+
+	if (x < xmin) {
+		code |= LEFT;
+	} else if (x > xmax) {
+		code |= RIGHT;
+	}
+
+	if (y < ymin) {
+		code |= BOTTOM;
+	} else if (y > ymax) {
+		code |= TOP;
+	}
+
+	return code;
+}
+
+int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax) {
+	int outcode0 = computeOutCode(*x0, *y0, xmin, ymin, xmax, ymax);
+	int outcode1 = computeOutCode(*x1, *y1, xmin, ymin, xmax, ymax);
+	int accept = 0;
+	int changed = 0;
+
+	while (1) {
+		if (!(outcode0 | outcode1)) {  // Bitwise OR is 0. Trivially accept and get out of loop
+			accept = 1;
+			break;
+		} else if (outcode0 & outcode1) {  // Bitwise AND is not 0. Trivially reject and get out of loop
+			break;
+		} else {
+			// failed both tests, so calculate the line segment to clip
+			// from an outside point to an intersection with clip edge
+			long long x = *x0, y = *y0;
+
+			// At least one endpoint is outside the clip rectangle; pick it.
+			int outcodeOut = outcode0 ? outcode0 : outcode1;
+
+			// XXX truncating division
+
+			// Now find the intersection point;
+			// use formulas y = y0 + slope * (x - x0), x = x0 + (1 / slope) * (y - y0)
+			if (outcodeOut & TOP) {	 // point is above the clip rectangle
+				x = *x0 + (*x1 - *x0) * (ymax - *y0) / (*y1 - *y0);
+				y = ymax;
+			} else if (outcodeOut & BOTTOM) {  // point is below the clip rectangle
+				x = *x0 + (*x1 - *x0) * (ymin - *y0) / (*y1 - *y0);
+				y = ymin;
+			} else if (outcodeOut & RIGHT) {  // point is to the right of clip rectangle
+				y = *y0 + (*y1 - *y0) * (xmax - *x0) / (*x1 - *x0);
+				x = xmax;
+			} else if (outcodeOut & LEFT) {	 // point is to the left of clip rectangle
+				y = *y0 + (*y1 - *y0) * (xmin - *x0) / (*x1 - *x0);
+				x = xmin;
+			}
+
+			// Now we move outside point to intersection point to clip
+			// and get ready for next pass.
+			if (outcodeOut == outcode0) {
+				*x0 = x;
+				*y0 = y;
+				outcode0 = computeOutCode(*x0, *y0, xmin, ymin, xmax, ymax);
+				changed = 1;
+			} else {
+				*x1 = x;
+				*y1 = y;
+				outcode1 = computeOutCode(*x1, *y1, xmin, ymin, xmax, ymax);
+				changed = 1;
+			}
+		}
+	}
+
+	if (accept == 0) {
+		return 0;
+	} else {
+		return changed + 1;
+	}
+}
+
+static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawvec &out, double scale) {
+	out.clear();
+
+	for (size_t i = 0; i < t.size(); i++) {
+		for (size_t j = 0; j < t[i].size(); j++) {
+			drawvec ring;
+
+			for (size_t k = 0; k < t[i][j].size(); k++) {
+				ring.push_back(draw((k == 0) ? VT_MOVETO : VT_LINETO, std::round(t[i][j][k].x / scale), std::round(t[i][j][k].y / scale)));
+			}
+
+			if (ring.size() > 0 && ring[ring.size() - 1] != ring[0]) {
+				fprintf(stderr, "Had to close ring\n");
+				ring.push_back(draw(VT_LINETO, ring[0].x, ring[0].y));
+			}
+
+			double area = get_area(ring, 0, ring.size());
+
+			if ((j == 0 && area < 0) || (j != 0 && area > 0)) {
+				fprintf(stderr, "Ring area has wrong sign: %f for %zu\n", area, j);
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			for (size_t k = 0; k < ring.size(); k++) {
+				out.push_back(ring[k]);
+			}
+		}
+	}
+}
+
+drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling) {
+	geom = remove_noop(geom, VT_POLYGON, 0);
+	mapbox::geometry::multi_polygon<long long> result;
+
+	double scale = 16.0;
+	if (!try_scaling) {
+		scale = 1.0;
+	}
+
+	bool again = true;
+	while (again) {
+		mapbox::geometry::wagyu::wagyu<long long> wagyu;
+		again = false;
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				size_t j;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+				}
+
+				if (j >= i + 4) {
+					mapbox::geometry::linear_ring<long long> lr;
+
+					for (size_t k = i; k < j; k++) {
+						lr.push_back(mapbox::geometry::point<long long>(geom[k].x * scale, geom[k].y * scale));
+					}
+
+					if (lr.size() >= 3) {
+						wagyu.add_ring(lr);
+					}
+				}
+
+				i = j - 1;
+			}
+		}
+
+		if (clip) {
+			long long area = 0xFFFFFFFF;
+			if (z != 0) {
+				area = 1LL << (32 - z);
+			}
+			long long clip_buffer = buffer * area / 256;
+
+			mapbox::geometry::linear_ring<long long> lr;
+
+			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
+			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * (area + clip_buffer)));
+			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * (area + clip_buffer)));
+			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * -clip_buffer));
+			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
+
+			wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
+		}
+
+		try {
+			result.clear();
+			wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+		} catch (std::runtime_error &e) {
+			FILE *f = fopen("/tmp/wagyu.log", "w");
+			fprintf(f, "%s\n", e.what());
+			fprintf(stderr, "%s\n", e.what());
+			fprintf(f, "[");
+
+			for (size_t i = 0; i < geom.size(); i++) {
+				if (geom[i].op == VT_MOVETO) {
+					size_t j;
+					for (j = i + 1; j < geom.size(); j++) {
+						if (geom[j].op != VT_LINETO) {
+							break;
+						}
+					}
+
+					if (j >= i + 4) {
+						mapbox::geometry::linear_ring<long long> lr;
+
+						if (i != 0) {
+							fprintf(f, ",");
+						}
+						fprintf(f, "[");
+
+						for (size_t k = i; k < j; k++) {
+							lr.push_back(mapbox::geometry::point<long long>(geom[k].x, geom[k].y));
+							if (k != i) {
+								fprintf(f, ",");
+							}
+							fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
+						}
+
+						fprintf(f, "]");
+
+						if (lr.size() >= 3) {
+						}
+					}
+
+					i = j - 1;
+				}
+			}
+
+			fprintf(f, "]");
+			fprintf(f, "\n\n\n\n\n");
+
+			fclose(f);
+			fprintf(stderr, "Internal error: Polygon cleaning failed. Log in /tmp/wagyu.log\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		if (scale != 1) {
+			for (auto const &outer : result) {
+				for (auto const &ring : outer) {
+					for (auto const &p : ring) {
+						if (p.x / scale != std::round(p.x / scale) ||
+						    p.y / scale != std::round(p.y / scale)) {
+							scale = 1;
+							again = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	drawvec ret;
+	decode_clipped(result, ret, scale);
+	return ret;
+}
+
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	if (32 - detail - z < 0) {
 		for (size_t i = 0; i < geom.size(); i++) {
@@ -212,166 +583,6 @@ double get_mp_area(drawvec &geom) {
 	return ret;
 }
 
-static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawvec &out, double scale) {
-	out.clear();
-
-	for (size_t i = 0; i < t.size(); i++) {
-		for (size_t j = 0; j < t[i].size(); j++) {
-			drawvec ring;
-
-			for (size_t k = 0; k < t[i][j].size(); k++) {
-				ring.push_back(draw((k == 0) ? VT_MOVETO : VT_LINETO, std::round(t[i][j][k].x / scale), std::round(t[i][j][k].y / scale)));
-			}
-
-			if (ring.size() > 0 && ring[ring.size() - 1] != ring[0]) {
-				fprintf(stderr, "Had to close ring\n");
-				ring.push_back(draw(VT_LINETO, ring[0].x, ring[0].y));
-			}
-
-			double area = get_area(ring, 0, ring.size());
-
-			if ((j == 0 && area < 0) || (j != 0 && area > 0)) {
-				fprintf(stderr, "Ring area has wrong sign: %f for %zu\n", area, j);
-				exit(EXIT_IMPOSSIBLE);
-			}
-
-			for (size_t k = 0; k < ring.size(); k++) {
-				out.push_back(ring[k]);
-			}
-		}
-	}
-}
-
-drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling) {
-	geom = remove_noop(geom, VT_POLYGON, 0);
-	mapbox::geometry::multi_polygon<long long> result;
-
-	double scale = 16.0;
-	if (!try_scaling) {
-		scale = 1.0;
-	}
-
-	bool again = true;
-	while (again) {
-		mapbox::geometry::wagyu::wagyu<long long> wagyu;
-		again = false;
-
-		for (size_t i = 0; i < geom.size(); i++) {
-			if (geom[i].op == VT_MOVETO) {
-				size_t j;
-				for (j = i + 1; j < geom.size(); j++) {
-					if (geom[j].op != VT_LINETO) {
-						break;
-					}
-				}
-
-				if (j >= i + 4) {
-					mapbox::geometry::linear_ring<long long> lr;
-
-					for (size_t k = i; k < j; k++) {
-						lr.push_back(mapbox::geometry::point<long long>(geom[k].x * scale, geom[k].y * scale));
-					}
-
-					if (lr.size() >= 3) {
-						wagyu.add_ring(lr);
-					}
-				}
-
-				i = j - 1;
-			}
-		}
-
-		if (clip) {
-			long long area = 0xFFFFFFFF;
-			if (z != 0) {
-				area = 1LL << (32 - z);
-			}
-			long long clip_buffer = buffer * area / 256;
-
-			mapbox::geometry::linear_ring<long long> lr;
-
-			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
-			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * (area + clip_buffer)));
-			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * (area + clip_buffer)));
-			lr.push_back(mapbox::geometry::point<long long>(scale * (area + clip_buffer), scale * -clip_buffer));
-			lr.push_back(mapbox::geometry::point<long long>(scale * -clip_buffer, scale * -clip_buffer));
-
-			wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
-		}
-
-		try {
-			result.clear();
-			wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
-		} catch (std::runtime_error &e) {
-			FILE *f = fopen("/tmp/wagyu.log", "w");
-			fprintf(f, "%s\n", e.what());
-			fprintf(stderr, "%s\n", e.what());
-			fprintf(f, "[");
-
-			for (size_t i = 0; i < geom.size(); i++) {
-				if (geom[i].op == VT_MOVETO) {
-					size_t j;
-					for (j = i + 1; j < geom.size(); j++) {
-						if (geom[j].op != VT_LINETO) {
-							break;
-						}
-					}
-
-					if (j >= i + 4) {
-						mapbox::geometry::linear_ring<long long> lr;
-
-						if (i != 0) {
-							fprintf(f, ",");
-						}
-						fprintf(f, "[");
-
-						for (size_t k = i; k < j; k++) {
-							lr.push_back(mapbox::geometry::point<long long>(geom[k].x, geom[k].y));
-							if (k != i) {
-								fprintf(f, ",");
-							}
-							fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
-						}
-
-						fprintf(f, "]");
-
-						if (lr.size() >= 3) {
-						}
-					}
-
-					i = j - 1;
-				}
-			}
-
-			fprintf(f, "]");
-			fprintf(f, "\n\n\n\n\n");
-
-			fclose(f);
-			fprintf(stderr, "Internal error: Polygon cleaning failed. Log in /tmp/wagyu.log\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
-
-		if (scale != 1) {
-			for (auto const &outer : result) {
-				for (auto const &ring : outer) {
-					for (auto const &p : ring) {
-						if (p.x / scale != std::round(p.x / scale) ||
-						    p.y / scale != std::round(p.y / scale)) {
-							scale = 1;
-							again = true;
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	drawvec ret;
-	decode_clipped(result, ret, scale);
-	return ret;
-}
-
 drawvec close_poly(drawvec &geom) {
 	drawvec out;
 
@@ -537,212 +748,6 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	}
 
 	return out;
-}
-
-drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy,
-			 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes, bool prevent_simplify_shared_nodes) {
-	drawvec out;
-	if (prevent_simplify_shared_nodes) {
-		geom = remove_noop(geom, VT_POLYGON, 0);
-	}
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			std::vector<std::pair<double, double>> tmp;
-			for (size_t k = i; k < j; k++) {
-				double x = geom[k].x;
-				double y = geom[k].y;
-				tmp.emplace_back(x, y);
-			}
-			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, edge_nodes, prevent_simplify_shared_nodes);
-			if (tmp.size() > 0) {
-				if (tmp[0].first != tmp[tmp.size() - 1].first || tmp[0].second != tmp[tmp.size() - 1].second) {
-					fprintf(stderr, "Internal error: Polygon ring not closed\n");
-					exit(EXIT_FAILURE);
-				}
-			}
-			for (size_t k = 0; k < tmp.size(); k++) {
-				if (k == 0) {
-					out.push_back(draw(VT_MOVETO, std::round(tmp[k].first), std::round(tmp[k].second)));
-				} else {
-					out.push_back(draw(VT_LINETO, std::round(tmp[k].first), std::round(tmp[k].second)));
-				}
-			}
-
-			i = j - 1;
-		} else {
-			fprintf(stderr, "Unexpected operation in polygon %d\n", (int) geom[i].op);
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	return out;
-}
-
-drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy, bool prevent_simplify_shared_nodes) {
-	drawvec dv;
-	return simple_clip_poly(geom, minx, miny, maxx, maxy, minx, miny, maxx, maxy, dv, prevent_simplify_shared_nodes);
-}
-
-drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &edge_nodes, bool prevent_simplify_shared_nodes) {
-	long long area = 1LL << (32 - z);
-	long long clip_buffer = buffer * area / 256;
-
-	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer,
-				0, 0, area, area, edge_nodes, prevent_simplify_shared_nodes);
-}
-
-drawvec clip_point(drawvec &geom, int z, long long buffer) {
-	long long min = 0;
-	long long area = 1LL << (32 - z);
-
-	min -= buffer * area / 256;
-	area += buffer * area / 256;
-
-	return clip_point(geom, min, min, area, area);
-}
-
-drawvec clip_point(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
-	drawvec out;
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].x >= minx && geom[i].y >= miny && geom[i].x <= maxx && geom[i].y <= maxy) {
-			out.push_back(geom[i]);
-		}
-	}
-
-	return out;
-}
-
-drawvec clip_lines(drawvec &geom, int z, long long buffer) {
-	long long min = 0;
-	long long area = 1LL << (32 - z);
-	min -= buffer * area / 256;
-	area += buffer * area / 256;
-
-	return clip_lines(geom, min, min, area, area);
-}
-
-drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy) {
-	drawvec out;
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (i > 0 && (geom[i - 1].op == VT_MOVETO || geom[i - 1].op == VT_LINETO) && geom[i].op == VT_LINETO) {
-			long long x1 = geom[i - 1].x;
-			long long y1 = geom[i - 1].y;
-
-			long long x2 = geom[i - 0].x;
-			long long y2 = geom[i - 0].y;
-
-			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
-
-			if (c > 1) {  // clipped
-				out.push_back(draw(VT_MOVETO, std::round(x1), std::round(y1)));
-				out.push_back(draw(VT_LINETO, std::round(x2), std::round(y2)));
-				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
-			} else if (c == 1) {  // unchanged
-				out.push_back(geom[i]);
-			} else {  // clipped away entirely
-				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
-			}
-		} else {
-			out.push_back(geom[i]);
-		}
-	}
-
-	return out;
-}
-
-#define INSIDE 0
-#define LEFT 1
-#define RIGHT 2
-#define BOTTOM 4
-#define TOP 8
-
-static int computeOutCode(long long x, long long y, long long xmin, long long ymin, long long xmax, long long ymax) {
-	int code = INSIDE;
-
-	if (x < xmin) {
-		code |= LEFT;
-	} else if (x > xmax) {
-		code |= RIGHT;
-	}
-
-	if (y < ymin) {
-		code |= BOTTOM;
-	} else if (y > ymax) {
-		code |= TOP;
-	}
-
-	return code;
-}
-
-int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax) {
-	int outcode0 = computeOutCode(*x0, *y0, xmin, ymin, xmax, ymax);
-	int outcode1 = computeOutCode(*x1, *y1, xmin, ymin, xmax, ymax);
-	int accept = 0;
-	int changed = 0;
-
-	while (1) {
-		if (!(outcode0 | outcode1)) {  // Bitwise OR is 0. Trivially accept and get out of loop
-			accept = 1;
-			break;
-		} else if (outcode0 & outcode1) {  // Bitwise AND is not 0. Trivially reject and get out of loop
-			break;
-		} else {
-			// failed both tests, so calculate the line segment to clip
-			// from an outside point to an intersection with clip edge
-			long long x = *x0, y = *y0;
-
-			// At least one endpoint is outside the clip rectangle; pick it.
-			int outcodeOut = outcode0 ? outcode0 : outcode1;
-
-			// XXX truncating division
-
-			// Now find the intersection point;
-			// use formulas y = y0 + slope * (x - x0), x = x0 + (1 / slope) * (y - y0)
-			if (outcodeOut & TOP) {	 // point is above the clip rectangle
-				x = *x0 + (*x1 - *x0) * (ymax - *y0) / (*y1 - *y0);
-				y = ymax;
-			} else if (outcodeOut & BOTTOM) {  // point is below the clip rectangle
-				x = *x0 + (*x1 - *x0) * (ymin - *y0) / (*y1 - *y0);
-				y = ymin;
-			} else if (outcodeOut & RIGHT) {  // point is to the right of clip rectangle
-				y = *y0 + (*y1 - *y0) * (xmax - *x0) / (*x1 - *x0);
-				x = xmax;
-			} else if (outcodeOut & LEFT) {	 // point is to the left of clip rectangle
-				y = *y0 + (*y1 - *y0) * (xmin - *x0) / (*x1 - *x0);
-				x = xmin;
-			}
-
-			// Now we move outside point to intersection point to clip
-			// and get ready for next pass.
-			if (outcodeOut == outcode0) {
-				*x0 = x;
-				*y0 = y;
-				outcode0 = computeOutCode(*x0, *y0, xmin, ymin, xmax, ymax);
-				changed = 1;
-			} else {
-				*x1 = x;
-				*y1 = y;
-				outcode1 = computeOutCode(*x1, *y1, xmin, ymin, xmax, ymax);
-				changed = 1;
-			}
-		}
-	}
-
-	if (accept == 0) {
-		return 0;
-	} else {
-		return changed + 1;
-	}
 }
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
