@@ -2435,16 +2435,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::sort(shared_joints.begin(), shared_joints.end());
 			for (size_t i = 0; i + 1 < shared_joints.size(); i++) {
 				if (shared_joints[i].mid == shared_joints[i + 1].mid) {
-					// printf("%lld,%lld: ", shared_joints[i].mid.x, shared_joints[i].mid.y);
 					if (shared_joints[i].p1 != shared_joints[i + 1].p1 ||
 					    shared_joints[i].p2 != shared_joints[i + 1].p2) {
 						shared_nodes.push_back(shared_joints[i].mid);
-						// printf("different\n");
-					} else {
-						// printf("same %lld,%lld to %lld,%lld\n", shared_joints[i].p1.x, shared_joints[i].p1.y, shared_joints[i].p2.x, shared_joints[i].p2.y);
 					}
-				} else {
-					// printf("only once %lld,%lld\n", shared_joints[i].mid.x, shared_joints[i].mid.y);
 				}
 			}
 
