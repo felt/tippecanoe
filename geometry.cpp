@@ -334,44 +334,31 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-long long distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long divisor) {
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
 	// long long fpversion = square_distance_from_line_fp(point_x, point_y, segA_x, segA_y, segB_x, segB_y);
 
-	if (divisor != 1) {
-		point_x /= divisor;
-		point_y /= divisor;
-		segA_x /= divisor;
-		segA_y /= divisor;
-		segB_x /= divisor;
-		segB_y /= divisor;
-	}
-
-	const long long scale = 1024;
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
-	long long something = p2x * p2x + p2y * p2y;
-	double u = 0 == (something / scale) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something / scale);
+	double something = p2x * p2x + p2y * p2y;
+	double u = (0 == something) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something);
 
-	if (u > scale) {
-		u = scale;
+	if (u > 1) {
+		u = 1;
 	} else if (u < 0) {
 		u = 0;
 	}
 
-	long long x = std::round(segA_x + u * p2x / scale);
-	long long y = std::round(segA_y + u * p2y / scale);
+	double x = std::round(segA_x + u * p2x);
+	double y = std::round(segA_y + u * p2y);
 
-	long long dx = x - point_x;
-	long long dy = y - point_y;
+	double dx = x - point_x;
+	double dy = y - point_y;
 
-	long long out = dx * dx + dy * dy;
-	out = std::round(sqrt(out)) * divisor;
-
-	return out;
+	return sqrt(dx * dx + dy * dy);
 }
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
-static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, long long scale) {
+static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
 	std::stack<int> recursion_stack;
 
 	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
@@ -385,8 +372,11 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 			recursion_stack.push(prev);
 			recursion_stack.push(here);
 			prev = here;
-			if (retain > 0) {
-				retain--;
+
+			if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+				if (retain > 0) {
+					retain--;
+				}
 			}
 		}
 	}
@@ -403,7 +393,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		int first = recursion_stack.top();
 		recursion_stack.pop();
 
-		long long max_distance = -1;
+		double max_distance = -1;
 		int farthest_element_index;
 
 		// find index idx of element with max_distance
@@ -411,9 +401,9 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				long long temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, scale);
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
 
-				long long distance = std::llabs(temp_dist);
+				double distance = std::fabs(temp_dist);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -423,9 +413,9 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				long long temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, scale);
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
 
-				long long distance = std::llabs(temp_dist);
+				double distance = std::fabs(temp_dist);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -551,11 +541,7 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 				if (additional[A_VISVALINGAM]) {
 					visvalingam(geom, i, j, scale, retain);
 				} else {
-					long long divisor = 1;
-					if (z < 18) {
-						divisor = 1LL << (18 - z);
-					}
-					douglas_peucker(geom, i, j - i, res * simplification, 2, retain, divisor);
+					douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
 				}
 			}
 			i = j - 1;
@@ -1038,8 +1024,7 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 		}
 
 		if (i > 0 && dv[i].op == VT_LINETO) {
-			// division by 16 to avoid overflow with z0 coordinates
-			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y, 16);
+			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
 			if (dist < closest) {
 				closest = dist;
 			}

@@ -84,6 +84,12 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 328, "y": 791 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.249808, 37.793304 ], [ -122.249765, 37.793338 ], [ -122.249808, 37.793304 ] ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 650, "y": 1578 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ -122.822235, 38.090509 ], [ -122.822192, 38.090526 ] ] } }
