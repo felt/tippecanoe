@@ -57,7 +57,7 @@ $ tippecanoe -o file.mbtiles [options] [file.json file.json.gz file.fgb ...]
 ```
 
 If no files are specified, it reads GeoJSON from the standard input.
-If multiple files are specified, each is placed in its own layer.
+If multiple files are specified, each is placed [in its own layer](#input-files-and-layer-names).
 
 The GeoJSON features need not be wrapped in a FeatureCollection.
 You can concatenate multiple GeoJSON features or files together,
