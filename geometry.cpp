@@ -352,7 +352,7 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 	double dx = x - point_x;
 	double dy = y - point_y;
 
-	double out = sqrt(dx * dx + dy * dy);
+	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
 	return out;
 }
 
