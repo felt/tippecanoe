@@ -151,10 +151,6 @@ void check_polygon(drawvec &geom) {
 
 			double area = get_area(geom, i, j);
 
-#if 0
-			fprintf(stderr, "looking at %lld to %lld, area %f\n", (long long) i, (long long) j, area);
-#endif
-
 			if (area > 0) {
 				outer_start = i;
 				outer_len = j - i;
@@ -171,13 +167,7 @@ void check_polygon(drawvec &geom) {
 						}
 
 						if (!on_edge) {
-							printf("%lld,%lld at %lld not in outer ring (%lld to %lld)\n", geom[k].x, geom[k].y, (long long) k, (long long) outer_start, (long long) (outer_start + outer_len));
-
-#if 0
-							for (size_t l = outer_start; l < outer_start + outer_len; l++) {
-								fprintf(stderr, " %lld,%lld", geom[l].x, geom[l].y);
-							}
-#endif
+							fprintf(stderr, "%lld,%lld at %lld not in outer ring (%lld to %lld)\n", geom[k].x, geom[k].y, (long long) k, (long long) outer_start, (long long) (outer_start + outer_len));
 						}
 					}
 				}
@@ -310,8 +300,18 @@ int quick_check(long long *bbox, int z, long long buffer) {
 	long long min = 0;
 	long long area = 1LL << (32 - z);
 
+	// bbox entirely within the tile proper
+	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
+		return 1;
+	}
+
 	min -= buffer * area / 256;
 	area += buffer * area / 256;
+
+	// bbox entirely within the tile, including its buffer
+	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
+		return 3;
+	}
 
 	// bbox entirely outside the tile
 	if (bbox[0] > area || bbox[1] > area) {
@@ -319,11 +319,6 @@ int quick_check(long long *bbox, int z, long long buffer) {
 	}
 	if (bbox[2] < min || bbox[3] < min) {
 		return 0;
-	}
-
-	// bbox entirely within the tile
-	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
-		return 1;
 	}
 
 	// some overlap of edge
@@ -339,45 +334,56 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-static double square_distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	double something = p2x * p2x + p2y * p2y;
-	double u = 0 == something ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / something;
+	double u = (0 == something) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something);
 
-	if (u > 1) {
+	if (u >= 1) {
 		u = 1;
-	} else if (u < 0) {
+	} else if (u <= 0) {
 		u = 0;
 	}
 
-	long long x = std::round(segA_x + u * p2x);
-	long long y = std::round(segA_y + u * p2y);
+	double x = segA_x + u * p2x;
+	double y = segA_y + u * p2y;
 
-	long long dx = x - point_x;
-	long long dy = y - point_y;
+	double dx = x - point_x;
+	double dy = y - point_y;
 
-	return dx * dx + dy * dy;
+	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
+	return out;
 }
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
-	e = e * e;
 	std::stack<int> recursion_stack;
 
-	{
-		int left_border = 0;
-		int right_border = 1;
-		// Sweep linerarily over array and identify those ranges that need to be checked
-		do {
-			if (geom[start + right_border].necessary) {
-				recursion_stack.push(left_border);
-				recursion_stack.push(right_border);
-				left_border = right_border;
-			}
-			++right_border;
-		} while (right_border < n);
+	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
+		fprintf(stderr, "endpoints not marked necessary\n");
+		exit(EXIT_IMPOSSIBLE);
 	}
+
+	int prev = 0;
+	for (int here = 1; here < n; here++) {
+		if (geom[start + here].necessary) {
+			recursion_stack.push(prev);
+			recursion_stack.push(here);
+			prev = here;
+
+			if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+				if (retain > 0) {
+					retain--;
+				}
+			}
+		}
+	}
+	// These segments are put on the stack from start to end,
+	// independent of winding, so note that anything that uses
+	// "retain" to force it to keep at least N points will
+	// keep a different set of points when wound one way than
+	// when wound the other way.
 
 	while (!recursion_stack.empty()) {
 		// pop next element
@@ -387,18 +393,33 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		recursion_stack.pop();
 
 		double max_distance = -1;
-		int farthest_element_index = second;
+		int farthest_element_index;
 
 		// find index idx of element with max_distance
 		int i;
-		for (i = first + 1; i < second; i++) {
-			double temp_dist = square_distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+		if (geom[start + first] < geom[start + second]) {
+			farthest_element_index = first;
+			for (i = first + 1; i < second; i++) {
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
 
-			double distance = std::fabs(temp_dist);
+				double distance = std::fabs(temp_dist);
 
-			if ((distance > e || kept < retain) && distance > max_distance) {
-				farthest_element_index = i;
-				max_distance = distance;
+				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
+			}
+		} else {
+			farthest_element_index = second;
+			for (i = second - 1; i > first; i--) {
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
+
+				double distance = std::fabs(temp_dist);
+
+				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
 			}
 		}
 
@@ -407,13 +428,24 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 			geom[start + farthest_element_index].necessary = 1;
 			kept++;
 
-			if (1 < farthest_element_index - first) {
-				recursion_stack.push(first);
-				recursion_stack.push(farthest_element_index);
-			}
-			if (1 < second - farthest_element_index) {
-				recursion_stack.push(farthest_element_index);
-				recursion_stack.push(second);
+			if (geom[start + first] < geom[start + second]) {
+				if (1 < farthest_element_index - first) {
+					recursion_stack.push(first);
+					recursion_stack.push(farthest_element_index);
+				}
+				if (1 < second - farthest_element_index) {
+					recursion_stack.push(farthest_element_index);
+					recursion_stack.push(second);
+				}
+			} else {
+				if (1 < second - farthest_element_index) {
+					recursion_stack.push(farthest_element_index);
+					recursion_stack.push(second);
+				}
+				if (1 < farthest_element_index - first) {
+					recursion_stack.push(first);
+					recursion_stack.push(farthest_element_index);
+				}
 			}
 		}
 	}
@@ -427,11 +459,11 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (i > 0 && geom[i].op == VT_LINETO && (geom[i - 1].op == VT_MOVETO || geom[i - 1].op == VT_LINETO)) {
-			double x1 = geom[i - 1].x;
-			double y1 = geom[i - 1].y;
+			long long x1 = geom[i - 1].x;
+			long long y1 = geom[i - 1].y;
 
-			double x2 = geom[i - 0].x;
-			double y2 = geom[i - 0].y;
+			long long x2 = geom[i - 0].x;
+			long long y2 = geom[i - 0].y;
 
 			int c = clip(&x1, &y1, &x2, &y2, 0, 0, extent, extent);
 
@@ -530,13 +562,16 @@ drawvec reorder_lines(drawvec &geom) {
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
 			if (i != 0) {
+				// moveto is not at the start, so it is not simple
 				return geom;
 			}
 		} else if (geom[i].op == VT_LINETO) {
 			if (i == 0) {
+				// lineto is at the start: can't happen
 				return geom;
 			}
 		} else {
+			// something other than moveto or lineto: can't happen
 			return geom;
 		}
 	}
@@ -554,7 +589,9 @@ drawvec reorder_lines(drawvec &geom) {
 			out.push_back(geom[geom.size() - 1 - i]);
 		}
 		out[0].op = VT_MOVETO;
-		out[out.size() - 1].op = VT_LINETO;
+		if (out.size() > 1) {
+			out[out.size() - 1].op = VT_LINETO;
+		}
 		return out;
 	}
 
@@ -641,23 +678,27 @@ drawvec fix_polygon(drawvec &geom) {
 			long long dist2 = 0;
 			long long furthest = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
-				long long xd = ring[a].x - xtotal;
-				long long yd = ring[a].y - ytotal;
+				// division by 16 because these are z0 coordinates and we need to avoid overflow
+				long long xd = (ring[a].x - xtotal) / 16;
+				long long yd = (ring[a].y - ytotal) / 16;
 				long long d2 = xd * xd + yd * yd;
-				if (d2 > dist2) {
+				if (d2 > dist2 || (d2 == dist2 && ring[a] < ring[furthest])) {
 					dist2 = d2;
 					furthest = a;
 				}
 			}
 
-			// then figure out which point is furthest from *that*
+			// then figure out which point is furthest from *that*,
+			// which will hopefully be a good origin point since it should be
+			// at a far edge of the shape.
 			long long dist2b = 0;
 			long long furthestb = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
-				long long xd = ring[a].x - ring[furthest].x;
-				long long yd = ring[a].y - ring[furthest].y;
+				// division by 16 because these are z0 coordinates and we need to avoid overflow
+				long long xd = (ring[a].x - ring[furthest].x) / 16;
+				long long yd = (ring[a].y - ring[furthest].y) / 16;
 				long long d2 = xd * xd + yd * yd;
-				if (d2 > dist2b) {
+				if (d2 > dist2b || (d2 == dist2b && ring[a] < ring[furthestb])) {
 					dist2b = d2;
 					furthestb = a;
 				}
@@ -695,6 +736,7 @@ drawvec fix_polygon(drawvec &geom) {
 	return out;
 }
 
+#if 0
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 	while (1) {
 		bool again = false;
@@ -738,15 +780,11 @@ std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 				drawvec c1, c2;
 
 				if (maxy - miny > maxx - minx) {
-					// printf("clipping y to %lld %lld %lld %lld\n", minx, miny, maxx, midy);
-					c1 = simple_clip_poly(geoms[i], minx, miny, maxx, midy);
-					// printf("          and %lld %lld %lld %lld\n", minx, midy, maxx, maxy);
-					c2 = simple_clip_poly(geoms[i], minx, midy, maxx, maxy);
+					c1 = simple_clip_poly(geoms[i], minx, miny, maxx, midy, prevent[P_SIMPLIFY_EDGE_NODES]);
+					c2 = simple_clip_poly(geoms[i], minx, midy, maxx, maxy, prevent[P_SIMPLIFY_EDGE_NODES]);
 				} else {
-					// printf("clipping x to %lld %lld %lld %lld\n", minx, miny, midx, maxy);
-					c1 = simple_clip_poly(geoms[i], minx, miny, midx, maxy);
-					// printf("          and %lld %lld %lld %lld\n", midx, midy, maxx, maxy);
-					c2 = simple_clip_poly(geoms[i], midx, miny, maxx, maxy);
+					c1 = simple_clip_poly(geoms[i], minx, miny, midx, maxy, prevent[P_SIMPLIFY_EDGE_NODES]);
+					c2 = simple_clip_poly(geoms[i], midx, miny, maxx, maxy, prevent[P_SIMPLIFY_EDGE_NODES]);
 				}
 
 				if (c1.size() >= geoms[i].size()) {
@@ -773,6 +811,7 @@ std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 		geoms = out;
 	}
 }
+#endif
 
 drawvec stairstep(drawvec &geom, int z, int detail) {
 	drawvec out;
@@ -968,25 +1007,25 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 		return 0;  // outside the polygon is as bad as it gets
 	}
 
-	double closest = INFINITY;  // square of closest distance to the border
+	double closest = INFINITY;  // closest distance to the border
 
 	for (size_t i = 0; i < dv.size(); i++) {
 		double dx = dv[i].x - x;
 		double dy = dv[i].y - y;
-		double squared = dx * dx + dy * dy;
-		if (squared < closest) {
-			closest = squared;
+		double dist = sqrt(dx * dx + dy * dy);
+		if (dist < closest) {
+			closest = dist;
 		}
 
 		if (i > 0 && dv[i].op == VT_LINETO) {
-			squared = square_distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
-			if (squared < closest) {
-				closest = squared;
+			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
+			if (dist < closest) {
+				closest = dist;
 			}
 		}
 	}
 
-	return sqrt(closest);
+	return closest;
 }
 
 struct sorty {

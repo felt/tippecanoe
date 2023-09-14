@@ -573,7 +573,9 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 					// clean coalesced polygons before simplification to avoid
 					// introducing shards between shapes that otherwise would have
 					// unioned exactly
-					geom = clean_or_clip_poly(geom, 0, 0, false);
+					//
+					// don't try to scale up because these are still world coordinates
+					geom = clean_or_clip_poly(geom, 0, 0, false, false);
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -587,6 +589,7 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 	}
 
 	if (t == VT_LINE && additional[A_REVERSE]) {
+		geom = remove_noop(geom, t, 0);
 		geom = reorder_lines(geom);
 	}
 
@@ -613,7 +616,8 @@ void *partial_feature_worker(void *v) {
 			// Give Clipper a chance to try to fix it.
 			{
 				drawvec before = geom;
-				geom = clean_or_clip_poly(geom, 0, 0, false);
+				// we can try scaling up because this is now tile scale
+				geom = clean_or_clip_poly(geom, 0, 0, false, true);
 				if (additional[A_DEBUG_POLYGON]) {
 					check_polygon(geom);
 				}
@@ -1290,6 +1294,40 @@ long long choose_minextent(std::vector<long long> &extents, double f) {
 	return extents[(extents.size() - 1) * (1 - f)];
 }
 
+struct joint {
+	draw p1;
+	draw mid;
+	draw p2;
+
+	joint(draw one, draw hinge, draw two) {
+		if (one < two) {
+			p1 = one;
+			p2 = two;
+		} else {
+			p1 = two;
+			p2 = one;
+		}
+
+		mid = hinge;
+	}
+
+	bool operator<(const joint &o) const {
+		if (mid < o.mid) {
+			return true;
+		} else if (mid == o.mid) {
+			if (p1 < o.p1) {
+				return true;
+			} else if (p1 == o.p1) {
+				if (p2 < o.p2) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
 struct write_tile_args {
 	struct task *tasks = NULL;
 	char *stringpool = NULL;
@@ -1372,9 +1410,17 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 		}
 	}
 
-	if (quick == 0) {
+	if (quick == 0) {  // entirely outside the tile
 		return true;
 	}
+
+	// if quick == 3 the feature touches the buffer, not just the tile proper,
+	// so we need to clip to add intersection points at the tile edge.
+
+	// if quick == 2 it touches the buffer and beyond, so likewise
+
+	// if quick == 1 we should be able to get away without clipping, because
+	// the feature is entirely within the tile proper.
 
 	// Can't accept the quick check if guaranteeing no duplication, since the
 	// overlap might have been in the buffer.
@@ -1389,7 +1435,7 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 			clipped = clip_lines(sf.geometry, z, buffer);
 		}
 		if (sf.t == VT_POLYGON) {
-			clipped = simple_clip_poly(sf.geometry, z, buffer);
+			clipped = simple_clip_poly(sf.geometry, z, buffer, sf.edge_nodes, prevent[P_SIMPLIFY_SHARED_NODES]);
 		}
 		if (sf.t == VT_POINT) {
 			clipped = clip_point(sf.geometry, z, buffer);
@@ -1936,6 +1982,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		double coalesced_area = 0;
 		drawvec shared_nodes;
+		std::vector<joint> shared_joints;
 
 		int tile_detail = line_detail;
 		size_t skipped = 0;
@@ -2218,8 +2265,87 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					kept++;
 
 					if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-						for (auto &g : sf.geometry) {
-							shared_nodes.push_back(g);
+						if (sf.t == VT_LINE) {
+							for (auto &g : sf.geometry) {
+								shared_nodes.push_back(g);
+							}
+						} else if (sf.t == VT_POLYGON) {
+							sf.geometry = remove_noop(sf.geometry, sf.t, 0);
+
+							for (size_t i = 0; i < sf.geometry.size(); i++) {
+								if (sf.geometry[i].op == VT_MOVETO) {
+									size_t j;
+									for (j = i + 1; j < sf.geometry.size(); j++) {
+										if (sf.geometry[j].op != VT_LINETO) {
+											break;
+										}
+									}
+
+									// j - 1 because we don't want the duplicate last point
+									for (size_t k = i; k < j - 1; k++) {
+										shared_joints.emplace_back(
+											sf.geometry[k],
+											sf.geometry[(k + 1 - i) % (j - 1 - i) + i],
+											sf.geometry[(k + 2 - i) % (j - 1 - i) + i]);
+									}
+
+									// since the starting point is never simplified away,
+									// don't let it be simplified away in any other polygons either.
+									// Needs to appear twice here so that the check below will see
+									// it as appearing in multiple features.
+									shared_nodes.push_back(sf.geometry[i]);
+									shared_nodes.push_back(sf.geometry[i]);
+
+									// To avoid letting polygons get simplified away to nothing,
+									// also keep the furthest-away point from the initial point
+									// (which Douglas-Peucker simplification would keep anyway,
+									// if its search weren't being split up by polygon side).
+
+									double far = 0;
+									size_t which = i;
+									for (size_t k = i + 1; k < j - 1; k++) {
+										double xd = sf.geometry[k].x - sf.geometry[i].x;
+										double yd = sf.geometry[k].y - sf.geometry[i].y;
+										double d = xd * xd + yd * yd;
+										if (d > far ||
+										    ((d == far) && (sf.geometry[k] < sf.geometry[which]))) {
+											far = d;
+											which = k;
+										}
+									}
+
+									shared_nodes.push_back(sf.geometry[which]);
+									shared_nodes.push_back(sf.geometry[which]);
+
+									// And, likewise, the point most distant from those two points,
+									// which probably would also be the one that Douglas-Peucker
+									// would keep next.
+
+									far = 0;
+									size_t which2 = i;
+
+									for (size_t k = i + 1; k < j - 1; k++) {
+										double d = distance_from_line(sf.geometry[k].x, sf.geometry[k].y,
+													      sf.geometry[i].x, sf.geometry[i].y,
+													      sf.geometry[which].x, sf.geometry[which].y);
+										if ((d > far) ||
+										    ((d == far) && (sf.geometry[k] < sf.geometry[which2]))) {
+											far = d;
+											which2 = k;
+										}
+									}
+
+									shared_nodes.push_back(sf.geometry[which2]);
+									shared_nodes.push_back(sf.geometry[which2]);
+
+									i = j - 1;
+								}
+							}
+						}
+
+						for (auto &p : sf.edge_nodes) {
+							shared_nodes.push_back(p);
+							shared_nodes.push_back(p);
 						}
 					}
 
@@ -2272,7 +2398,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
-									g = clean_or_clip_poly(g, 0, 0, false);
+									// don't scale up because this is still world coordinates
+									g = clean_or_clip_poly(g, 0, 0, false, false);
 								}
 							}
 						}
@@ -2303,6 +2430,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			shared_nodes = just_shared_nodes;
+
+			std::sort(shared_joints.begin(), shared_joints.end());
+			for (size_t i = 0; i + 1 < shared_joints.size(); i++) {
+				if (shared_joints[i].mid == shared_joints[i + 1].mid) {
+					if (shared_joints[i].p1 != shared_joints[i + 1].p1 ||
+					    shared_joints[i].p2 != shared_joints[i + 1].p2) {
+						shared_nodes.push_back(shared_joints[i].mid);
+					}
+				}
+			}
+
+			std::sort(shared_nodes.begin(), shared_nodes.end());
+			shared_joints.clear();
 		}
 
 		for (size_t i = 0; i < partials.size(); i++) {
@@ -2517,13 +2657,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
 					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
-					layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
-										!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+					if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
+											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+					}
 				}
 
 				if (layer_features[x].type == VT_POLYGON) {
 					if (layer_features[x].coalesced) {
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false);
+						// we can try scaling up because this is tile coordinates
+						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
 					}
 
 					layer_features[x].geom = close_poly(layer_features[x].geom);

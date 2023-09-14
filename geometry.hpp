@@ -65,11 +65,10 @@ void to_tile_scale(drawvec &geom, int z, int detail);
 drawvec from_tile_scale(drawvec const &geom, int z, int detail);
 drawvec remove_noop(drawvec geom, int type, int shift);
 drawvec clip_point(drawvec &geom, int z, long long buffer);
-drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip);
-drawvec simple_clip_poly(drawvec &geom, int z, int buffer);
+drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
 drawvec close_poly(drawvec &geom);
 drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);
-int clip(double *x0, double *y0, double *x1, double *y1, double xmin, double ymin, double xmax, double ymax);
+int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax);
 drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);
 bool point_within_tile(long long x, long long y, int z);
@@ -84,11 +83,15 @@ double get_mp_area(drawvec &geom);
 drawvec polygon_to_anchor(const drawvec &geom);
 drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point);
 
-drawvec simple_clip_poly(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
+drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &shared_nodes, bool prevent_simplify_shared_nodes);
+drawvec simple_clip_poly(drawvec &geom, long long x1, long long y1, long long x2, long long y2, bool prevent_simplify_shared_nodes);
+drawvec simple_clip_poly(drawvec &geom, long long x1, long long y1, long long x2, long long y2,
+			 long long ax, long long ay, long long bx, long long by, drawvec &shared_nodes, bool prevent_simplify_shared_nodes);
 drawvec clip_lines(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 drawvec clip_point(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain);
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep);

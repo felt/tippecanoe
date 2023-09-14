@@ -443,7 +443,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	for (auto &c : clipbboxes) {
 		if (sf.t == VT_POLYGON) {
-			scaled_geometry = simple_clip_poly(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy));
+			scaled_geometry = simple_clip_poly(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy), prevent[P_SIMPLIFY_SHARED_NODES]);
 		} else if (sf.t == VT_LINE) {
 			scaled_geometry = clip_lines(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy));
 			scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);

@@ -443,7 +443,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Garfield St & Beverly St", "clustered": true, "point_count": 5, "sqrt_point_count": 2.24, "point_count_abbreviated": "5" }, "geometry": { "type": "Point", "coordinates": [ -122.468333, 37.721170 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Miraloma Dr & Yerba Buena Ave", "clustered": true, "point_count": 7, "sqrt_point_count": 2.65, "point_count_abbreviated": "7" }, "geometry": { "type": "Point", "coordinates": [ -122.459471, 37.732338 ] } }
+{ "type": "Feature", "properties": { "name": "Miraloma Dr & Yerba Buena Ave", "clustered": true, "point_count": 7, "sqrt_point_count": 2.65, "point_count_abbreviated": "7" }, "geometry": { "type": "Point", "coordinates": [ -122.459450, 37.732338 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Monterey Blvd & Valdez Ave", "clustered": true, "point_count": 6, "sqrt_point_count": 2.45, "point_count_abbreviated": "6" }, "geometry": { "type": "Point", "coordinates": [ -122.461252, 37.723699 ] } }
 ,
@@ -1167,7 +1167,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Quintara St & 19th Ave", "clustered": true, "point_count": 8, "sqrt_point_count": 2.83, "point_count_abbreviated": "8" }, "geometry": { "type": "Point", "coordinates": [ -122.475929, 37.747194 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "19th Ave & Taraval St", "clustered": true, "point_count": 4, "sqrt_point_count": 2, "point_count_abbreviated": "4" }, "geometry": { "type": "Point", "coordinates": [ -122.475725, 37.742621 ] } }
+{ "type": "Feature", "properties": { "name": "19th Ave & Taraval St", "clustered": true, "point_count": 4, "sqrt_point_count": 2, "point_count_abbreviated": "4" }, "geometry": { "type": "Point", "coordinates": [ -122.475725, 37.742612 ] } }
 ,
 { "type": "Feature", "properties": { "name": "20th Ave & Buckingham Way", "clustered": true, "point_count": 4, "sqrt_point_count": 2, "point_count_abbreviated": "4" }, "geometry": { "type": "Point", "coordinates": [ -122.475843, 37.729512 ] } }
 ,
@@ -1231,9 +1231,9 @@
 ,
 { "type": "Feature", "properties": { "name": "Ocean Ave & Cerritos Ave", "clustered": true, "point_count": 3, "sqrt_point_count": 1.73, "point_count_abbreviated": "3" }, "geometry": { "type": "Point", "coordinates": [ -122.466670, 37.727221 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Garfield St & Byxbee St", "clustered": true, "point_count": 6, "sqrt_point_count": 2.45, "point_count_abbreviated": "6" }, "geometry": { "type": "Point", "coordinates": [ -122.467743, 37.719677 ] } }
+{ "type": "Feature", "properties": { "name": "Garfield St & Byxbee St", "clustered": true, "point_count": 6, "sqrt_point_count": 2.45, "point_count_abbreviated": "6" }, "geometry": { "type": "Point", "coordinates": [ -122.467743, 37.719668 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Monterey Blvd & San Aleso Ave", "clustered": true, "point_count": 7, "sqrt_point_count": 2.65, "point_count_abbreviated": "7" }, "geometry": { "type": "Point", "coordinates": [ -122.461209, 37.733967 ] } }
+{ "type": "Feature", "properties": { "name": "Monterey Blvd & San Aleso Ave", "clustered": true, "point_count": 7, "sqrt_point_count": 2.65, "point_count_abbreviated": "7" }, "geometry": { "type": "Point", "coordinates": [ -122.461199, 37.733967 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Monterey Blvd & Northgate Dr", "clustered": true, "point_count": 3, "sqrt_point_count": 1.73, "point_count_abbreviated": "3" }, "geometry": { "type": "Point", "coordinates": [ -122.461263, 37.730199 ] } }
 ,
@@ -1395,7 +1395,7 @@
 ,
 { "type": "Feature", "properties": { "name": "Fulton St & 4th Ave", "clustered": true, "point_count": 5, "sqrt_point_count": 2.24, "point_count_abbreviated": "5" }, "geometry": { "type": "Point", "coordinates": [ -122.459096, 37.776600 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Turk St & Stanyan St", "clustered": true, "point_count": 5, "sqrt_point_count": 2.24, "point_count_abbreviated": "5" }, "geometry": { "type": "Point", "coordinates": [ -122.457047, 37.775659 ] } }
+{ "type": "Feature", "properties": { "name": "Turk St & Stanyan St", "clustered": true, "point_count": 5, "sqrt_point_count": 2.24, "point_count_abbreviated": "5" }, "geometry": { "type": "Point", "coordinates": [ -122.457047, 37.775650 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Fulton St & Stanyan StW", "clustered": true, "point_count": 8, "sqrt_point_count": 2.83, "point_count_abbreviated": "8" }, "geometry": { "type": "Point", "coordinates": [ -122.454300, 37.773310 ] } }
 ,

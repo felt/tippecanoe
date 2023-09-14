@@ -67,6 +67,7 @@ struct serial_feature {
 	std::vector<serial_val> full_values{};
 	std::string layername = "";
 	bool dropped = false;
+	drawvec edge_nodes;
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
