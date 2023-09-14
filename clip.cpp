@@ -51,7 +51,7 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 			i = j - 1;
 		} else {
 			fprintf(stderr, "Unexpected operation in polygon %d\n", (int) geom[i].op);
-			exit(EXIT_FAILURE);
+			exit(EXIT_IMPOSSIBLE);
 		}
 	}
 

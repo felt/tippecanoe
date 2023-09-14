@@ -489,11 +489,6 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
 
-	if (prevent[P_SIMPLIFY_SHARED_NODES] && z != 0) {
-		// additional vertices tagged as "retain" in write_tile when assembling shared nodes instead
-		retain = 0;
-	}
-
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
 			geom[i].necessary = 1;
