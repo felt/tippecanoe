@@ -335,26 +335,25 @@ bool point_within_tile(long long x, long long y, int z) {
 }
 
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
-	// long long fpversion = square_distance_from_line_fp(point_x, point_y, segA_x, segA_y, segB_x, segB_y);
-
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	double something = p2x * p2x + p2y * p2y;
 	double u = (0 == something) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something);
 
-	if (u > 1) {
+	if (u >= 1) {
 		u = 1;
-	} else if (u < 0) {
+	} else if (u <= 0) {
 		u = 0;
 	}
 
-	double x = std::round(segA_x + u * p2x);
-	double y = std::round(segA_y + u * p2y);
+	double x = segA_x + u * p2x;
+	double y = segA_y + u * p2y;
 
 	double dx = x - point_x;
 	double dy = y - point_y;
 
-	return sqrt(dx * dx + dy * dy);
+	double out = sqrt(dx * dx + dy * dy);
+	return out;
 }
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
