@@ -99,17 +99,21 @@ sqlite3 *mbtiles_open(char *dbname, char **argv, int forcetable) {
 	return outdb;
 }
 
-void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data, int size) {
+unsigned long long fnv1a(std::string const &s) {
 	// Store tiles by a hash of their contents (fnv1a 64-bit)
 	// http://www.isthe.com/chongo/tech/comp/fnv/
 	const unsigned long long fnv_offset_basis = 14695981039346656037u;
 	const unsigned long long fnv_prime = 1099511628211u;
 	unsigned long long h = fnv_offset_basis;
-	for (int i = 0; i < size; i++) {
-		h ^= (unsigned char) data[i];
+	for (size_t i = 0; i < s.size(); i++) {
+		h ^= (unsigned char) s[i];
 		h *= fnv_prime;
 	}
-	std::string hash = std::to_string(h);
+	return h;
+}
+
+void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data, int size) {
+	std::string hash = std::to_string(fnv1a(std::string(data, size)));
 
 	// following https://github.com/mapbox/node-mbtiles/blob/master/lib/mbtiles.js
 

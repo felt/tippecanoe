@@ -1295,31 +1295,39 @@ long long choose_minextent(std::vector<long long> &extents, double f) {
 }
 
 struct joint {
-	draw p1;
-	draw mid;
-	draw p2;
+	long long x : 34;  // enough to wrap around the world either way
+	unsigned long long p1 : 64 - 34;
+
+	long long y : 33;  // enough to touch the top and bottom of the world
+	unsigned long long p2 : 64 - 34;
 
 	joint(draw one, draw hinge, draw two) {
 		if (one < two) {
-			p1 = one;
-			p2 = two;
-		} else {
-			p1 = two;
-			p2 = one;
+			std::swap(one, two);
 		}
 
-		mid = hinge;
+		long long coord1[2] = {one.x, one.y};
+		long long coord2[2] = {two.x, two.y};
+		p1 = fnv1a(std::string((const char *) &coord1, sizeof(coord1)));
+		p2 = fnv1a(std::string((const char *) &coord2, sizeof(coord2)));
+
+		x = hinge.x;
+		y = hinge.y;
 	}
 
 	bool operator<(const joint &o) const {
-		if (mid < o.mid) {
+		if (y < o.y) {
 			return true;
-		} else if (mid == o.mid) {
-			if (p1 < o.p1) {
+		} else if (y == o.y) {
+			if (x < o.x) {
 				return true;
-			} else if (p1 == o.p1) {
-				if (p2 < o.p2) {
+			} else if (x == o.x) {
+				if (p1 < o.p1) {
 					return true;
+				} else if (p1 == o.p1) {
+					if (p2 < o.p2) {
+						return true;
+					}
 				}
 			}
 		}
@@ -2433,10 +2441,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			std::sort(shared_joints.begin(), shared_joints.end());
 			for (size_t i = 0; i + 1 < shared_joints.size(); i++) {
-				if (shared_joints[i].mid == shared_joints[i + 1].mid) {
+				if (shared_joints[i].x == shared_joints[i + 1].x &&
+				    shared_joints[i].y == shared_joints[i + 1].y) {
 					if (shared_joints[i].p1 != shared_joints[i + 1].p1 ||
 					    shared_joints[i].p2 != shared_joints[i + 1].p2) {
-						shared_nodes.push_back(shared_joints[i].mid);
+						shared_nodes.push_back(draw(VT_MOVETO, shared_joints[i].x, shared_joints[i].y));
 					}
 				}
 			}

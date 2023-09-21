@@ -85,4 +85,6 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 
 void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, std::string const &layername, type_and_string const &val);
 
+unsigned long long fnv1a(std::string const &s);
+
 #endif

@@ -1,3 +1,11 @@
+# 2.32.1
+
+* Reduce memory usage of --no-simplification-of-shared-nodes for polygons
+
+# 2.32.0
+
+* Extend --no-simplification-of-shared-nodes to also simplify shared polygon borders consistently
+
 # 2.31.0
 
 * Fix tile-join crash when trying to join empty tilesets
