@@ -169,7 +169,7 @@ parallel-test: $(eval SHELL:=$(ADVSHELL))
 	cmp tests/parallel/linear-file.json tests/parallel/parallel-pipes.json
 	rm tests/parallel/*.mbtiles tests/parallel/*.json
 
-raw-tiles-test:
+raw-tiles-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -e tests/raw-tiles/raw-tiles -r1 -pC tests/raw-tiles/hackspots.geojson
 	./tippecanoe-decode -x generator tests/raw-tiles/raw-tiles > tests/raw-tiles/raw-tiles.json.check
 	cmp tests/raw-tiles/raw-tiles.json.check tests/raw-tiles/raw-tiles.json
@@ -187,7 +187,7 @@ raw-tiles-test:
 	cmp tests/raw-tiles/nothing.json.check tests/raw-tiles/nothing.json
 	rm -r tests/raw-tiles/nothing tests/raw-tiles/nothing.json.check
 
-pmtiles-test:
+pmtiles-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -o tests/pmtiles/hackspots.pmtiles -r1 -pC tests/raw-tiles/hackspots.geojson
 	./tippecanoe-decode -x generator tests/pmtiles/hackspots.pmtiles > tests/pmtiles/hackspots.json.check
 	cmp tests/pmtiles/hackspots.json.check tests/pmtiles/hackspots.json
@@ -224,7 +224,7 @@ pmtiles-test:
 	cmp tests/raw-tiles/nothing.json.check tests/raw-tiles/nothing.json
 	rm -r tests/raw-tiles/nothing.pmtiles tests/raw-tiles/nothing.json.check
 
-decode-test:
+decode-test: tippecanoe tippecanoe-decode
 	mkdir -p tests/muni/decode
 	./tippecanoe -q -z11 -Z11 -f -o tests/muni/decode/multi.mbtiles tests/muni/*.json
 	./tippecanoe-decode -x generator -l subway tests/muni/decode/multi.mbtiles > tests/muni/decode/multi.mbtiles.json.check
@@ -241,7 +241,7 @@ decode-test:
 	cmp tests/muni/decode/multi.mbtiles.stats.json.check tests/muni/decode/multi.mbtiles.stats.json
 	rm -f tests/muni/decode/multi.mbtiles.json.check tests/muni/decode/multi.mbtiles tests/muni/decode/multi.mbtiles.pipeline.json.check tests/muni/decode/multi.mbtiles.stats.json.check tests/muni/decode/multi.mbtiles.onetile.json.check
 
-decode-pmtiles-test:
+decode-pmtiles-test: tippecanoe tippecanoe-decode
 	mkdir -p tests/muni/decode
 	./tippecanoe -q -z11 -Z11 -f -o tests/muni/decode/multi.pmtiles tests/muni/*.json
 	./tippecanoe-decode -x generator -l subway tests/muni/decode/multi.pmtiles | sed 's/pmtiles/mbtiles/g' > tests/muni/decode/multi.pmtiles.json.check
@@ -258,7 +258,7 @@ decode-pmtiles-test:
 	cmp tests/muni/decode/multi.pmtiles.stats.json.check tests/muni/decode/multi.mbtiles.stats.json
 	rm -f tests/muni/decode/multi.pmtiles.json.check tests/muni/decode/multi.pmtiles tests/muni/decode/multi.pmtiles.pipeline.json.check tests/muni/decode/multi.pmtiles.stats.json.check tests/muni/decode/multi.pmtiles.onetile.json.check
 
-pbf-test:
+pbf-test: tippecanoe-decode
 	./tippecanoe-decode -x generator tests/pbf/11-328-791.vector.pbf 11 328 791 > tests/pbf/11-328-791.vector.pbf.out
 	cmp tests/pbf/11-328-791.json tests/pbf/11-328-791.vector.pbf.out
 	rm tests/pbf/11-328-791.vector.pbf.out
@@ -266,7 +266,7 @@ pbf-test:
 	cmp tests/pbf/11-328-791.3857.json tests/pbf/11-328-791.3857.vector.pbf.out
 	rm tests/pbf/11-328-791.3857.vector.pbf.out
 
-enumerate-test:
+enumerate-test: tippecanoe tippecanoe-enumerate
 	./tippecanoe -q -z5 -f -o tests/ne_110m_admin_0_countries/out/enum.mbtiles tests/ne_110m_admin_0_countries/in.json.gz
 	./tippecanoe-enumerate tests/ne_110m_admin_0_countries/out/enum.mbtiles > tests/ne_110m_admin_0_countries/out/enum.check
 	cmp tests/ne_110m_admin_0_countries/out/enum.check tests/ne_110m_admin_0_countries/out/enum
@@ -288,7 +288,7 @@ overzoom-test: tippecanoe-overzoom
 	cmp tests/pbf/14-2616-6331.pbf /dev/null
 	rm tests/pbf/14-2616-6331.pbf
 
-join-test: tile-join
+join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
 	./tippecanoe -q -f -Z5 -z10 -o tests/join-population/macarthur.mbtiles -l macarthur tests/join-population/macarthur.json
 	./tile-join -q -f -Z6 -z9 -o tests/join-population/macarthur-6-9.mbtiles tests/join-population/macarthur.mbtiles
@@ -423,7 +423,7 @@ join-test: tile-join
 	cmp tests/ne_110m_ocean/join/joined.mbtiles.json.check tests/ne_110m_ocean/join/joined.mbtiles.json
 	rm -f tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/joined.mbtiles.json.check
 
-join-filter-test:
+join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
 	./tippecanoe -q -z0 -f -o tests/feature-filter/out/all.mbtiles tests/feature-filter/in.json
 	./tile-join -q -J tests/feature-filter/filter -f -o tests/feature-filter/out/filtered.mbtiles tests/feature-filter/out/all.mbtiles
@@ -446,7 +446,7 @@ json-tool-test: tippecanoe-json-tool
 	rm -f tests/join-population/tabblock_06001420.json.sort tests/join-population/tabblock_06001420.json.sort.joined
 	rm -f tests/join-population/tabblock_06001420-null.json.sort.joined
 
-allow-existing-test:
+allow-existing-test: tippecanoe
 	# Make a tileset
 	./tippecanoe -q -Z0 -z0 -f -o tests/allow-existing/both.mbtiles tests/coalesce-tract/tl_2010_06001_tract10.json
 	# Writing to existing should fail
@@ -475,7 +475,7 @@ allow-existing-test:
 	if ./tippecanoe -q -Z10 -z11 -F -o tests/allow-existing/both.pmtiles tests/coalesce-tract/tl_2010_06001_tract10.json; then exit 1; else exit 0; fi
 	rm -r tests/allow-existing/both.pmtiles tests/allow-existing/both.dir.json.check tests/allow-existing/both.dir tests/allow-existing/both.mbtiles.json.check tests/allow-existing/both.mbtiles
 
-csv-test:
+csv-test: tippecanoe tippecanoe-decode
 	# Reading from named CSV
 	./tippecanoe -q -zg -f -o tests/csv/out.mbtiles tests/csv/ne_110m_populated_places_simple.csv
 	./tippecanoe-decode -x generator -x generator_options tests/csv/out.mbtiles > tests/csv/out.mbtiles.json.check
@@ -492,7 +492,7 @@ csv-test:
 	cmp tests/csv/out.mbtiles.json.check tests/csv/out.mbtiles.json
 	rm -f tests/csv/out.mbtiles.json.check tests/csv/out.mbtiles
 
-layer-json-test:
+layer-json-test: tippecanoe tippecanoe-decode
 	# GeoJSON with description and named layer
 	./tippecanoe -q -z0 -r1 -yNAME -f -o tests/layer-json/out.mbtiles -L'{"file":"tests/ne_110m_populated_places/in.json", "description":"World cities", "layer":"places"}'
 	./tippecanoe-decode -x generator -x generator_options tests/layer-json/out.mbtiles > tests/layer-json/out.mbtiles.json.check
