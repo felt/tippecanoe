@@ -1370,3 +1370,71 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 
 	return out;
 }
+
+static double anglediff(double dx1, double dy1, double dx2, double dy2) {
+	// https://gist.github.com/e-n-f/417cd85f6d9b00dab887276376e77f30
+	// https://twitter.com/enf/status/795798781186830341
+
+	double cross = dx1 * dy2 - dy1 * dx2;
+	double sd = sqrt(dx1 * dx1 + dy1 * dy1);
+	double cd = sqrt(dx2 * dx2 + dy2 * dy2);
+
+	double dot = dx1 * dx2 + dy1 * dy2;
+	double ret;
+	if (dot < 0) {
+		if (cross < 0) {
+			ret = -M_PI - asin(cross / (sd * cd));
+		} else {
+			ret = M_PI - asin(cross / (sd * cd));
+		}
+	} else {
+		ret = asin(cross / (sd * cd));
+	}
+	if (ret < 0) {
+		// make it 0 to 360, not -180 to 180
+		ret += 2 * M_PI;
+	}
+	return ret;
+}
+
+drawvec buffer_poly(drawvec const &geom, double buffer) {
+	drawvec out = geom;
+
+	if (buffer != 0) {
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				size_t j;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+				}
+
+				for (size_t k = i; k < j - 1; k++) {
+					draw p0 = geom[(k + 0 - i) % (j - i - 1) + i];
+					draw p1 = geom[(k + 1 - i) % (j - i - 1) + i];
+					draw p2 = geom[(k + 2 - i) % (j - i - 1) + i];
+
+					double adiff = 2 * M_PI - anglediff(p0.x - p1.x, p0.y - p1.y,
+									    p2.x - p1.x, p2.y - p1.y);
+
+					double a1 = atan2(p1.y - p0.y, p1.x - p0.x);
+
+					printf("at %zu %zu %zu ", (k + 0 - i) % (j - i - 1) + i,
+					       (k + 2 - i) % (j - i - 1) + i,
+					       (k + 3 - i) % (j - i - 1) + i);
+					printf("%lld,%lld to %lld,%lld to %lld,%lld: ", p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+					printf("angle %f on top of %f\n", adiff * 180 / M_PI, a1 * 180 / M_PI);
+
+					out[(k + 2 - i) % (j - i - 1) + i].x = std::round(p1.x + buffer * cos(a1 - adiff / 2));
+					out[(k + 2 - i) % (j - i - 1) + i].y = std::round(p1.y + buffer * sin(a1 - adiff / 2));
+				}
+
+				out[j - 1].x = out[i].x;
+				out[j - 1].y = out[i].y;
+			}
+		}
+	}
+
+	return out;
+}
