@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
 #include <mapbox/geometry/wagyu/wagyu.hpp>
@@ -750,11 +751,20 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	return out;
 }
 
+std::atomic<clock_t> decode_time(0);
+std::atomic<clock_t> clip_time(0);
+std::atomic<clock_t> clean_time(0);
+std::atomic<clock_t> encode_time(0);
+std::atomic<clock_t> compress_time(0);
+
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep) {
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
 	mvt_tile tile, outtile;
 	bool was_compressed;
 
+	clock_t now, then;
+
+	now = clock();
 	try {
 		if (!tile.decode(s, was_compressed)) {
 			fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", oz, ox, oy);
@@ -764,6 +774,8 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", oz, ox, oy);
 		exit(EXIT_PROTOBUF);
 	}
+	then = clock();
+	decode_time += then - now;
 
 	for (auto const &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();
@@ -811,7 +823,25 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 				g.y -= ny * outtilesize;
 			}
 
+			now = clock();
 			// Clip to output tile
+
+			long long xmin = LLONG_MAX;
+			long long ymin = LLONG_MAX;
+			long long xmax = LLONG_MIN;
+			long long ymax = LLONG_MIN;
+
+			for (auto const &g : geom) {
+				xmin = std::min(xmin, g.x);
+				ymin = std::min(ymin, g.y);
+				xmax = std::max(xmax, g.x);
+				ymax = std::max(ymax, g.y);
+			}
+
+			long long b = outtilesize * buffer / 256;
+			if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
+				continue;
+			}
 
 			if (t == VT_LINE) {
 				geom = clip_lines(geom, nz, buffer);
@@ -821,6 +851,8 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			} else if (t == VT_POINT) {
 				geom = clip_point(geom, nz, buffer);
 			}
+			then = clock();
+			clip_time += then - now;
 
 			// Scale to output tile extent
 
@@ -828,11 +860,14 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 
 			// Clean geometries
 
+			now = clock();
 			geom = remove_noop(geom, t, 0);
 			if (t == VT_POLYGON) {
 				geom = clean_or_clip_poly(geom, 0, 0, false, false);
 				geom = close_poly(geom);
 			}
+			then = clock();
+			clean_time += then - now;
 
 			// Add geometry to output feature
 
@@ -865,9 +900,27 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 	}
 
 	if (outtile.layers.size() > 0) {
+		now = clock();
 		std::string pbf = outtile.encode();
+		then = clock();
+		encode_time += then - now;
+
 		std::string compressed;
-		compress(pbf, compressed, true);
+		if (do_compress) {
+			now = clock();
+			compress(pbf, compressed, true);
+			then = clock();
+			compress_time += then - now;
+		} else {
+			compressed = pbf;
+		}
+
+		printf("decode %lld, clip %lld, clean %lld, encode %lld, compress %lld\n",
+		       (long long) decode_time,
+		       (long long) clip_time,
+		       (long long) clean_time,
+		       (long long) encode_time,
+		       (long long) compress_time);
 
 		return compressed;
 	} else {

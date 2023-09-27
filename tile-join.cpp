@@ -60,6 +60,9 @@ bool progress_time() {
 	return false;
 }
 
+static std::atomic<clock_t> get_time(0);
+static std::atomic<clock_t> scale_time(0);
+
 struct stats {
 	int minzoom;
 	int maxzoom;
@@ -733,6 +736,7 @@ struct reader {
 			parent_tile.y /= 2;
 		}
 
+		clock_t now = clock();
 		if (pthread_mutex_lock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_lock");
 		}
@@ -742,9 +746,16 @@ struct reader {
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_unlock");
 		}
+		clock_t then = clock();
+		get_time += then - now;
 
 		if (source.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>());
+			now = clock();
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false);
+			then = clock();
+			scale_time += then - now;
+
+			printf("get %lld  scale %lld\n", (long long) get_time, (long long) scale_time);
 			return ret;
 		}
 
