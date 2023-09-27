@@ -437,7 +437,10 @@ struct reader {
 	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
 	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
 	bool overzoom_consumed_at_this_zoom = false;
+
+	// parent tile cache
 	std::map<zxy, mvt_tile> overzoom_cache;
+	size_t overzoom_cache_seq;
 
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
@@ -761,6 +764,17 @@ struct reader {
 		mvt_tile source;
 		auto f = overzoom_cache.find(parent_tile);
 		if (f == overzoom_cache.end()) {
+			if (overzoom_cache.size() > 1000) {
+				// evict something to make room
+
+				auto to_erase = overzoom_cache.begin();
+				for (size_t i = 0; i < overzoom_cache_seq; i++) {
+					++to_erase;
+				}
+
+				overzoom_cache.erase(to_erase);
+			}
+
 			source = get_tile(parent_tile);
 			overzoom_cache.emplace(parent_tile, source);
 			static std::atomic<size_t> count(0);
