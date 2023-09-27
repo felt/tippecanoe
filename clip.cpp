@@ -759,13 +759,12 @@ std::atomic<clock_t> compress_time(0);
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
-	mvt_tile tile, outtile;
-	bool was_compressed;
+	mvt_tile tile;
 
 	clock_t now, then;
-
 	now = clock();
 	try {
+		bool was_compressed;
 		if (!tile.decode(s, was_compressed)) {
 			fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", oz, ox, oy);
 			exit(EXIT_MVT);
@@ -774,8 +773,17 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", oz, ox, oy);
 		exit(EXIT_PROTOBUF);
 	}
+
 	then = clock();
 	decode_time += then - now;
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress);
+}
+
+std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
+	mvt_tile outtile;
+
+	clock_t now, then;
 
 	for (auto const &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();

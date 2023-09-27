@@ -652,7 +652,7 @@ struct reader {
 		overzoom_consumed_at_this_zoom = false;
 	}
 
-	std::string get_tile(zxy tile) {
+	mvt_tile get_tile(zxy tile) {
 		std::string source;
 
 		if (db != NULL) {
@@ -686,7 +686,23 @@ struct reader {
 			source = dir_read_tile(dirbase, tile);
 		}
 
-		return source;
+		mvt_tile content;
+		if (source.size() == 0) {
+			return content;
+		}
+
+		try {
+			bool was_compressed;
+			if (!content.decode(source, was_compressed)) {
+				fprintf(stderr, "Couldn't parse tile %lld/%lld/%lld\n", tile.z, tile.x, tile.y);
+				exit(EXIT_MVT);
+			}
+		} catch (std::exception const &e) {
+			fprintf(stderr, "PBF decoding error in tile %lld/%lld/%lld\n", tile.z, tile.x, tile.y);
+			exit(EXIT_PROTOBUF);
+		}
+
+		return content;
 	}
 
 	// Sort in z/x/tms_y order, because that is the order of the
@@ -741,7 +757,7 @@ struct reader {
 			perror("pthread_mutex_lock");
 		}
 
-		std::string source = get_tile(parent_tile);
+		mvt_tile source = get_tile(parent_tile);
 
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_unlock");
@@ -749,7 +765,7 @@ struct reader {
 		clock_t then = clock();
 		get_time += then - now;
 
-		if (source.size() != 0) {
+		if (source.layers.size() != 0) {
 			now = clock();
 			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false);
 			then = clock();
