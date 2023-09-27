@@ -437,6 +437,7 @@ struct reader {
 	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
 	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
 	bool overzoom_consumed_at_this_zoom = false;
+	std::map<zxy, mvt_tile> overzoom_cache;
 
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
@@ -757,7 +758,17 @@ struct reader {
 			perror("pthread_mutex_lock");
 		}
 
-		mvt_tile source = get_tile(parent_tile);
+		mvt_tile source;
+		auto f = overzoom_cache.find(parent_tile);
+		if (f == overzoom_cache.end()) {
+			source = get_tile(parent_tile);
+			overzoom_cache.emplace(parent_tile, source);
+			static std::atomic<size_t> count(0);
+			count++;
+			printf("did %zu lookups %lld/%lld/%lld\n", (size_t) count, parent_tile.z, parent_tile.x, parent_tile.y);
+		} else {
+			source = f->second;
+		}
 
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_unlock");
@@ -771,7 +782,7 @@ struct reader {
 			then = clock();
 			scale_time += then - now;
 
-			printf("get %lld  scale %lld\n", (long long) get_time, (long long) scale_time);
+			printf("get %lld  scale %lld   %lld/%lld/%lld\n", (long long) get_time, (long long) scale_time, tile.z, tile.x, tile.y);
 			return ret;
 		}
 
