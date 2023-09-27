@@ -78,14 +78,20 @@ struct reader {
 	int treefd = -1;
 	int geomfd = -1;
 	int indexfd = -1;
+	int vertexfd = -1;
+	int nodefd = -1;
 
 	struct memfile *poolfile = NULL;
 	struct memfile *treefile = NULL;
 	FILE *geomfile = NULL;
 	FILE *indexfile = NULL;
+	FILE *vertexfile = NULL;
+	FILE *nodefile = NULL;
 
 	std::atomic<long long> geompos;
 	std::atomic<long long> indexpos;
+	std::atomic<long long> vertexpos;
+	std::atomic<long long> nodepos;
 
 	long long file_bbox[4] = {0, 0, 0, 0};
 
@@ -97,7 +103,7 @@ struct reader {
 	char *geom_map = NULL;
 
 	reader()
-	    : geompos(0), indexpos(0) {
+	    : geompos(0), indexpos(0), vertexpos(0), nodepos(0) {
 	}
 
 	reader(reader const &r) {
@@ -105,17 +111,27 @@ struct reader {
 		treefd = r.treefd;
 		geomfd = r.geomfd;
 		indexfd = r.indexfd;
+		vertexfd = r.vertexfd;
+		nodefd = r.nodefd;
 
 		poolfile = r.poolfile;
 		treefile = r.treefile;
 		geomfile = r.geomfile;
 		indexfile = r.indexfile;
+		vertexfile = r.vertexfile;
+		nodefile = r.nodefile;
 
 		long long p = r.geompos;
 		geompos = p;
 
 		p = r.indexpos;
 		indexpos = p;
+
+		p = r.vertexpos;
+		vertexpos = p;
+
+		p = r.nodepos;
+		nodepos = p;
 
 		memcpy(file_bbox, r.file_bbox, sizeof(file_bbox));
 
@@ -156,6 +172,19 @@ struct serialization_state {
 	std::set<std::string> *exclude = NULL;
 	std::set<std::string> *include = NULL;
 	int exclude_all = 0;
+};
+
+struct vertex {
+	draw p1;
+	draw mid;
+	draw p2;
+};
+
+struct node {
+	// this is in quadkey coordinates so that the nodes for each tile
+	// will be adjacent in memory, reducing potential thrashing during
+	// the binary search.
+	unsigned long long index;
 };
 
 int serialize_feature(struct serialization_state *sst, serial_feature &sf);

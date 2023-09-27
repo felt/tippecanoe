@@ -480,6 +480,46 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		return 1;
 	}
 
+	if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
+
+		if (sf.t == VT_LINE) {
+			for (auto &g : scaled_geometry) {
+				long long x = SHIFT_LEFT(g.x);
+				long long y = SHIFT_LEFT(g.y);
+
+				struct node n;
+				n.index = encode_quadkey((unsigned) x, (unsigned) y);
+
+				fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
+			}
+		} else if (sf.t == VT_POLYGON) {
+			for (size_t i = 0; i < scaled_geometry.size(); i++) {
+				if (scaled_geometry[i].op == VT_MOVETO) {
+					size_t j;
+
+					for (j = i + 1; j < scaled_geometry.size(); j++) {
+						if (scaled_geometry[j].op != VT_LINETO) {
+							break;
+						}
+					}
+
+					for (size_t k = i; k < j - 1; k++) {
+						struct vertex v;
+
+						v.p1 = scaled_geometry[(k - i + 0) % (j - 1 - 1) + i];
+						v.mid = scaled_geometry[(k - i + 1) % (j - 1 - 1) + i];
+						v.p2 = scaled_geometry[(k - i + 2) % (j - 1 - 1) + i];
+
+						fwrite_check((char *) &v, sizeof(struct vertex), 1, r->vertexfile, &r->vertexpos, sst->fname);
+					}
+
+					i = j - 1;
+				}
+			}
+		}
+	}
+
 	if (!sf.has_id) {
 		if (additional[A_GENERATE_IDS]) {
 			sf.has_id = true;

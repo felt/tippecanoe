@@ -122,6 +122,7 @@ void checkdisk(std::vector<struct reader> *r) {
 		// Pool and tree are used once.
 		// Geometry and index will be duplicated during sorting and tiling.
 		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off;
+		// XXX vertex
 	}
 
 	static int warned = 0;
@@ -1219,11 +1220,15 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		char treename[strlen(tmpdir) + strlen("/tree.XXXXXXXX") + 1];
 		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
 		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
+		char vertexname[strlen(tmpdir) + strlen("/vertex.XXXXXXXX") + 1];
+		char nodename[strlen(tmpdir) + strlen("/node.XXXXXXXX") + 1];
 
 		snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
 		snprintf(treename, sizeof(treename), "%s%s", tmpdir, "/tree.XXXXXXXX");
 		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
 		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+		snprintf(vertexname, sizeof(vertexname), "%s%s", tmpdir, "/vertex.XXXXXXXX");
+		snprintf(nodename, sizeof(nodename), "%s%s", tmpdir, "/node.XXXXXXXX");
 
 		r->poolfd = mkstemp_cloexec(poolname);
 		if (r->poolfd < 0) {
@@ -1243,6 +1248,16 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->indexfd = mkstemp_cloexec(indexname);
 		if (r->indexfd < 0) {
 			perror(indexname);
+			exit(EXIT_OPEN);
+		}
+		r->vertexfd = mkstemp_cloexec(vertexname);
+		if (r->vertexfd < 0) {
+			perror(vertexname);
+			exit(EXIT_OPEN);
+		}
+		r->nodefd = mkstemp_cloexec(nodename);
+		if (r->nodefd < 0) {
+			perror(nodename);
 			exit(EXIT_OPEN);
 		}
 
@@ -1266,13 +1281,27 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(indexname);
 			exit(EXIT_OPEN);
 		}
+		r->vertexfile = fopen_oflag(vertexname, "wb", O_WRONLY | O_CLOEXEC);
+		if (r->vertexfile == NULL) {
+			perror(vertexname);
+			exit(EXIT_OPEN);
+		}
+		r->nodefile = fopen_oflag(nodename, "wb", O_WRONLY | O_CLOEXEC);
+		if (r->nodefile == NULL) {
+			perror(nodename);
+			exit(EXIT_OPEN);
+		}
 		r->geompos = 0;
 		r->indexpos = 0;
+		r->vertexpos = 0;
+		r->nodepos = 0;
 
 		unlink(poolname);
 		unlink(treename);
 		unlink(geomname);
 		unlink(indexname);
+		unlink(vertexname);
+		unlink(nodename);
 
 		// To distinguish a null value
 		{
@@ -1842,6 +1871,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fflush(stderr);
 	}
 
+	std::atomic<long long> vertexpos(0);
+	std::atomic<long long> nodepos(0);
+
 	for (size_t i = 0; i < CPUS; i++) {
 		if (fclose(readers[i].geomfile) != 0) {
 			perror("fclose geom");
@@ -1857,6 +1889,19 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("stat geom\n");
 			exit(EXIT_STAT);
 		}
+		if (fclose(readers[i].vertexfile) != 0) {
+			perror("fclose vertex");
+			exit(EXIT_CLOSE);
+		}
+
+		// XXX don't close here because we will append to one of them during vertex sort
+		if (fclose(readers[i].nodefile) != 0) {
+			perror("fclose node");
+			exit(EXIT_CLOSE);
+		}
+
+		vertexpos += readers[i].vertexpos;
+		nodepos += readers[i].nodepos;
 	}
 
 	// Create a combined string pool
@@ -1885,6 +1930,28 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	unlink(poolname);
+
+	// Sort the vertices
+
+#if 0
+    {
+        std::vector<FILE *> vertex_readers;
+        for (size_t i = 0; i < CPUS; i++) {
+            FILE *f = fdopen(vertexfds[i], "rb");
+            if (f == NULL) {
+                perror("vertex reader");
+                exit(EXIT_OPEN);
+            }
+            vertex_readers.push_back(f);
+        }
+
+        int vertexfd = external_sort(vertex_readers, vertexcmp);
+    }
+#endif
+
+	// XXX sort vertices here and add to the nodes
+
+	// XXX sort nodes
 
 	std::atomic<long long> poolpos(0);
 
@@ -2023,7 +2090,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		long long s = progress_seq;
 		long long geompos_print = geompos;
 		long long poolpos_print = poolpos;
-		fprintf(stderr, "%lld features, %lld bytes of geometry, %lld bytes of string pool\n", s, geompos_print, poolpos_print);
+		long long vertexpos_print = vertexpos;
+		long long nodepos_print = nodepos;
+		fprintf(stderr, "%lld features, %lld bytes of geometry and attributes, %lld bytes of string pool, %lld bytes of vertices, %lld bytes of nodes\n", s, geompos_print, poolpos_print, vertexpos_print, nodepos_print);
 	}
 
 	if (indexpos == 0) {
