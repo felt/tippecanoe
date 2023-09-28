@@ -59,7 +59,9 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 	std::string t2 = "/tmp/sort2.XXXXXX";
 
 	int fd1 = mkstemp((char *) t1.c_str());
+	unlink(t1.c_str());
 	int fd2 = mkstemp((char *) t2.c_str());
+	unlink(t2.c_str());
 
 	FILE *fp1 = fdopen(fd1, "w+b");
 	if (fp1 == NULL) {

@@ -33,6 +33,7 @@ TEST_CASE("External quicksort", "fqsort") {
 	for (size_t i = 0; i < 5; i++) {
 		std::string tmpname = "/tmp/in.XXXXXXX";
 		int fd = mkstemp((char *) tmpname.c_str());
+		unlink(tmpname.c_str());
 		FILE *f = fdopen(fd, "w+b");
 		inputs.emplace_back(f);
 		size_t iterations = 2000 + rand() % 200;
@@ -46,6 +47,7 @@ TEST_CASE("External quicksort", "fqsort") {
 
 	std::string tmpname = "/tmp/out.XXXXXX";
 	int fd = mkstemp((char *) tmpname.c_str());
+	unlink(tmpname.c_str());
 	FILE *f = fdopen(fd, "w+b");
 
 	fqsort(inputs, sizeof(int), intcmp, f, 256);
