@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <vector>
 #include <string>
 
 #define MAX_MEMORY (10 * 1024 * 1024)
 
-void fqsort(std::vector<FILE *> inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out) {
+void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem) {
 	// read some elements into memory to choose a pivot from
 
 	std::string buf;
 	bool read_everything = false;
 	for (size_t i = 0; i < inputs.size(); i++) {
-		if (buf.size() > MAX_MEMORY) {
+		if (buf.size() > mem) {
 			break;
 		}
 
@@ -29,7 +30,7 @@ void fqsort(std::vector<FILE *> inputs, size_t width, int (*cmp)(const void *, c
 
 			buf.append(element);
 
-			if (buf.size() > MAX_MEMORY) {
+			if (buf.size() > mem) {
 				break;
 			}
 		}
@@ -102,11 +103,15 @@ void fqsort(std::vector<FILE *> inputs, size_t width, int (*cmp)(const void *, c
 
 	std::vector<FILE *> v1;
 	v1.emplace_back(fp1);
-	fqsort(v1, width, cmp, out);
+	fqsort(v1, width, cmp, out, mem);
 	fclose(fp1);
 
 	std::vector<FILE *> v2;
 	v2.emplace_back(fp2);
-	fqsort(v2, width, cmp, out);
+	fqsort(v2, width, cmp, out, mem);
 	fclose(fp2);
+}
+
+void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out) {
+	fqsort(inputs, width, cmp, out, MAX_MEMORY);
 }
