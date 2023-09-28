@@ -1073,6 +1073,9 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		readers = readers->next;
 		r->next = NULL;
 
+		// Is the next reader on the reader queue looking at a different tile?
+		// Then this tile is done and we can safely run the output queue.
+
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
 			if (tasks.size() > 10 * CPUS) {
 				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
