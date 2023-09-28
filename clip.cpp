@@ -751,18 +751,10 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	return out;
 }
 
-std::atomic<clock_t> decode_time(0);
-std::atomic<clock_t> clip_time(0);
-std::atomic<clock_t> clean_time(0);
-std::atomic<clock_t> encode_time(0);
-std::atomic<clock_t> compress_time(0);
-
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
 	mvt_tile tile;
 
-	clock_t now, then;
-	now = clock();
 	try {
 		bool was_compressed;
 		if (!tile.decode(s, was_compressed)) {
@@ -774,16 +766,12 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	then = clock();
-	decode_time += then - now;
 	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress);
 }
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
 	mvt_tile outtile;
-
-	clock_t now, then;
 
 	for (auto const &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();
@@ -831,7 +819,6 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 				g.y -= ny * outtilesize;
 			}
 
-			now = clock();
 			// Clip to output tile
 
 			long long xmin = LLONG_MAX;
@@ -859,8 +846,6 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			} else if (t == VT_POINT) {
 				geom = clip_point(geom, nz, buffer);
 			}
-			then = clock();
-			clip_time += then - now;
 
 			// Scale to output tile extent
 
@@ -868,14 +853,11 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 			// Clean geometries
 
-			now = clock();
 			geom = remove_noop(geom, t, 0);
 			if (t == VT_POLYGON) {
 				geom = clean_or_clip_poly(geom, 0, 0, false, false);
 				geom = close_poly(geom);
 			}
-			then = clock();
-			clean_time += then - now;
 
 			// Add geometry to output feature
 
@@ -908,27 +890,14 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 	}
 
 	if (outtile.layers.size() > 0) {
-		now = clock();
 		std::string pbf = outtile.encode();
-		then = clock();
-		encode_time += then - now;
 
 		std::string compressed;
 		if (do_compress) {
-			now = clock();
 			compress(pbf, compressed, true);
-			then = clock();
-			compress_time += then - now;
 		} else {
 			compressed = pbf;
 		}
-
-		printf("decode %lld, clip %lld, clean %lld, encode %lld, compress %lld\n",
-		       (long long) decode_time,
-		       (long long) clip_time,
-		       (long long) clean_time,
-		       (long long) encode_time,
-		       (long long) compress_time);
 
 		return compressed;
 	} else {

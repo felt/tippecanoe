@@ -60,9 +60,6 @@ bool progress_time() {
 	return false;
 }
 
-static std::atomic<clock_t> get_time(0);
-static std::atomic<clock_t> scale_time(0);
-
 struct stats {
 	int minzoom;
 	int maxzoom;
@@ -756,7 +753,6 @@ struct reader {
 			parent_tile.y /= 2;
 		}
 
-		clock_t now = clock();
 		if (pthread_mutex_lock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_lock");
 		}
@@ -779,7 +775,6 @@ struct reader {
 			overzoom_cache.emplace(parent_tile, source);
 			static std::atomic<size_t> count(0);
 			count++;
-			printf("did %zu lookups %lld/%lld/%lld\n", (size_t) count, parent_tile.z, parent_tile.x, parent_tile.y);
 		} else {
 			source = f->second;
 		}
@@ -787,16 +782,9 @@ struct reader {
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_unlock");
 		}
-		clock_t then = clock();
-		get_time += then - now;
 
 		if (source.layers.size() != 0) {
-			now = clock();
 			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false);
-			then = clock();
-			scale_time += then - now;
-
-			printf("get %lld  scale %lld   %lld/%lld/%lld\n", (long long) get_time, (long long) scale_time, tile.z, tile.x, tile.y);
 			return ret;
 		}
 
@@ -1037,11 +1025,6 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	int zoom_for_bbox = -1;
 
 	while (readers != NULL && !readers->all_done()) {
-		for (reader *r = readers; r != NULL; r = r->next) {
-			printf("%lld/%lld/%lld in %s\n", r->zoom, r->x, r->y, r->name.c_str());
-		}
-		printf("\n");
-
 		std::pair<zxy, std::string> current = readers->current();
 
 		if (current.first.z != zoom_for_bbox) {
@@ -1091,9 +1074,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		r->next = NULL;
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
-			printf("we can run the queue\n");
 			if (tasks.size() > 10 * CPUS) {
-				printf("we are running the queue\n");
 				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 				tasks.clear();
 			}
