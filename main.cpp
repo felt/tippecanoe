@@ -65,6 +65,7 @@
 #include "text.hpp"
 #include "errors.hpp"
 #include "read_json.hpp"
+#include "sort.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -1208,6 +1209,34 @@ void choose_first_zoom(long long *file_bbox, long long *file_bbox1, long long *f
 	}
 }
 
+int vertexcmp(const void *void1, const void *void2) {
+	vertex *v1 = (vertex *) void1;
+	vertex *v2 = (vertex *) void2;
+
+	if (v1->mid < v2->mid) {
+		return -1;
+	}
+	if (v1->mid > v2->mid) {
+		return 1;
+	}
+
+	if (v1->p1 < v2->p1) {
+		return -1;
+	}
+	if (v1->p1 > v2->p1) {
+		return 1;
+	}
+
+	if (v1->p2 < v2->p2) {
+		return -1;
+	}
+	if (v1->p2 > v2->p2) {
+		return 1;
+	}
+
+	return 0;
+}
+
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
@@ -1281,12 +1310,12 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(indexname);
 			exit(EXIT_OPEN);
 		}
-		r->vertexfile = fopen_oflag(vertexname, "wb", O_WRONLY | O_CLOEXEC);
+		r->vertexfile = fopen_oflag(vertexname, "w+b", O_RDWR | O_CLOEXEC);
 		if (r->vertexfile == NULL) {
-			perror(vertexname);
+			perror(("open vertexfile " + std::string(vertexname)).c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefile = fopen_oflag(nodename, "wb", O_WRONLY | O_CLOEXEC);
+		r->nodefile = fopen_oflag(nodename, "w+b", O_RDWR | O_CLOEXEC);
 		if (r->nodefile == NULL) {
 			perror(nodename);
 			exit(EXIT_OPEN);
@@ -1889,11 +1918,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("stat geom\n");
 			exit(EXIT_STAT);
 		}
-		if (fclose(readers[i].vertexfile) != 0) {
-			perror("fclose vertex");
-			exit(EXIT_CLOSE);
-		}
-
 		// XXX don't close here because we will append to one of them during vertex sort
 		if (fclose(readers[i].nodefile) != 0) {
 			perror("fclose node");
@@ -1930,29 +1954,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	unlink(poolname);
-
-	// Sort the vertices
-
-#if 0
-    {
-        std::vector<FILE *> vertex_readers;
-        for (size_t i = 0; i < CPUS; i++) {
-            FILE *f = fdopen(vertexfds[i], "rb");
-            if (f == NULL) {
-                perror("vertex reader");
-                exit(EXIT_OPEN);
-            }
-            vertex_readers.push_back(f);
-        }
-
-        int vertexfd = external_sort(vertex_readers, vertexcmp);
-    }
-#endif
-
-	// XXX sort vertices here and add to the nodes
-
-	// XXX sort nodes
-
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -2015,6 +2016,52 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 		madvise(stringpool, poolpos, MADV_RANDOM);
 	}
+
+	// Sort the vertices
+	{
+		std::vector<FILE *> vertex_readers;
+		for (size_t i = 0; i < CPUS; i++) {
+			vertex_readers.push_back(readers[i].vertexfile);
+			rewind(readers[i].vertexfile);
+		}
+
+		std::string tmpname = std::string(tmpdir) + "/vertex2.XXXXXX";
+		int vertexfd = mkstemp((char *) tmpname.c_str());
+		if (vertexfd < 0) {
+			perror(("mkstemp vertexfile " + std::string(tmpname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		FILE *vertex_out = fdopen(vertexfd, "w+b");
+		if (vertex_out == NULL) {
+			perror(tmpname.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out);
+
+		for (size_t i = 0; i < CPUS; i++) {
+			if (fclose(readers[i].vertexfile) != 0) {
+				perror("fclose vertex");
+				exit(EXIT_CLOSE);
+			}
+		}
+
+		rewind(vertex_out);
+
+		vertex prev, v;
+		while (fread((void *) &v, sizeof(vertex), 1, vertex_out)) {
+			if (v < prev) {
+				printf("bad: %lld,%lld vs %lld,%lld\n", prev.mid.x, prev.mid.y, v.mid.x, v.mid.y);
+			} else {
+				printf("     %lld,%lld vs %lld,%lld\n", prev.mid.x, prev.mid.y, v.mid.x, v.mid.y);
+			}
+			prev = v;
+		}
+
+		fclose(vertex_out);
+	}
+
+	// XXX sort nodes
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
 	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");

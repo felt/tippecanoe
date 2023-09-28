@@ -48,6 +48,10 @@ struct draw {
 		}
 	}
 
+	bool operator>(draw const &s) const {
+		return s < *this;
+	}
+
 	bool operator==(draw const &s) const {
 		return y == s.y && x == s.x;
 	}

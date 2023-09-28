@@ -178,6 +178,22 @@ struct vertex {
 	draw p1;
 	draw mid;
 	draw p2;
+
+	bool operator<(const vertex &v) const {
+		if (mid < v.mid) {
+			return true;
+		} else if (mid == v.mid) {
+			if (p1 < v.p1) {
+				return true;
+			} else if (p1 == v.p1) {
+				if (p2 < v.p2) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
 };
 
 struct node {
