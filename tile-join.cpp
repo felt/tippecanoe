@@ -1037,6 +1037,11 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	int zoom_for_bbox = -1;
 
 	while (readers != NULL && !readers->all_done()) {
+		for (reader *r = readers; r != NULL; r = r->next) {
+			printf("%lld/%lld/%lld in %s\n", r->zoom, r->x, r->y, r->name.c_str());
+		}
+		printf("\n");
+
 		std::pair<zxy, std::string> current = readers->current();
 
 		if (current.first.z != zoom_for_bbox) {
@@ -1073,13 +1078,7 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			f->second.push_back(current.second);
 		}
 
-		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
-			if (tasks.size() > 100 * CPUS) {
-				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
-				tasks.clear();
-			}
-		}
-
+		// Advance the reader that we just added as a task.
 		// The reason this prefetches is so the reader queue can be
 		// priority-ordered, so the one with the next relevant tile
 		// is first in line.
@@ -1090,6 +1089,15 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 		reader *r = readers;
 		readers = readers->next;
 		r->next = NULL;
+
+		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
+			printf("we can run the queue\n");
+			if (tasks.size() > 10 * CPUS) {
+				printf("we are running the queue\n");
+				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+				tasks.clear();
+			}
+		}
 
 		// put the reader back onto the queue,
 		// in whatever sequence its next tile calls for
