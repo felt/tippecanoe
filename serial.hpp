@@ -175,6 +175,9 @@ struct serialization_state {
 };
 
 struct vertex {
+	// these are scaled geometry,
+	// but because scaling is disabled if P_SHARED_NODES is set,
+	// they are effectively also world coordinates
 	draw p1;
 	draw mid;
 	draw p2;

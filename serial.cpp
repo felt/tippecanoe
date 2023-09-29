@@ -393,6 +393,16 @@ static std::string strip_zeroes(std::string s) {
 	return s;
 }
 
+static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) {
+	long long x = SHIFT_LEFT(g.x);
+	long long y = SHIFT_LEFT(g.y);
+
+	struct node n;
+	n.index = encode_quadkey((unsigned) x, (unsigned) y);
+
+	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
+}
+
 // called from frontends
 int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	struct reader *r = &(*sst->readers)[sst->segment];
@@ -485,13 +495,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 		if (sf.t == VT_LINE) {
 			for (auto &g : scaled_geometry) {
-				long long x = SHIFT_LEFT(g.x);
-				long long y = SHIFT_LEFT(g.y);
-
-				struct node n;
-				n.index = encode_quadkey((unsigned) x, (unsigned) y);
-
-				fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
+				add_scaled_node(r, sst, g);
 			}
 		} else if (sf.t == VT_POLYGON) {
 			for (size_t i = 0; i < scaled_geometry.size(); i++) {
@@ -507,12 +511,62 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 					for (size_t k = i; k < j - 1; k++) {
 						struct vertex v;
 
-						v.p1 = scaled_geometry[(k - i + 0) % (j - 1 - 1) + i];
-						v.mid = scaled_geometry[(k - i + 1) % (j - 1 - 1) + i];
-						v.p2 = scaled_geometry[(k - i + 2) % (j - 1 - 1) + i];
+						// % (j - i - 1) because we don't want the duplicate last point
+						v.p1 = scaled_geometry[(k - i + 0) % (j - i - 1) + i];
+						v.mid = scaled_geometry[(k - i + 1) % (j - i - 1) + i];
+						v.p2 = scaled_geometry[(k - i + 2) % (j - i - 1) + i];
 
 						fwrite_check((char *) &v, sizeof(struct vertex), 1, r->vertexfile, &r->vertexpos, sst->fname);
 					}
+
+					// since the starting point is never simplified away,
+					// don't let it be simplified away in any other polygons either.
+					// Needs to appear twice here so that the check below will see
+					// it as appearing in multiple features.
+					add_scaled_node(r, sst, scaled_geometry[i]);
+					add_scaled_node(r, sst, scaled_geometry[i]);  // duplicate
+
+					// To avoid letting polygons get simplified away to nothing,
+					// also keep the furthest-away point from the initial point
+					// (which Douglas-Peucker simplification would keep anyway,
+					// if its search weren't being split up by polygon side).
+
+					double far = 0;
+					size_t which = i;
+					for (size_t k = i + 1; k < j - 1; k++) {
+						double xd = scaled_geometry[k].x - scaled_geometry[i].x;
+						double yd = scaled_geometry[k].y - scaled_geometry[i].y;
+						double d = xd * xd + yd * yd;
+						if (d > far ||
+						    ((d == far) && (scaled_geometry[k] < scaled_geometry[which]))) {
+							far = d;
+							which = k;
+						}
+					}
+
+					add_scaled_node(r, sst, scaled_geometry[which]);
+					add_scaled_node(r, sst, scaled_geometry[which]);  // duplicate
+
+					// And, likewise, the point most distant from those two points,
+					// which probably would also be the one that Douglas-Peucker
+					// would keep next.
+
+					far = 0;
+					size_t which2 = i;
+
+					for (size_t k = i + 1; k < j - 1; k++) {
+						double d = distance_from_line(scaled_geometry[k].x, scaled_geometry[k].y,
+									      scaled_geometry[i].x, scaled_geometry[i].y,
+									      scaled_geometry[which].x, scaled_geometry[which].y);
+						if ((d > far) ||
+						    ((d == far) && (scaled_geometry[k] < scaled_geometry[which2]))) {
+							far = d;
+							which2 = k;
+						}
+					}
+
+					add_scaled_node(r, sst, scaled_geometry[which2]);
+					add_scaled_node(r, sst, scaled_geometry[which2]);  // duplicate
 
 					i = j - 1;
 				}

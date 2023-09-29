@@ -122,8 +122,8 @@ void checkdisk(std::vector<struct reader> *r) {
 	for (size_t i = 0; i < r->size(); i++) {
 		// Pool and tree are used once.
 		// Geometry and index will be duplicated during sorting and tiling.
-		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off;
-		// XXX vertex
+		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off +
+			(*r)[i].vertexpos + (*r)[i].nodepos;
 	}
 
 	static int warned = 0;
@@ -2050,9 +2050,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		vertex prev, v;
 		while (fread((void *) &v, sizeof(vertex), 1, vertex_out)) {
-			if (v < prev) {
-				printf("bad: %lld,%lld vs %lld,%lld\n", prev.mid.x, prev.mid.y, v.mid.x, v.mid.y);
-			} else {
+			if (v.mid == prev.mid && (v.p1 != prev.p1 || v.p2 != prev.p2)) {
 				printf("     %lld,%lld vs %lld,%lld\n", prev.mid.x, prev.mid.y, v.mid.x, v.mid.y);
 			}
 			prev = v;

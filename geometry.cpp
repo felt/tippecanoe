@@ -661,6 +661,9 @@ drawvec fix_polygon(drawvec &geom) {
 				ring = tmp;
 			}
 
+			// Now we are rotating the ring to make the first/last point
+			// one that would be unlikely to be simplified away.
+
 			// calculate centroid
 			// a + 1 < size() because point 0 is duplicated at the end
 			long long xtotal = 0;
