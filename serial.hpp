@@ -182,6 +182,18 @@ struct vertex {
 	draw mid;
 	draw p2;
 
+	vertex(draw one, draw joint, draw two) {
+		if (one < two) {
+			p1 = one;
+			p2 = two;
+		} else {
+			p1 = two;
+			p2 = one;
+		}
+
+		mid = joint;
+	}
+
 	bool operator<(const vertex &v) const {
 		if (mid < v.mid) {
 			return true;
@@ -205,6 +217,8 @@ struct node {
 	// the binary search.
 	unsigned long long index;
 };
+
+int nodecmp(const void *void1, const void *void2);
 
 int serialize_feature(struct serialization_state *sst, serial_feature &sf);
 void coerce_value(std::string const &key, int &vt, std::string &val, std::map<std::string, int> const *attribute_types);

@@ -1237,19 +1237,6 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
-int nodecmp(const void *void1, const void *void2) {
-	node *n1 = (node *) void1;
-	node *n2 = (node *) void2;
-
-	if (n1->index < n2->index) {
-		return -1;
-	} else if (n1->index > n2->index) {
-		return 1;
-	}
-
-	return 0;
-}
-
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
@@ -2056,7 +2043,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		rewind(vertex_out);
 
-		vertex prev, v;
+		vertex prev(draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0));
+		vertex v(draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0));
 		while (fread((void *) &v, sizeof(vertex), 1, vertex_out)) {
 			if (v.mid == prev.mid && (v.p1 != prev.p1 || v.p2 != prev.p2)) {
 				long long x = v.mid.x * (1LL << geometry_scale);

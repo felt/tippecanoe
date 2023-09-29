@@ -393,6 +393,19 @@ static std::string strip_zeroes(std::string s) {
 	return s;
 }
 
+int nodecmp(const void *void1, const void *void2) {
+	node *n1 = (node *) void1;
+	node *n2 = (node *) void2;
+
+	if (n1->index < n2->index) {
+		return -1;
+	} else if (n1->index > n2->index) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) {
 	long long x = SHIFT_LEFT(g.x);
 	long long y = SHIFT_LEFT(g.y);
@@ -509,12 +522,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 					}
 
 					for (size_t k = i; k < j - 1; k++) {
-						struct vertex v;
-
 						// % (j - i - 1) because we don't want the duplicate last point
-						v.p1 = scaled_geometry[(k - i + 0) % (j - i - 1) + i];
-						v.mid = scaled_geometry[(k - i + 1) % (j - i - 1) + i];
-						v.p2 = scaled_geometry[(k - i + 2) % (j - i - 1) + i];
+
+						struct vertex v(
+							scaled_geometry[(k - i + 0) % (j - i - 1) + i],
+							scaled_geometry[(k - i + 1) % (j - i - 1) + i],
+							scaled_geometry[(k - i + 2) % (j - i - 1) + i]);
 
 						fwrite_check((char *) &v, sizeof(struct vertex), 1, r->vertexfile, &r->vertexpos, sst->fname);
 					}

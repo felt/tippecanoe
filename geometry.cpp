@@ -485,7 +485,7 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 	return out;
 }
 
-drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
+drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
 
@@ -514,7 +514,22 @@ drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, 
 				geom[i].necessary = true;
 			}
 
-			// XXX also check shared_nodes_map
+			if (nodepos > 0) {
+				// offset to global
+				draw d = geom[i];
+				if (z != 0) {
+					d.x += tx * (1LL << (32 - z));
+					d.y += ty * (1LL << (32 - z));
+				}
+
+				// to quadkey
+				struct node n;
+				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+
+				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+					geom[i].necessary = true;
+				}
+			}
 		}
 	}
 
