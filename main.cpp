@@ -2050,6 +2050,12 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				long long x = v.mid.x * (1LL << geometry_scale);
 				long long y = v.mid.y * (1LL << geometry_scale);
 
+#if 0
+				double lon, lat;
+				tile2lonlat(x, y, 32, &lon, &lat);
+				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
+#endif
+
 				struct node n;
 				n.index = encode_quadkey((unsigned) x, (unsigned) y);
 
@@ -2129,6 +2135,14 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			    nodecmp((void *) &here, (void *) &written) != 0) {
 				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
 				written = here;
+
+#if 0
+				unsigned wx, wy;
+				decode_quadkey(here.index, &wx, &wy);
+				double lon, lat;
+				tile2lonlat(wx, wy, 32, &lon, &lat);
+				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
+#endif
 			}
 
 			prev = here;

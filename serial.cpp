@@ -469,10 +469,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 			scaled_geometry = simple_clip_poly(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy), prevent[P_SIMPLIFY_SHARED_NODES]);
 		} else if (sf.t == VT_LINE) {
 			scaled_geometry = clip_lines(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy));
-			scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 		} else if (sf.t == VT_POINT) {
 			scaled_geometry = clip_point(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy));
 		}
+
+		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 
 		sf.bbox[0] = LLONG_MAX;
 		sf.bbox[1] = LLONG_MAX;

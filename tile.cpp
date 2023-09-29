@@ -2288,7 +2288,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						drawvec dv;
 
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
-							simplify_partial(&partials[simplified_geometry_through], dv, NULL, 0);
+							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
 
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
