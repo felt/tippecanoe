@@ -2032,7 +2032,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			vertex_readers.push_back(readers[i].vertexfile);
 			rewind(readers[i].vertexfile);
 		}
-		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out);
+		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out, memsize / 4);
 
 		for (size_t i = 0; i < CPUS; i++) {
 			if (fclose(readers[i].vertexfile) != 0) {
