@@ -2074,14 +2074,21 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fclose(vertex_out);
 	}
 
-	FILE *node_out;
+	// Sort nodes; scan the list to find the ones that appear in
+	// multiple features, which then can't be simplified away.
+
+	FILE *shared_nodes;
+	node *shared_nodes_map = NULL;	// will be null if there are no shared nodes
 	{
+		// sort
+
 		std::string tmpname = std::string(tmpdir) + "/node2.XXXXXX";
 		int nodefd = mkstemp((char *) tmpname.c_str());
 		if (nodefd < 0) {
 			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
 			exit(EXIT_OPEN);
 		}
+		FILE *node_out;
 		node_out = fdopen(nodefd, "w+b");
 		if (node_out == NULL) {
 			perror(tmpname.c_str());
@@ -2102,6 +2109,54 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				exit(EXIT_CLOSE);
 			}
 		}
+
+		rewind(node_out);
+
+		// scan
+
+		tmpname = std::string(tmpdir) + "/node3.XXXXXX";
+		nodefd = mkstemp((char *) tmpname.c_str());
+		if (nodefd < 0) {
+			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		shared_nodes = fdopen(nodefd, "w+b");
+		if (shared_nodes == NULL) {
+			perror(tmpname.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		// `prev` is to see if this node duplicates the previous node
+		// and therefore needs to be preserved
+		struct node prev;
+		// `written` is to see if this node has already been preserved
+		// and doesn't need to be preserved again
+		struct node written;
+		prev.index = written.index = ULONG_MAX;
+
+		nodepos = 0;
+		struct node here;
+		while (fread((void *) &here, sizeof(here), 1, node_out)) {
+			if (nodecmp((void *) &here, (void *) &prev) == 0 &&
+			    nodecmp((void *) &here, (void *) &written) != 0) {
+				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
+				written = here;
+			}
+
+			prev = here;
+		}
+
+		fflush(shared_nodes);
+
+		if (nodepos > 0) {
+			shared_nodes_map = (node *) mmap(NULL, nodepos, PROT_READ, MAP_PRIVATE, nodefd, 0);
+			if (shared_nodes_map == (node *) MAP_FAILED) {
+				perror("mmap nodes");
+				exit(EXIT_MEMORY);
+			}
+		}
+
+		fclose(node_out);
 	}
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
@@ -2689,7 +2744,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2712,7 +2767,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		perror("close pool");
 	}
 
-	fclose(node_out);
+	fclose(shared_nodes);
 
 	// mbtiles-style bounding box and center
 	double minlat = 0, minlon = 0, maxlat = 0, maxlon = 0, midlat = 0, midlon = 0;
