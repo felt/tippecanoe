@@ -1237,6 +1237,19 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
+int nodecmp(const void *void1, const void *void2) {
+	node *n1 = (node *) void1;
+	node *n2 = (node *) void2;
+
+	if (n1->index < n2->index) {
+		return -1;
+	} else if (n1->index > n2->index) {
+		return 1;
+	}
+
+	return 0;
+}
+
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
@@ -1918,11 +1931,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("stat geom\n");
 			exit(EXIT_STAT);
 		}
-		// XXX don't close here because we will append to one of them during vertex sort
-		if (fclose(readers[i].nodefile) != 0) {
-			perror("fclose node");
-			exit(EXIT_CLOSE);
-		}
 
 		vertexpos += readers[i].vertexpos;
 		nodepos += readers[i].nodepos;
@@ -2017,14 +2025,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		madvise(stringpool, poolpos, MADV_RANDOM);
 	}
 
-	// Sort the vertices
+	// Sort the vertices;
+	// find nodes where the same central point is part of two different vertices
 	{
-		std::vector<FILE *> vertex_readers;
-		for (size_t i = 0; i < CPUS; i++) {
-			vertex_readers.push_back(readers[i].vertexfile);
-			rewind(readers[i].vertexfile);
-		}
-
 		std::string tmpname = std::string(tmpdir) + "/vertex2.XXXXXX";
 		int vertexfd = mkstemp((char *) tmpname.c_str());
 		if (vertexfd < 0) {
@@ -2037,6 +2040,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			exit(EXIT_OPEN);
 		}
 
+		std::vector<FILE *> vertex_readers;
+		for (size_t i = 0; i < CPUS; i++) {
+			vertex_readers.push_back(readers[i].vertexfile);
+			rewind(readers[i].vertexfile);
+		}
 		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out);
 
 		for (size_t i = 0; i < CPUS; i++) {
@@ -2051,7 +2059,14 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		vertex prev, v;
 		while (fread((void *) &v, sizeof(vertex), 1, vertex_out)) {
 			if (v.mid == prev.mid && (v.p1 != prev.p1 || v.p2 != prev.p2)) {
-				printf("     %lld,%lld vs %lld,%lld\n", prev.mid.x, prev.mid.y, v.mid.x, v.mid.y);
+				long long x = v.mid.x * (1LL << geometry_scale);
+				long long y = v.mid.y * (1LL << geometry_scale);
+
+				struct node n;
+				n.index = encode_quadkey((unsigned) x, (unsigned) y);
+
+				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
+				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");  // duplicate
 			}
 			prev = v;
 		}
@@ -2059,7 +2074,35 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fclose(vertex_out);
 	}
 
-	// XXX sort nodes
+	FILE *node_out;
+	{
+		std::string tmpname = std::string(tmpdir) + "/node2.XXXXXX";
+		int nodefd = mkstemp((char *) tmpname.c_str());
+		if (nodefd < 0) {
+			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		node_out = fdopen(nodefd, "w+b");
+		if (node_out == NULL) {
+			perror(tmpname.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		std::vector<FILE *> node_readers;
+		for (size_t i = 0; i < CPUS; i++) {
+			node_readers.push_back(readers[i].nodefile);
+			rewind(readers[i].nodefile);
+		}
+
+		fqsort(node_readers, sizeof(node), nodecmp, node_out);
+
+		for (size_t i = 0; i < CPUS; i++) {
+			if (fclose(readers[i].nodefile) != 0) {
+				perror("fclose node");
+				exit(EXIT_CLOSE);
+			}
+		}
+	}
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
 	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
@@ -2668,6 +2711,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	if (close(poolfd) < 0) {
 		perror("close pool");
 	}
+
+	fclose(node_out);
 
 	// mbtiles-style bounding box and center
 	double minlat = 0, minlon = 0, maxlat = 0, maxlon = 0, midlat = 0, midlon = 0;
