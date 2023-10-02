@@ -499,14 +499,13 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		}
 	}
 
+	scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 	if (scaled_geometry.size() == 0) {
 		// Feature was clipped away
 		return 1;
 	}
 
 	if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
-
 		if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
 			for (size_t i = 0; i < scaled_geometry.size(); i++) {
 				if (scaled_geometry[i].op == VT_MOVETO) {
