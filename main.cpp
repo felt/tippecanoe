@@ -1923,6 +1923,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		nodepos += readers[i].nodepos;
 	}
 
+	if (!quiet) {
+		fprintf(stderr, "Merging string pool           \r");
+	}
+
 	// Create a combined string pool
 	// but keep track of the offsets into it since we still need
 	// segment+offset to find the data.
@@ -2012,6 +2016,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		madvise(stringpool, poolpos, MADV_RANDOM);
 	}
 
+	if (!quiet) {
+		fprintf(stderr, "Merging vertices              \r");
+	}
+
 	// Sort the vertices;
 	// find nodes where the same central point is part of two different vertices
 	{
@@ -2068,6 +2076,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fclose(vertex_out);
 	}
 
+	if (!quiet) {
+		fprintf(stderr, "Merging nodes                 \r");
+	}
+
 	// Sort nodes that can't be simplified away; scan the list to remove duplicates
 
 	FILE *shared_nodes;
@@ -2095,7 +2107,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			rewind(readers[i].nodefile);
 		}
 
-		fqsort(node_readers, sizeof(node), nodecmp, node_out);
+		fqsort(node_readers, sizeof(node), nodecmp, node_out, memsize / 4);
 
 		for (size_t i = 0; i < CPUS; i++) {
 			if (fclose(readers[i].nodefile) != 0) {
@@ -2155,6 +2167,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		fclose(node_out);
 	}
+
+	fprintf(stderr, "Merging index                 \r");
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
 	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");

@@ -77,6 +77,7 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 	fwrite((void *) buf.c_str(), sizeof(char), pivot_off, fp1);
 	fwrite((void *) ((char *) buf.c_str() + pivot_off), sizeof(char), buf.size() - pivot_off, fp2);
 	buf.clear();
+	buf.reserve(0);
 
 	// read the remaining input into the temporary files
 
