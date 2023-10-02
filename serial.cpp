@@ -545,13 +545,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 					// Needs to appear twice here so that the check below will see
 					// it as appearing in multiple features.
 					add_scaled_node(r, sst, scaled_geometry[i]);
-					add_scaled_node(r, sst, scaled_geometry[i]);  // duplicate
 
 					if (sf.t == VT_LINE) {
 						// linestrings also need to preserve the last point
 
 						add_scaled_node(r, sst, scaled_geometry[j - 1]);
-						add_scaled_node(r, sst, scaled_geometry[j - 1]);  // duplicate
 					} else if (sf.t == VT_POLYGON) {
 						// To avoid letting polygons get simplified away to nothing,
 						// also keep the furthest-away point from the initial point
@@ -572,7 +570,6 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						}
 
 						add_scaled_node(r, sst, scaled_geometry[which]);
-						add_scaled_node(r, sst, scaled_geometry[which]);  // duplicate
 
 						// And, likewise, the point most distant from those two points,
 						// which probably would also be the one that Douglas-Peucker
@@ -593,7 +590,6 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						}
 
 						add_scaled_node(r, sst, scaled_geometry[which2]);
-						add_scaled_node(r, sst, scaled_geometry[which2]);  // duplicate
 					}
 
 					i = j - 1;

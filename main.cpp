@@ -2060,7 +2060,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				n.index = encode_quadkey((unsigned) x, (unsigned) y);
 
 				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
-				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");  // duplicate
 			}
 			prev = v;
 		}
@@ -2068,8 +2067,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fclose(vertex_out);
 	}
 
-	// Sort nodes; scan the list to find the ones that appear in
-	// multiple features, which then can't be simplified away.
+	// Sort nodes that can't be simplified away; scan the list to remove duplicates
 
 	FILE *shared_nodes;
 	node *shared_nodes_map = NULL;	// will be null if there are no shared nodes
@@ -2120,19 +2118,15 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			exit(EXIT_OPEN);
 		}
 
-		// `prev` is to see if this node duplicates the previous node
-		// and therefore needs to be preserved
-		struct node prev;
 		// `written` is to see if this node has already been preserved
 		// and doesn't need to be preserved again
 		struct node written;
-		prev.index = written.index = ULONG_MAX;
+		written.index = ULONG_MAX;
 
 		nodepos = 0;
 		struct node here;
 		while (fread((void *) &here, sizeof(here), 1, node_out)) {
-			if (nodecmp((void *) &here, (void *) &prev) == 0 &&
-			    nodecmp((void *) &here, (void *) &written) != 0) {
+			if (nodecmp((void *) &here, (void *) &written) != 0) {
 				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
 				written = here;
 
@@ -2144,8 +2138,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
 #endif
 			}
-
-			prev = here;
 		}
 
 		fflush(shared_nodes);
