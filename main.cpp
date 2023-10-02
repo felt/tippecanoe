@@ -2021,6 +2021,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(("mkstemp vertexfile " + std::string(tmpname)).c_str());
 			exit(EXIT_OPEN);
 		}
+		unlink(tmpname.c_str());
 		FILE *vertex_out = fdopen(vertexfd, "w+b");
 		if (vertex_out == NULL) {
 			perror(tmpname.c_str());
@@ -2080,6 +2081,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
 			exit(EXIT_OPEN);
 		}
+		unlink(tmpname.c_str());
 		FILE *node_out;
 		node_out = fdopen(nodefd, "w+b");
 		if (node_out == NULL) {
@@ -2112,6 +2114,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
 			exit(EXIT_OPEN);
 		}
+		unlink(tmpname.c_str());
 		shared_nodes = fdopen(nodefd, "w+b");
 		if (shared_nodes == NULL) {
 			perror(tmpname.c_str());
