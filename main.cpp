@@ -2168,7 +2168,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fclose(node_out);
 	}
 
-	fprintf(stderr, "Merging index                 \r");
+	if (!quiet) {
+		fprintf(stderr, "Merging index                 \r");
+	}
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
 	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
