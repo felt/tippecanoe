@@ -499,13 +499,14 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		}
 	}
 
-	scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 	if (scaled_geometry.size() == 0) {
 		// Feature was clipped away
 		return 1;
 	}
 
 	if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
+
 		if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
 			for (size_t i = 0; i < scaled_geometry.size(); i++) {
 				if (scaled_geometry[i].op == VT_MOVETO) {
@@ -517,7 +518,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						}
 					}
 
-					if (sf.t == VT_POLYGON) {
+					if (sf.t == VT_POLYGON && j - i >= 4) {
 						for (size_t k = i; k < j - 1; k++) {
 							// % (j - i - 1) because we don't want the duplicate last point
 
@@ -528,7 +529,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 							fwrite_check((char *) &v, sizeof(struct vertex), 1, r->vertexfile, &r->vertexpos, sst->fname);
 						}
-					} else if (sf.t == VT_LINE) {
+					} else if (sf.t == VT_LINE && j - i >= 2) {
 						for (size_t k = i; k + 2 < j; k++) {
 							struct vertex v(
 								scaled_geometry[k + 0],
@@ -545,11 +546,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 					// it as appearing in multiple features.
 					add_scaled_node(r, sst, scaled_geometry[i]);
 
-					if (sf.t == VT_LINE) {
+					if (sf.t == VT_LINE && j - i >= 2) {
 						// linestrings also need to preserve the last point
 
 						add_scaled_node(r, sst, scaled_geometry[j - 1]);
-					} else if (sf.t == VT_POLYGON) {
+					} else if (sf.t == VT_POLYGON && j - i >= 4) {
 						// To avoid letting polygons get simplified away to nothing,
 						// also keep the furthest-away point from the initial point
 						// (which Douglas-Peucker simplification would keep anyway,
@@ -700,7 +701,9 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		for (size_t i = 0; i < scaled_geometry.size(); i++) {
 			ix += scaled_geometry[i].x + scaled_geometry[i].y;
 		}
-		ix = ix % scaled_geometry.size();
+		if (scaled_geometry.size() != 0) {
+			ix = ix % scaled_geometry.size();
+		}
 
 		// If off the edge of the plane, mask to bring it back into the addressable area
 		midx = SHIFT_LEFT(scaled_geometry[ix].x) & ((1LL << 32) - 1);
