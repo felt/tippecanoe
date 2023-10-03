@@ -48,6 +48,10 @@ struct draw {
 		}
 	}
 
+	bool operator>(draw const &s) const {
+		return s < *this;
+	}
+
 	bool operator==(draw const &s) const {
 		return y == s.y && x == s.x;
 	}
@@ -73,7 +77,7 @@ drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);
 bool point_within_tile(long long x, long long y, int z);
 int quick_check(long long *bbox, int z, long long buffer);
-drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes);
+drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos);
 drawvec reorder_lines(drawvec &geom);
 drawvec fix_polygon(drawvec &geom);
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms);

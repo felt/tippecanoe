@@ -393,6 +393,29 @@ static std::string strip_zeroes(std::string s) {
 	return s;
 }
 
+int nodecmp(const void *void1, const void *void2) {
+	node *n1 = (node *) void1;
+	node *n2 = (node *) void2;
+
+	if (n1->index < n2->index) {
+		return -1;
+	} else if (n1->index > n2->index) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) {
+	long long x = SHIFT_LEFT(g.x);
+	long long y = SHIFT_LEFT(g.y);
+
+	struct node n;
+	n.index = encode_quadkey((unsigned) x, (unsigned) y);
+
+	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
+}
+
 // called from frontends
 int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	struct reader *r = &(*sst->readers)[sst->segment];
@@ -446,10 +469,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 			scaled_geometry = simple_clip_poly(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy), prevent[P_SIMPLIFY_SHARED_NODES]);
 		} else if (sf.t == VT_LINE) {
 			scaled_geometry = clip_lines(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy));
-			scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 		} else if (sf.t == VT_POINT) {
 			scaled_geometry = clip_point(scaled_geometry, SHIFT_RIGHT(c.minx), SHIFT_RIGHT(c.miny), SHIFT_RIGHT(c.maxx), SHIFT_RIGHT(c.maxy));
 		}
+
+		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 
 		sf.bbox[0] = LLONG_MAX;
 		sf.bbox[1] = LLONG_MAX;
@@ -478,6 +502,100 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	if (scaled_geometry.size() == 0) {
 		// Feature was clipped away
 		return 1;
+	}
+
+	if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
+
+		if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
+			for (size_t i = 0; i < scaled_geometry.size(); i++) {
+				if (scaled_geometry[i].op == VT_MOVETO) {
+					size_t j;
+
+					for (j = i + 1; j < scaled_geometry.size(); j++) {
+						if (scaled_geometry[j].op != VT_LINETO) {
+							break;
+						}
+					}
+
+					if (sf.t == VT_POLYGON && j - i >= 4) {
+						for (size_t k = i; k < j - 1; k++) {
+							// % (j - i - 1) because we don't want the duplicate last point
+
+							struct vertex v(
+								scaled_geometry[(k - i + 0) % (j - i - 1) + i],
+								scaled_geometry[(k - i + 1) % (j - i - 1) + i],
+								scaled_geometry[(k - i + 2) % (j - i - 1) + i]);
+
+							fwrite_check((char *) &v, sizeof(struct vertex), 1, r->vertexfile, &r->vertexpos, sst->fname);
+						}
+					} else if (sf.t == VT_LINE && j - i >= 2) {
+						for (size_t k = i; k + 2 < j; k++) {
+							struct vertex v(
+								scaled_geometry[k + 0],
+								scaled_geometry[k + 1],
+								scaled_geometry[k + 2]);
+
+							fwrite_check((char *) &v, sizeof(struct vertex), 1, r->vertexfile, &r->vertexpos, sst->fname);
+						}
+					}
+
+					// since the starting point is never simplified away,
+					// don't let it be simplified away in any other polygons either.
+					// Needs to appear twice here so that the check below will see
+					// it as appearing in multiple features.
+					add_scaled_node(r, sst, scaled_geometry[i]);
+
+					if (sf.t == VT_LINE && j - i >= 2) {
+						// linestrings also need to preserve the last point
+
+						add_scaled_node(r, sst, scaled_geometry[j - 1]);
+					} else if (sf.t == VT_POLYGON && j - i >= 4) {
+						// To avoid letting polygons get simplified away to nothing,
+						// also keep the furthest-away point from the initial point
+						// (which Douglas-Peucker simplification would keep anyway,
+						// if its search weren't being split up by polygon side).
+
+						double far = 0;
+						size_t which = i;
+						for (size_t k = i + 1; k < j - 1; k++) {
+							double xd = scaled_geometry[k].x - scaled_geometry[i].x;
+							double yd = scaled_geometry[k].y - scaled_geometry[i].y;
+							double d = xd * xd + yd * yd;
+							if (d > far ||
+							    ((d == far) && (scaled_geometry[k] < scaled_geometry[which]))) {
+								far = d;
+								which = k;
+							}
+						}
+
+						add_scaled_node(r, sst, scaled_geometry[which]);
+
+						// And, likewise, the point most distant from those two points,
+						// which probably would also be the one that Douglas-Peucker
+						// would keep next.
+
+						far = 0;
+						size_t which2 = i;
+
+						for (size_t k = i + 1; k < j - 1; k++) {
+							double d = distance_from_line(scaled_geometry[k].x, scaled_geometry[k].y,
+										      scaled_geometry[i].x, scaled_geometry[i].y,
+										      scaled_geometry[which].x, scaled_geometry[which].y);
+							if ((d > far) ||
+							    ((d == far) && (scaled_geometry[k] < scaled_geometry[which2]))) {
+								far = d;
+								which2 = k;
+							}
+						}
+
+						add_scaled_node(r, sst, scaled_geometry[which2]);
+					}
+
+					i = j - 1;
+				}
+			}
+		}
 	}
 
 	if (!sf.has_id) {
@@ -583,7 +701,9 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		for (size_t i = 0; i < scaled_geometry.size(); i++) {
 			ix += scaled_geometry[i].x + scaled_geometry[i].y;
 		}
-		ix = ix % scaled_geometry.size();
+		if (scaled_geometry.size() != 0) {
+			ix = ix % scaled_geometry.size();
+		}
 
 		// If off the edge of the plane, mask to bring it back into the addressable area
 		midx = SHIFT_LEFT(scaled_geometry[ix].x) & ((1LL << 32) - 1);

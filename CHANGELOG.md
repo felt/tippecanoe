@@ -1,3 +1,8 @@
+# 2.33.0
+
+* Further reduce memory usage of --no-simplification-of-shared-nodes by calculating the list of shared nodes globally using temporary files rather than in memory for each individual tile
+* Make --no-simplification-of-shared-nodes behave for LineStrings as it does for Polygons, preventing simplification only at crossings, convergences, and divergences, not at every point along collinear segments
+
 # 2.32.1
 
 * Reduce memory usage of --no-simplification-of-shared-nodes for polygons
