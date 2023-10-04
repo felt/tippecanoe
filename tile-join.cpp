@@ -16,6 +16,7 @@
 #include <sqlite3.h>
 #include <limits.h>
 #include <getopt.h>
+#include <sys/time.h>
 #include <vector>
 #include <string>
 #include <map>
@@ -394,6 +395,20 @@ struct tilecmp {
 	}
 } tilecmp;
 
+double now() {
+	struct timeval tv;
+	if (gettimeofday(&tv, NULL) != 0) {
+		perror("gettimeofday");
+		exit(EXIT_IMPOSSIBLE);
+	}
+	return (double) tv.tv_sec + tv.tv_usec / 1000000000.0;
+}
+
+struct mvt_tile_with_time {
+	mvt_tile tile;
+	double when;
+};
+
 // The `tileset_reader` is an iterator through the tiles of a tileset,
 // in z/x/tms_y order.
 //
@@ -436,8 +451,7 @@ struct tileset_reader {
 	bool overzoom_consumed_at_this_zoom = false;
 
 	// parent tile cache
-	std::map<zxy, mvt_tile> overzoom_cache;
-	size_t overzoom_cache_seq;
+	std::map<zxy, mvt_tile_with_time> overzoom_cache;
 
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
@@ -761,22 +775,28 @@ struct tileset_reader {
 		auto f = overzoom_cache.find(parent_tile);
 		if (f == overzoom_cache.end()) {
 			if (overzoom_cache.size() > 1000) {
-				// evict something to make room
+				// evict the oldest tile to make room
 
 				auto to_erase = overzoom_cache.begin();
-				for (size_t i = 0; i < overzoom_cache_seq; i++) {
-					++to_erase;
+				for (auto here = overzoom_cache.begin(); here != overzoom_cache.end(); ++here) {
+					if (here->second.when < to_erase->second.when) {
+						to_erase = here;
+					}
 				}
 
 				overzoom_cache.erase(to_erase);
 			}
 
 			source = get_tile(parent_tile);
-			overzoom_cache.emplace(parent_tile, source);
-			static std::atomic<size_t> count(0);
-			count++;
+
+			mvt_tile_with_time to_cache;
+			to_cache.tile = source;
+			to_cache.when = now();
+
+			overzoom_cache.emplace(parent_tile, to_cache);
 		} else {
-			source = f->second;
+			f->second.when = now();
+			source = f->second.tile;
 		}
 
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
