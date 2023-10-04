@@ -1,3 +1,7 @@
+# 2.34.1
+
+* Further improvements to tile-join speed
+
 # 2.34.0
 
 * Improve speed of overzooming in tile-join
