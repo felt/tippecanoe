@@ -380,13 +380,14 @@ double max(double a, double b) {
 struct tilecmp {
 	bool operator()(std::pair<unsigned, unsigned> const &a, std::pair<unsigned, unsigned> const &b) {
 		// must match behavior of tileset_reader::operator<()
+		// except backwards, since we are pulling from the end of the list
 
-		if (a.first < b.first) {
+		if (b.first < a.first) {
 			return true;
 		}
-		if (a.first == b.first) {
+		if (b.first == a.first) {
 			// Y sorts backwards, in TMS order
-			if (a.second > b.second) {
+			if (b.second > a.second) {
 				return true;
 			}
 		}
@@ -555,8 +556,8 @@ struct tileset_reader {
 				return;
 			}
 
-			auto xy = overzoomed_tiles.front();
-			overzoomed_tiles.erase(overzoomed_tiles.begin());
+			auto xy = overzoomed_tiles.back();
+			overzoomed_tiles.erase(overzoomed_tiles.begin() + overzoomed_tiles.size() - 1);
 
 			x = xy.first;
 			y = xy.second;
@@ -1061,7 +1062,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		// Then this tile is done and we can safely run the output queue.
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
-			if (tasks.size() > 10 * CPUS) {
+			if (tasks.size() > 100 * CPUS) {
 				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 				tasks.clear();
 			}
