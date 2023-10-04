@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <sys/stat.h>
+#include "mbtiles.hpp"
 
 #ifndef DIRTILES_HPP
 #define DIRTILES_HPP

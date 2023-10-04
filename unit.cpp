@@ -2,6 +2,7 @@
 #include "catch/catch.hpp"
 #include "text.hpp"
 #include "sort.hpp"
+#include "tile-cache.hpp"
 #include <unistd.h>
 #include <limits.h>
 
@@ -64,4 +65,37 @@ TEST_CASE("External quicksort", "fqsort") {
 
 	fclose(f);
 	REQUIRE(nread == written);
+}
+
+mvt_tile mock_get_tile(zxy tile) {
+	mvt_layer l;
+	l.name = std::to_string(tile.z) + "/" + std::to_string(tile.x) + "/" + std::to_string(tile.y);
+	mvt_tile t;
+	t.layers.push_back(l);
+	return t;
+}
+
+TEST_CASE("Tile-join cache", "tile cache") {
+	tile_cache tc;
+	tc.capacity = 5;
+
+	REQUIRE(tc.get(zxy(11, 327, 791), mock_get_tile).layers[0].name == "11/327/791");
+	REQUIRE(tc.get(zxy(11, 5, 7), mock_get_tile).layers[0].name == "11/5/7");
+	REQUIRE(tc.get(zxy(11, 5, 8), mock_get_tile).layers[0].name == "11/5/8");
+	REQUIRE(tc.get(zxy(11, 5, 9), mock_get_tile).layers[0].name == "11/5/9");
+	REQUIRE(tc.get(zxy(11, 5, 10), mock_get_tile).layers[0].name == "11/5/10");
+	REQUIRE(tc.get(zxy(11, 327, 791), mock_get_tile).layers[0].name == "11/327/791");
+	REQUIRE(tc.overzoom_cache.size() == 5);
+	REQUIRE(tc.overzoom_cache.find(zxy(11, 327, 791)) != tc.overzoom_cache.end());
+	REQUIRE(tc.overzoom_cache.find(zxy(11, 5, 7)) != tc.overzoom_cache.end());
+
+	// verify that additional gets evict the least-recently-used elements
+
+	REQUIRE(tc.get(zxy(11, 5, 11), mock_get_tile).layers[0].name == "11/5/11");
+	REQUIRE(tc.overzoom_cache.size() == 5);
+	REQUIRE(tc.overzoom_cache.find(zxy(11, 5, 7)) == tc.overzoom_cache.end());
+
+	REQUIRE(tc.get(zxy(11, 5, 12), mock_get_tile).layers[0].name == "11/5/12");
+	REQUIRE(tc.overzoom_cache.size() == 5);
+	REQUIRE(tc.overzoom_cache.find(zxy(11, 5, 8)) == tc.overzoom_cache.end());
 }

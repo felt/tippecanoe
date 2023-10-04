@@ -16,7 +16,7 @@ struct tile_cache {
 		mvt_tile source;
 		auto f = overzoom_cache.find(parent_tile);
 		if (f == overzoom_cache.end()) {
-			if (overzoom_cache.size() > capacity) {
+			if (overzoom_cache.size() >= capacity) {
 				// evict the oldest tile to make room
 
 				auto to_erase = overzoom_cache.begin();
