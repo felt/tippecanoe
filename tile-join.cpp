@@ -378,7 +378,7 @@ double max(double a, double b) {
 
 struct tilecmp {
 	bool operator()(std::pair<unsigned, unsigned> const &a, std::pair<unsigned, unsigned> const &b) {
-		// must match behavior of reader::operator<()
+		// must match behavior of tileset_reader::operator<()
 
 		if (a.first < b.first) {
 			return true;
@@ -394,13 +394,13 @@ struct tilecmp {
 	}
 } tilecmp;
 
-// The `reader` is an iterator through the tiles of a tileset,
+// The `tileset_reader` is an iterator through the tiles of a tileset,
 // in z/x/tms_y order.
 //
 // The basic idea is that it is used like this:
 //
 //  void blah(const char *fname) {
-//      reader r(fname);
+//      tileset_reader r(fname);
 //
 //      for (; !r.all_done(); r.advance()) {
 //          std::pair<zxy, std::string> tile = r.current();
@@ -411,13 +411,13 @@ struct tilecmp {
 //  }
 //
 // The complication is that you can actually keep calling current()
-// and advance() after the reader claims to be done, in which case
+// and advance() after the tileset_reader claims to be done, in which case
 // it will produce overzoomed tiles generated from the tiles in
 // the maxzoom tileset. The parent tiles for those overzoomed tiles
 // are retrieved internally using get_tile() rather than through the
 // main iteration query.
 
-struct reader {
+struct tileset_reader {
 	// z/x/y and data of the current tile
 	long long zoom = 0;
 	long long x = 0;
@@ -442,7 +442,7 @@ struct reader {
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
 	sqlite3_stmt *stmt = NULL;
-	struct reader *next = NULL;
+	struct tileset_reader *next = NULL;
 
 	// for iterating dirtiles
 	std::vector<zxy> dirtiles;
@@ -453,7 +453,7 @@ struct reader {
 	char *pmtiles_map = NULL;
 	std::vector<pmtiles::entry_zxy> pmtiles_entries;
 
-	reader(const char *fname) {
+	tileset_reader(const char *fname) {
 		name = fname;
 		struct stat st;
 		if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
@@ -503,7 +503,7 @@ struct reader {
 		}
 	}
 
-	// Checks the done status not only of this reader but also
+	// Checks the done status not only of this tileset_reader but also
 	// the others chained to it in the queue.
 	//
 	// Also claims not to be done if at least one overzoomed tile
@@ -517,7 +517,7 @@ struct reader {
 			return false;
 		}
 
-		for (struct reader *r = next; r != NULL; r = r->next) {
+		for (struct tileset_reader *r = next; r != NULL; r = r->next) {
 			if (!r->done) {
 				return false;
 			}
@@ -708,7 +708,7 @@ struct reader {
 
 	// Sort in z/x/tms_y order, because that is the order of the
 	// straightforward query of the mbtiles tiles table.
-	bool operator<(const struct reader &r) const {
+	bool operator<(const struct tileset_reader &r) const {
 		// must match behavior of tilecmp
 
 		if (zoom < r.zoom) {
@@ -792,10 +792,10 @@ struct reader {
 	}
 };
 
-struct reader *begin_reading(char *fname) {
-	struct reader *r = new reader(fname);
+struct tileset_reader *begin_reading(char *fname) {
+	struct tileset_reader *r = new tileset_reader(fname);
 
-	// The reason this prefetches is so the reader queue can be
+	// The reason this prefetches is so the tileset_reader queue can be
 	// priority-ordered, so the one with the next relevant tile
 	// is first in line.
 	r->advance();
@@ -816,7 +816,7 @@ struct arg {
 	std::set<std::string> *remove_layers = NULL;
 	int ifmatched = 0;
 	json_object *filter = NULL;
-	struct reader *readers = NULL;
+	struct tileset_reader *readers = NULL;
 };
 
 void *join_worker(void *v) {
@@ -861,7 +861,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct reader *readers) {
+void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -1009,7 +1009,7 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 	}
 }
 
-void decode(struct reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
+void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
 	std::vector<std::map<std::string, layermap_entry>> layermaps;
 	for (size_t i = 0; i < CPUS; i++) {
 		layermaps.push_back(std::map<std::string, layermap_entry>());
@@ -1061,19 +1061,19 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			f->second.push_back(current.second);
 		}
 
-		// Advance the reader that we just added as a task.
-		// The reason this prefetches is so the reader queue can be
+		// Advance the tileset_reader that we just added as a task.
+		// The reason this prefetches is so the tileset_reader queue can be
 		// priority-ordered, so the one with the next relevant tile
 		// is first in line.
 		readers->advance();
 
-		// pull the reader off the front of the queue for reordering
+		// pull the tileset_reader off the front of the queue for reordering
 
-		reader *r = readers;
+		tileset_reader *r = readers;
 		readers = readers->next;
 		r->next = NULL;
 
-		// Is the next reader on the reader queue looking at a different tile?
+		// Is the next tileset_reader on the tileset_reader queue looking at a different tile?
 		// Then this tile is done and we can safely run the output queue.
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
@@ -1083,10 +1083,10 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 			}
 		}
 
-		// put the reader back onto the queue,
+		// put the tileset_reader back onto the queue,
 		// in whatever sequence its next tile calls for
 
-		struct reader **rr;
+		struct tileset_reader **rr;
 		for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
 			if (*r < **rr) {
 				break;
@@ -1110,8 +1110,8 @@ void decode(struct reader *readers, std::map<std::string, layermap_entry> &layer
 	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 	layermap = merge_layermaps(layermaps);
 
-	struct reader *next;
-	for (struct reader *r = readers; r != NULL; r = next) {
+	struct tileset_reader *next;
+	for (struct tileset_reader *r = readers; r != NULL; r = next) {
 		next = r->next;
 		r->close();
 
@@ -1262,7 +1262,7 @@ int main(int argc, char **argv) {
 	int filearg = 0;
 	json_object *filter = NULL;
 
-	struct reader *readers = NULL;
+	struct tileset_reader *readers = NULL;
 
 	CPUS = sysconf(_SC_NPROCESSORS_ONLN);
 
@@ -1461,10 +1461,10 @@ int main(int argc, char **argv) {
 				filearg = 1;
 				while (getline(read_file, sa)) {
 					char *c = const_cast<char *>(sa.c_str());
-					reader *r = begin_reading(c);
+					tileset_reader *r = begin_reading(c);
 
-					// put the new reader in priority order
-					struct reader **rr;
+					// put the new tileset_reader in priority order
+					struct tileset_reader **rr;
 					for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
 						if (*r < **rr) {
 							break;
@@ -1553,10 +1553,10 @@ int main(int argc, char **argv) {
 
 	if (filearg == 0) {
 		for (i = optind; i < argc; i++) {
-			reader *r = begin_reading(argv[i]);
+			tileset_reader *r = begin_reading(argv[i]);
 
-			// put the new reader in priority order
-			struct reader **rr;
+			// put the new tileset_reader in priority order
+			struct tileset_reader **rr;
 			for (rr = &readers; *rr != NULL; rr = &((*rr)->next)) {
 				if (*r < **rr) {
 					break;

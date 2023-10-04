@@ -480,7 +480,10 @@ struct partial_arg {
 	std::vector<struct partial> *partials = NULL;
 	int task = 0;
 	int tasks = 0;
+
 	drawvec *shared_nodes;
+	node *shared_nodes_map;
+	size_t nodepos;
 };
 
 drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
@@ -524,7 +527,7 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	}
 }
 
-double simplify_partial(partial *p, drawvec &shared_nodes) {
+double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
 	drawvec geom;
 
 	for (size_t j = 0; j < p->geoms.size(); j++) {
@@ -579,7 +582,7 @@ double simplify_partial(partial *p, drawvec &shared_nodes) {
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
-				drawvec ngeom = simplify_lines(geom, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes);
+				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
 
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
 					geom = ngeom;
@@ -602,7 +605,7 @@ void *partial_feature_worker(void *v) {
 	std::vector<struct partial> *partials = a->partials;
 
 	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
-		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes));
+		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
 
 		signed char t = (*partials)[i].t;
 		int z = (*partials)[i].z;
@@ -1031,7 +1034,8 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 			}
 		}
 		if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
-			simplified_arcs[ai->second] = simplify_lines(dv, z, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec());
+			// tx and ty are 0 here because we aren't trying to do anything with the shared_nodes_map
+			simplified_arcs[ai->second] = simplify_lines(dv, z, 0, 0, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec(), NULL, 0);
 		} else {
 			simplified_arcs[ai->second] = dv;
 		}
@@ -1294,48 +1298,6 @@ long long choose_minextent(std::vector<long long> &extents, double f) {
 	return extents[(extents.size() - 1) * (1 - f)];
 }
 
-struct joint {
-	long long x : 34;  // enough to wrap around the world either way
-	unsigned long long p1 : 64 - 34;
-
-	long long y : 33;  // enough to touch the top and bottom of the world
-	unsigned long long p2 : 64 - 34;
-
-	joint(draw one, draw hinge, draw two) {
-		if (one < two) {
-			std::swap(one, two);
-		}
-
-		long long coord1[2] = {one.x, one.y};
-		long long coord2[2] = {two.x, two.y};
-		p1 = fnv1a(std::string((const char *) &coord1, sizeof(coord1)));
-		p2 = fnv1a(std::string((const char *) &coord2, sizeof(coord2)));
-
-		x = hinge.x;
-		y = hinge.y;
-	}
-
-	bool operator<(const joint &o) const {
-		if (y < o.y) {
-			return true;
-		} else if (y == o.y) {
-			if (x < o.x) {
-				return true;
-			} else if (x == o.x) {
-				if (p1 < o.p1) {
-					return true;
-				} else if (p1 == o.p1) {
-					if (p2 < o.p2) {
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-};
-
 struct write_tile_args {
 	struct task *tasks = NULL;
 	char *stringpool = NULL;
@@ -1387,6 +1349,8 @@ struct write_tile_args {
 	atomic_strategy *strategy = NULL;
 	int zoom = -1;
 	bool compressed;
+	struct node *shared_nodes_map;
+	size_t nodepos;
 };
 
 bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
@@ -1934,7 +1898,7 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, struct node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1990,7 +1954,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		double coalesced_area = 0;
 		drawvec shared_nodes;
-		std::vector<joint> shared_joints;
 
 		int tile_detail = line_detail;
 		size_t skipped = 0;
@@ -2272,89 +2235,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else {
 					kept++;
 
-					if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-						if (sf.t == VT_LINE) {
-							for (auto &g : sf.geometry) {
-								shared_nodes.push_back(g);
-							}
-						} else if (sf.t == VT_POLYGON) {
-							sf.geometry = remove_noop(sf.geometry, sf.t, 0);
-
-							for (size_t i = 0; i < sf.geometry.size(); i++) {
-								if (sf.geometry[i].op == VT_MOVETO) {
-									size_t j;
-									for (j = i + 1; j < sf.geometry.size(); j++) {
-										if (sf.geometry[j].op != VT_LINETO) {
-											break;
-										}
-									}
-
-									// j - 1 because we don't want the duplicate last point
-									for (size_t k = i; k < j - 1; k++) {
-										shared_joints.emplace_back(
-											sf.geometry[k],
-											sf.geometry[(k + 1 - i) % (j - 1 - i) + i],
-											sf.geometry[(k + 2 - i) % (j - 1 - i) + i]);
-									}
-
-									// since the starting point is never simplified away,
-									// don't let it be simplified away in any other polygons either.
-									// Needs to appear twice here so that the check below will see
-									// it as appearing in multiple features.
-									shared_nodes.push_back(sf.geometry[i]);
-									shared_nodes.push_back(sf.geometry[i]);
-
-									// To avoid letting polygons get simplified away to nothing,
-									// also keep the furthest-away point from the initial point
-									// (which Douglas-Peucker simplification would keep anyway,
-									// if its search weren't being split up by polygon side).
-
-									double far = 0;
-									size_t which = i;
-									for (size_t k = i + 1; k < j - 1; k++) {
-										double xd = sf.geometry[k].x - sf.geometry[i].x;
-										double yd = sf.geometry[k].y - sf.geometry[i].y;
-										double d = xd * xd + yd * yd;
-										if (d > far ||
-										    ((d == far) && (sf.geometry[k] < sf.geometry[which]))) {
-											far = d;
-											which = k;
-										}
-									}
-
-									shared_nodes.push_back(sf.geometry[which]);
-									shared_nodes.push_back(sf.geometry[which]);
-
-									// And, likewise, the point most distant from those two points,
-									// which probably would also be the one that Douglas-Peucker
-									// would keep next.
-
-									far = 0;
-									size_t which2 = i;
-
-									for (size_t k = i + 1; k < j - 1; k++) {
-										double d = distance_from_line(sf.geometry[k].x, sf.geometry[k].y,
-													      sf.geometry[i].x, sf.geometry[i].y,
-													      sf.geometry[which].x, sf.geometry[which].y);
-										if ((d > far) ||
-										    ((d == far) && (sf.geometry[k] < sf.geometry[which2]))) {
-											far = d;
-											which2 = k;
-										}
-									}
-
-									shared_nodes.push_back(sf.geometry[which2]);
-									shared_nodes.push_back(sf.geometry[which2]);
-
-									i = j - 1;
-								}
-							}
-						}
-
-						for (auto &p : sf.edge_nodes) {
-							shared_nodes.push_back(p);
-							shared_nodes.push_back(p);
-						}
+					for (auto &p : sf.edge_nodes) {
+						shared_nodes.push_back(p);
 					}
 
 					partial p;
@@ -2398,11 +2280,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					partials.push_back(p);
 
 					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
-					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS] && !prevent[P_SIMPLIFY_SHARED_NODES]) {
+					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
+						// we should be safe to simplify here with P_SIMPLIFY_SHARED_NODES, since they will
+						// have been assembled globally, although that also means that simplification
+						// may not be very effective for reducing memory usage.
+
 						drawvec dv;
 
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
-							simplify_partial(&partials[simplified_geometry_through], dv);
+							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
 
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
@@ -2421,38 +2307,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			coalesced_area = 0;
 		}
 
-		{
-			drawvec just_shared_nodes;
-			std::sort(shared_nodes.begin(), shared_nodes.end());
-
-			for (size_t i = 0; i + 1 < shared_nodes.size(); i++) {
-				if (shared_nodes[i] == shared_nodes[i + 1]) {
-					just_shared_nodes.push_back(shared_nodes[i]);
-
-					draw d = shared_nodes[i];
-					i++;  // consume the first, point at the duplicate
-					while (i + 1 < shared_nodes.size() && shared_nodes[i + 1] == d) {
-						i++;
-					}
-				}
-			}
-
-			shared_nodes = just_shared_nodes;
-
-			std::sort(shared_joints.begin(), shared_joints.end());
-			for (size_t i = 0; i + 1 < shared_joints.size(); i++) {
-				if (shared_joints[i].x == shared_joints[i + 1].x &&
-				    shared_joints[i].y == shared_joints[i + 1].y) {
-					if (shared_joints[i].p1 != shared_joints[i + 1].p1 ||
-					    shared_joints[i].p2 != shared_joints[i + 1].p2) {
-						shared_nodes.push_back(draw(VT_MOVETO, shared_joints[i].x, shared_joints[i].y));
-					}
-				}
-			}
-
-			std::sort(shared_nodes.begin(), shared_nodes.end());
-			shared_joints.clear();
-		}
+		std::sort(shared_nodes.begin(), shared_nodes.end());
 
 		for (size_t i = 0; i < partials.size(); i++) {
 			partial &p = partials[i];
@@ -2552,6 +2407,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			args[i].tasks = tasks;
 			args[i].partials = &partials;
 			args[i].shared_nodes = &shared_nodes;
+			args[i].shared_nodes_map = shared_nodes_map;
+			args[i].nodepos = nodepos;
 
 			if (tasks > 1) {
 				if (pthread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
@@ -2667,8 +2524,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
 					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
 					if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
-						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0,
-											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes);
+						// XXX revisit: why does this not take zoom into account?
+						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
+											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
 					}
 				}
 
@@ -3082,7 +2940,7 @@ void *run_thread(void *vargs) {
 
 			// fprintf(stderr, "%d/%u/%u\n", z, x, y);
 
-			long long len = write_tile(&dc, &geompos, arg->stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed);
+			long long len = write_tile(&dc, &geompos, arg->stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
 
 			if (len < 0) {
 				int *err = &arg->err;
@@ -3147,7 +3005,7 @@ void *run_thread(void *vargs) {
 	return NULL;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -3352,6 +3210,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				args[thread].strategy = &strategy;
 				args[thread].zoom = z;
 				args[thread].compressed = (z != iz);
+				args[thread].shared_nodes_map = shared_nodes_map;
+				args[thread].nodepos = nodepos;
 
 				if (pthread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
 					perror("pthread_create");
