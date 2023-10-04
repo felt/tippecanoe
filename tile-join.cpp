@@ -401,7 +401,7 @@ double now() {
 		perror("gettimeofday");
 		exit(EXIT_IMPOSSIBLE);
 	}
-	return (double) tv.tv_sec + tv.tv_usec / 1000000000.0;
+	return (double) tv.tv_sec + tv.tv_usec / 1000000.0;
 }
 
 struct mvt_tile_with_time {
@@ -452,6 +452,7 @@ struct tileset_reader {
 
 	// parent tile cache
 	std::map<zxy, mvt_tile_with_time> overzoom_cache;
+	size_t overzoom_cache_max = 1000;
 
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
@@ -774,7 +775,7 @@ struct tileset_reader {
 		mvt_tile source;
 		auto f = overzoom_cache.find(parent_tile);
 		if (f == overzoom_cache.end()) {
-			if (overzoom_cache.size() > 1000) {
+			if (overzoom_cache.size() > overzoom_cache_max) {
 				// evict the oldest tile to make room
 
 				auto to_erase = overzoom_cache.begin();
