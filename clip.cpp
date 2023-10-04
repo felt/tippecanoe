@@ -1,6 +1,8 @@
+#include <stdlib.h>
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
 #include <mapbox/geometry/wagyu/wagyu.hpp>
+#include <limits.h>
 #include "geometry.hpp"
 #include "errors.hpp"
 #include "compression.hpp"
@@ -751,11 +753,11 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 }
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep) {
-	mvt_tile tile, outtile;
-	bool was_compressed;
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
+	mvt_tile tile;
 
 	try {
+		bool was_compressed;
 		if (!tile.decode(s, was_compressed)) {
 			fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", oz, ox, oy);
 			exit(EXIT_MVT);
@@ -764,6 +766,13 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", oz, ox, oy);
 		exit(EXIT_PROTOBUF);
 	}
+
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress);
+}
+
+std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress) {
+	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();
@@ -812,6 +821,23 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 			}
 
 			// Clip to output tile
+
+			long long xmin = LLONG_MAX;
+			long long ymin = LLONG_MAX;
+			long long xmax = LLONG_MIN;
+			long long ymax = LLONG_MIN;
+
+			for (auto const &g : geom) {
+				xmin = std::min(xmin, g.x);
+				ymin = std::min(ymin, g.y);
+				xmax = std::max(xmax, g.x);
+				ymax = std::max(ymax, g.y);
+			}
+
+			long long b = outtilesize * buffer / 256;
+			if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
+				continue;
+			}
 
 			if (t == VT_LINE) {
 				geom = clip_lines(geom, nz, buffer);
@@ -866,8 +892,13 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 
 	if (outtile.layers.size() > 0) {
 		std::string pbf = outtile.encode();
+
 		std::string compressed;
-		compress(pbf, compressed, true);
+		if (do_compress) {
+			compress(pbf, compressed, true);
+		} else {
+			compressed = pbf;
+		}
 
 		return compressed;
 	} else {

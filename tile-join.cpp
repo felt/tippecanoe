@@ -33,6 +33,7 @@
 #include "csv.hpp"
 #include "text.hpp"
 #include "tile.hpp"
+#include "tile-cache.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -435,6 +436,9 @@ struct tileset_reader {
 	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
 	bool overzoom_consumed_at_this_zoom = false;
 
+	// parent tile cache
+	tile_cache cache;
+
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
 	sqlite3_stmt *stmt = NULL;
@@ -649,7 +653,7 @@ struct tileset_reader {
 		overzoom_consumed_at_this_zoom = false;
 	}
 
-	std::string get_tile(zxy tile) {
+	mvt_tile get_tile(zxy tile) {
 		std::string source;
 
 		if (db != NULL) {
@@ -683,7 +687,23 @@ struct tileset_reader {
 			source = dir_read_tile(dirbase, tile);
 		}
 
-		return source;
+		mvt_tile content;
+		if (source.size() == 0) {
+			return content;
+		}
+
+		try {
+			bool was_compressed;
+			if (!content.decode(source, was_compressed)) {
+				fprintf(stderr, "Couldn't parse tile %lld/%lld/%lld\n", tile.z, tile.x, tile.y);
+				exit(EXIT_MVT);
+			}
+		} catch (std::exception const &e) {
+			fprintf(stderr, "PBF decoding error in tile %lld/%lld/%lld\n", tile.z, tile.x, tile.y);
+			exit(EXIT_PROTOBUF);
+		}
+
+		return content;
 	}
 
 	// Sort in z/x/tms_y order, because that is the order of the
@@ -737,14 +757,18 @@ struct tileset_reader {
 			perror("pthread_mutex_lock");
 		}
 
-		std::string source = get_tile(parent_tile);
+		std::function<mvt_tile(zxy)> getter = [&](zxy tile) {
+			return get_tile(tile);
+		};
+
+		mvt_tile source = cache.get(parent_tile, getter);
 
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_unlock");
 		}
 
-		if (source.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>());
+		if (source.layers.size() != 0) {
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false);
 			return ret;
 		}
 
@@ -1021,13 +1045,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 			f->second.push_back(current.second);
 		}
 
-		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
-			if (tasks.size() > 100 * CPUS) {
-				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
-				tasks.clear();
-			}
-		}
-
+		// Advance the tileset_reader that we just added as a task.
 		// The reason this prefetches is so the tileset_reader queue can be
 		// priority-ordered, so the one with the next relevant tile
 		// is first in line.
@@ -1038,6 +1056,16 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		tileset_reader *r = readers;
 		readers = readers->next;
 		r->next = NULL;
+
+		// Is the next tileset_reader on the tileset_reader queue looking at a different tile?
+		// Then this tile is done and we can safely run the output queue.
+
+		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
+			if (tasks.size() > 10 * CPUS) {
+				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+				tasks.clear();
+			}
+		}
 
 		// put the tileset_reader back onto the queue,
 		// in whatever sequence its next tile calls for

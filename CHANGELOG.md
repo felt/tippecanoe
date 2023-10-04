@@ -1,3 +1,7 @@
+# 2.34.0
+
+* Improve speed of overzooming in tile-join
+
 # 2.33.0
 
 * Further reduce memory usage of --no-simplification-of-shared-nodes by calculating the list of shared nodes globally using temporary files rather than in memory for each individual tile
