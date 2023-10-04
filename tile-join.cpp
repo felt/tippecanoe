@@ -16,7 +16,6 @@
 #include <sqlite3.h>
 #include <limits.h>
 #include <getopt.h>
-#include <sys/time.h>
 #include <vector>
 #include <string>
 #include <map>
@@ -34,6 +33,7 @@
 #include "csv.hpp"
 #include "text.hpp"
 #include "tile.hpp"
+#include "tile-cache.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -395,20 +395,6 @@ struct tilecmp {
 	}
 } tilecmp;
 
-double now() {
-	struct timeval tv;
-	if (gettimeofday(&tv, NULL) != 0) {
-		perror("gettimeofday");
-		exit(EXIT_IMPOSSIBLE);
-	}
-	return (double) tv.tv_sec + tv.tv_usec / 1000000.0;
-}
-
-struct mvt_tile_with_time {
-	mvt_tile tile;
-	double when;
-};
-
 // The `tileset_reader` is an iterator through the tiles of a tileset,
 // in z/x/tms_y order.
 //
@@ -451,8 +437,7 @@ struct tileset_reader {
 	bool overzoom_consumed_at_this_zoom = false;
 
 	// parent tile cache
-	std::map<zxy, mvt_tile_with_time> overzoom_cache;
-	size_t overzoom_cache_max = 1000;
+	tile_cache cache;
 
 	// for iterating mbtiles
 	sqlite3 *db = NULL;
@@ -772,33 +757,11 @@ struct tileset_reader {
 			perror("pthread_mutex_lock");
 		}
 
-		mvt_tile source;
-		auto f = overzoom_cache.find(parent_tile);
-		if (f == overzoom_cache.end()) {
-			if (overzoom_cache.size() > overzoom_cache_max) {
-				// evict the oldest tile to make room
+		std::function<mvt_tile(zxy)> getter = [&](zxy tile) {
+			return get_tile(tile);
+		};
 
-				auto to_erase = overzoom_cache.begin();
-				for (auto here = overzoom_cache.begin(); here != overzoom_cache.end(); ++here) {
-					if (here->second.when < to_erase->second.when) {
-						to_erase = here;
-					}
-				}
-
-				overzoom_cache.erase(to_erase);
-			}
-
-			source = get_tile(parent_tile);
-
-			mvt_tile_with_time to_cache;
-			to_cache.tile = source;
-			to_cache.when = now();
-
-			overzoom_cache.emplace(parent_tile, to_cache);
-		} else {
-			f->second.when = now();
-			source = f->second.tile;
-		}
+		mvt_tile source = cache.get(parent_tile, getter);
 
 		if (pthread_mutex_unlock(&retrieve_lock) != 0) {
 			perror("pthread_mutex_unlock");
