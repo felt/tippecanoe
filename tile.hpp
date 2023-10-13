@@ -18,6 +18,8 @@ enum attribute_op {
 	op_comma,
 	op_max,
 	op_min,
+	op_or,
+	op_and,
 };
 
 struct atomic_strategy {
