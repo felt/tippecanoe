@@ -65,6 +65,7 @@
 #include "text.hpp"
 #include "errors.hpp"
 #include "read_json.hpp"
+#include "sort.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -121,7 +122,8 @@ void checkdisk(std::vector<struct reader> *r) {
 	for (size_t i = 0; i < r->size(); i++) {
 		// Pool and tree are used once.
 		// Geometry and index will be duplicated during sorting and tiling.
-		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off;
+		used += 2 * (*r)[i].geompos + 2 * (*r)[i].indexpos + (*r)[i].poolfile->off + (*r)[i].treefile->off +
+			(*r)[i].vertexpos + (*r)[i].nodepos;
 	}
 
 	static int warned = 0;
@@ -1207,6 +1209,34 @@ void choose_first_zoom(long long *file_bbox, long long *file_bbox1, long long *f
 	}
 }
 
+int vertexcmp(const void *void1, const void *void2) {
+	vertex *v1 = (vertex *) void1;
+	vertex *v2 = (vertex *) void2;
+
+	if (v1->mid < v2->mid) {
+		return -1;
+	}
+	if (v1->mid > v2->mid) {
+		return 1;
+	}
+
+	if (v1->p1 < v2->p1) {
+		return -1;
+	}
+	if (v1->p1 > v2->p1) {
+		return 1;
+	}
+
+	if (v1->p2 < v2->p2) {
+		return -1;
+	}
+	if (v1->p2 > v2->p2) {
+		return 1;
+	}
+
+	return 0;
+}
+
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
@@ -1219,11 +1249,15 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		char treename[strlen(tmpdir) + strlen("/tree.XXXXXXXX") + 1];
 		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
 		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
+		char vertexname[strlen(tmpdir) + strlen("/vertex.XXXXXXXX") + 1];
+		char nodename[strlen(tmpdir) + strlen("/node.XXXXXXXX") + 1];
 
 		snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
 		snprintf(treename, sizeof(treename), "%s%s", tmpdir, "/tree.XXXXXXXX");
 		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
 		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+		snprintf(vertexname, sizeof(vertexname), "%s%s", tmpdir, "/vertex.XXXXXXXX");
+		snprintf(nodename, sizeof(nodename), "%s%s", tmpdir, "/node.XXXXXXXX");
 
 		r->poolfd = mkstemp_cloexec(poolname);
 		if (r->poolfd < 0) {
@@ -1243,6 +1277,16 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->indexfd = mkstemp_cloexec(indexname);
 		if (r->indexfd < 0) {
 			perror(indexname);
+			exit(EXIT_OPEN);
+		}
+		r->vertexfd = mkstemp_cloexec(vertexname);
+		if (r->vertexfd < 0) {
+			perror(vertexname);
+			exit(EXIT_OPEN);
+		}
+		r->nodefd = mkstemp_cloexec(nodename);
+		if (r->nodefd < 0) {
+			perror(nodename);
 			exit(EXIT_OPEN);
 		}
 
@@ -1266,13 +1310,27 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror(indexname);
 			exit(EXIT_OPEN);
 		}
+		r->vertexfile = fopen_oflag(vertexname, "w+b", O_RDWR | O_CLOEXEC);
+		if (r->vertexfile == NULL) {
+			perror(("open vertexfile " + std::string(vertexname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		r->nodefile = fopen_oflag(nodename, "w+b", O_RDWR | O_CLOEXEC);
+		if (r->nodefile == NULL) {
+			perror(nodename);
+			exit(EXIT_OPEN);
+		}
 		r->geompos = 0;
 		r->indexpos = 0;
+		r->vertexpos = 0;
+		r->nodepos = 0;
 
 		unlink(poolname);
 		unlink(treename);
 		unlink(geomname);
 		unlink(indexname);
+		unlink(vertexname);
+		unlink(nodename);
 
 		// To distinguish a null value
 		{
@@ -1842,6 +1900,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fflush(stderr);
 	}
 
+	std::atomic<long long> vertexpos(0);
+	std::atomic<long long> nodepos(0);
+
 	for (size_t i = 0; i < CPUS; i++) {
 		if (fclose(readers[i].geomfile) != 0) {
 			perror("fclose geom");
@@ -1857,6 +1918,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("stat geom\n");
 			exit(EXIT_STAT);
 		}
+
+		vertexpos += readers[i].vertexpos;
+		nodepos += readers[i].nodepos;
+	}
+
+	if (!quiet) {
+		fprintf(stderr, "Merging string pool           \r");
 	}
 
 	// Create a combined string pool
@@ -1885,7 +1953,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	unlink(poolname);
-
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -1947,6 +2014,162 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			exit(EXIT_MEMORY);
 		}
 		madvise(stringpool, poolpos, MADV_RANDOM);
+	}
+
+	if (!quiet) {
+		fprintf(stderr, "Merging vertices              \r");
+	}
+
+	// Sort the vertices;
+	// find nodes where the same central point is part of two different vertices
+	{
+		std::string tmpname = std::string(tmpdir) + "/vertex2.XXXXXX";
+		int vertexfd = mkstemp((char *) tmpname.c_str());
+		if (vertexfd < 0) {
+			perror(("mkstemp vertexfile " + std::string(tmpname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		unlink(tmpname.c_str());
+		FILE *vertex_out = fdopen(vertexfd, "w+b");
+		if (vertex_out == NULL) {
+			perror(tmpname.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		std::vector<FILE *> vertex_readers;
+		for (size_t i = 0; i < CPUS; i++) {
+			vertex_readers.push_back(readers[i].vertexfile);
+			rewind(readers[i].vertexfile);
+		}
+		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out, memsize / 10);
+
+		for (size_t i = 0; i < CPUS; i++) {
+			if (fclose(readers[i].vertexfile) != 0) {
+				perror("fclose vertex");
+				exit(EXIT_CLOSE);
+			}
+		}
+
+		rewind(vertex_out);
+
+		vertex prev(draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0));
+		vertex v(draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0), draw(VT_MOVETO, 0, 0));
+		while (fread((void *) &v, sizeof(vertex), 1, vertex_out)) {
+			if (v.mid == prev.mid && (v.p1 != prev.p1 || v.p2 != prev.p2)) {
+				long long x = v.mid.x * (1LL << geometry_scale);
+				long long y = v.mid.y * (1LL << geometry_scale);
+
+#if 0
+				double lon, lat;
+				tile2lonlat(x, y, 32, &lon, &lat);
+				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
+#endif
+
+				struct node n;
+				n.index = encode_quadkey((unsigned) x, (unsigned) y);
+
+				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
+			}
+			prev = v;
+		}
+
+		fclose(vertex_out);
+	}
+
+	if (!quiet) {
+		fprintf(stderr, "Merging nodes                 \r");
+	}
+
+	// Sort nodes that can't be simplified away; scan the list to remove duplicates
+
+	FILE *shared_nodes;
+	node *shared_nodes_map = NULL;	// will be null if there are no shared nodes
+	{
+		// sort
+
+		std::string tmpname = std::string(tmpdir) + "/node2.XXXXXX";
+		int nodefd = mkstemp((char *) tmpname.c_str());
+		if (nodefd < 0) {
+			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		unlink(tmpname.c_str());
+		FILE *node_out;
+		node_out = fdopen(nodefd, "w+b");
+		if (node_out == NULL) {
+			perror(tmpname.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		std::vector<FILE *> node_readers;
+		for (size_t i = 0; i < CPUS; i++) {
+			node_readers.push_back(readers[i].nodefile);
+			rewind(readers[i].nodefile);
+		}
+
+		fqsort(node_readers, sizeof(node), nodecmp, node_out, memsize / 10);
+
+		for (size_t i = 0; i < CPUS; i++) {
+			if (fclose(readers[i].nodefile) != 0) {
+				perror("fclose node");
+				exit(EXIT_CLOSE);
+			}
+		}
+
+		rewind(node_out);
+
+		// scan
+
+		tmpname = std::string(tmpdir) + "/node3.XXXXXX";
+		nodefd = mkstemp((char *) tmpname.c_str());
+		if (nodefd < 0) {
+			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
+			exit(EXIT_OPEN);
+		}
+		unlink(tmpname.c_str());
+		shared_nodes = fdopen(nodefd, "w+b");
+		if (shared_nodes == NULL) {
+			perror(tmpname.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		// `written` is to see if this node has already been preserved
+		// and doesn't need to be preserved again
+		struct node written;
+		written.index = ULONG_MAX;
+
+		nodepos = 0;
+		struct node here;
+		while (fread((void *) &here, sizeof(here), 1, node_out)) {
+			if (nodecmp((void *) &here, (void *) &written) != 0) {
+				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
+				written = here;
+
+#if 0
+				unsigned wx, wy;
+				decode_quadkey(here.index, &wx, &wy);
+				double lon, lat;
+				tile2lonlat(wx, wy, 32, &lon, &lat);
+				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
+#endif
+			}
+		}
+
+		fflush(shared_nodes);
+
+		if (nodepos > 0) {
+			shared_nodes_map = (node *) mmap(NULL, nodepos, PROT_READ, MAP_PRIVATE, nodefd, 0);
+			if (shared_nodes_map == (node *) MAP_FAILED) {
+				perror("mmap nodes");
+				exit(EXIT_MEMORY);
+			}
+		}
+
+		fclose(node_out);
+	}
+
+	if (!quiet) {
+		fprintf(stderr, "Merging index                 \r");
 	}
 
 	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
@@ -2023,7 +2246,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		long long s = progress_seq;
 		long long geompos_print = geompos;
 		long long poolpos_print = poolpos;
-		fprintf(stderr, "%lld features, %lld bytes of geometry, %lld bytes of string pool\n", s, geompos_print, poolpos_print);
+		long long vertexpos_print = vertexpos;
+		long long nodepos_print = nodepos;
+		fprintf(stderr, "%lld features, %lld bytes of geometry and attributes, %lld bytes of string pool, %lld bytes of vertices, %lld bytes of nodes\n", s, geompos_print, poolpos_print, vertexpos_print, nodepos_print);
 	}
 
 	if (indexpos == 0) {
@@ -2532,7 +2757,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2554,6 +2779,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	if (close(poolfd) < 0) {
 		perror("close pool");
 	}
+
+	fclose(shared_nodes);
 
 	// mbtiles-style bounding box and center
 	double minlat = 0, minlon = 0, maxlat = 0, maxlon = 0, midlat = 0, midlon = 0;

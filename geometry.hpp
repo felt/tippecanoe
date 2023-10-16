@@ -7,6 +7,7 @@
 #include <string>
 #include <sqlite3.h>
 #include <stdio.h>
+#include <mvt.hpp>
 
 #define VT_POINT 1
 #define VT_LINE 2
@@ -48,6 +49,10 @@ struct draw {
 		}
 	}
 
+	bool operator>(draw const &s) const {
+		return s < *this;
+	}
+
 	bool operator==(draw const &s) const {
 		return y == s.y && x == s.x;
 	}
@@ -73,7 +78,7 @@ drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);
 bool point_within_tile(long long x, long long y, int z);
 int quick_check(long long *bbox, int z, long long buffer);
-drawvec simplify_lines(drawvec &geom, int z, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes);
+drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos);
 drawvec reorder_lines(drawvec &geom);
 drawvec fix_polygon(drawvec &geom);
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms);
@@ -93,8 +98,11 @@ void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
+std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);
+
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep);
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);
 
 drawvec buffer_poly(drawvec const &geom, double buffer);
 
