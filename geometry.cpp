@@ -1448,14 +1448,24 @@ drawvec buffer_poly(drawvec const &geom, double buffer) {
 
 					double a1 = atan2(p1.y - p0.y, p1.x - p0.x);
 
-					printf("at %zu %zu %zu ", (k + 0 - i) % (j - i - 1) + i,
-					       (k + 2 - i) % (j - i - 1) + i,
-					       (k + 3 - i) % (j - i - 1) + i);
+					printf("at %zu %zu %zu ",
+					       (k + 0 - i) % (j - i - 1) + i,
+					       (k + 1 - i) % (j - i - 1) + i,
+					       (k + 2 - i) % (j - i - 1) + i);
 					printf("%lld,%lld to %lld,%lld to %lld,%lld: ", p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
-					printf("angle %f on top of %f\n", adiff * 180 / M_PI, a1 * 180 / M_PI);
+					printf("angle %f then %f\n",
+					       atan2(p1.y - p0.y, p1.x - p0.x) * 180 / M_PI,
+					       atan2(p2.y - p1.y, p2.x - p1.x) * 180 / M_PI);
 
-					out[(k + 2 - i) % (j - i - 1) + i].x = std::round(p1.x + buffer * cos(a1 - adiff / 2));
-					out[(k + 2 - i) % (j - i - 1) + i].y = std::round(p1.y + buffer * sin(a1 - adiff / 2));
+					double a10 = atan2(p1.y - p0.y, p1.x - p0.x);
+					double a21 = atan2(p2.y - p1.y, p2.x - p1.x);
+
+					double dx = cos(a10 - 90 * M_PI / 180) + cos(a21 - 90 * M_PI / 180);
+					double dy = sin(a10 - 90 * M_PI / 180) + sin(a21 - 90 * M_PI / 180);
+					double a2 = atan2(dy, dx);
+
+					out[(k + 1 - i) % (j - i - 1) + i].x = std::round(p1.x + buffer * cos(a2));
+					out[(k + 1 - i) % (j - i - 1) + i].y = std::round(p1.y + buffer * sin(a2));
 				}
 
 				out[j - 1].x = out[i].x;

@@ -627,11 +627,11 @@ void *partial_feature_worker(void *v) {
 					check_polygon(geom);
 				}
 
-				if (geom.size() < 4) {
+				if (true || geom.size() < 4) {
 					if (area > 0) {
 						// Try reviving the polygon by buffering it outward a little
 
-						geom = buffer_poly(before_scaling, (1LL << (32 - z - out_detail)) * 1.0);
+						geom = buffer_poly(before_scaling, (1LL << (32 - z - out_detail)) * 2.0);
 						to_tile_scale(geom, z, out_detail);
 						geom = clean_or_clip_poly(geom, 0, 0, false, true);
 
