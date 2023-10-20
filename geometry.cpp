@@ -213,7 +213,7 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 				// OR it is an inner ring and we haven't output an outer ring for it to be
 				// cut out of, so we are just subtracting its area from the tiny polygon
 				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
+				if (((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer))) {
 					*accum_area += area;
 					*reduced_away = true;
 
@@ -485,6 +485,39 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 	return out;
 }
 
+bool is_shared_node(draw d, int z, int tx, int ty, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
+	// This is kind of weird, because we have two lists of shared nodes to look through:
+	// * the drawvec, which is nodes that were introduced during clipping to the tile edge,
+	//   and which are in local tile coordinates
+	// * the shared_nodes_map, which was made globally before tiling began, and which
+	//   is in global quadkey coordinates.
+	// To look through the latter, we need to offset and encode the coordinates
+	// of the feature we are simplifying.
+
+	auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), d);
+	if (pt != shared_nodes.end() && *pt == d) {
+		return true;
+	}
+
+	if (nodepos > 0) {
+		// offset to global
+		if (z != 0) {
+			d.x += tx * (1LL << (32 - z));
+			d.y += ty * (1LL << (32 - z));
+		}
+
+		// to quadkey
+		struct node n;
+		n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+
+		if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
@@ -501,34 +534,8 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 		}
 
 		if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-			// This is kind of weird, because we have two lists of shared nodes to look through:
-			// * the drawvec, which is nodes that were introduced during clipping to the tile edge,
-			//   and which are in local tile coordinates
-			// * the shared_nodes_map, which was made globally before tiling began, and which
-			//   is in global quadkey coordinates.
-			// To look through the latter, we need to offset and encode the coordinates
-			// of the feature we are simplifying.
-
-			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
-			if (pt != shared_nodes.end() && *pt == geom[i]) {
+			if (is_shared_node(geom[i], z, tx, ty, shared_nodes, shared_nodes_map, nodepos)) {
 				geom[i].necessary = true;
-			}
-
-			if (nodepos > 0) {
-				// offset to global
-				draw d = geom[i];
-				if (z != 0) {
-					d.x += tx * (1LL << (32 - z));
-					d.y += ty * (1LL << (32 - z));
-				}
-
-				// to quadkey
-				struct node n;
-				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
-
-				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-					geom[i].necessary = true;
-				}
 			}
 		}
 	}
