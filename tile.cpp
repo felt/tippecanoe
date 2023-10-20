@@ -609,9 +609,12 @@ void *partial_feature_worker(void *v) {
 
 		signed char t = (*partials)[i].t;
 		int z = (*partials)[i].z;
+		int tx = (*partials)[i].tx;
+		int ty = (*partials)[i].ty;
 		int out_detail = (*partials)[i].extra_detail;
 
 		drawvec geom = (*partials)[i].geoms[0];
+		drawvec before_scaling = (*partials)[i].geoms[0];
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -625,8 +628,11 @@ void *partial_feature_worker(void *v) {
 					check_polygon(geom);
 				}
 
-				if (geom.size() < 3) {
-					if (area > 0) {
+				if (geom.size() < 4) {
+					// Don't try to revive a continuous polygon, because we should be
+					// able to rely on its three fixed points to keep it alive if it
+					// actually has any area at this zoom level.
+					if (area > 0 && can_be_dust(before_scaling, 0, before_scaling.size(), z, tx, ty, a->shared_nodes_map, a->nodepos)) {
 						// area is in world coordinates, calculated before scaling down
 						geom = revive_polygon(before, area, z, out_detail);
 					} else {
@@ -2207,7 +2213,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
 						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
 				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, &sf, &tiny_feature);
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, tx, ty, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, &sf, &tiny_feature, shared_nodes_map, nodepos);
 					if (simplified_away_by_reduction) {
 						strategy->tiny_polygons++;
 					}

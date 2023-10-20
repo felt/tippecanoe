@@ -72,7 +72,7 @@ drawvec remove_noop(drawvec geom, int type, int shift);
 drawvec clip_point(drawvec &geom, int z, long long buffer);
 drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
 drawvec close_poly(drawvec &geom);
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);
+drawvec reduce_tiny_poly(drawvec &geom, int z, int tx, int ty, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature, struct node *shared_nodes_map, size_t nodepos);
 int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax);
 drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);
@@ -97,6 +97,7 @@ drawvec clip_point(drawvec &geom, long long x1, long long y1, long long x2, long
 void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain);
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
+bool can_be_dust(drawvec const &geom, size_t i, size_t j, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos);
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);

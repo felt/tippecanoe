@@ -21,6 +21,8 @@
 #include "errors.hpp"
 #include "projection.hpp"
 
+bool is_shared_node(draw d, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos);
+
 drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
 	drawvec out;
 
@@ -176,7 +178,28 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
+bool can_be_dust(drawvec const &geom, size_t i, size_t j, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	if (!prevent[P_SIMPLIFY_SHARED_NODES]) {
+		return true;
+	}
+
+	size_t count = 0;
+	for (; i < j; i++) {
+		if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
+			count++;
+
+			if (count >= 4) {
+				// the three fixed nodes of this feature,
+				// plus some intersection with some other feature
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+drawvec reduce_tiny_poly(drawvec &geom, int z, int tx, int ty, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature, struct node *shared_nodes_map, size_t nodepos) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
 	bool includes_real = false;
@@ -213,7 +236,8 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 				// OR it is an inner ring and we haven't output an outer ring for it to be
 				// cut out of, so we are just subtracting its area from the tiny polygon
 				// rather than trying to deal with it geometrically
-				if (((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer))) {
+				if (can_be_dust(geom, i, j, z, tx, ty, shared_nodes_map, nodepos) &&
+				    ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer))) {
 					*accum_area += area;
 					*reduced_away = true;
 
@@ -485,20 +509,7 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 	return out;
 }
 
-bool is_shared_node(draw d, int z, int tx, int ty, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
-	// This is kind of weird, because we have two lists of shared nodes to look through:
-	// * the drawvec, which is nodes that were introduced during clipping to the tile edge,
-	//   and which are in local tile coordinates
-	// * the shared_nodes_map, which was made globally before tiling began, and which
-	//   is in global quadkey coordinates.
-	// To look through the latter, we need to offset and encode the coordinates
-	// of the feature we are simplifying.
-
-	auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), d);
-	if (pt != shared_nodes.end() && *pt == d) {
-		return true;
-	}
-
+bool is_shared_node(draw d, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
 	if (nodepos > 0) {
 		// offset to global
 		if (z != 0) {
@@ -534,7 +545,22 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 		}
 
 		if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-			if (is_shared_node(geom[i], z, tx, ty, shared_nodes, shared_nodes_map, nodepos)) {
+			// This is kind of weird, because we have two lists of shared nodes to look through:
+			// * the drawvec, which is nodes that were introduced during clipping to the tile edge,
+			//   and which are in local tile coordinates
+			// * the shared_nodes_map, which was made globally before tiling began, and which
+			//   is in global quadkey coordinates.
+			// To look through the latter, we need to offset and encode the coordinates
+			// of the feature we are simplifying.
+
+			// nodes introduced at the tile edge
+			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
+			if (pt != shared_nodes.end() && *pt == geom[i]) {
+				geom[i].necessary = true;
+			}
+
+			// global shared nodes
+			if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
 				geom[i].necessary = true;
 			}
 		}
