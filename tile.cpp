@@ -614,6 +614,11 @@ void *partial_feature_worker(void *v) {
 		int out_detail = (*partials)[i].extra_detail;
 
 		drawvec geom = (*partials)[i].geoms[0];
+
+		if (t == VT_POLYGON) {
+			geom = clean_or_clip_poly(geom, 0, 0, false, false);
+		}
+
 		drawvec before_scaling = (*partials)[i].geoms[0];
 		to_tile_scale(geom, z, out_detail);
 
