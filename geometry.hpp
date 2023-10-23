@@ -104,4 +104,6 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);
 
+drawvec fix_by_triangulation(drawvec const &dv, int z, int detail);
+
 #endif
