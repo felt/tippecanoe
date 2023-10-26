@@ -74,47 +74,35 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 
 	std::vector<N> indices = mapbox::earcut<N>(polygon);
 
+	drawvec out2;
 	bool again = true;
 	while (again) {
 		again = false;
 		for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-			long long cx = 0, cy = 0;
-			for (size_t j = 0; j < 3; j++) {
-				cx += out[indices[i + j]].x;
-				cy += out[indices[i + j]].y;
-			}
-			cx /= 3;
-			cy /= 3;
-
 			for (size_t j = 0; j < 3; j++) {
 				size_t v1 = i + j;
 				size_t v2 = i + ((j + 1) % 3);
+				size_t v3 = i + ((j + 2) % 3);
 
-				if (std::llround(out[indices[v1]].x / scale) == std::llround(out[indices[v2]].x / scale) &&
-				    std::llround(out[indices[v1]].y / scale) == std::llround(out[indices[v2]].y / scale)) {
-					double ang = atan2(out[indices[v1]].y - cy, out[indices[v1]].x - cx);
-					double dx = scale * cos(ang) * sqrt(2) * 20;
-					double dy = scale * sin(ang) * sqrt(2) * 20;
-					if (can_adjust(out, indices, v1, &dx, &dy)) {
-						out[indices[v1]].x += dx;
-						out[indices[v1]].y += dy;
-						again = true;
-					}
+				if (std::llabs(std::llround(out[indices[v1]].x / scale) - std::llround(out[indices[v2]].x / scale)) < 2 &&
+				    std::llabs(std::llround(out[indices[v1]].y / scale) - std::llround(out[indices[v2]].y / scale)) < 2) {
+					double ang = atan2(out[indices[v2]].y - out[indices[v1]].y, out[indices[v2]].x - out[indices[v1]].x);
 
-					ang = atan2(out[indices[v2]].y - cy, out[indices[v2]].x - cx);
-					dx = scale * cos(ang) * sqrt(2) * 20;
-					dy = scale * sin(ang) * sqrt(2) * 20;
-					if (can_adjust(out, indices, v2, &dx, &dy)) {
-						out[indices[v2]].x += dx;
-						out[indices[v2]].y += dy;
-						again = true;
+					drawvec tri;
+					tri.emplace_back(VT_MOVETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
+					tri.emplace_back(VT_LINETO, out[indices[v1]].x - scale * cos(ang) * sqrt(2) * 2, out[indices[v1]].y - scale * sin(ang) * sqrt(2) * 2);
+					tri.emplace_back(VT_LINETO, out[indices[v2]].x + scale * cos(ang) * sqrt(2) * 2, out[indices[v2]].y + scale * sin(ang) * sqrt(2) * 2);
+					tri.emplace_back(VT_LINETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
+					printf("%f\n", get_area(tri, 0, tri.size()));
+
+					for (auto const &d : tri) {
+						out2.push_back(d);
 					}
 				}
 			}
 		}
 	}
 
-	drawvec out2;
 	for (size_t i = 0; i < out.size(); i++) {
 		if (out[i].op == VT_MOVETO) {
 			size_t j;
