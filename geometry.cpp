@@ -334,7 +334,7 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long *px, long long *py) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	double something = p2x * p2x + p2y * p2y;
@@ -348,6 +348,13 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 
 	double x = segA_x + u * p2x;
 	double y = segA_y + u * p2y;
+
+	if (px != NULL) {
+		*px = std::round(x);
+	}
+	if (py != NULL) {
+		*py = std::round(y);
+	}
 
 	double dx = x - point_x;
 	double dy = y - point_y;
@@ -400,7 +407,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, NULL, NULL);
 
 				double distance = std::fabs(temp_dist);
 
@@ -412,7 +419,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, NULL, NULL);
 
 				double distance = std::fabs(temp_dist);
 
@@ -1046,7 +1053,7 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 		}
 
 		if (i > 0 && dv[i].op == VT_LINETO) {
-			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
+			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y, NULL, NULL);
 			if (dist < closest) {
 				closest = dist;
 			}

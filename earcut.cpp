@@ -75,53 +75,32 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 	std::vector<N> indices = mapbox::earcut<N>(polygon);
 
 	drawvec out2;
-	bool again = true;
-	while (again) {
-		again = false;
-		for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-			std::vector<double> lengths;
+	for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+		std::vector<double> lengths;
 
-			for (size_t j = 0; j < 3; j++) {
-				size_t v1 = i + j;
-				size_t v2 = i + ((j + 1) % 3);
+		for (size_t j = 0; j < 3; j++) {
+			size_t v1 = i + j;
+			size_t v2 = i + ((j + 1) % 3);
+			size_t v3 = i + ((j + 2) % 3);
 
-				double dx = out[indices[v1]].x - out[indices[v2]].x;
-				double dy = out[indices[v1]].y - out[indices[v2]].y;
-				double d = sqrt(dx * dx + dy * dy);
+			long long px, py;
 
-				lengths.push_back(d);
-			}
+			if (distance_from_line(out[indices[v1]].x, out[indices[v1]].y,	// the point
+					       out[indices[v2]].x, out[indices[v2]].y,	// start of opposite side
+					       out[indices[v3]].x, out[indices[v3]].y,	// end of opposite side
+					       &px, &py) < scale) {
+				// make a new triangle that is not so flat
+				out2.push_back(draw(VT_MOVETO, out[indices[v2]].x, out[indices[v2]].y));
+				out2.push_back(draw(VT_LINETO, out[indices[v3]].x, out[indices[v3]].y));
 
-			std::sort(lengths.begin(), lengths.end());
-			printf("%f %f\n", lengths[2], lengths[0]);
-
-			if (lengths[2] > 5 * lengths[0]) {
-				for (size_t j = 0; j < 3; j++) {
-					size_t v1 = i + j;
-					size_t v2 = i + ((j + 1) % 3);
-					size_t v3 = i + ((j + 2) % 3);
-
-					if (std::llabs(std::llround(out[indices[v1]].x / scale) - std::llround(out[indices[v2]].x / scale)) < 2 &&
-					    std::llabs(std::llround(out[indices[v1]].y / scale) - std::llround(out[indices[v2]].y / scale)) < 2) {
-						double ang = atan2(out[indices[v2]].y - out[indices[v1]].y, out[indices[v2]].x - out[indices[v1]].x);
-
-						double stretch = 1.5;
-
-						drawvec tri;
-						tri.emplace_back(VT_MOVETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
-						tri.emplace_back(VT_LINETO, out[indices[v1]].x - scale * cos(ang) * stretch, out[indices[v1]].y - scale * sin(ang) * stretch);
-						tri.emplace_back(VT_LINETO, out[indices[v2]].x + scale * cos(ang) * stretch, out[indices[v2]].y + scale * sin(ang) * stretch);
-						tri.emplace_back(VT_LINETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
-						printf("%f\n", get_area(tri, 0, tri.size()));
-
-						for (auto const &d : tri) {
-							out2.push_back(d);
-						}
-					}
-				}
+				double ang = atan2(out[indices[v1]].y - py, out[indices[v1]].x - px);
+				out2.push_back(draw(VT_LINETO, out[indices[v1]].x + scale * cos(ang), out[indices[v1]].y + scale * sin(ang)));
+				out2.push_back(draw(VT_LINETO, out[indices[v2]].x, out[indices[v2]].y));
 			}
 		}
 	}
+
+	// re-close the rings from which we removed the last points earlier
 
 	for (size_t i = 0; i < out.size(); i++) {
 		if (out[i].op == VT_MOVETO) {
@@ -136,7 +115,6 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 				out2.push_back(out[k]);
 			}
 
-			// re-close the ring
 			out2.push_back(draw(VT_LINETO, out[i].x, out[i].y));
 			i = j - 1;
 		}
