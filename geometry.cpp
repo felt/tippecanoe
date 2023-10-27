@@ -207,9 +207,10 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 				miny = std::min(miny, (long long) d.y);
 				maxy = std::max(maxy, (long long) d.y);
 			}
-			if (area > 0 && area < minx * maxx / 4) {
+			if (area > 0 && area <= pixel * pixel && area < (maxx - minx) * (maxy - miny) / 3) {
 				// if the polygon doesn't use most of its area,
-				// don't let it be dust.
+				// don't let it be dust, because the shape is
+				// probably something weird and interesting.
 				area = pixel * pixel * 2;
 			}
 

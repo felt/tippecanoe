@@ -22,15 +22,30 @@ drawvec reinforce(drawvec const &pts, std::vector<std::vector<Point>> polygon, d
 			if (distance_from_line(pts[indices[v1]].x, pts[indices[v1]].y,	// the point
 					       pts[indices[v2]].x, pts[indices[v2]].y,	// start of opposite side
 					       pts[indices[v3]].x, pts[indices[v3]].y,	// end of opposite side
-					       &px, &py) < scale) {
+					       &px, &py) < 2 * scale) {
 				double ang = atan2(pts[indices[v1]].y - py, pts[indices[v1]].x - px);
 
 				// make a new triangle that is not so flat
 				out2.push_back(draw(VT_MOVETO, pts[indices[v2]].x, pts[indices[v2]].y));
 				out2.push_back(draw(VT_LINETO, pts[indices[v3]].x, pts[indices[v3]].y));
-				out2.push_back(draw(VT_LINETO, px + scale * cos(ang), py + scale * sin(ang)));
+				out2.push_back(draw(VT_LINETO, px + scale * 2 * cos(ang), py + scale * 2 * sin(ang)));
 				out2.push_back(draw(VT_LINETO, pts[indices[v2]].x, pts[indices[v2]].y));
 			}
+
+#if 0
+			long long dx = pts[indices[v2]].x - pts[indices[v1]].x;
+			long long dy = pts[indices[v2]].y - pts[indices[v1]].y;
+			double d = sqrt(dx * dx + dy * dy);
+			if (d < sqrt(2) * scale) {
+				// make a new triangle with a longer side
+				double ang = atan2(dy, dx);
+
+				out2.push_back(draw(VT_MOVETO, pts[indices[v3]].x, pts[indices[v3]].y));
+				out2.push_back(draw(VT_LINETO, pts[indices[v1]].x - sqrt(2) * scale * cos(ang), pts[indices[v1]].y - sqrt(2) * scale * sin(ang)));
+				out2.push_back(draw(VT_LINETO, pts[indices[v2]].x + sqrt(2) * scale * cos(ang), pts[indices[v2]].y + sqrt(2) * scale * sin(ang)));
+				out2.push_back(draw(VT_LINETO, pts[indices[v3]].x, pts[indices[v3]].y));
+			}
+#endif
 		}
 	}
 
