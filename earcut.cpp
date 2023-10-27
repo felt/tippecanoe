@@ -5,45 +5,6 @@ using Coord = long long;
 using N = size_t;
 using Point = std::array<Coord, 2>;
 
-// Return false if the requested adjustment would give
-// any of the polygons that contain vertex N a negative area
-bool can_adjust(drawvec const &dv, std::vector<N> const &indices, size_t n, double *dx, double *dy) {
-	printf("looking for %zu\n", n);
-
-	bool again = true;
-	while (again) {
-		again = false;
-		for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-			for (size_t j = 0; j < 3; j++) {
-				if (indices[i + j] == indices[n]) {
-					drawvec tri;
-					for (size_t k = 0; k < 3; k++) {
-						printf("found %zu %lld,%lld\n", i + j, dv[indices[i + k]].x, dv[indices[i + k]].y);
-
-						tri.push_back(dv[indices[i + k]]);
-						tri[k].op = VT_LINETO;
-
-						if (indices[i + k] == indices[n]) {
-							tri[k].x += *dx;
-							tri[k].y += *dy;
-						}
-					}
-					tri.push_back(tri[0]);
-					tri[0].op = VT_MOVETO;
-					printf("area %f\n", get_area(tri, 0, tri.size()));
-					if (get_area(tri, 0, tri.size()) < 0) {
-						*dx /= 2;
-						*dy /= 2;
-						again = true;
-					}
-				}
-			}
-		}
-	}
-
-	return true;
-}
-
 drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 	std::vector<std::vector<Point>> polygon;
 	drawvec out;
@@ -83,18 +44,18 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 			size_t v2 = i + ((j + 1) % 3);
 			size_t v3 = i + ((j + 2) % 3);
 
-			long long px, py;
+			double px, py;
 
 			if (distance_from_line(out[indices[v1]].x, out[indices[v1]].y,	// the point
 					       out[indices[v2]].x, out[indices[v2]].y,	// start of opposite side
 					       out[indices[v3]].x, out[indices[v3]].y,	// end of opposite side
-					       &px, &py) < scale) {
+					       &px, &py) < 2 * scale) {
+				double ang = atan2(out[indices[v1]].y - py, out[indices[v1]].x - px);
+
 				// make a new triangle that is not so flat
 				out2.push_back(draw(VT_MOVETO, out[indices[v2]].x, out[indices[v2]].y));
 				out2.push_back(draw(VT_LINETO, out[indices[v3]].x, out[indices[v3]].y));
-
-				double ang = atan2(out[indices[v1]].y - py, out[indices[v1]].x - px);
-				out2.push_back(draw(VT_LINETO, out[indices[v1]].x + scale * cos(ang), out[indices[v1]].y + scale * sin(ang)));
+				out2.push_back(draw(VT_LINETO, px + 2 * scale * cos(ang), py + 2 * scale * sin(ang)));
 				out2.push_back(draw(VT_LINETO, out[indices[v2]].x, out[indices[v2]].y));
 			}
 		}

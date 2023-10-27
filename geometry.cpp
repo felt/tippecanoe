@@ -334,7 +334,7 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, long long *px, long long *py) {
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, double *px, double *py) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	double something = p2x * p2x + p2y * p2y;
