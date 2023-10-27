@@ -79,24 +79,44 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 	while (again) {
 		again = false;
 		for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+			std::vector<double> lengths;
+
 			for (size_t j = 0; j < 3; j++) {
 				size_t v1 = i + j;
 				size_t v2 = i + ((j + 1) % 3);
-				size_t v3 = i + ((j + 2) % 3);
 
-				if (std::llabs(std::llround(out[indices[v1]].x / scale) - std::llround(out[indices[v2]].x / scale)) < 2 &&
-				    std::llabs(std::llround(out[indices[v1]].y / scale) - std::llround(out[indices[v2]].y / scale)) < 2) {
-					double ang = atan2(out[indices[v2]].y - out[indices[v1]].y, out[indices[v2]].x - out[indices[v1]].x);
+				double dx = out[indices[v1]].x - out[indices[v2]].x;
+				double dy = out[indices[v1]].y - out[indices[v2]].y;
+				double d = sqrt(dx * dx + dy * dy);
 
-					drawvec tri;
-					tri.emplace_back(VT_MOVETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
-					tri.emplace_back(VT_LINETO, out[indices[v1]].x - scale * cos(ang) * sqrt(2) * 2, out[indices[v1]].y - scale * sin(ang) * sqrt(2) * 2);
-					tri.emplace_back(VT_LINETO, out[indices[v2]].x + scale * cos(ang) * sqrt(2) * 2, out[indices[v2]].y + scale * sin(ang) * sqrt(2) * 2);
-					tri.emplace_back(VT_LINETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
-					printf("%f\n", get_area(tri, 0, tri.size()));
+				lengths.push_back(d);
+			}
 
-					for (auto const &d : tri) {
-						out2.push_back(d);
+			std::sort(lengths.begin(), lengths.end());
+			printf("%f %f\n", lengths[2], lengths[0]);
+
+			if (lengths[2] > 5 * lengths[0]) {
+				for (size_t j = 0; j < 3; j++) {
+					size_t v1 = i + j;
+					size_t v2 = i + ((j + 1) % 3);
+					size_t v3 = i + ((j + 2) % 3);
+
+					if (std::llabs(std::llround(out[indices[v1]].x / scale) - std::llround(out[indices[v2]].x / scale)) < 2 &&
+					    std::llabs(std::llround(out[indices[v1]].y / scale) - std::llround(out[indices[v2]].y / scale)) < 2) {
+						double ang = atan2(out[indices[v2]].y - out[indices[v1]].y, out[indices[v2]].x - out[indices[v1]].x);
+
+						double stretch = 1.5;
+
+						drawvec tri;
+						tri.emplace_back(VT_MOVETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
+						tri.emplace_back(VT_LINETO, out[indices[v1]].x - scale * cos(ang) * stretch, out[indices[v1]].y - scale * sin(ang) * stretch);
+						tri.emplace_back(VT_LINETO, out[indices[v2]].x + scale * cos(ang) * stretch, out[indices[v2]].y + scale * sin(ang) * stretch);
+						tri.emplace_back(VT_LINETO, (long long) out[indices[v3]].x, (long long) out[indices[v3]].y);
+						printf("%f\n", get_area(tri, 0, tri.size()));
+
+						for (auto const &d : tri) {
+							out2.push_back(d);
+						}
 					}
 				}
 			}
