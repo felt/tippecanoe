@@ -5,9 +5,41 @@ using Coord = long long;
 using N = size_t;
 using Point = std::array<Coord, 2>;
 
+drawvec reinforce(drawvec const &pts, std::vector<std::vector<Point>> polygon, double scale) {
+	std::vector<N> indices = mapbox::earcut<N>(polygon);
+
+	drawvec out2;
+	for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+		std::vector<double> lengths;
+
+		for (size_t j = 0; j < 3; j++) {
+			size_t v1 = i + j;
+			size_t v2 = i + ((j + 1) % 3);
+			size_t v3 = i + ((j + 2) % 3);
+
+			double px, py;
+
+			if (distance_from_line(pts[indices[v1]].x, pts[indices[v1]].y,	// the point
+					       pts[indices[v2]].x, pts[indices[v2]].y,	// start of opposite side
+					       pts[indices[v3]].x, pts[indices[v3]].y,	// end of opposite side
+					       &px, &py) < scale) {
+				double ang = atan2(pts[indices[v1]].y - py, pts[indices[v1]].x - px);
+
+				// make a new triangle that is not so flat
+				out2.push_back(draw(VT_MOVETO, pts[indices[v2]].x, pts[indices[v2]].y));
+				out2.push_back(draw(VT_LINETO, pts[indices[v3]].x, pts[indices[v3]].y));
+				out2.push_back(draw(VT_LINETO, px + scale * cos(ang), py + scale * sin(ang)));
+				out2.push_back(draw(VT_LINETO, pts[indices[v2]].x, pts[indices[v2]].y));
+			}
+		}
+	}
+
+	return out2;
+}
+
 drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 	std::vector<std::vector<Point>> polygon;
-	drawvec out;
+	drawvec out, out2;
 	double scale = 1LL << (32 - z - detail);
 
 	for (size_t i = 0; i < dv.size(); i++) {
@@ -17,6 +49,17 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 				if (dv[j].op != VT_LINETO) {
 					break;
 				}
+			}
+
+			if (get_area(dv, i, j) > 0) {
+				// outer ring, so process whatever we have so far
+				drawvec additional = reinforce(out, polygon, scale);
+				for (auto const &d : additional) {
+					out2.push_back(d);
+				}
+
+				polygon.clear();
+				out.clear();
 			}
 
 			std::vector<Point> ring;
@@ -33,52 +76,12 @@ drawvec fix_by_triangulation(drawvec const &dv, int z, int detail) {
 		}
 	}
 
-	std::vector<N> indices = mapbox::earcut<N>(polygon);
-
-	drawvec out2;
-	for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-		std::vector<double> lengths;
-
-		for (size_t j = 0; j < 3; j++) {
-			size_t v1 = i + j;
-			size_t v2 = i + ((j + 1) % 3);
-			size_t v3 = i + ((j + 2) % 3);
-
-			double px, py;
-
-			if (distance_from_line(out[indices[v1]].x, out[indices[v1]].y,	// the point
-					       out[indices[v2]].x, out[indices[v2]].y,	// start of opposite side
-					       out[indices[v3]].x, out[indices[v3]].y,	// end of opposite side
-					       &px, &py) < 2 * scale) {
-				double ang = atan2(out[indices[v1]].y - py, out[indices[v1]].x - px);
-
-				// make a new triangle that is not so flat
-				out2.push_back(draw(VT_MOVETO, out[indices[v2]].x, out[indices[v2]].y));
-				out2.push_back(draw(VT_LINETO, out[indices[v3]].x, out[indices[v3]].y));
-				out2.push_back(draw(VT_LINETO, px + 2 * scale * cos(ang), py + 2 * scale * sin(ang)));
-				out2.push_back(draw(VT_LINETO, out[indices[v2]].x, out[indices[v2]].y));
-			}
-		}
+	drawvec additional = reinforce(out, polygon, scale);
+	for (auto const &d : additional) {
+		out2.push_back(d);
 	}
-
-	// re-close the rings from which we removed the last points earlier
-
-	for (size_t i = 0; i < out.size(); i++) {
-		if (out[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < out.size(); j++) {
-				if (out[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			for (size_t k = i; k < j; k++) {
-				out2.push_back(out[k]);
-			}
-
-			out2.push_back(draw(VT_LINETO, out[i].x, out[i].y));
-			i = j - 1;
-		}
+	for (auto const &d : dv) {
+		out2.push_back(d);
 	}
 
 	return out2;
