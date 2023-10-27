@@ -197,6 +197,22 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 
 			double area = get_area(geom, i, j);
 
+			long long minx = LLONG_MAX;
+			long long maxx = LLONG_MIN;
+			long long miny = LLONG_MAX;
+			long long maxy = LLONG_MIN;
+			for (auto const &d : geom) {
+				minx = std::min(minx, (long long) d.x);
+				maxx = std::max(maxx, (long long) d.x);
+				miny = std::min(miny, (long long) d.y);
+				maxy = std::max(maxy, (long long) d.y);
+			}
+			if (area > 0 && area < minx * maxx / 4) {
+				// if the polygon doesn't use most of its area,
+				// don't let it be dust.
+				area = pixel * pixel * 2;
+			}
+
 			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
 			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
 			// that these subsequent holes are somehow being subtracted from. I hope that if a polygon
