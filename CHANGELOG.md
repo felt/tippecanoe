@@ -1,3 +1,7 @@
+# 2.36.0
+
+* Add a special case in --detect-longitude-wraparound not to wrap around jumps of exactly 360°
+
 # 2.35.0
 
 * Fix a bug in --detect-longitude-wraparound when there are multiple rings
