@@ -325,19 +325,24 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 			long long y = geom[i].y;
 
 			if (additional[A_DETECT_WRAPAROUND]) {
-				x += offset;
-				if (has_prev) {
-					if (x - prev > (1LL << 31)) {
-						offset -= 1LL << 32;
-						x -= 1LL << 32;
-					} else if (prev - x > (1LL << 31)) {
-						offset += 1LL << 32;
-						x += 1LL << 32;
+				if (geom[i].op == VT_LINETO) {
+					x += offset;
+					if (has_prev) {
+						if (x - prev > (1LL << 31)) {
+							offset -= 1LL << 32;
+							x -= 1LL << 32;
+						} else if (prev - x > (1LL << 31)) {
+							offset += 1LL << 32;
+							x += 1LL << 32;
+						}
 					}
-				}
 
-				has_prev = true;
-				prev = x;
+					has_prev = true;
+					prev = x;
+				} else {
+					offset = 0;
+					prev = x;
+				}
 			}
 
 			if (x < bbox[0]) {

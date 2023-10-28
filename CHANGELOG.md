@@ -1,3 +1,7 @@
+# 2.35.0
+
+* Fix a bug in --detect-longitude-wraparound when there are multiple rings
+
 # 2.34.1
 
 * Further improvements to tile-join speed
