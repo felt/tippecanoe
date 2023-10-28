@@ -3181,6 +3181,7 @@ int main(int argc, char **argv) {
 		{"no-tiny-polygon-reduction", no_argument, &prevent[P_TINY_POLYGON_REDUCTION], 1},
 		{"no-tiny-polygon-reduction-at-maximum-zoom", no_argument, &prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM], 1},
 		{"tiny-polygon-size", required_argument, 0, '~'},
+		{"buffer-polygons-outward", no_argument, &additional[A_BUFFER_POLYGONS_OUTWARD], 1},
 		{"no-simplification-of-shared-nodes", no_argument, &prevent[P_SIMPLIFY_SHARED_NODES], 1},
 		{"visvalingam", no_argument, &additional[A_VISVALINGAM], 1},
 

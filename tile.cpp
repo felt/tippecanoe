@@ -612,7 +612,10 @@ void *partial_feature_worker(void *v) {
 		int out_detail = (*partials)[i].extra_detail;
 
 		drawvec geom = (*partials)[i].geoms[0];
-		drawvec before_scaling = geom;
+
+		if (additional[A_BUFFER_POLYGONS_OUTWARD] && t == VT_POLYGON) {
+			geom = buffer_poly(geom, (1LL << (32 - z - out_detail)) * sqrt(2) / 2, z, (*partials)[i].tx, (*partials)[i].ty, a->shared_nodes_map, a->nodepos);
+		}
 
 		to_tile_scale(geom, z, out_detail);
 
@@ -627,19 +630,10 @@ void *partial_feature_worker(void *v) {
 					check_polygon(geom);
 				}
 
-				if (true || geom.size() < 4) {
+				if (geom.size() < 4) {
 					if (area > 0) {
-						// Try reviving the polygon by buffering it outward a little
-
-						geom = buffer_poly(before_scaling, (1LL << (32 - z - out_detail)) * 2.0);
-						to_tile_scale(geom, z, out_detail);
-						geom = clean_or_clip_poly(geom, 0, 0, false, true);
-
-						if (geom.size() < 4) {
-							// OK, that didn't work, make a placeholder
-							// area is in world coordinates, calculated before scaling down
-							geom = revive_polygon(before, area, z, out_detail);
-						}
+						// area is in world coordinates, calculated before scaling down
+						geom = revive_polygon(before, area, z, out_detail);
 					} else {
 						geom.clear();
 					}
