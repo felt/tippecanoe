@@ -1,0 +1,48 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-122.380547,20.782297,-76.311607,47.778790",
+"bounds": "-122.380547,20.782297,-76.311607,47.778790",
+"center": "-76.311607,20.782297,0",
+"description": "tests/buffer-polygons/out/-z0_--buffer-polygons-outward.json.check.mbtiles",
+"format": "pbf",
+"generator_options": "./tippecanoe -q -a@ -f -o tests/buffer-polygons/out/-z0_--buffer-polygons-outward.json.check.mbtiles -z0 --buffer-polygons-outward tests/buffer-polygons/4836bc56-0fab-4ffb-81c2-88142a05cec3-buffer.json tests/buffer-polygons/b7de2787-98ab-4698-98e8-8a94d76a607d-buffer.json",
+"json": "{\"vector_layers\":[{\"id\":\"4836bc560fab4ffb81c288142a05cec3buffer\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{\"felt:color\":\"String\",\"felt:id\":\"String\",\"felt:locked\":\"Number\",\"felt:ordering\":\"Number\",\"felt:routeMode\":\"String\",\"felt:showLength\":\"Number\",\"felt:strokeOpacity\":\"Number\",\"felt:strokeStyle\":\"String\",\"felt:strokeWidth\":\"Number\",\"felt:type\":\"String\"}},{\"id\":\"b7de278798ab469898e88a94d76a607dbuffer\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{\"From/To\":\"String\",\"To/From\":\"String\",\"count\":\"Number\"}}],\"tilestats\":{\"layerCount\":2,\"layers\":[{\"layer\":\"4836bc560fab4ffb81c288142a05cec3buffer\",\"count\":2,\"geometry\":\"Polygon\",\"attributeCount\":10,\"attributes\":[{\"attribute\":\"felt:color\",\"count\":1,\"type\":\"string\",\"values\":[\"#C93535\"]},{\"attribute\":\"felt:id\",\"count\":2,\"type\":\"string\",\"values\":[\"72fa3875-764b-4785-8ae5-0d10b43acb11\",\"d32e3884-e5fa-4ede-9bb0-a00d8094a846\"]},{\"attribute\":\"felt:locked\",\"count\":1,\"type\":\"number\",\"values\":[0],\"min\":0,\"max\":0},{\"attribute\":\"felt:ordering\",\"count\":2,\"type\":\"number\",\"values\":[1695668996295712,1695669003828484],\"min\":1695668996295712,\"max\":1695669003828484},{\"attribute\":\"felt:routeMode\",\"count\":1,\"type\":\"string\",\"values\":[\"NONE\"]},{\"attribute\":\"felt:showLength\",\"count\":1,\"type\":\"number\",\"values\":[0],\"min\":0,\"max\":0},{\"attribute\":\"felt:strokeOpacity\",\"count\":1,\"type\":\"number\",\"values\":[1],\"min\":1,\"max\":1},{\"attribute\":\"felt:strokeStyle\",\"count\":1,\"type\":\"string\",\"values\":[\"solid\"]},{\"attribute\":\"felt:strokeWidth\",\"count\":1,\"type\":\"number\",\"values\":[4],\"min\":4,\"max\":4},{\"attribute\":\"felt:type\",\"count\":1,\"type\":\"string\",\"values\":[\"Path\"]}]},{\"layer\":\"b7de278798ab469898e88a94d76a607dbuffer\",\"count\":51,\"geometry\":\"Polygon\",\"attributeCount\":3,\"attributes\":[{\"attribute\":\"From/To\",\"count\":21,\"type\":\"string\",\"values\":[\"Austin Bergstrom Intl\",\"Boeing Fld King Co Intl\",\"Brownsville South Padre Island Intl\",\"Ellington Fld\",\"Frank Pais Intl\",\"Jack Northrop Fld Hawthorne Muni\",\"Long Beach\",\"Los Angeles Intl\",\"Mc Carran Intl\",\"Melbourne Intl\",\"Metropolitan Oakland Intl\",\"Norman Y Mineta San Jose Intl\",\"Orlando Intl\",\"Pappy Boyington\",\"Rocky Mountain Metropolitan Airport\",\"San Francisco Intl\",\"Seattle Tacoma Intl\",\"Space Coast Reg'l Airport\",\"Tulsa Intl\",\"Van Nuys\",\"Washington Dulles Intl\"]},{\"attribute\":\"To/From\",\"count\":20,\"type\":\"string\",\"values\":[\"Austin Bergstrom Intl\",\"Boeing Fld King Co Intl\",\"Brownsville South Padre Island Intl\",\"Ellington Fld\",\"Hayward Executive Airport\",\"Jack Northrop Fld Hawthorne Muni\",\"Long Beach\",\"Los Angeles Intl\",\"Mc Carran Intl\",\"Melbourne Intl\",\"Metropolitan Oakland Intl\",\"Miami Intl\",\"Norman Y Mineta San Jose Intl\",\"Orlando Intl\",\"Pappy Boyington\",\"Rocky Mountain Metropolitan Airport\",\"Space Coast Reg'l Airport\",\"Tulsa Intl\",\"Van Nuys\",\"Waco Rgnl\"]},{\"attribute\":\"count\",\"count\":14,\"type\":\"number\",\"values\":[1,10,11,13,132,18,2,26,3,4,42,6,8,9],\"min\":1,\"max\":132}]}]}}",
+"maxzoom": "0",
+"minzoom": "0",
+"name": "tests/buffer-polygons/out/-z0_--buffer-polygons-outward.json.check.mbtiles",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "b7de278798ab469898e88a94d76a607dbuffer", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Jack Northrop Fld Hawthorne Muni", "To/From": "Boeing Fld King Co Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.255859, 47.576526 ], [ -118.300781, 33.870416 ], [ -122.431641, 47.576526 ], [ -122.255859, 47.576526 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 2, "From/To": "Jack Northrop Fld Hawthorne Muni", "To/From": "Hayward Executive Airport" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.080078, 37.718590 ], [ -118.388672, 34.016242 ], [ -122.255859, 37.718590 ], [ -122.080078, 37.718590 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 13, "From/To": "Brownsville South Padre Island Intl", "To/From": "Norman Y Mineta San Jose Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -121.904297, 37.439974 ], [ -97.382812, 25.799891 ], [ -121.992188, 37.370157 ], [ -121.904297, 37.439974 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 26, "From/To": "Brownsville South Padre Island Intl", "To/From": "Van Nuys" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -118.564453, 34.307144 ], [ -97.294922, 25.878994 ], [ -97.470703, 25.799891 ], [ -118.564453, 34.307144 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 132, "From/To": "Jack Northrop Fld Hawthorne Muni", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -118.300781, 34.016242 ], [ -97.558594, 25.958045 ], [ -118.388672, 33.943360 ], [ -118.300781, 34.016242 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Brownsville South Padre Island Intl", "To/From": "Mc Carran Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -115.136719, 36.173357 ], [ -97.558594, 25.958045 ], [ -115.224609, 36.102376 ], [ -115.136719, 36.173357 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Brownsville South Padre Island Intl", "To/From": "Tulsa Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -95.800781, 36.244273 ], [ -97.470703, 25.799891 ], [ -95.976562, 36.244273 ], [ -95.800781, 36.244273 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 13, "From/To": "Brownsville South Padre Island Intl", "To/From": "Austin Bergstrom Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -97.558594, 30.297018 ], [ -97.470703, 25.958045 ], [ -97.734375, 30.297018 ], [ -97.558594, 30.297018 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 9, "From/To": "Los Angeles Intl", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -118.388672, 34.016242 ], [ -97.382812, 25.878994 ], [ -118.476562, 33.943360 ], [ -118.388672, 34.016242 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Rocky Mountain Metropolitan Airport", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -105.029297, 39.977120 ], [ -97.382812, 25.958045 ], [ -105.205078, 39.977120 ], [ -105.029297, 39.977120 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Orlando Intl", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -81.298828, 28.536275 ], [ -81.210938, 28.459033 ], [ -97.558594, 25.878994 ], [ -81.298828, 28.536275 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Melbourne Intl", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -80.683594, 28.149503 ], [ -80.595703, 28.071980 ], [ -97.558594, 25.878994 ], [ -80.683594, 28.149503 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 8, "From/To": "Brownsville South Padre Island Intl", "To/From": "Waco Rgnl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -97.119141, 31.653381 ], [ -97.470703, 25.799891 ], [ -97.294922, 31.653381 ], [ -97.119141, 31.653381 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 1, "From/To": "Ellington Fld", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -95.097656, 29.688053 ], [ -97.558594, 25.799891 ], [ -95.273438, 29.688053 ], [ -95.097656, 29.688053 ] ] ] } }
+,
+{ "type": "Feature", "properties": { "count": 18, "From/To": "Space Coast Reg'l Airport", "To/From": "Brownsville South Padre Island Intl" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -80.771484, 28.613459 ], [ -80.683594, 28.536275 ], [ -97.558594, 25.878994 ], [ -80.771484, 28.613459 ] ] ] } }
+] }
+] }
+] }

@@ -197,6 +197,27 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 
 			double area = get_area(geom, i, j);
 
+			// if we are trying to salvage polygons that would otherwise drop out,
+			// also raise the standards for what can qualify as polygon dust
+			if (additional[A_BUFFER_POLYGONS_OUTWARD]) {
+				long long minx = LLONG_MAX;
+				long long maxx = LLONG_MIN;
+				long long miny = LLONG_MAX;
+				long long maxy = LLONG_MIN;
+				for (auto const &d : geom) {
+					minx = std::min(minx, (long long) d.x);
+					maxx = std::max(maxx, (long long) d.x);
+					miny = std::min(miny, (long long) d.y);
+					maxy = std::max(maxy, (long long) d.y);
+				}
+				if (area > 0 && area <= pixel * pixel && area < (maxx - minx) * (maxy - miny) / 3) {
+					// if the polygon doesn't use most of its area,
+					// don't let it be dust, because the shape is
+					// probably something weird and interesting.
+					area = pixel * pixel * 2;
+				}
+			}
+
 			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
 			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
 			// that these subsequent holes are somehow being subtracted from. I hope that if a polygon
@@ -485,6 +506,26 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 	return out;
 }
 
+bool is_shared_node(draw d, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	if (nodepos > 0) {
+		// offset to global
+		if (z != 0) {
+			d.x += tx * (1LL << (32 - z));
+			d.y += ty * (1LL << (32 - z));
+		}
+
+		// to quadkey
+		struct node n;
+		n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+
+		if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
@@ -514,21 +555,8 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				geom[i].necessary = true;
 			}
 
-			if (nodepos > 0) {
-				// offset to global
-				draw d = geom[i];
-				if (z != 0) {
-					d.x += tx * (1LL << (32 - z));
-					d.y += ty * (1LL << (32 - z));
-				}
-
-				// to quadkey
-				struct node n;
-				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
-
-				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-					geom[i].necessary = true;
-				}
+			if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
+				geom[i].necessary = true;
 			}
 		}
 	}
@@ -1392,6 +1420,86 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 					out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
 					break;
 				}
+			}
+		}
+	}
+
+	return out;
+}
+
+bool is_continuous_ring(drawvec const &geom, size_t i, size_t j, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	size_t count = 0;
+
+	// j - 1 to avoid double-counting the duplicate last node
+	for (; i < j - 1; i++) {
+		if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
+			count++;
+
+			// every ring will have three shared nodes; the fourth indicates a shared vertex
+			if (count >= 4) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool is_continuous_poly(drawvec const &geom, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			if (is_continuous_ring(geom, i, j, z, tx, ty, shared_nodes_map, nodepos)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+drawvec buffer_poly(drawvec const &geom, double buffer) {
+	drawvec out = geom;
+
+	if (buffer != 0) {
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				size_t j;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+				}
+
+				for (size_t k = i; k < j - 1; k++) {
+					draw p0 = geom[(k + 0 - i) % (j - i - 1) + i];
+					draw p1 = geom[(k + 1 - i) % (j - i - 1) + i];
+					draw p2 = geom[(k + 2 - i) % (j - i - 1) + i];
+
+					double a10 = atan2(p1.y - p0.y, p1.x - p0.x);
+					double a21 = atan2(p2.y - p1.y, p2.x - p1.x);
+
+					double dx = cos(a10 - 90 * M_PI / 180) + cos(a21 - 90 * M_PI / 180);
+					double dy = sin(a10 - 90 * M_PI / 180) + sin(a21 - 90 * M_PI / 180);
+
+					// the angle halfway between the angles
+					// perpendicular to a0->a1 (a10) and a1->a2 (a21)
+					double a2 = atan2(dy, dx);
+
+					out[(k + 1 - i) % (j - i - 1) + i].x = std::round(p1.x + buffer * cos(a2));
+					out[(k + 1 - i) % (j - i - 1) + i].y = std::round(p1.y + buffer * sin(a2));
+				}
+
+				out[j - 1].x = out[i].x;
+				out[j - 1].y = out[i].y;
+
+				i = j - 1;
 			}
 		}
 	}

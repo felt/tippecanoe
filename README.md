@@ -496,6 +496,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-pt` or `--no-tiny-polygon-reduction`: Don't combine the area of very small polygons into small squares that represent their combined area.
  * `-pT` or `--no-tiny-polygon-reduction-at-maximum-zoom`: Combine the area of very small polygons into small squares that represent their combined area only at zoom levels below the maximum.
  * `--tiny-polygon-size=`_size_: Use the specified _size_ for tiny polygons instead of the default 2. Anything above 6 or so will lead to visible artifacts with the default tile detail.
+ * `-aO` or `--buffer-polygons-outward`: Buffer polygons, except those that have been detected to be continous by `--no-simplification-of-shared-nodes`, outward slightly to prevent narrow polygon spindles fom collapsing away.
  * `-av` or `--visvalingam`: Use Visvalingam's simplification algorithm rather than Douglas-Peucker's.
 
 ### Attempts to improve shared polygon boundaries
