@@ -614,7 +614,7 @@ void *partial_feature_worker(void *v) {
 		drawvec geom = (*partials)[i].geoms[0];
 
 		if (additional[A_BUFFER_POLYGONS_OUTWARD] && t == VT_POLYGON) {
-			geom = buffer_poly(geom, (1LL << (32 - z - out_detail)) * sqrt(2) / 2, z, (*partials)[i].tx, (*partials)[i].ty, a->shared_nodes_map, a->nodepos);
+			geom = buffer_poly(geom, (1LL << (32 - z - out_detail)) * sqrt(2), z, (*partials)[i].tx, (*partials)[i].ty, a->shared_nodes_map, a->nodepos);
 		}
 
 		to_tile_scale(geom, z, out_detail);

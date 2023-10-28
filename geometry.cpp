@@ -197,21 +197,25 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 
 			double area = get_area(geom, i, j);
 
-			long long minx = LLONG_MAX;
-			long long maxx = LLONG_MIN;
-			long long miny = LLONG_MAX;
-			long long maxy = LLONG_MIN;
-			for (auto const &d : geom) {
-				minx = std::min(minx, (long long) d.x);
-				maxx = std::max(maxx, (long long) d.x);
-				miny = std::min(miny, (long long) d.y);
-				maxy = std::max(maxy, (long long) d.y);
-			}
-			if (area > 0 && area <= pixel * pixel && area < (maxx - minx) * (maxy - miny) / 5) {
-				// if the polygon doesn't use most of its area,
-				// don't let it be dust, because the shape is
-				// probably something weird and interesting.
-				area = pixel * pixel * 2;
+			// if we are trying to salvage polygons that would otherwise drop out,
+			// also raise the standards for what can qualify as polygon dust
+			if (additional[A_BUFFER_POLYGONS_OUTWARD]) {
+				long long minx = LLONG_MAX;
+				long long maxx = LLONG_MIN;
+				long long miny = LLONG_MAX;
+				long long maxy = LLONG_MIN;
+				for (auto const &d : geom) {
+					minx = std::min(minx, (long long) d.x);
+					maxx = std::max(maxx, (long long) d.x);
+					miny = std::min(miny, (long long) d.y);
+					maxy = std::max(maxy, (long long) d.y);
+				}
+				if (area > 0 && area <= pixel * pixel && area < (maxx - minx) * (maxy - miny) / 3) {
+					// if the polygon doesn't use most of its area,
+					// don't let it be dust, because the shape is
+					// probably something weird and interesting.
+					area = pixel * pixel * 2;
+				}
 			}
 
 			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
