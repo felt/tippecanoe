@@ -43,6 +43,7 @@ struct serial_feature {
 
 	signed char t = 0;
 	signed char feature_minzoom = 0;
+	signed char continuous = -1;  // is this a continuous polygon?
 
 	bool has_id = false;
 	unsigned long long id = 0;

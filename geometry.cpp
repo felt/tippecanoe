@@ -1427,7 +1427,7 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 	return out;
 }
 
-bool is_continous_poly(drawvec const &geom, size_t i, size_t j, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+bool is_continuous_ring(drawvec const &geom, size_t i, size_t j, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
 	size_t count = 0;
 
 	// j - 1 to avoid double-counting the duplicate last node
@@ -1435,6 +1435,7 @@ bool is_continous_poly(drawvec const &geom, size_t i, size_t j, int z, int tx, i
 		if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
 			count++;
 
+			// every ring will have three shared nodes; the fourth indicates a shared vertex
 			if (count >= 4) {
 				return true;
 			}
@@ -1444,7 +1445,26 @@ bool is_continous_poly(drawvec const &geom, size_t i, size_t j, int z, int tx, i
 	return false;
 }
 
-drawvec buffer_poly(drawvec const &geom, double buffer, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+bool is_continuous_poly(drawvec const &geom, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			if (is_continuous_ring(geom, i, j, z, tx, ty, shared_nodes_map, nodepos)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+drawvec buffer_poly(drawvec const &geom, double buffer) {
 	drawvec out = geom;
 
 	if (buffer != 0) {
@@ -1457,31 +1477,27 @@ drawvec buffer_poly(drawvec const &geom, double buffer, int z, int tx, int ty, s
 					}
 				}
 
-				if (!is_continous_poly(geom, i, j, z, tx, ty, shared_nodes_map, nodepos)) {
-					for (size_t k = i; k < j - 1; k++) {
-						draw p0 = geom[(k + 0 - i) % (j - i - 1) + i];
-						draw p1 = geom[(k + 1 - i) % (j - i - 1) + i];
-						draw p2 = geom[(k + 2 - i) % (j - i - 1) + i];
+				for (size_t k = i; k < j - 1; k++) {
+					draw p0 = geom[(k + 0 - i) % (j - i - 1) + i];
+					draw p1 = geom[(k + 1 - i) % (j - i - 1) + i];
+					draw p2 = geom[(k + 2 - i) % (j - i - 1) + i];
 
-						double a10 = atan2(p1.y - p0.y, p1.x - p0.x);
-						double a21 = atan2(p2.y - p1.y, p2.x - p1.x);
+					double a10 = atan2(p1.y - p0.y, p1.x - p0.x);
+					double a21 = atan2(p2.y - p1.y, p2.x - p1.x);
 
-						double dx = cos(a10 - 90 * M_PI / 180) + cos(a21 - 90 * M_PI / 180);
-						double dy = sin(a10 - 90 * M_PI / 180) + sin(a21 - 90 * M_PI / 180);
+					double dx = cos(a10 - 90 * M_PI / 180) + cos(a21 - 90 * M_PI / 180);
+					double dy = sin(a10 - 90 * M_PI / 180) + sin(a21 - 90 * M_PI / 180);
 
-						// the angle halfway between the angles
-						// perpendicular to a0->a1 (a10) and a1->a2 (a21)
-						double a2 = atan2(dy, dx);
+					// the angle halfway between the angles
+					// perpendicular to a0->a1 (a10) and a1->a2 (a21)
+					double a2 = atan2(dy, dx);
 
-						out[(k + 1 - i) % (j - i - 1) + i].x = std::round(p1.x + buffer * cos(a2));
-						out[(k + 1 - i) % (j - i - 1) + i].y = std::round(p1.y + buffer * sin(a2));
-					}
-
-					out[j - 1].x = out[i].x;
-					out[j - 1].y = out[i].y;
-				} else {
-					printf("skipping continuous ring %zu to %zu\n", i, j);
+					out[(k + 1 - i) % (j - i - 1) + i].x = std::round(p1.x + buffer * cos(a2));
+					out[(k + 1 - i) % (j - i - 1) + i].y = std::round(p1.y + buffer * sin(a2));
 				}
+
+				out[j - 1].x = out[i].x;
+				out[j - 1].y = out[i].y;
 
 				i = j - 1;
 			}

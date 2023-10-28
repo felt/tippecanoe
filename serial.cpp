@@ -221,6 +221,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	serialize_int(s, sf->segment);
 
 	write_geometry(sf->geometry, s, wx, wy);
+	serialize_byte(s, sf->continuous);
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
@@ -276,8 +277,10 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	sf.index = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
+	sf.continuous = -1;  // unknown
 
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
+	deserialize_byte(&cp, &sf.continuous);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);

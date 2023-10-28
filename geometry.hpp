@@ -104,6 +104,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);
 
-drawvec buffer_poly(drawvec const &geom, double buffer, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos);
+drawvec buffer_poly(drawvec const &geom, double buffer);
+bool is_continuous_poly(drawvec const &geom, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos);
 
 #endif

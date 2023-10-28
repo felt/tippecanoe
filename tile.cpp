@@ -331,7 +331,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
+void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent, signed char continuous) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -424,6 +424,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.label_point = label_point;
 					sf.extent = extent;
 					sf.feature_minzoom = feature_minzoom;
+					sf.continuous = continuous;
 
 					for (size_t i = 0; i < metakeys.size(); i++) {
 						sf.keys.push_back(metakeys[i]);
@@ -474,6 +475,7 @@ struct partial {
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
 	std::map<std::string, accum_state> attribute_accum_state;
+	int continuous;
 };
 
 struct partial_arg {
@@ -613,8 +615,8 @@ void *partial_feature_worker(void *v) {
 
 		drawvec geom = (*partials)[i].geoms[0];
 
-		if (additional[A_BUFFER_POLYGONS_OUTWARD] && t == VT_POLYGON) {
-			geom = buffer_poly(geom, (1LL << (32 - z - out_detail)) * sqrt(2), z, (*partials)[i].tx, (*partials)[i].ty, a->shared_nodes_map, a->nodepos);
+		if (additional[A_BUFFER_POLYGONS_OUTWARD] && t == VT_POLYGON && !((*partials)[i].continuous)) {
+			geom = buffer_poly(geom, (1LL << (32 - z - out_detail)) * sqrt(2));
 		}
 
 		to_tile_scale(geom, z, out_detail);
@@ -1461,7 +1463,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed) {
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, struct node *shared_nodes_map, size_t nodepos) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1512,9 +1514,21 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			(*unclipped_features)++;
 		}
 
+		if (sf.t == VT_POLYGON && sf.continuous < 0) {
+			// figure out whether the polygon is continuous the first time it is examined,
+			// since we don't have access to all of the shared nodes to determine this
+			// when the feature is first being ingested
+
+			if (prevent[P_SIMPLIFY_SHARED_NODES]) {
+				sf.continuous = is_continuous_poly(sf.geometry, z, tx, ty, shared_nodes_map, nodepos);
+			} else {
+				sf.continuous = false;
+			}
+		}
+
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
+				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent, sf.continuous);
 			}
 		}
 
@@ -1646,6 +1660,8 @@ struct run_prefilter_args {
 	struct json_object *filter = NULL;
 	bool first_time = false;
 	bool compressed = false;
+	struct node *shared_nodes_map;
+	size_t nodepos;
 };
 
 void *run_prefilter(void *v) {
@@ -1653,7 +1669,7 @@ void *run_prefilter(void *v) {
 	json_writer state(rpa->prefilter_fp);
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, rpa->shared_nodes_map, rpa->nodepos);
 		if (sf.t < 0) {
 			break;
 		}
@@ -2047,6 +2063,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.filter = filter;
 			rpa.first_time = first_time;
 			rpa.compressed = compressed_input;
+			rpa.shared_nodes_map = shared_nodes_map;
+			rpa.nodepos = nodepos;
 
 			if (pthread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
 				perror("pthread_create (prefilter writer)");
@@ -2066,7 +2084,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, shared_nodes_map, nodepos);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2271,6 +2289,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.renamed = -1;
 					p.extent = sf.extent;
 					p.clustered = 0;
+					p.continuous = sf.continuous;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						p.extra_detail = extra_detail;
