@@ -1574,6 +1574,11 @@ int main(int argc, char **argv) {
 	}
 	generator_options.append(commandline);
 
+	// don't trust the source metadata maxzooms;
+	// claim the zooms that were actually written
+	st.maxzoom = INT_MIN;
+	st.minzoom = INT_MAX;
+
 	for (auto &l : layermap) {
 		if (l.second.minzoom < st.minzoom) {
 			st.minzoom = l.second.minzoom;

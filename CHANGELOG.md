@@ -1,3 +1,7 @@
+# 2.36.0
+
+* Make tile-join distrust the source tilesets' metadata maxzoom and minzoom
+
 # 2.35.0
 
 * Fix a bug in --detect-longitude-wraparound when there are multiple rings
