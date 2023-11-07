@@ -328,10 +328,13 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 				if (geom[i].op == VT_LINETO) {
 					x += offset;
 					if (has_prev) {
-						if (x - prev > (1LL << 31)) {
+						// jumps at least 180° but not exactly 360°,
+						// which in some data sets is an intentional
+						// line across the world
+						if (x - prev > (1LL << 31) && x - prev != (1LL << 32)) {
 							offset -= 1LL << 32;
 							x -= 1LL << 32;
-						} else if (prev - x > (1LL << 31)) {
+						} else if (prev - x > (1LL << 31) && prev - x != (1LL << 32)) {
 							offset += 1LL << 32;
 							x += 1LL << 32;
 						}
