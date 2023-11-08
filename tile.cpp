@@ -43,6 +43,7 @@
 #include "errors.hpp"
 #include "compression.hpp"
 #include "protozero/varint.hpp"
+#include "polygon.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -612,6 +613,11 @@ void *partial_feature_worker(void *v) {
 		int out_detail = (*partials)[i].extra_detail;
 
 		drawvec geom = (*partials)[i].geoms[0];
+
+		if (t == VT_POLYGON) {
+			clean_polygon(geom, z, out_detail);
+		}
+
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
