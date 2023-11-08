@@ -99,9 +99,11 @@ int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, lon
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
+		     std::vector<std::pair<unsigned, unsigned>> *child_tiles);
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress);
+		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
+		     std::vector<std::pair<unsigned, unsigned>> *child_tiles);
 
 #endif

@@ -434,7 +434,8 @@ struct tileset_reader {
 	// for overzooming
 	int maxzoom_so_far = -1;
 	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
-	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
+	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;	   // tiles at `zoom`
+	std::vector<std::pair<unsigned, unsigned>> next_overzoomed_tiles;  // tiles at `zoom + 1`
 	bool overzoom_consumed_at_this_zoom = false;
 
 	// parent tile cache
@@ -642,12 +643,24 @@ struct tileset_reader {
 
 		long long scale = (1LL << zoom) / (1LL << maxzoom_so_far);
 
-		for (auto const &xy : tiles_at_maxzoom_so_far) {
-			for (long long xx = 0; xx < scale; xx++) {
-				for (long long yy = 0; yy < scale; yy++) {
-					overzoomed_tiles.push_back(std::pair<unsigned, unsigned>(xy.first * scale + xx, xy.second * scale + yy));
+		// If this is the first overzoomed level, we don't know yet
+		// which tiles will be useful, so spell out all 4 child tiles
+		// from each parent tile.
+		//
+		// If it is further overzoomed than that, we have a list of
+		// which child tiles will have features in them, so use that.
+
+		if (zoom == maxzoom_so_far + 1) {
+			for (auto const &xy : tiles_at_maxzoom_so_far) {
+				for (long long xx = 0; xx < scale; xx++) {
+					for (long long yy = 0; yy < scale; yy++) {
+						overzoomed_tiles.push_back(std::pair<unsigned, unsigned>(xy.first * scale + xx, xy.second * scale + yy));
+					}
 				}
 			}
+		} else {
+			overzoomed_tiles = next_overzoomed_tiles;
+			next_overzoomed_tiles.clear();
 		}
 
 		std::sort(overzoomed_tiles.begin(), overzoomed_tiles.end(), tilecmp);
@@ -769,7 +782,7 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false);
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles);
 			return ret;
 		}
 
