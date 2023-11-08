@@ -433,8 +433,8 @@ struct tileset_reader {
 
 	// for overzooming
 	int maxzoom_so_far = -1;
-	std::vector<std::pair<unsigned, unsigned>> tiles_at_maxzoom_so_far;
-	std::vector<std::pair<unsigned, unsigned>> overzoomed_tiles;
+	std::vector<std::pair<unsigned short, unsigned short>> tiles_at_maxzoom_so_far;
+	std::vector<std::pair<unsigned short, unsigned short>> overzoomed_tiles;
 	bool overzoom_consumed_at_this_zoom = false;
 
 	// parent tile cache
