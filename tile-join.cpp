@@ -659,7 +659,7 @@ struct tileset_reader {
 				}
 			}
 		} else {
-			overzoomed_tiles = next_overzoomed_tiles;
+			overzoomed_tiles = std::move(next_overzoomed_tiles);
 			next_overzoomed_tiles.clear();
 		}
 

@@ -754,7 +754,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *child_tiles) {
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles) {
 	mvt_tile tile;
 
 	try {
@@ -768,12 +768,12 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, child_tiles);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles);
 }
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *child_tiles) {
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -892,7 +892,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		}
 	}
 
-	if (child_tiles != NULL) {
+	if (next_overzoomed_tiles != NULL) {
 		// will any child tiles have features in them?
 		// find out recursively from the tile we just made.
 		//
@@ -907,7 +907,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL);
 					if (child.size() > 0) {
-						child_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
+						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
 				}
 			}
