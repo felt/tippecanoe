@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true);
+	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL);
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 

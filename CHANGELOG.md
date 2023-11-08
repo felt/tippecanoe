@@ -1,3 +1,7 @@
+# 2.37.0
+
+* Speed up tile-join overzooming and make it use less memory, by not including empty child tiles in the enumeration
+
 # 2.36.0
 
 * Make tile-join distrust the source tilesets' metadata maxzoom and minzoom
