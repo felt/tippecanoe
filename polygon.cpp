@@ -9,6 +9,55 @@ struct point {
 	}
 };
 
+typedef std::pair<point, point> segment;
+
+struct scan_transition {
+	double y;
+	size_t segment;
+
+	scan_transition(double y_, size_t segment_)
+	    : y(y_), segment(segment_) {
+	}
+
+	bool operator<(scan_transition const &s) const {
+		if (y < s.y) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
+
+std::vector<segment> snap_round(std::vector<segment> segs) {
+	bool again = true;
+
+	while (again) {
+		again = false;
+
+		// set up for a scanline traversal of the segments
+		// to find the pairs that intersect
+		// while not looking at pairs that can't possibly intersect
+
+		std::vector<scan_transition> tops;
+		std::vector<scan_transition> bottoms;
+
+		for (size_t i = 0; i < segs.size(); i++) {
+			if (segs[i].first.y < segs[i].second.y) {
+				tops.emplace_back(segs[i].first.y, i);
+				bottoms.emplace_back(segs[i].second.y, i);
+			} else {
+				tops.emplace_back(segs[i].second.y, i);
+				bottoms.emplace_back(segs[i].first.y, i);
+			}
+		}
+
+		std::sort(tops.begin(), tops.end());
+		std::sort(bottoms.begin(), bottoms.end());
+	}
+
+	return segs;
+}
+
 drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 	double scale = 1LL << (-(32 - detail - z));
 
@@ -39,6 +88,8 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 	}
 
 	// snap-round intersecting segments
+
+	segments = snap_round(segments);
 
 	// remove duplicate segments with opposite windings
 
