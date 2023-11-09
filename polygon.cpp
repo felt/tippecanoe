@@ -12,7 +12,63 @@ struct point {
 
 typedef std::pair<point, point> segment;
 
+// https://stackoverflow.com/questions/9043805/test-if-two-lines-intersect-javascript-function/16725715#16725715
+// this does not seem to be correct
+bool intersects(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {
+	double det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
+	if (det == 0) {
+		return false;
+	} else {
+		double lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
+		double gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
+
+		if (lambda > 0 && lambda < 1 && gamma > 0 && gamma < 1) {
+			printf("%f,%f to %f,%f and %f,%f to %f,%f: %f and %f\n",
+			       x1, y1, x2, y2, x3, y3, x4, y4, lambda, gamma);
+			printf("%f,%f or %f,%f\n",
+			       x1 + (x2 - x1) * lambda, y1 + (y2 - y1) * lambda,
+			       x3 + (x4 - x3) * gamma, y3 + (y4 - y3) * gamma);
+		}
+		return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+	}
+}
+
+// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+// this seems to produce the same point along both segments
+bool get_line_intersection(double p0_x, double p0_y, double p1_x, double p1_y,
+			   double p2_x, double p2_y, double p3_x, double p3_y) {
+	double s1_x, s1_y, s2_x, s2_y;
+	s1_x = p1_x - p0_x;
+	s1_y = p1_y - p0_y;
+	s2_x = p3_x - p2_x;
+	s2_y = p3_y - p2_y;
+
+	float det = (-s2_x * s1_y + s1_x * s2_y);
+
+	if (det != 0) {
+		double s, t;
+		s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / det;
+		t = (s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / det;
+
+		if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+			printf("%f,%f to %f,%f and %f,%f to %f,%f: %f and %f\n",
+			       p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, t, s);
+			printf("%f,%f or %f,%f\n",
+			       p0_x + t * s1_x, p0_y + t * s1_y,
+			       p2_x + s * s2_x, p2_y + s * s2_y);
+
+			return 1;
+		}
+	}
+
+	return 0;  // No collision
+}
+
 bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
+	get_line_intersection(std::round(segs[s1].first.x), std::round(segs[s1].first.y),
+			      std::round(segs[s1].second.x), std::round(segs[s1].second.y),
+			      std::round(segs[s2].first.x), std::round(segs[s2].first.y),
+			      std::round(segs[s2].second.x), std::round(segs[s2].second.y));
 	return false;
 }
 
@@ -64,8 +120,10 @@ std::vector<segment> snap_round(std::vector<segment> segs) {
 
 		// do the scan
 
+		std::set<std::pair<size_t, size_t>> already;
 		std::set<size_t> active;
 		size_t bottom = 0;
+
 		for (size_t i = 0; i < tops.size(); i++) {
 			// activate anything that is coming into view
 
@@ -79,12 +137,15 @@ std::vector<segment> snap_round(std::vector<segment> segs) {
 			for (size_t s1 : active) {
 				for (size_t s2 : active) {
 					if (s1 < s2) {
-						if (intersect(segs, s1, s2)) {
-							// if the segments intersected,
-							// we need to do another scan,
-							// because introducing a new node
-							// may have caused new intersections
-							again = true;
+						if (already.find(std::make_pair(s1, s2)) == already.end()) {
+							if (intersect(segs, s1, s2)) {
+								// if the segments intersected,
+								// we need to do another scan,
+								// because introducing a new node
+								// may have caused new intersections
+								again = true;
+							}
+							already.insert(std::make_pair(s1, s2));
 						}
 					}
 				}
@@ -106,7 +167,7 @@ std::vector<segment> snap_round(std::vector<segment> segs) {
 }
 
 drawvec clean_polygon(drawvec const &geom, int z, int detail) {
-	double scale = 1LL << (-(32 - detail - z));
+	double scale = 1LL << (32 - detail - z);
 
 	// decompose polygon rings into segments
 
