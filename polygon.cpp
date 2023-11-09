@@ -34,7 +34,7 @@ struct point {
 typedef std::pair<point, point> segment;
 
 void fix_opposites(std::vector<segment> &segs) {
-	std::map<segment, size_t> opposites;
+	std::multimap<segment, size_t> opposites;
 	segment erased = std::make_pair(point(INT_MAX, INT_MAX), point(INT_MAX, INT_MAX));
 
 	for (size_t i = 0; i < segs.size(); i++) {
@@ -47,11 +47,16 @@ void fix_opposites(std::vector<segment> &segs) {
 			continue;
 		}
 
-		auto f = opposites.find(segs[i]);
-		if (f != opposites.end()) {
+		auto f = opposites.equal_range(segs[i]);
+		for (; f.first != f.second; ++f.first) {
+			if (segs[f.first->second] == erased) {
+				continue;
+			}
+
 			segs[i] = erased;
-			segs[f->second] = erased;
-			opposites.erase(f);
+			segs[f.first->second] = erased;
+			opposites.erase(f.first);
+			break;
 		}
 	}
 
