@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <algorithm>
+#include <set>
+#include <vector>
 #include "geometry.hpp"
 
 struct point {
