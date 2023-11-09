@@ -12,9 +12,57 @@ struct point {
 	point(double x_, double y_)
 	    : x(x_), y(y_) {
 	}
+
+	point() {
+		x = 0;
+		y = 0;
+	}
+
+	bool operator<(point const &s) const {
+		if (y < s.y || (y == s.y && x < s.x)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	bool operator==(point const &s) const {
+		return y == s.y && x == s.x;
+	}
 };
 
 typedef std::pair<point, point> segment;
+
+void fix_opposites(std::vector<segment> &segs) {
+	std::map<segment, size_t> opposites;
+	segment erased = std::make_pair(point(INT_MAX, INT_MAX), point(INT_MAX, INT_MAX));
+
+	for (size_t i = 0; i < segs.size(); i++) {
+		segment opposite = std::make_pair(segs[i].second, segs[i].first);
+		opposites.emplace(opposite, i);
+	}
+
+	for (size_t i = 0; i < segs.size(); i++) {
+		if (segs[i] == erased) {
+			continue;
+		}
+
+		auto f = opposites.find(segs[i]);
+		if (f != opposites.end()) {
+			segs[i] = erased;
+			segs[f->second] = erased;
+			opposites.erase(f);
+		}
+	}
+
+	size_t out = 0;
+	for (size_t i = 0; i < segs.size(); i++) {
+		if (segs[i] != erased) {
+			segs[out++] = segs[i];
+		}
+	}
+	segs.resize(out);
+}
 
 // https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
 //
@@ -87,7 +135,7 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 		    (std::llround(x) == std::llround(segs[s1].second.x) && std::llround(y) == std::llround(segs[s1].second.y))) {
 			// at an endpoint in s1, so it doesn't need to be changed
 		} else {
-			printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
+			// printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
 			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
 			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
 			changed = true;
@@ -97,7 +145,7 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 		    (std::llround(x) == std::llround(segs[s2].second.x) && std::llround(y) == std::llround(segs[s2].second.y))) {
 			// at an endpoint in s2, so it doesn't need to be changed
 		} else {
-			printf("introduce %f,%f in %f,%f to %f,%f (s2 %zu %zu)\n", x, y, segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y, s1, s2);
+			// printf("introduce %f,%f in %f,%f to %f,%f (s2 %zu %zu)\n", x, y, segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y, s1, s2);
 			// printf("introduce %lld,%lld in %lld,%lld to %lld,%lld (s2)\n", std::llround(x), std::llround(y), std::llround(segs[s2].first.x), std::llround(segs[s2].first.y), std::llround(segs[s2].second.x), std::llround(segs[s2].second.y));
 			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
 			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
@@ -134,6 +182,14 @@ std::vector<segment> snap_round(std::vector<segment> segs) {
 
 	while (again) {
 		again = false;
+
+		// find identical opposite-winding segments and adjust for them
+		//
+		// this is in the same loop because we may introduce new self-intersections
+		// in the course of trying to keep spindles alive, and will then need to
+		// resolve those.
+
+		fix_opposites(segs);
 
 		// set up for a scanline traversal of the segments
 		// to find the pairs that intersect
@@ -202,18 +258,6 @@ std::vector<segment> snap_round(std::vector<segment> segs) {
 				}
 			}
 		}
-
-		if (again) {
-			// let the intersections settle down before we start trying
-			// to make additional changes
-			continue;
-		}
-
-		// find identical opposite-winding segments and adjust for them
-		//
-		// this is in the same loop because we may introduce new self-intersections
-		// in the course of trying to keep spindles alive, and will then need to
-		// resolve those.
 	}
 
 	return segs;
