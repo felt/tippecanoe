@@ -36,17 +36,15 @@ std::pair<double, double> get_line_intersection(double p0_x, double p0_y, double
 		t = (d23_x * (p0_y - p2_y) - d23_y * (p0_x - p2_x)) / det;
 		s = (-d01_y * (p0_x - p2_x) + d01_x * (p0_y - p2_y)) / det;
 
-		if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
-			return std::make_pair(t, s);
+		return std::make_pair(t, s);
 
 #if 0
-			printf("%f,%f to %f,%f and %f,%f to %f,%f: %f and %f\n",
-			       p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, t, s);
-			printf("%f,%f or %f,%f\n",
-			       p0_x + t * d01_x, p0_y + t * d01_y,
-			       p2_x + s * d23_x, p2_y + s * d23_y);
+		printf("%f,%f to %f,%f and %f,%f to %f,%f: %f and %f\n",
+		       p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, t, s);
+		printf("%f,%f or %f,%f\n",
+		       p0_x + t * d01_x, p0_y + t * d01_y,
+		       p2_x + s * d23_x, p2_y + s * d23_y);
 #endif
-		}
 	}
 
 	return std::make_pair(-1, -1);
@@ -59,10 +57,51 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 						   std::round(segs[s2].second.x), std::round(segs[s2].second.y));
 
 	bool changed = false;
-	if (intersections.first >= 0) {
-		// XXX introduce a new node
-	} else {
+	if (intersections.first >= 0 && intersections.first <= 1 && intersections.second >= 0 && intersections.second <= 1) {
+		double x = std::round(segs[s1].first.x + intersections.first * (segs[s1].second.x - segs[s1].first.x));
+		double y = std::round(segs[s1].first.y + intersections.first * (segs[s1].second.y - segs[s1].first.y));
+
+		// try intersecting the original segments without rounding,
+		// since that intersection should be more true to the original
+		// intent of the data.
+
+		auto intersections2 = get_line_intersection((segs[s1].first.x), (segs[s1].first.y),
+							    (segs[s1].second.x), (segs[s1].second.y),
+							    (segs[s2].first.x), (segs[s2].first.y),
+							    (segs[s2].second.x), (segs[s2].second.y));
+
+		if (intersections2.first >= 0 && intersections2.first <= 1 && intersections2.second >= 0 && intersections2.second <= 1) {
+			double x2 = std::round(segs[s1].first.x + intersections2.first * (segs[s1].second.x - segs[s1].first.x));
+			double y2 = std::round(segs[s1].first.y + intersections2.first * (segs[s1].second.y - segs[s1].first.y));
+
+			if (x != x2 || y != y2) {
+				// printf("would intersect at %f,%f; from rounded chose %f,%f\n", x2, y2, x, y);
+				x = x2;
+				y = y2;
+			}
+		}
+
+		if ((x == std::round(segs[s1].first.x) && y == std::round(segs[s1].first.y)) ||
+		    (x == std::round(segs[s1].second.x) && y == std::round(segs[s1].second.y))) {
+			// at an endpoint in s1, so it doesn't need to be changed
+		} else {
+			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
+			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
+			changed = true;
+		}
+
+		if ((x == std::round(segs[s2].first.x) && y == std::round(segs[s2].first.y)) ||
+		    (x == std::round(segs[s2].second.x) && y == std::round(segs[s2].second.y))) {
+			// at an endpoint in s2, so it doesn't need to be changed
+		} else {
+			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
+			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
+			changed = true;
+		}
+	} else if (intersections.first == -1 && intersections.second == -1) {
 		// XXX handle collinear
+	} else {
+		// could intersect, but does not
 	}
 
 	return changed;
