@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <set>
 #include <vector>
+#include <cmath>
 #include "geometry.hpp"
 
 struct point {
@@ -192,11 +193,11 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 			}
 
 			for (size_t k = i; k + 1 < j; k++) {
-				std::pair<point, point> segment = std::make_pair(
+				std::pair<point, point> seg = std::make_pair(
 					point(geom[k].x / scale, geom[k].y / scale),
 					point(geom[k + 1].x / scale, geom[k + 1].y / scale));
 
-				segments.push_back(segment);
+				segments.push_back(seg);
 			}
 
 			i = j - 1;

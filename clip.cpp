@@ -337,7 +337,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 							if (k != i) {
 								fprintf(f, ",");
 							}
-							fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
+							fprintf(f, "[%lld,%lld]", (long long) geom[k].x, (long long) geom[k].y);
 						}
 
 						fprintf(f, "]");
