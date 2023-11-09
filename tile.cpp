@@ -615,10 +615,11 @@ void *partial_feature_worker(void *v) {
 		drawvec geom = (*partials)[i].geoms[0];
 
 		if (t == VT_POLYGON) {
-			clean_polygon(geom, z, out_detail);
+			geom = clean_polygon(geom, z, out_detail);
+			(*partials)[i].t = t = VT_LINE;
+		} else {
+			to_tile_scale(geom, z, out_detail);
 		}
-
-		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
 			// Scaling may have made the polygon degenerate.

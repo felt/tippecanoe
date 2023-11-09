@@ -58,9 +58,10 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 
 	bool changed = false;
 	if (intersections.first >= 0 && intersections.first <= 1 && intersections.second >= 0 && intersections.second <= 1) {
-		double x = std::round(segs[s1].first.x + intersections.first * (segs[s1].second.x - segs[s1].first.x));
-		double y = std::round(segs[s1].first.y + intersections.first * (segs[s1].second.y - segs[s1].first.y));
+		double x = (segs[s1].first.x + intersections.first * (segs[s1].second.x - segs[s1].first.x));
+		double y = (segs[s1].first.y + intersections.first * (segs[s1].second.y - segs[s1].first.y));
 
+#if 0
 		// try intersecting the original segments without rounding,
 		// since that intersection should be more true to the original
 		// intent of the data.
@@ -71,8 +72,8 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 							    (segs[s2].second.x), (segs[s2].second.y));
 
 		if (intersections2.first >= 0 && intersections2.first <= 1 && intersections2.second >= 0 && intersections2.second <= 1) {
-			double x2 = std::round(segs[s1].first.x + intersections2.first * (segs[s1].second.x - segs[s1].first.x));
-			double y2 = std::round(segs[s1].first.y + intersections2.first * (segs[s1].second.y - segs[s1].first.y));
+			double x2 = (segs[s1].first.x + intersections2.first * (segs[s1].second.x - segs[s1].first.x));
+			double y2 = (segs[s1].first.y + intersections2.first * (segs[s1].second.y - segs[s1].first.y));
 
 			if (x != x2 || y != y2) {
 				// printf("would intersect at %f,%f; from rounded chose %f,%f\n", x2, y2, x, y);
@@ -80,20 +81,24 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 				y = y2;
 			}
 		}
+#endif
 
-		if ((x == std::round(segs[s1].first.x) && y == std::round(segs[s1].first.y)) ||
-		    (x == std::round(segs[s1].second.x) && y == std::round(segs[s1].second.y))) {
+		if ((std::llround(x) == std::llround(segs[s1].first.x) && std::llround(y) == std::llround(segs[s1].first.y)) ||
+		    (std::llround(x) == std::llround(segs[s1].second.x) && std::llround(y) == std::llround(segs[s1].second.y))) {
 			// at an endpoint in s1, so it doesn't need to be changed
 		} else {
+			printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
 			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
 			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
 			changed = true;
 		}
 
-		if ((x == std::round(segs[s2].first.x) && y == std::round(segs[s2].first.y)) ||
-		    (x == std::round(segs[s2].second.x) && y == std::round(segs[s2].second.y))) {
+		if ((std::llround(x) == std::llround(segs[s2].first.x) && std::llround(y) == std::llround(segs[s2].first.y)) ||
+		    (std::llround(x) == std::llround(segs[s2].second.x) && std::llround(y) == std::llround(segs[s2].second.y))) {
 			// at an endpoint in s2, so it doesn't need to be changed
 		} else {
+			printf("introduce %f,%f in %f,%f to %f,%f (s2 %zu %zu)\n", x, y, segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y, s1, s2);
+			// printf("introduce %lld,%lld in %lld,%lld to %lld,%lld (s2)\n", std::llround(x), std::llround(y), std::llround(segs[s2].first.x), std::llround(segs[s2].first.y), std::llround(segs[s2].second.x), std::llround(segs[s2].second.y));
 			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
 			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
 			changed = true;
@@ -236,7 +241,10 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 					point(geom[k].x / scale, geom[k].y / scale),
 					point(geom[k + 1].x / scale, geom[k + 1].y / scale));
 
-				segments.push_back(seg);
+				if (std::round(seg.first.x) != std::round(seg.second.x) ||
+				    std::round(seg.first.y) != std::round(seg.second.y)) {
+					segments.push_back(seg);
+				}
 			}
 
 			i = j - 1;
@@ -253,5 +261,11 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 	// determine ring nesting
 
-	return drawvec();
+	drawvec ret;
+	for (auto const &segment : segments) {
+		ret.emplace_back(VT_MOVETO, segment.first.x, segment.first.y);
+		ret.emplace_back(VT_LINETO, segment.second.x, segment.second.y);
+	}
+
+	return ret;
 }
