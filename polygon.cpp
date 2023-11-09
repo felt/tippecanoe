@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include "geometry.hpp"
+#include "errors.hpp"
 
 struct point {
 	double x;
@@ -69,6 +70,8 @@ void fix_opposites(std::vector<segment> &segs) {
 	segs.resize(out);
 }
 
+const std::pair<double, double> SAME_SLOPE = std::make_pair(INT_MAX, INT_MAX);
+
 // https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
 //
 // beware of
@@ -100,7 +103,56 @@ std::pair<double, double> get_line_intersection(double p0_x, double p0_y, double
 #endif
 	}
 
-	return std::make_pair(-1, -1);
+	return SAME_SLOPE;
+}
+
+bool vertical(std::vector<segment> &segs, size_t s, double y) {
+	if ((y > std::round(segs[s].first.y) && y < std::round(segs[s].second.y)) ||
+	    (y > std::round(segs[s].second.y) && y < std::round(segs[s].first.y))) {
+		segs.push_back(std::make_pair(point(segs[s].first.x, y), segs[s].second));
+		segs[s] = std::make_pair(segs[s].first, point(segs[s].first.x, y));
+		return true;
+	}
+
+	return false;
+}
+
+bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
+	bool changed = false;
+
+	if (std::round(segs[s1].first.x) == std::round(segs[s1].second.x)) {
+		// vertical
+
+		if (std::round(segs[s2].first.x) == std::round(segs[s2].second.x)) {
+			// in which case the other one should also be vertical
+
+			if (std::round(segs[s1].first.x) == std::round(segs[s2].first.x)) {
+				// collinear, not parallel
+
+				if (vertical(segs, s1, std::round(segs[s2].first.y))) {
+					changed = true;
+				}
+				if (vertical(segs, s1, std::round(segs[s2].second.y))) {
+					changed = true;
+				}
+				if (vertical(segs, s2, std::round(segs[s1].first.y))) {
+					changed = true;
+				}
+				if (vertical(segs, s2, std::round(segs[s1].second.y))) {
+					changed = true;
+				}
+			}
+		} else {
+			fprintf(stderr, "One segment is vertical and the other is not %f,%f to %f,%f; %f,%f to %f,%f.\n",
+				segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y,
+				segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	} else {
+		// XXX not vertical
+	}
+
+	return changed;
 }
 
 bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
@@ -156,8 +208,10 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
 			changed = true;
 		}
-	} else if (intersections.first == -1 && intersections.second == -1) {
-		// XXX handle collinear
+	} else if (intersections == SAME_SLOPE) {
+		if (intersect_collinear(segs, s1, s2)) {
+			changed = true;
+		}
 	} else {
 		// could intersect, but does not
 	}
