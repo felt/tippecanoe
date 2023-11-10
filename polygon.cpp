@@ -70,7 +70,7 @@ void fix_opposites(std::vector<segment> &segs) {
 	segs.resize(out);
 }
 
-const std::pair<double, double> SAME_SLOPE = std::make_pair(INT_MAX, INT_MAX);
+const std::pair<double, double> SAME_SLOPE = std::make_pair(-INT_MAX, INT_MAX);
 
 // https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
 //
@@ -117,6 +117,20 @@ bool vertical(std::vector<segment> &segs, size_t s, double y) {
 	return false;
 }
 
+bool horizontal(std::vector<segment> &segs, size_t s, double x) {
+	if ((x > std::round(segs[s].first.x) && x < std::round(segs[s].second.x)) ||
+	    (x > std::round(segs[s].second.x) && x < std::round(segs[s].first.x))) {
+		double slope = (std::round(segs[s].second.y) - std::round(segs[s].first.y)) /
+			       (std::round(segs[s].second.x) - std::round(segs[s].first.x));
+		double y = std::round(std::round(segs[s].first.y) + slope * (x - std::round(segs[s].first.x)));
+		segs.push_back(std::make_pair(point(x, y), segs[s].second));
+		segs[s] = std::make_pair(segs[s].first, point(x, y));
+		return true;
+	}
+
+	return false;
+}
+
 bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 	bool changed = false;
 
@@ -149,7 +163,42 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 			exit(EXIT_IMPOSSIBLE);
 		}
 	} else {
-		// XXX not vertical
+		// horizontal or diagonal
+
+		double slope1 = (std::round(segs[s1].second.y) - std::round(segs[s1].first.y)) /
+				(std::round(segs[s1].second.x) - std::round(segs[s1].first.x));
+		double slope2 = (std::round(segs[s2].second.y) - std::round(segs[s2].first.y)) /
+				(std::round(segs[s2].second.x) - std::round(segs[s2].first.x));
+
+		if (slope1 == slope2) {
+			// they are parallel. do they have the same y intercept?
+
+			double y1 = std::round(std::round(segs[s1].first.y) + slope1 * (0 - std::round(segs[s1].first.x)));
+			double y2 = std::round(std::round(segs[s2].first.y) + slope1 * (0 - std::round(segs[s2].first.x)));
+
+			if (y1 == y2) {
+				// collinear, not parallel
+
+				if (horizontal(segs, s1, std::round(segs[s2].first.x))) {
+					changed = true;
+				}
+				if (horizontal(segs, s1, std::round(segs[s2].second.x))) {
+					changed = true;
+				}
+				if (horizontal(segs, s2, std::round(segs[s1].first.x))) {
+					changed = true;
+				}
+				if (horizontal(segs, s2, std::round(segs[s1].second.x))) {
+					changed = true;
+				}
+			}
+		} else {
+			fprintf(stderr, "One segment has a slope of %f and the other %f: %f,%f to %f,%f; %f,%f to %f,%f.\n",
+				slope1, slope2,
+				segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y,
+				segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y);
+			exit(EXIT_IMPOSSIBLE);
+		}
 	}
 
 	return changed;
