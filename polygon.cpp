@@ -286,11 +286,6 @@ struct scan_transition {
 };
 
 void snap_round(std::vector<segment> &segs) {
-	for (auto const &seg : segs) {
-		printf("before snap round %f,%f to %f,%f\n", seg.first.x, seg.first.y,
-		       seg.second.x, seg.second.y);
-	}
-
 	bool again = true;
 
 	while (again) {
@@ -387,17 +382,9 @@ drawvec reassemble(std::vector<segment> const &segs) {
 
 	for (auto const &seg : segs) {
 		connections.emplace(seg.first, seg);
-
-		printf("initial %f,%f to %f,%f\n", seg.first.x, seg.first.y,
-		       seg.second.x, seg.second.y);
 	}
 
 	while (connections.size() > 0) {
-		for (auto const &s : connections) {
-			printf("starting from %f,%f to %f,%f\n", s.second.first.x, s.second.first.y,
-			       s.second.second.x, s.second.second.y);
-		}
-
 		// arbitrarily choose a starting point,
 		// and walk the connections from there until
 		// we find a point that we have already visited.
@@ -449,24 +436,12 @@ drawvec reassemble(std::vector<segment> const &segs) {
 		examined.emplace(here.first, here);
 		ring.push_back(here.first);
 
-		printf("looking for %f,%f to %f,%f\n",
-		       here.first.x, here.first.y,
-		       here.second.x, here.second.y);
-		for (auto const &s : connections) {
-			printf("in %f,%f to %f,%f\n", s.second.first.x, s.second.first.y,
-			       s.second.second.x, s.second.second.y);
-		}
-
 		// find the initial segment in `connections` so we can remove it
 		auto initial = connections.equal_range(here.first);
 		bool found = false;
 		for (; initial.first != initial.second; ++initial.first) {
-			printf("looking at %f,%f to %f,%f\n",
-			       initial.first->second.first.x, initial.first->second.first.y,
-			       initial.first->second.second.x, initial.first->second.second.y);
 			if (initial.first->second == here) {
 				connections.erase(initial.first);
-				printf("there it is\n");
 				found = true;
 				break;
 			}
@@ -474,11 +449,6 @@ drawvec reassemble(std::vector<segment> const &segs) {
 		if (!found) {
 			fprintf(stderr, "can't happen: couldn't find initial point");
 			exit(EXIT_IMPOSSIBLE);
-		}
-
-		for (auto const &s : connections) {
-			printf("now looking in %f,%f to %f,%f\n", s.second.first.x, s.second.first.y,
-			       s.second.second.x, s.second.second.y);
 		}
 
 		while (examined.find(here.second) == examined.end()) {
