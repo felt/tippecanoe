@@ -34,7 +34,8 @@ struct point {
 
 typedef std::pair<point, point> segment;
 
-void fix_opposites(std::vector<segment> &segs) {
+bool fix_opposites(std::vector<segment> &segs) {
+	bool changed = false;
 	std::multimap<segment, size_t> opposites;
 	segment erased = std::make_pair(point(INT_MAX, INT_MAX), point(INT_MAX, INT_MAX));
 
@@ -54,8 +55,28 @@ void fix_opposites(std::vector<segment> &segs) {
 				continue;
 			}
 
-			segs[i] = erased;
-			segs[f.first->second] = erased;
+			double dx = std::round(segs[i].second.x) - std::round(segs[i].first.x);
+			double dy = std::round(segs[i].second.y) - std::round(segs[i].first.y);
+			double dsq = dx * dx + dy * dy;
+			if (dsq >= 5 * 5) {
+				// alter the segments instead to keep it from collapsing away
+
+				double ang = atan2(dy, dx) + M_PI / 2;
+				double cx = std::round((std::round(segs[i].second.x) + std::round(segs[i].first.x)) / 2 + sqrt(2) / 2 * cos(ang));
+				double cy = std::round((std::round(segs[i].second.y) + std::round(segs[i].first.y)) / 2 + sqrt(2) / 2 * sin(ang));
+
+				segs.emplace_back(point(cx, cy), segs[i].second);
+				segs[i] = std::make_pair(segs[i].first, point(cx, cy));
+				changed = true;
+
+				// segs[i] is not erased, so segs[f.first->second]
+				// will still match against it and will be bowed out
+				// in the opposite direction.
+			} else {
+				segs[i] = erased;
+				segs[f.first->second] = erased;
+			}
+
 			opposites.erase(f.first);
 			break;
 		}
@@ -68,6 +89,7 @@ void fix_opposites(std::vector<segment> &segs) {
 		}
 	}
 	segs.resize(out);
+	return changed;
 }
 
 const std::pair<double, double> SAME_SLOPE = std::make_pair(-INT_MAX, INT_MAX);
@@ -297,7 +319,10 @@ void snap_round(std::vector<segment> &segs) {
 		// in the course of trying to keep spindles alive, and will then need to
 		// resolve those.
 
-		fix_opposites(segs);
+		if (fix_opposites(segs)) {
+			again = true;
+			continue;
+		}
 
 		// set up for a scanline traversal of the segments
 		// to find the pairs that intersect
