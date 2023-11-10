@@ -44,6 +44,7 @@ bool fix_opposites(std::vector<segment> &segs) {
 		opposites.emplace(opposite, i);
 	}
 
+	size_t found = 0;
 	for (size_t i = 0; i < segs.size(); i++) {
 		if (segs[i] == erased) {
 			continue;
@@ -54,6 +55,8 @@ bool fix_opposites(std::vector<segment> &segs) {
 			if (segs[f.first->second] == erased) {
 				continue;
 			}
+
+			found++;
 
 			double dx = std::round(segs[i].second.x) - std::round(segs[i].first.x);
 			double dy = std::round(segs[i].second.y) - std::round(segs[i].first.y);
@@ -80,6 +83,11 @@ bool fix_opposites(std::vector<segment> &segs) {
 			opposites.erase(f.first);
 			break;
 		}
+	}
+
+	printf("found %zu\n", found);
+	if (found > 0) {
+		changed = true;
 	}
 
 	size_t out = 0;
@@ -321,7 +329,6 @@ void snap_round(std::vector<segment> &segs) {
 
 		if (fix_opposites(segs)) {
 			again = true;
-			continue;
 		}
 
 		// set up for a scanline traversal of the segments
@@ -442,6 +449,39 @@ drawvec reassemble(std::vector<segment> const &segs) {
 			// lead around either the largest outer ring or
 			// the smallest inner ring that includes this point.
 
+			auto best = options.first;
+			double bestang = -500;
+
+#if 0
+			for (; options.first != options.second; ++options.first) {
+				double ang1 = atan2(here.second.y - here.first.y, here.second.x - here.first.x);
+				// the vector for ang2 is backwards, so a complete reversal would be a difference of 0
+				double ang2 = atan2(options.first->second.first.y - options.first->second.second.y,
+						    options.first->second.first.x - options.first->second.second.x);
+				double diff = ang1 - ang2;
+				if (diff < 0) {
+					diff += 2 * M_PI;
+				}
+
+				printf("%f,%f to %f,%f to %f,%f, %f,%f: %f\n",
+				       here.first.x, here.first.y,
+				       here.second.x, here.second.y,
+				       options.first->second.first.x, options.first->second.first.y,
+				       options.first->second.second.x, options.first->second.second.y,
+				       diff * 180 / M_PI);
+
+				if (diff > bestang) {
+					bestang = diff;
+					best = options.first;
+				}
+			}
+			printf("\n");
+
+			here = best->second;
+			examined.emplace(here.first, here);
+			examining.erase(best);
+#endif
+
 			// XXX just arbitrarily choosing the first for the moment
 
 			here = options.first->second;
@@ -525,8 +565,8 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 			for (size_t k = i; k + 1 < j; k++) {
 				std::pair<point, point> seg = std::make_pair(
-					point(geom[k].x / scale, geom[k].y / scale),
-					point(geom[k + 1].x / scale, geom[k + 1].y / scale));
+					point(std::round(geom[k].x / scale), std::round(geom[k].y / scale)),
+					point(std::round(geom[k + 1].x / scale), std::round(geom[k + 1].y / scale)));
 
 				if (std::round(seg.first.x) != std::round(seg.second.x) ||
 				    std::round(seg.first.y) != std::round(seg.second.y)) {
