@@ -285,7 +285,12 @@ struct scan_transition {
 	}
 };
 
-std::vector<segment> snap_round(std::vector<segment> segs) {
+void snap_round(std::vector<segment> &segs) {
+	for (auto const &seg : segs) {
+		printf("before snap round %f,%f to %f,%f\n", seg.first.x, seg.first.y,
+		       seg.second.x, seg.second.y);
+	}
+
 	bool again = true;
 
 	while (again) {
@@ -368,7 +373,142 @@ std::vector<segment> snap_round(std::vector<segment> segs) {
 		}
 	}
 
-	return segs;
+	for (auto &s : segs) {
+		s.first.x = std::round(s.first.x);
+		s.first.y = std::round(s.first.y);
+		s.second.x = std::round(s.second.x);
+		s.second.y = std::round(s.second.y);
+	}
+}
+
+drawvec reassemble(std::vector<segment> const &segs) {
+	std::multimap<point, segment> connections;
+	drawvec ret;
+
+	for (auto const &seg : segs) {
+		connections.emplace(seg.first, seg);
+
+		printf("initial %f,%f to %f,%f\n", seg.first.x, seg.first.y,
+		       seg.second.x, seg.second.y);
+	}
+
+	while (connections.size() > 0) {
+		for (auto const &s : connections) {
+			printf("starting from %f,%f to %f,%f\n", s.second.first.x, s.second.first.y,
+			       s.second.second.x, s.second.second.y);
+		}
+
+		// arbitrarily choose a starting point,
+		// and walk the connections from there until
+		// we find a point that we have already visited.
+
+		// make a copy of the connections so we can remove
+		// segments from it as we walk, even though some of
+		// the segments we remove will probably have to go
+		// back in because they are really part of another ring
+		std::multimap<point, segment> examining = connections;
+		std::map<point, segment> examined;
+
+		segment here = examining.begin()->second;
+		examined.emplace(here.first, here);
+		examining.erase(examining.begin());
+
+		// go until the segment that we are looking at
+		// points to a vertex we have seen before, which
+		// will be the initial point of the ring
+		while (examined.find(here.second) == examined.end()) {
+			auto options = examining.equal_range(here.second);
+			if (options.first == options.second) {
+				fprintf(stderr, "can't happen: no connections in ring construction\n");
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			// choose the sharpest possible left turn
+			// (in tile coordinate space, so Y coordinates
+			// increase toward the bottom) of the available
+			// connections from this point, which should
+			// lead around either the largest outer ring or
+			// the smallest inner ring that includes this point.
+
+			// XXX just arbitrarily choosing the first for the moment
+
+			here = options.first->second;
+			examined.emplace(here.first, here);
+			examining.erase(options.first);
+		}
+
+		here = examined.find(here.second)->second;  // the new initial segment, found above
+
+		// now do a second walk, actually removing the connections
+		// from the original copy, and saving the ring that we make.
+
+		examining.clear();
+		examined.clear();
+		std::vector<point> ring;
+
+		examined.emplace(here.first, here);
+		ring.push_back(here.first);
+
+		printf("looking for %f,%f to %f,%f\n",
+		       here.first.x, here.first.y,
+		       here.second.x, here.second.y);
+		for (auto const &s : connections) {
+			printf("in %f,%f to %f,%f\n", s.second.first.x, s.second.first.y,
+			       s.second.second.x, s.second.second.y);
+		}
+
+		// find the initial segment in `connections` so we can remove it
+		auto initial = connections.equal_range(here.first);
+		bool found = false;
+		for (; initial.first != initial.second; ++initial.first) {
+			printf("looking at %f,%f to %f,%f\n",
+			       initial.first->second.first.x, initial.first->second.first.y,
+			       initial.first->second.second.x, initial.first->second.second.y);
+			if (initial.first->second == here) {
+				connections.erase(initial.first);
+				printf("there it is\n");
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			fprintf(stderr, "can't happen: couldn't find initial point");
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		for (auto const &s : connections) {
+			printf("now looking in %f,%f to %f,%f\n", s.second.first.x, s.second.first.y,
+			       s.second.second.x, s.second.second.y);
+		}
+
+		while (examined.find(here.second) == examined.end()) {
+			auto options = connections.equal_range(here.second);
+			if (options.first == options.second) {
+				fprintf(stderr, "can't happen: no connections in ring construction\n");
+				exit(EXIT_IMPOSSIBLE);
+			}
+
+			// choose the sharpest possible left turn
+			// (in tile coordinate space, so Y coordinates
+			// increase toward the bottom) of the available
+			// connections from this point, which should
+			// lead around either the largest outer ring or
+			// the smallest inner ring that includes this point.
+
+			// XXX just arbitrarily choosing the first for the moment
+
+			here = options.first->second;
+			examined.emplace(here.first, here);
+			connections.erase(options.first);
+			ring.push_back(here.first);
+		}
+
+		for (size_t i = 0; i < ring.size(); i++) {
+			ret.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x), std::round(ring[i].y));
+		}
+		ret.emplace_back(VT_LINETO, std::round(ring[0].x), std::round(ring[0].y));
+	}
+	return ret;
 }
 
 drawvec clean_polygon(drawvec const &geom, int z, int detail) {
@@ -405,19 +545,23 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 	// snap-round intersecting segments
 
-	segments = snap_round(segments);
+	snap_round(segments);
 
 	// reassemble segments into rings
+
+	drawvec ret = reassemble(segments);
 
 	// remove collinear points?
 
 	// determine ring nesting
 
+#if 0
 	drawvec ret;
 	for (auto const &segment : segments) {
 		ret.emplace_back(VT_MOVETO, segment.first.x, segment.first.y);
 		ret.emplace_back(VT_LINETO, segment.second.x, segment.second.y);
 	}
+#endif
 
 	return ret;
 }
