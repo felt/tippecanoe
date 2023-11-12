@@ -616,11 +616,12 @@ void *partial_feature_worker(void *v) {
 
 		if (t == VT_POLYGON) {
 			geom = clean_polygon(geom, z, out_detail);
-			(*partials)[i].t = t = VT_LINE;
+			// (*partials)[i].t = t = VT_LINE;
 		} else {
 			to_tile_scale(geom, z, out_detail);
 		}
 
+#if 0
 		if (t == VT_POLYGON) {
 			// Scaling may have made the polygon degenerate.
 			// Give Clipper a chance to try to fix it.
@@ -642,6 +643,7 @@ void *partial_feature_worker(void *v) {
 				}
 			}
 		}
+#endif
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 			t = (*partials)[i].t = VT_POINT;

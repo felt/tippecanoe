@@ -64,7 +64,7 @@ bool fix_opposites(std::vector<segment> &segs) {
 			if (dsq >= 5 * 5) {
 				// alter the segments instead to keep it from collapsing away
 
-				double ang = atan2(dy, dx) + M_PI / 2;
+				double ang = atan2(dy, dx) - M_PI / 2;
 				double cx = std::round((std::round(segs[i].second.x) + std::round(segs[i].first.x)) / 2 + sqrt(2) / 2 * cos(ang));
 				double cy = std::round((std::round(segs[i].second.y) + std::round(segs[i].first.y)) / 2 + sqrt(2) / 2 * sin(ang));
 
@@ -85,7 +85,6 @@ bool fix_opposites(std::vector<segment> &segs) {
 		}
 	}
 
-	printf("found %zu\n", found);
 	if (found > 0) {
 		changed = true;
 	}
@@ -450,43 +449,40 @@ drawvec reassemble(std::vector<segment> const &segs) {
 			// the smallest inner ring that includes this point.
 
 			auto best = options.first;
-			double bestang = -500;
+			double bestang = 500;
 
-#if 0
 			for (; options.first != options.second; ++options.first) {
 				double ang1 = atan2(here.second.y - here.first.y, here.second.x - here.first.x);
-				// the vector for ang2 is backwards, so a complete reversal would be a difference of 0
-				double ang2 = atan2(options.first->second.first.y - options.first->second.second.y,
-						    options.first->second.first.x - options.first->second.second.x);
+				double ang2 = atan2(options.first->second.second.y - options.first->second.first.y,
+						    options.first->second.second.x - options.first->second.first.x);
 				double diff = ang1 - ang2;
-				if (diff < 0) {
+				// normalize to -180° … 180°
+				while (diff > M_PI) {
+					diff -= 2 * M_PI;
+				}
+				while (diff < -M_PI) {
 					diff += 2 * M_PI;
 				}
 
+#if 0
 				printf("%f,%f to %f,%f to %f,%f, %f,%f: %f\n",
 				       here.first.x, here.first.y,
 				       here.second.x, here.second.y,
 				       options.first->second.first.x, options.first->second.first.y,
 				       options.first->second.second.x, options.first->second.second.y,
 				       diff * 180 / M_PI);
+#endif
 
-				if (diff > bestang) {
+				// closest to -180 is the best
+				if (diff < bestang) {
 					bestang = diff;
 					best = options.first;
 				}
 			}
-			printf("\n");
 
 			here = best->second;
 			examined.emplace(here.first, here);
 			examining.erase(best);
-#endif
-
-			// XXX just arbitrarily choosing the first for the moment
-
-			here = options.first->second;
-			examined.emplace(here.first, here);
-			examining.erase(options.first);
 		}
 
 		here = examined.find(here.second)->second;  // the new initial segment, found above
@@ -530,19 +526,58 @@ drawvec reassemble(std::vector<segment> const &segs) {
 			// lead around either the largest outer ring or
 			// the smallest inner ring that includes this point.
 
-			// XXX just arbitrarily choosing the first for the moment
+			auto best = options.first;
+			double bestang = 500;
 
-			here = options.first->second;
+			for (; options.first != options.second; ++options.first) {
+				double ang1 = atan2(here.second.y - here.first.y, here.second.x - here.first.x);
+				double ang2 = atan2(options.first->second.second.y - options.first->second.first.y,
+						    options.first->second.second.x - options.first->second.first.x);
+				double diff = ang1 - ang2;
+				// normalize to -180° … 180°
+				while (diff > M_PI) {
+					diff -= 2 * M_PI;
+				}
+				while (diff < -M_PI) {
+					diff += 2 * M_PI;
+				}
+
+#if 0
+				printf("%f,%f to %f,%f to %f,%f, %f,%f: %f\n",
+				       here.first.x, here.first.y,
+				       here.second.x, here.second.y,
+				       options.first->second.first.x, options.first->second.first.y,
+				       options.first->second.second.x, options.first->second.second.y,
+				       diff * 180 / M_PI);
+#endif
+
+				// closest to -180 is the best
+				if (diff < bestang) {
+					bestang = diff;
+					best = options.first;
+				}
+			}
+
+			here = best->second;
 			examined.emplace(here.first, here);
-			connections.erase(options.first);
+			connections.erase(best);
 			ring.push_back(here.first);
 		}
 
+		drawvec out;
+
 		for (size_t i = 0; i < ring.size(); i++) {
-			ret.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x), std::round(ring[i].y));
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x), std::round(ring[i].y));
 		}
-		ret.emplace_back(VT_LINETO, std::round(ring[0].x), std::round(ring[0].y));
+		out.emplace_back(VT_LINETO, std::round(ring[0].x), std::round(ring[0].y));
+
+		if (get_area(out, 0, out.size()) > 0) {
+			for (auto const &d : out) {
+				ret.push_back(d);
+			}
+		}
 	}
+
 	return ret;
 }
 
