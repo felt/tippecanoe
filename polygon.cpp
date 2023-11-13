@@ -3,6 +3,7 @@
 #include <set>
 #include <vector>
 #include <cmath>
+#include <climits>
 #include <limits>
 #include "geometry.hpp"
 #include "errors.hpp"
@@ -625,7 +626,7 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 		} else {
 			fprintf(stderr, "0-area ring: ");
 			for (auto const &g : out) {
-				fprintf(stderr, "%lld,%lld ", g.x, g.y);
+				fprintf(stderr, "%lld,%lld ", (long long) g.x, (long long) g.y);
 			}
 			fprintf(stderr, "\n");
 		}
