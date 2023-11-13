@@ -9,11 +9,11 @@
 #include "errors.hpp"
 
 struct point {
-	double x;
-	double y;
+	long long x;
+	long long y;
 
-	point(double x_, double y_)
-	    : x(std::round(x_)), y(std::round(y_)) {
+	point(long long x_, long long y_)
+	    : x(x_), y(y_) {
 	}
 
 	point() {
@@ -50,7 +50,6 @@ bool fix_opposites(std::vector<segment> &segs) {
 		opposites.emplace(opposite, i);
 	}
 
-	size_t found = 0;
 	for (size_t i = 0; i < segs.size(); i++) {
 		if (segs[i] == erased) {
 			continue;
@@ -62,17 +61,15 @@ bool fix_opposites(std::vector<segment> &segs) {
 				continue;
 			}
 
-			found++;
-
-			double dx = std::round(segs[i].second.x) - std::round(segs[i].first.x);
-			double dy = std::round(segs[i].second.y) - std::round(segs[i].first.y);
-			double dsq = dx * dx + dy * dy;
+			long long dx = segs[i].second.x - segs[i].first.x;
+			long long dy = segs[i].second.y - segs[i].first.y;
+			long long dsq = dx * dx + dy * dy;
 			if (dsq >= 5 * 5) {
 				// alter the segments instead to keep it from collapsing away
 
 				double ang = atan2(dy, dx) - M_PI / 2;
-				double cx = std::round((std::round(segs[i].second.x) + std::round(segs[i].first.x)) / 2 + sqrt(2) / 2 * cos(ang));
-				double cy = std::round((std::round(segs[i].second.y) + std::round(segs[i].first.y)) / 2 + sqrt(2) / 2 * sin(ang));
+				long long cx = std::llround((segs[i].second.x + segs[i].first.x) / 2.0 + sqrt(2) / 2.0 * cos(ang));
+				long long cy = std::llround((segs[i].second.y + segs[i].first.y) / 2.0 + sqrt(2) / 2.0 * sin(ang));
 
 				segs.emplace_back(point(cx, cy), segs[i].second);
 				segs[i] = std::make_pair(segs[i].first, point(cx, cy));
@@ -89,10 +86,6 @@ bool fix_opposites(std::vector<segment> &segs) {
 			opposites.erase(f.first);
 			break;
 		}
-	}
-
-	if (found > 0) {
-		changed = true;
 	}
 
 	size_t out = 0;
@@ -112,38 +105,46 @@ const std::pair<double, double> SAME_SLOPE = std::make_pair(-INT_MAX, INT_MAX);
 // beware of
 // https://stackoverflow.com/questions/9043805/test-if-two-lines-intersect-javascript-function/16725715#16725715
 // which does not seem to produce correct results.
-std::pair<double, double> get_line_intersection(double p0_x, double p0_y, double p1_x, double p1_y,
-						double p2_x, double p2_y, double p3_x, double p3_y) {
-	double d01_x, d01_y, d23_x, d23_y;
+std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, long long p1_x, long long p1_y,
+						long long p2_x, long long p2_y, long long p3_x, long long p3_y) {
+	long long min01x = std::min(p0_x, p1_x);
+	long long max01x = std::max(p0_x, p1_x);
+	long long min23x = std::min(p2_x, p3_x);
+	long long max23x = std::max(p2_x, p3_x);
+	if (max01x < min23x || max23x < min01x) {
+		return std::make_pair(-1, -1);
+	}
+
+	long long min01y = std::min(p0_y, p1_y);
+	long long max01y = std::max(p0_y, p1_y);
+	long long min23y = std::min(p2_y, p3_y);
+	long long max23y = std::max(p2_y, p3_y);
+	if (max01y < min23y || max23y < min01y) {
+		return std::make_pair(-1, -1);
+	}
+
+	long long d01_x, d01_y, d23_x, d23_y;
 	d01_x = p1_x - p0_x;
 	d01_y = p1_y - p0_y;
 	d23_x = p3_x - p2_x;
 	d23_y = p3_y - p2_y;
 
-	float det = (-d23_x * d01_y + d01_x * d23_y);
+	long long det = (-d23_x * d01_y + d01_x * d23_y);
 
 	if (det != 0) {
 		double t, s;
-		t = (d23_x * (p0_y - p2_y) - d23_y * (p0_x - p2_x)) / det;
-		s = (-d01_y * (p0_x - p2_x) + d01_x * (p0_y - p2_y)) / det;
+		t = (d23_x * (p0_y - p2_y) - d23_y * (p0_x - p2_x)) / (double) det;
+		s = (-d01_y * (p0_x - p2_x) + d01_x * (p0_y - p2_y)) / (double) det;
 
 		return std::make_pair(t, s);
-
-#if 0
-		printf("%f,%f to %f,%f and %f,%f to %f,%f: %f and %f\n",
-		       p0_x, p0_y, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, t, s);
-		printf("%f,%f or %f,%f\n",
-		       p0_x + t * d01_x, p0_y + t * d01_y,
-		       p2_x + s * d23_x, p2_y + s * d23_y);
-#endif
 	}
 
 	return SAME_SLOPE;
 }
 
-bool vertical(std::vector<segment> &segs, size_t s, double y) {
-	if ((y > std::round(segs[s].first.y) && y < std::round(segs[s].second.y)) ||
-	    (y > std::round(segs[s].second.y) && y < std::round(segs[s].first.y))) {
+bool vertical(std::vector<segment> &segs, size_t s, long long y) {
+	if ((y > segs[s].first.y && y < segs[s].second.y) ||
+	    (y > segs[s].second.y && y < segs[s].first.y)) {
 		segs.push_back(std::make_pair(point(segs[s].first.x, y), segs[s].second));
 		segs[s] = std::make_pair(segs[s].first, point(segs[s].first.x, y));
 		return true;
@@ -152,12 +153,12 @@ bool vertical(std::vector<segment> &segs, size_t s, double y) {
 	return false;
 }
 
-bool horizontal(std::vector<segment> &segs, size_t s, double x) {
-	if ((x > std::round(segs[s].first.x) && x < std::round(segs[s].second.x)) ||
-	    (x > std::round(segs[s].second.x) && x < std::round(segs[s].first.x))) {
-		double slope = (std::round(segs[s].second.y) - std::round(segs[s].first.y)) /
-			       (std::round(segs[s].second.x) - std::round(segs[s].first.x));
-		double y = std::round(std::round(segs[s].first.y) + slope * (x - std::round(segs[s].first.x)));
+bool horizontal(std::vector<segment> &segs, size_t s, long long x) {
+	if ((x > segs[s].first.x && x < segs[s].second.x) ||
+	    (x > segs[s].second.x && x < segs[s].first.x)) {
+		double slope = (segs[s].second.y - segs[s].first.y) /
+			       (double) (segs[s].second.x - segs[s].first.x);
+		long long y = std::llround(segs[s].first.y + slope * (x - segs[s].first.x));
 		segs.push_back(std::make_pair(point(x, y), segs[s].second));
 		segs[s] = std::make_pair(segs[s].first, point(x, y));
 		return true;
@@ -169,30 +170,30 @@ bool horizontal(std::vector<segment> &segs, size_t s, double x) {
 bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 	bool changed = false;
 
-	if (std::round(segs[s1].first.x) == std::round(segs[s1].second.x)) {
+	if (segs[s1].first.x == segs[s1].second.x) {
 		// vertical
 
-		if (std::round(segs[s2].first.x) == std::round(segs[s2].second.x)) {
+		if (segs[s2].first.x == segs[s2].second.x) {
 			// in which case the other one should also be vertical
 
-			if (std::round(segs[s1].first.x) == std::round(segs[s2].first.x)) {
+			if (segs[s1].first.x == segs[s2].first.x) {
 				// collinear, not parallel
 
-				if (vertical(segs, s1, std::round(segs[s2].first.y))) {
+				if (vertical(segs, s1, segs[s2].first.y)) {
 					changed = true;
 				}
-				if (vertical(segs, s1, std::round(segs[s2].second.y))) {
+				if (vertical(segs, s1, segs[s2].second.y)) {
 					changed = true;
 				}
-				if (vertical(segs, s2, std::round(segs[s1].first.y))) {
+				if (vertical(segs, s2, segs[s1].first.y)) {
 					changed = true;
 				}
-				if (vertical(segs, s2, std::round(segs[s1].second.y))) {
+				if (vertical(segs, s2, segs[s1].second.y)) {
 					changed = true;
 				}
 			}
 		} else {
-			fprintf(stderr, "One segment is vertical and the other is not %f,%f to %f,%f; %f,%f to %f,%f.\n",
+			fprintf(stderr, "One segment is vertical and the other is not %lld,%lld to %lld,%lld; %lld,%lld to %lld,%lld.\n",
 				segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y,
 				segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y);
 			exit(EXIT_IMPOSSIBLE);
@@ -200,35 +201,35 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 	} else {
 		// horizontal or diagonal
 
-		double slope1 = (std::round(segs[s1].second.y) - std::round(segs[s1].first.y)) /
-				(std::round(segs[s1].second.x) - std::round(segs[s1].first.x));
-		double slope2 = (std::round(segs[s2].second.y) - std::round(segs[s2].first.y)) /
-				(std::round(segs[s2].second.x) - std::round(segs[s2].first.x));
+		double slope1 = (segs[s1].second.y - segs[s1].first.y) /
+				(double) (segs[s1].second.x - segs[s1].first.x);
+		double slope2 = (segs[s2].second.y - segs[s2].first.y) /
+				(double) (segs[s2].second.x - segs[s2].first.x);
 
 		if (slope1 == slope2) {
 			// they are parallel. do they have the same y intercept?
 
-			double y1 = std::round(std::round(segs[s1].first.y) + slope1 * (0 - std::round(segs[s1].first.x)));
-			double y2 = std::round(std::round(segs[s2].first.y) + slope1 * (0 - std::round(segs[s2].first.x)));
+			long long y1 = std::llround(segs[s1].first.y + slope1 * (0 - segs[s1].first.x));
+			long long y2 = std::llround(segs[s2].first.y + slope1 * (0 - segs[s2].first.x));
 
 			if (y1 == y2) {
 				// collinear, not parallel
 
-				if (horizontal(segs, s1, std::round(segs[s2].first.x))) {
+				if (horizontal(segs, s1, segs[s2].first.x)) {
 					changed = true;
 				}
-				if (horizontal(segs, s1, std::round(segs[s2].second.x))) {
+				if (horizontal(segs, s1, segs[s2].second.x)) {
 					changed = true;
 				}
-				if (horizontal(segs, s2, std::round(segs[s1].first.x))) {
+				if (horizontal(segs, s2, segs[s1].first.x)) {
 					changed = true;
 				}
-				if (horizontal(segs, s2, std::round(segs[s1].second.x))) {
+				if (horizontal(segs, s2, segs[s1].second.x)) {
 					changed = true;
 				}
 			}
 		} else {
-			fprintf(stderr, "One segment has a slope of %f and the other %f: %f,%f to %f,%f; %f,%f to %f,%f.\n",
+			fprintf(stderr, "One segment has a slope of %f and the other %f: %lld,%lld to %lld,%lld; %lld,%lld to %lld,%lld.\n",
 				slope1, slope2,
 				segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y,
 				segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y);
@@ -240,56 +241,34 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 }
 
 bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
-	auto intersections = get_line_intersection(std::round(segs[s1].first.x), std::round(segs[s1].first.y),
-						   std::round(segs[s1].second.x), std::round(segs[s1].second.y),
-						   std::round(segs[s2].first.x), std::round(segs[s2].first.y),
-						   std::round(segs[s2].second.x), std::round(segs[s2].second.y));
+	auto intersections = get_line_intersection(segs[s1].first.x, segs[s1].first.y,
+						   segs[s1].second.x, segs[s1].second.y,
+						   segs[s2].first.x, segs[s2].first.y,
+						   segs[s2].second.x, segs[s2].second.y);
 
 	bool changed = false;
 	if (intersections.first >= 0 && intersections.first <= 1 && intersections.second >= 0 && intersections.second <= 1) {
-		double x = (segs[s1].first.x + intersections.first * (segs[s1].second.x - segs[s1].first.x));
-		double y = (segs[s1].first.y + intersections.first * (segs[s1].second.y - segs[s1].first.y));
+		long long x = std::llround(segs[s1].first.x + intersections.first * (segs[s1].second.x - segs[s1].first.x));
+		long long y = std::llround(segs[s1].first.y + intersections.first * (segs[s1].second.y - segs[s1].first.y));
 
-#if 0
-		// try intersecting the original segments without rounding,
-		// since that intersection should be more true to the original
-		// intent of the data.
-
-		auto intersections2 = get_line_intersection((segs[s1].first.x), (segs[s1].first.y),
-							    (segs[s1].second.x), (segs[s1].second.y),
-							    (segs[s2].first.x), (segs[s2].first.y),
-							    (segs[s2].second.x), (segs[s2].second.y));
-
-		if (intersections2.first >= 0 && intersections2.first <= 1 && intersections2.second >= 0 && intersections2.second <= 1) {
-			double x2 = (segs[s1].first.x + intersections2.first * (segs[s1].second.x - segs[s1].first.x));
-			double y2 = (segs[s1].first.y + intersections2.first * (segs[s1].second.y - segs[s1].first.y));
-
-			if (x != x2 || y != y2) {
-				// printf("would intersect at %f,%f; from rounded chose %f,%f\n", x2, y2, x, y);
-				x = x2;
-				y = y2;
-			}
-		}
-#endif
-
-		if ((std::llround(x) == std::llround(segs[s1].first.x) && std::llround(y) == std::llround(segs[s1].first.y)) ||
-		    (std::llround(x) == std::llround(segs[s1].second.x) && std::llround(y) == std::llround(segs[s1].second.y))) {
+		if ((x == segs[s1].first.x && y == segs[s1].first.y) ||
+		    (x == segs[s1].second.x && y == segs[s1].second.y)) {
 			// at an endpoint in s1, so it doesn't need to be changed
 		} else {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
-			segs.push_back(std::make_pair(point(std::round(x), std::round(y)), segs[s1].second));
-			segs[s1] = std::make_pair(segs[s1].first, point(std::round(x), std::round(y)));
+			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
+			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
 			changed = true;
 		}
 
-		if ((std::llround(x) == std::llround(segs[s2].first.x) && std::llround(y) == std::llround(segs[s2].first.y)) ||
-		    (std::llround(x) == std::llround(segs[s2].second.x) && std::llround(y) == std::llround(segs[s2].second.y))) {
+		if ((x == segs[s2].first.x && y == segs[s2].first.y) ||
+		    (x == segs[s2].second.x && y == segs[s2].second.y)) {
 			// at an endpoint in s2, so it doesn't need to be changed
 		} else {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s2 %zu %zu)\n", x, y, segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y, s1, s2);
 			// printf("introduce %lld,%lld in %lld,%lld to %lld,%lld (s2)\n", std::llround(x), std::llround(y), std::llround(segs[s2].first.x), std::llround(segs[s2].first.y), std::llround(segs[s2].second.x), std::llround(segs[s2].second.y));
-			segs.push_back(std::make_pair(point(std::round(x), std::round(y)), segs[s2].second));
-			segs[s2] = std::make_pair(segs[s2].first, point(std::round(x), std::round(y)));
+			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
+			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
 			changed = true;
 		}
 	} else if (intersections == SAME_SLOPE) {
@@ -304,10 +283,10 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 }
 
 struct scan_transition {
-	double y;
+	long long y;
 	size_t segment;
 
-	scan_transition(double y_, size_t segment_)
+	scan_transition(long long y_, size_t segment_)
 	    : y(y_), segment(segment_) {
 	}
 
@@ -347,12 +326,12 @@ void snap_round(std::vector<segment> &segs) {
 		std::vector<scan_transition> bottoms;
 
 		for (size_t i = 0; i < segs.size(); i++) {
-			if (std::round(segs[i].first.y) < std::round(segs[i].second.y)) {
-				tops.emplace_back(std::round(segs[i].first.y), i);
-				bottoms.emplace_back(std::round(segs[i].second.y), i);
+			if (segs[i].first.y < segs[i].second.y) {
+				tops.emplace_back(segs[i].first.y, i);
+				bottoms.emplace_back(segs[i].second.y, i);
 			} else {
-				tops.emplace_back(std::round(segs[i].second.y), i);
-				bottoms.emplace_back(std::round(segs[i].first.y), i);
+				tops.emplace_back(segs[i].second.y, i);
+				bottoms.emplace_back(segs[i].first.y, i);
 			}
 		}
 
@@ -403,13 +382,6 @@ void snap_round(std::vector<segment> &segs) {
 				}
 			}
 		}
-	}
-
-	for (auto &s : segs) {
-		s.first.x = std::round(s.first.x);
-		s.first.y = std::round(s.first.y);
-		s.second.x = std::round(s.second.x);
-		s.second.y = std::round(s.second.y);
 	}
 }
 
@@ -613,9 +585,9 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 		// an interior point in each ring
 		drawvec out;
 		for (size_t i = 0; i < ring.size(); i++) {
-			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x) * SCALE, std::round(ring[i].y) * SCALE);
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x * SCALE, ring[i].y * SCALE);
 		}
-		out.emplace_back(VT_LINETO, std::round(ring[0].x) * SCALE, std::round(ring[0].y) * SCALE);
+		out.emplace_back(VT_LINETO, ring[0].x * SCALE, ring[0].y * SCALE);
 		if (out[0] != out[out.size() - 1]) {
 			fprintf(stderr, "Ring not closed???\n");
 			exit(EXIT_IMPOSSIBLE);
@@ -772,8 +744,8 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 					point(std::round(geom[k].x / scale), std::round(geom[k].y / scale)),
 					point(std::round(geom[k + 1].x / scale), std::round(geom[k + 1].y / scale)));
 
-				if (std::round(seg.first.x) != std::round(seg.second.x) ||
-				    std::round(seg.first.y) != std::round(seg.second.y)) {
+				if (seg.first.x != seg.second.x ||
+				    seg.first.y != seg.second.y) {
 					segments.push_back(seg);
 				}
 			}
