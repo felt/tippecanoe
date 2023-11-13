@@ -372,36 +372,31 @@ void snap_round(std::vector<segment> &segs) {
 		// do the scan
 
 		std::set<size_t> active;
-		std::set<std::pair<size_t, size_t>> already;
 		size_t bottom = 0;
 
 		for (size_t i = 0; i < tops.size(); i++) {
-			// activate anything that is coming into view
+			// activate anything that is coming into view.
 
 			active.insert(tops[i].segment);
-			if (i + 1 < tops.size() && tops[i + 1].y == tops[i].y) {
-				continue;
-			}
+			// fprintf(stderr, "into scope: %zu at %lld\n", tops[i].segment, tops[i].y);
 
-			// look at the active segments
+			// compare anything coming into view with the other
+			// currently-active segments
 
-			for (size_t s1 : active) {
-				for (size_t s2 : active) {
-					if (s1 < s2) {
-						if (previously_affected.size() == 0 ||	// first time
-						    previously_affected.count(segs[s1]) > 0 ||
-						    previously_affected.count(segs[s2]) > 0) {
-							if (already.find(std::make_pair(s1, s2)) == already.end()) {
-								if (intersect(segs, s1, s2, affected)) {
-									// if the segments intersected,
-									// we need to do another scan,
-									// because introducing a new node
-									// may have caused new intersections
-									again = true;
-								}
+			for (size_t s2 : active) {
+				size_t s1 = tops[i].segment;
 
-								already.insert(std::make_pair(s1, s2));
-							}
+				if (s1 != s2) {
+					if (previously_affected.size() == 0 ||	// first time
+					    previously_affected.count(segs[s1]) > 0 ||
+					    previously_affected.count(segs[s2]) > 0) {
+						// fprintf(stderr, "check %zu vs %zu\n", s1, s2);
+						if (intersect(segs, s1, s2, affected)) {
+							// if the segments intersected,
+							// we need to do another scan,
+							// because introducing a new node
+							// may have caused new intersections
+							again = true;
 						}
 					}
 				}
@@ -413,6 +408,7 @@ void snap_round(std::vector<segment> &segs) {
 				while (bottom < bottoms.size() && bottoms[bottom].y < tops[i + 1].y) {
 					auto found = active.find(bottoms[bottom].segment);
 					active.erase(found);
+					// fprintf(stderr, "out of scope: %zu at %lld\n", bottoms[bottom].segment, bottoms[bottom].y);
 					bottom++;
 				}
 			}
