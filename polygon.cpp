@@ -829,6 +829,11 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 	drawvec ret;
 	for (size_t i = 0; i < rings.size(); i++) {
+		if (rings[i].area < 0 && rings[i].geom.size() != 0) {
+			// drop top-level holes
+			continue;
+		}
+
 		for (auto const &g : rings[i].geom) {
 			ret.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
 		}
