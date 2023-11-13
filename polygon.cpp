@@ -276,8 +276,8 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 			// at an endpoint in s1, so it doesn't need to be changed
 		} else {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
-			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
-			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
+			segs.push_back(std::make_pair(point(std::round(x), std::round(y)), segs[s1].second));
+			segs[s1] = std::make_pair(segs[s1].first, point(std::round(x), std::round(y)));
 			changed = true;
 		}
 
@@ -287,8 +287,8 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 		} else {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s2 %zu %zu)\n", x, y, segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y, s1, s2);
 			// printf("introduce %lld,%lld in %lld,%lld to %lld,%lld (s2)\n", std::llround(x), std::llround(y), std::llround(segs[s2].first.x), std::llround(segs[s2].first.y), std::llround(segs[s2].second.x), std::llround(segs[s2].second.y));
-			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
-			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
+			segs.push_back(std::make_pair(point(std::round(x), std::round(y)), segs[s2].second));
+			segs[s2] = std::make_pair(segs[s2].first, point(std::round(x), std::round(y)));
 			changed = true;
 		}
 	} else if (intersections == SAME_SLOPE) {
@@ -416,10 +416,27 @@ struct ring_area {
 	drawvec geom;
 	double area;
 	std::vector<size_t> children;
+	long long ear_x;
+	long long ear_y;
 
 	ring_area(drawvec geom_, double area_) {
 		geom = geom_;
 		area = area_;
+
+		// search polygon ears to find an interior point
+		for (size_t i = 0; i + 2 < geom.size(); i++) {
+			long long x = (geom[i].x + geom[i + 1].x + geom[i + 2].x) / 3;
+			long long y = (geom[i].y + geom[i + 1].y + geom[i + 2].y) / 3;
+
+			if (pnpoly(geom, 0, geom.size(), x, y)) {
+				ear_x = x;
+				ear_y = y;
+				return;
+			}
+		}
+
+		fprintf(stderr, "Couldn't find an interior point\n");
+		exit(EXIT_IMPOSSIBLE);
 	}
 
 	bool operator<(ring_area const &s) const {
@@ -431,6 +448,8 @@ struct ring_area {
 		}
 	}
 };
+
+const int SCALE = 3;
 
 std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 	std::multimap<point, segment> connections;
@@ -590,12 +609,12 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 		}
 
 		// these coordinates are doubled, so that `encloses` can always find
-		// an integer point at the center of an edge
+		// an interior point in each ring
 		drawvec out;
 		for (size_t i = 0; i < ring.size(); i++) {
-			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x) * 2, std::round(ring[i].y) * 2);
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x) * SCALE, std::round(ring[i].y) * SCALE);
 		}
-		out.emplace_back(VT_LINETO, std::round(ring[0].x) * 2, std::round(ring[0].y) * 2);
+		out.emplace_back(VT_LINETO, std::round(ring[0].x) * SCALE, std::round(ring[0].y) * SCALE);
 		if (out[0] != out[out.size() - 1]) {
 			fprintf(stderr, "Ring not closed???\n");
 			exit(EXIT_IMPOSSIBLE);
@@ -621,15 +640,41 @@ bool encloses(ring_area const &parent, ring_area const &child) {
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	// the edges of the child polygon are supposedly entirely contained within the parent
-	// (although the vertices may not be), so check the middle of an edge.
-	long long x = (child.geom[0].x + child.geom[1].x) / 2;
-	long long y = (child.geom[0].y + child.geom[1].y) / 2;
+	bool a = pnpoly(parent.geom, 0, parent.geom.size(), child.ear_x, child.ear_y);
 
-	return pnpoly(parent.geom, 0, parent.geom.size(), x, y);
+#if 0
+    if (a != b) {
+        fprintf(stderr, "inconsistent pnpoly at %lld,%lld (%d) vs %lld,%lld (%d)\n", x, y, a, x2, y2, b);
+
+        printf("0 setlinewidth ");
+        for (auto const &g : parent.geom) {
+            printf("%lld %lld %s ", g.x, g.y, g.op == VT_MOVETO ? "moveto" : "lineto");
+        }
+        printf("stroke\n");
+        for (auto const &g : parent.geom) {
+            printf("%lld %lld .05 0 360 arc fill ", g.x, g.y);
+        }
+
+        for (auto const &g : child.geom) {
+            printf("%f %f %s ", g.x + 0.25, g.y + 0.25, g.op == VT_MOVETO ? "moveto" : "lineto");
+        }
+        printf("stroke\n");
+
+        printf("%lld %lld .5 0 360 arc fill\n", x, y);
+        printf("%lld %lld .5 0 360 arc fill\n", x2, y2);
+
+        exit(EXIT_FAILURE);
+    }
+#endif
+
+	return a;
 }
 
 void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_t winding, ssize_t parent) {
+	if (rings[i].geom.size() == 0) {
+		return;
+	}
+
 	// only the transition from winding order 0 to 1 or from 1 to 0
 	// is actually represented in the geometry.
 	//
@@ -638,7 +683,7 @@ void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_
 	if ((winding == 0 && rings[i].area > 0) ||
 	    (winding == 1 && rings[i].area < 0)) {
 		for (auto const &g : rings[i].geom) {
-			out.emplace_back(g.op, g.x / 2, g.y / 2);
+			out.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
 		}
 		if (rings[i].geom.size() > 0 && rings[i].geom[0] != rings[i].geom[rings[i].geom.size() - 1]) {
 			fprintf(stderr, "Ring not closed\n");
@@ -654,6 +699,12 @@ void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_
 	} else if (rings[i].area < 0) {
 		winding--;
 	}
+
+	fprintf(stderr, "ring %zu contains rings:", i);
+	for (size_t j = 0; j < rings[i].children.size(); j++) {
+		fprintf(stderr, " %zu", rings[i].children[j]);
+	}
+	fprintf(stderr, "\n");
 
 	for (size_t j = 0; j < rings[i].children.size(); j++) {
 		flatten_rings(rings, rings[i].children[j], out, winding, i);
@@ -706,8 +757,28 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 	for (size_t i = 0; i < rings.size(); i++) {	// from largest to smallest abs area
 		for (ssize_t j = i - 1; j >= 0; j--) {	// from smallest to largest abs area of already examined
 			if (encloses(rings[j], rings[i])) {
-				printf("ring %zd (%f) encloses ring %zu (%f)\n", j, rings[j].area, i, rings[i].area);
-				rings[j].children.push_back(i);
+				if (rings[i].area < 0 && rings[j].area > 0) {
+					// inner ring inside an outer ring;
+					// attribute it to the outer ring
+					rings[j].children.push_back(i);
+#if 0
+					fprintf(stderr, "inner within outer: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
+						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
+#endif
+				} else if (rings[i].area < 0 && rings[j].area < 0) {
+					fprintf(stderr, "inner within inner: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
+						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
+					rings[i].geom.clear();
+				} else if (rings[i].area > 0 && rings[j].area > 0) {
+					fprintf(stderr, "outer within outer: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
+						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
+					rings[i].geom.clear();
+				} else {
+					// outer ring within an inner ring;
+					// this is OK, but it is treated as a new outer ring in the tile,
+					// not output in a hierarchy
+				}
+
 				break;
 			}
 		}
@@ -715,8 +786,26 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 	drawvec ret;
 	for (size_t i = 0; i < rings.size(); i++) {
-		flatten_rings(rings, i, ret, 0, -1);
+		for (auto const &g : rings[i].geom) {
+			ret.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
+		}
+		for (auto child : rings[i].children) {
+			for (auto const &g : rings[child].geom) {
+				ret.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
+			}
+			rings[child].geom.clear();
+		}
 	}
+
+#if 0
+	for (size_t i = 0; i < rings.size(); i++) {
+		if (get_area(rings[i].geom, 0, rings[i].geom.size()) > 0) {
+			for (auto const &g : rings[i].geom) {
+				ret.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
+			}
+		}
+	}
+#endif
 
 	// remove collinear points?
 
