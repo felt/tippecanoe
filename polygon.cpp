@@ -40,7 +40,7 @@ struct point {
 
 typedef std::pair<point, point> segment;
 
-bool fix_opposites(std::vector<segment> &segs) {
+bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected) {
 	bool changed = false;
 	std::multimap<segment, size_t> opposites;
 	segment erased = std::make_pair(point(INT_MAX, INT_MAX), point(INT_MAX, INT_MAX));
@@ -73,6 +73,9 @@ bool fix_opposites(std::vector<segment> &segs) {
 
 				segs.emplace_back(point(cx, cy), segs[i].second);
 				segs[i] = std::make_pair(segs[i].first, point(cx, cy));
+
+				affected.insert(segs[i]);
+				affected.insert(segs.back());
 				changed = true;
 
 				// segs[i] is not erased, so segs[f.first->second]
@@ -107,6 +110,7 @@ const std::pair<double, double> SAME_SLOPE = std::make_pair(-INT_MAX, INT_MAX);
 // which does not seem to produce correct results.
 std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, long long p1_x, long long p1_y,
 						long long p2_x, long long p2_y, long long p3_x, long long p3_y) {
+	// bounding box reject, x
 	long long min01x = std::min(p0_x, p1_x);
 	long long max01x = std::max(p0_x, p1_x);
 	long long min23x = std::min(p2_x, p3_x);
@@ -115,6 +119,7 @@ std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, 
 		return std::make_pair(-1, -1);
 	}
 
+	// bounding box reject, y
 	long long min01y = std::min(p0_y, p1_y);
 	long long max01y = std::max(p0_y, p1_y);
 	long long min23y = std::min(p2_y, p3_y);
@@ -142,18 +147,21 @@ std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, 
 	return SAME_SLOPE;
 }
 
-bool vertical(std::vector<segment> &segs, size_t s, long long y) {
+bool vertical(std::vector<segment> &segs, size_t s, long long y, std::set<segment> &affected) {
 	if ((y > segs[s].first.y && y < segs[s].second.y) ||
 	    (y > segs[s].second.y && y < segs[s].first.y)) {
 		segs.push_back(std::make_pair(point(segs[s].first.x, y), segs[s].second));
 		segs[s] = std::make_pair(segs[s].first, point(segs[s].first.x, y));
+
+		affected.insert(segs[s]);
+		affected.insert(segs.back());
 		return true;
 	}
 
 	return false;
 }
 
-bool horizontal(std::vector<segment> &segs, size_t s, long long x) {
+bool horizontal(std::vector<segment> &segs, size_t s, long long x, std::set<segment> &affected) {
 	if ((x > segs[s].first.x && x < segs[s].second.x) ||
 	    (x > segs[s].second.x && x < segs[s].first.x)) {
 		double slope = (segs[s].second.y - segs[s].first.y) /
@@ -161,13 +169,16 @@ bool horizontal(std::vector<segment> &segs, size_t s, long long x) {
 		long long y = std::llround(segs[s].first.y + slope * (x - segs[s].first.x));
 		segs.push_back(std::make_pair(point(x, y), segs[s].second));
 		segs[s] = std::make_pair(segs[s].first, point(x, y));
+
+		affected.insert(segs[s]);
+		affected.insert(segs.back());
 		return true;
 	}
 
 	return false;
 }
 
-bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
+bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segment> &affected) {
 	bool changed = false;
 
 	if (segs[s1].first.x == segs[s1].second.x) {
@@ -179,16 +190,16 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 			if (segs[s1].first.x == segs[s2].first.x) {
 				// collinear, not parallel
 
-				if (vertical(segs, s1, segs[s2].first.y)) {
+				if (vertical(segs, s1, segs[s2].first.y, affected)) {
 					changed = true;
 				}
-				if (vertical(segs, s1, segs[s2].second.y)) {
+				if (vertical(segs, s1, segs[s2].second.y, affected)) {
 					changed = true;
 				}
-				if (vertical(segs, s2, segs[s1].first.y)) {
+				if (vertical(segs, s2, segs[s1].first.y, affected)) {
 					changed = true;
 				}
-				if (vertical(segs, s2, segs[s1].second.y)) {
+				if (vertical(segs, s2, segs[s1].second.y, affected)) {
 					changed = true;
 				}
 			}
@@ -215,16 +226,16 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 			if (y1 == y2) {
 				// collinear, not parallel
 
-				if (horizontal(segs, s1, segs[s2].first.x)) {
+				if (horizontal(segs, s1, segs[s2].first.x, affected)) {
 					changed = true;
 				}
-				if (horizontal(segs, s1, segs[s2].second.x)) {
+				if (horizontal(segs, s1, segs[s2].second.x, affected)) {
 					changed = true;
 				}
-				if (horizontal(segs, s2, segs[s1].first.x)) {
+				if (horizontal(segs, s2, segs[s1].first.x, affected)) {
 					changed = true;
 				}
-				if (horizontal(segs, s2, segs[s1].second.x)) {
+				if (horizontal(segs, s2, segs[s1].second.x, affected)) {
 					changed = true;
 				}
 			}
@@ -240,7 +251,7 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 	return changed;
 }
 
-bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
+bool intersect(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segment> &affected) {
 	auto intersections = get_line_intersection(segs[s1].first.x, segs[s1].first.y,
 						   segs[s1].second.x, segs[s1].second.y,
 						   segs[s2].first.x, segs[s2].first.y,
@@ -258,7 +269,10 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
 			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
 			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
+
 			changed = true;
+			affected.insert(segs[s1]);
+			affected.insert(segs.back());
 		}
 
 		if ((x == segs[s2].first.x && y == segs[s2].first.y) ||
@@ -269,10 +283,13 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 			// printf("introduce %lld,%lld in %lld,%lld to %lld,%lld (s2)\n", std::llround(x), std::llround(y), std::llround(segs[s2].first.x), std::llround(segs[s2].first.y), std::llround(segs[s2].second.x), std::llround(segs[s2].second.y));
 			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
 			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
+
 			changed = true;
+			affected.insert(segs[s2]);
+			affected.insert(segs.back());
 		}
 	} else if (intersections == SAME_SLOPE) {
-		if (intersect_collinear(segs, s1, s2)) {
+		if (intersect_collinear(segs, s1, s2, affected)) {
 			changed = true;
 		}
 	} else {
@@ -302,8 +319,22 @@ struct scan_transition {
 void snap_round(std::vector<segment> &segs) {
 	bool again = true;
 
+	// affected is indexed by segment instead of just segment index
+	// because fix_opposites() causes renumbering
+	std::set<segment> affected;
+
 	while (again) {
 		again = false;
+		std::set<segment> previously_affected = affected;
+		affected.clear();
+
+#if 0
+        if (previously_affected.size() == 0) {
+            fprintf(stderr, "inspect %zu\n", segs.size());
+        } else {
+            fprintf(stderr, "reinspect %zu\n", previously_affected.size());
+        }
+#endif
 
 		// find identical opposite-winding segments and adjust for them
 		//
@@ -311,7 +342,7 @@ void snap_round(std::vector<segment> &segs) {
 		// in the course of trying to keep spindles alive, and will then need to
 		// resolve those.
 
-		if (fix_opposites(segs)) {
+		if (fix_opposites(segs, affected)) {
 			again = true;
 		}
 
@@ -357,16 +388,20 @@ void snap_round(std::vector<segment> &segs) {
 			for (size_t s1 : active) {
 				for (size_t s2 : active) {
 					if (s1 < s2) {
-						if (already.find(std::make_pair(s1, s2)) == already.end()) {
-							if (intersect(segs, s1, s2)) {
-								// if the segments intersected,
-								// we need to do another scan,
-								// because introducing a new node
-								// may have caused new intersections
-								again = true;
-							}
+						if (previously_affected.size() == 0 ||	// first time
+						    previously_affected.count(segs[s1]) > 0 ||
+						    previously_affected.count(segs[s2]) > 0) {
+							if (already.find(std::make_pair(s1, s2)) == already.end()) {
+								if (intersect(segs, s1, s2, affected)) {
+									// if the segments intersected,
+									// we need to do another scan,
+									// because introducing a new node
+									// may have caused new intersections
+									again = true;
+								}
 
-							already.insert(std::make_pair(s1, s2));
+								already.insert(std::make_pair(s1, s2));
+							}
 						}
 					}
 				}
