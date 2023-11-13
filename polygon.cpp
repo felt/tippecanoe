@@ -12,7 +12,7 @@ struct point {
 	double y;
 
 	point(double x_, double y_)
-	    : x(x_), y(y_) {
+	    : x(std::round(x_)), y(std::round(y_)) {
 	}
 
 	point() {
@@ -30,6 +30,10 @@ struct point {
 
 	bool operator==(point const &s) const {
 		return y == s.y && x == s.x;
+	}
+
+	bool operator!=(point const &s) const {
+		return !(*this == s);
 	}
 };
 
@@ -62,7 +66,7 @@ bool fix_opposites(std::vector<segment> &segs) {
 			double dx = std::round(segs[i].second.x) - std::round(segs[i].first.x);
 			double dy = std::round(segs[i].second.y) - std::round(segs[i].first.y);
 			double dsq = dx * dx + dy * dy;
-			if (dsq >= 5 * 5) {
+			if (false && dsq >= 5 * 5) {
 				// alter the segments instead to keep it from collapsing away
 
 				double ang = atan2(dy, dx) - M_PI / 2;
@@ -413,9 +417,9 @@ struct ring_area {
 	double area;
 	std::vector<size_t> children;
 
-	ring_area(drawvec geom_) {
+	ring_area(drawvec geom_, double area_) {
 		geom = geom_;
-		area = get_area(geom, 0, geom.size());
+		area = area_;
 	}
 
 	bool operator<(ring_area const &s) const {
@@ -533,7 +537,7 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 			exit(EXIT_IMPOSSIBLE);
 		}
 
-		while (examined.find(here.second) == examined.end()) {
+		while (here.second != ring[0]) {
 			auto options = connections.equal_range(here.second);
 			if (options.first == options.second) {
 				fprintf(stderr, "can't happen: no connections in ring construction\n");
@@ -592,7 +596,20 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x) * 2, std::round(ring[i].y) * 2);
 		}
 		out.emplace_back(VT_LINETO, std::round(ring[0].x) * 2, std::round(ring[0].y) * 2);
-		ret.push_back(ring_area(out));
+		if (out[0] != out[out.size() - 1]) {
+			fprintf(stderr, "Ring not closed???\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+		double area = get_area(out, 0, out.size());
+		if (area != 0) {
+			ret.push_back(ring_area(out, area));
+		} else {
+			fprintf(stderr, "0-area ring: ");
+			for (auto const &g : out) {
+				fprintf(stderr, "%lld,%lld ", g.x, g.y);
+			}
+			fprintf(stderr, "\n");
+		}
 	}
 
 	return ret;
@@ -612,7 +629,7 @@ bool encloses(ring_area const &parent, ring_area const &child) {
 	return pnpoly(parent.geom, 0, parent.geom.size(), x, y);
 }
 
-void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_t winding) {
+void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_t winding, ssize_t parent) {
 	// only the transition from winding order 0 to 1 or from 1 to 0
 	// is actually represented in the geometry.
 	//
@@ -623,6 +640,12 @@ void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_
 		for (auto const &g : rings[i].geom) {
 			out.emplace_back(g.op, g.x / 2, g.y / 2);
 		}
+		if (rings[i].geom.size() > 0 && rings[i].geom[0] != rings[i].geom[rings[i].geom.size() - 1]) {
+			fprintf(stderr, "Ring not closed\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+	} else {
+		fprintf(stderr, "skipping ring %zu %f within winding %zd (%zd)\n", i, rings[i].area, winding, parent);
 	}
 	rings[i].geom.clear();
 
@@ -633,7 +656,7 @@ void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_
 	}
 
 	for (size_t j = 0; j < rings[i].children.size(); j++) {
-		flatten_rings(rings, rings[i].children[j], out, winding);
+		flatten_rings(rings, rings[i].children[j], out, winding, i);
 	}
 }
 
@@ -692,7 +715,7 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 	drawvec ret;
 	for (size_t i = 0; i < rings.size(); i++) {
-		flatten_rings(rings, i, ret, 0);
+		flatten_rings(rings, i, ret, 0, -1);
 	}
 
 	// remove collinear points?
