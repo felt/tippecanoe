@@ -3,6 +3,7 @@
 #include <set>
 #include <vector>
 #include <cmath>
+#include <limits>
 #include "geometry.hpp"
 #include "errors.hpp"
 
@@ -407,9 +408,29 @@ void snap_round(std::vector<segment> &segs) {
 	}
 }
 
-drawvec reassemble(std::vector<segment> const &segs) {
+struct ring_area {
+	drawvec geom;
+	double area;
+	std::vector<size_t> children;
+
+	ring_area(drawvec geom_) {
+		geom = geom_;
+		area = get_area(geom, 0, geom.size());
+	}
+
+	bool operator<(ring_area const &s) const {
+		// this sorts backwards, so the ring with the largest area comes first
+		if (std::fabs(area) > std::fabs(s.area)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
+
+std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 	std::multimap<point, segment> connections;
-	drawvec ret;
+	std::vector<ring_area> ret;
 
 	for (auto const &seg : segs) {
 		connections.emplace(seg.first, seg);
@@ -564,21 +585,56 @@ drawvec reassemble(std::vector<segment> const &segs) {
 			ring.push_back(here.first);
 		}
 
+		// these coordinates are doubled, so that `encloses` can always find
+		// an integer point at the center of an edge
 		drawvec out;
-
 		for (size_t i = 0; i < ring.size(); i++) {
-			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x), std::round(ring[i].y));
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, std::round(ring[i].x) * 2, std::round(ring[i].y) * 2);
 		}
-		out.emplace_back(VT_LINETO, std::round(ring[0].x), std::round(ring[0].y));
-
-		if (get_area(out, 0, out.size()) > 0) {
-			for (auto const &d : out) {
-				ret.push_back(d);
-			}
-		}
+		out.emplace_back(VT_LINETO, std::round(ring[0].x) * 2, std::round(ring[0].y) * 2);
+		ret.push_back(ring_area(out));
 	}
 
 	return ret;
+}
+
+bool encloses(ring_area const &parent, ring_area const &child) {
+	if (std::fabs(child.area) > std::fabs(parent.area)) {
+		fprintf(stderr, "child area %f is greater than parent area %f\n", child.area, parent.area);
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	// the edges of the child polygon are supposedly entirely contained within the parent
+	// (although the vertices may not be), so check the middle of an edge.
+	long long x = (child.geom[0].x + child.geom[1].x) / 2;
+	long long y = (child.geom[0].y + child.geom[1].y) / 2;
+
+	return pnpoly(parent.geom, 0, parent.geom.size(), x, y);
+}
+
+void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_t winding) {
+	// only the transition from winding order 0 to 1 or from 1 to 0
+	// is actually represented in the geometry.
+	//
+	// other transitions are outer rings nested inside other outer rings,
+	// or inner rings nested inside other inner rings.
+	if ((winding == 0 && rings[i].area > 0) ||
+	    (winding == 1 && rings[i].area < 0)) {
+		for (auto const &g : rings[i].geom) {
+			out.emplace_back(g.op, g.x / 2, g.y / 2);
+		}
+	}
+	rings[i].geom.clear();
+
+	if (rings[i].area > 0) {
+		winding++;
+	} else if (rings[i].area < 0) {
+		winding--;
+	}
+
+	for (size_t j = 0; j < rings[i].children.size(); j++) {
+		flatten_rings(rings, rings[i].children[j], out, winding);
+	}
 }
 
 drawvec clean_polygon(drawvec const &geom, int z, int detail) {
@@ -619,11 +675,27 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 	// reassemble segments into rings
 
-	drawvec ret = reassemble(segments);
-
-	// remove collinear points?
+	std::vector<ring_area> rings = reassemble(segments);
+	std::sort(rings.begin(), rings.end());
 
 	// determine ring nesting
+
+	for (size_t i = 0; i < rings.size(); i++) {	// from largest to smallest abs area
+		for (ssize_t j = i - 1; j >= 0; j--) {	// from smallest to largest abs area of already examined
+			if (encloses(rings[j], rings[i])) {
+				printf("ring %zd (%f) encloses ring %zu (%f)\n", j, rings[j].area, i, rings[i].area);
+				rings[j].children.push_back(i);
+				break;
+			}
+		}
+	}
+
+	drawvec ret;
+	for (size_t i = 0; i < rings.size(); i++) {
+		flatten_rings(rings, i, ret, 0);
+	}
+
+	// remove collinear points?
 
 #if 0
 	drawvec ret;
