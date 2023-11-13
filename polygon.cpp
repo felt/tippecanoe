@@ -712,6 +712,44 @@ void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_
 	}
 }
 
+bool same_slope(draw d1, draw d2, draw d3) {
+	long long dx12 = d2.x - d1.x;
+	long long dy12 = d2.y - d1.y;
+
+	long long dx23 = d3.x - d2.x;
+	long long dy23 = d3.y - d2.y;
+
+	if (dx12 == 0) {
+		if (dx12 == dx23) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	if (dy12 / (double) dx12 == dy23 / (double) dx23) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+drawvec remove_collinear(drawvec const &geom) {
+	drawvec out;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (i > 0 && i + 1 < geom.size() &&
+		    geom[i].op == VT_LINETO && geom[i + 1].op == VT_LINETO &&
+		    same_slope(out.back(), geom[i], geom[i + 1])) {
+			continue;
+		}
+
+		out.push_back(geom[i]);
+	}
+
+	return out;
+}
+
 drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 	double scale = 1LL << (32 - detail - z);
 
@@ -812,7 +850,9 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 	}
 #endif
 
-	// remove collinear points?
+	// remove collinear points
+
+	ret = remove_collinear(ret);
 
 #if 0
 	drawvec ret;
