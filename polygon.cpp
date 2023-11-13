@@ -66,7 +66,7 @@ bool fix_opposites(std::vector<segment> &segs) {
 			double dx = std::round(segs[i].second.x) - std::round(segs[i].first.x);
 			double dy = std::round(segs[i].second.y) - std::round(segs[i].first.y);
 			double dsq = dx * dx + dy * dy;
-			if (false && dsq >= 5 * 5) {
+			if (dsq >= 5 * 5) {
 				// alter the segments instead to keep it from collapsing away
 
 				double ang = atan2(dy, dx) - M_PI / 2;
@@ -428,7 +428,7 @@ struct ring_area {
 			long long x = (geom[i].x + geom[i + 1].x + geom[i + 2].x) / 3;
 			long long y = (geom[i].y + geom[i + 1].y + geom[i + 2].y) / 3;
 
-			if (pnpoly(geom, 0, geom.size(), x, y)) {
+			if (get_area(geom, i, i + 3) != 0 && pnpoly(geom, 0, geom.size(), x, y)) {
 				ear_x = x;
 				ear_y = y;
 				return;
@@ -766,17 +766,21 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
 #endif
 				} else if (rings[i].area < 0 && rings[j].area < 0) {
+#if 0
 					fprintf(stderr, "inner within inner: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
 						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
+#endif
 					rings[i].geom.clear();
 				} else if (rings[i].area > 0 && rings[j].area > 0) {
+#if 0
 					fprintf(stderr, "outer within outer: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
 						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
+#endif
 					rings[i].geom.clear();
 				} else {
 					// outer ring within an inner ring;
-					// this is OK, but it is treated as a new outer ring in the tile,
-					// not output in a hierarchy
+					// this is fine, but it is treated as a new outer ring in the tile,
+					// not output in a hierarchy with the enclosing rings
 				}
 
 				break;
