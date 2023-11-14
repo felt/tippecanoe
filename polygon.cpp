@@ -40,7 +40,20 @@ struct point {
 
 typedef std::pair<point, point> segment;
 
-bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected) {
+bool visible(segment const &seg, long long extent) {
+	long long minx = std::min(seg.first.x, seg.second.x);
+	long long miny = std::min(seg.first.y, seg.second.y);
+	long long maxx = std::max(seg.first.x, seg.second.x);
+	long long maxy = std::max(seg.first.y, seg.second.y);
+
+	if (maxx <= 0 || maxy <= 0 || minx >= extent || miny >= extent) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected, long long extent) {
 	bool changed = false;
 	std::multimap<segment, size_t> opposites;
 	segment erased = std::make_pair(point(INT_MAX, INT_MAX), point(INT_MAX, INT_MAX));
@@ -64,8 +77,8 @@ bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected) {
 			long long dx = segs[i].second.x - segs[i].first.x;
 			long long dy = segs[i].second.y - segs[i].first.y;
 			long long dsq = dx * dx + dy * dy;
-			if (dsq >= 5 * 5) {
-				// alter the segments instead to keep it from collapsing away
+			if (visible(segs[i], extent) && dsq >= 5 * 5) {
+				// alter the segment instead to keep it from collapsing away
 
 				double ang = atan2(dy, dx) - M_PI / 2;
 				long long cx = std::llround((segs[i].second.x + segs[i].first.x) / 2.0 + sqrt(2) / 2.0 * cos(ang));
@@ -316,7 +329,7 @@ struct scan_transition {
 	}
 };
 
-void snap_round(std::vector<segment> &segs) {
+void snap_round(std::vector<segment> &segs, long long extent) {
 	bool again = true;
 
 	// affected is indexed by segment instead of just segment index
@@ -342,7 +355,7 @@ void snap_round(std::vector<segment> &segs) {
 		// in the course of trying to keep spindles alive, and will then need to
 		// resolve those.
 
-		if (fix_opposites(segs, affected)) {
+		if (fix_opposites(segs, affected, extent)) {
 			again = true;
 		}
 
@@ -853,7 +866,7 @@ drawvec clean_polygon(drawvec geom, int z, int detail) {
 
 	// snap-round intersecting segments
 
-	snap_round(segments);
+	snap_round(segments, 1LL << detail);
 
 	// reassemble segments into rings
 
