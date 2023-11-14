@@ -341,14 +341,6 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 		std::set<segment> previously_affected = affected;
 		affected.clear();
 
-#if 0
-        if (previously_affected.size() == 0) {
-            fprintf(stderr, "inspect %zu\n", segs.size());
-        } else {
-            fprintf(stderr, "reinspect %zu\n", previously_affected.size());
-        }
-#endif
-
 		// find identical opposite-winding segments and adjust for them
 		//
 		// this is in the same loop because we may introduce new self-intersections
@@ -525,15 +517,6 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 					diff += 2 * M_PI;
 				}
 
-#if 0
-				printf("%f,%f to %f,%f to %f,%f, %f,%f: %f\n",
-				       here.first.x, here.first.y,
-				       here.second.x, here.second.y,
-				       options.first->second.first.x, options.first->second.first.y,
-				       options.first->second.second.x, options.first->second.second.y,
-				       diff * 180 / M_PI);
-#endif
-
 				// closest to -180 is the best
 				if (diff < bestang) {
 					bestang = diff;
@@ -603,15 +586,6 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 					diff += 2 * M_PI;
 				}
 
-#if 0
-				printf("%f,%f to %f,%f to %f,%f, %f,%f: %f\n",
-				       here.first.x, here.first.y,
-				       here.second.x, here.second.y,
-				       options.first->second.first.x, options.first->second.first.y,
-				       options.first->second.second.x, options.first->second.second.y,
-				       diff * 180 / M_PI);
-#endif
-
 				// closest to -180 is the best
 				if (diff < bestang) {
 					bestang = diff;
@@ -625,7 +599,7 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 			ring.push_back(here.first);
 		}
 
-		// these coordinates are doubled, so that `encloses` can always find
+		// these coordinates are scaled, so that `encloses` can always find
 		// an interior point in each ring
 		drawvec out;
 		for (size_t i = 0; i < ring.size(); i++) {
@@ -657,34 +631,7 @@ bool encloses(ring_area const &parent, ring_area const &child) {
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	bool a = pnpoly(parent.geom, 0, parent.geom.size(), child.ear_x, child.ear_y);
-
-#if 0
-    if (a != b) {
-        fprintf(stderr, "inconsistent pnpoly at %lld,%lld (%d) vs %lld,%lld (%d)\n", x, y, a, x2, y2, b);
-
-        printf("0 setlinewidth ");
-        for (auto const &g : parent.geom) {
-            printf("%lld %lld %s ", g.x, g.y, g.op == VT_MOVETO ? "moveto" : "lineto");
-        }
-        printf("stroke\n");
-        for (auto const &g : parent.geom) {
-            printf("%lld %lld .05 0 360 arc fill ", g.x, g.y);
-        }
-
-        for (auto const &g : child.geom) {
-            printf("%f %f %s ", g.x + 0.25, g.y + 0.25, g.op == VT_MOVETO ? "moveto" : "lineto");
-        }
-        printf("stroke\n");
-
-        printf("%lld %lld .5 0 360 arc fill\n", x, y);
-        printf("%lld %lld .5 0 360 arc fill\n", x2, y2);
-
-        exit(EXIT_FAILURE);
-    }
-#endif
-
-	return a;
+	return pnpoly(parent.geom, 0, parent.geom.size(), child.ear_x, child.ear_y);
 }
 
 bool same_slope(draw d1, draw d2, draw d3) {
@@ -764,19 +711,6 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 				// to avoid excessive fiddling with the geometry
 				if ((scaled_area_orig > 1 && area_scaled < -1) ||
 				    (scaled_area_orig < -1 && area_scaled > 1)) {
-#if 0
-					fprintf(stderr, "z%d winding reversed: %f,%f, %f,%f, %f,%f (%f) vs %lld,%lld %lld,%lld %lld,%lld (%f)\n",
-						z,
-						geom[i + (k + 0) % ring.size()].x / scale, geom[i + (k + 0) % ring.size()].y / scale,
-						geom[i + (k + 1) % ring.size()].x / scale, geom[i + (k + 1) % ring.size()].y / scale,
-						geom[i + (k + 2) % ring.size()].x / scale, geom[i + (k + 2) % ring.size()].y / scale,
-						scaled_area_orig,
-						ring[0 + (k + 0) % ring.size()].x, ring[0 + (k + 0) % ring.size()].y,
-						ring[0 + (k + 1) % ring.size()].x, ring[0 + (k + 1) % ring.size()].y,
-						ring[0 + (k + 2) % ring.size()].x, ring[0 + (k + 2) % ring.size()].y,
-						area_scaled);
-#endif
-
 					// jitter one of the coordinates to try to fix it,
 					// on the theory that a slightly-wrong ring is
 					// better than an entirely missing ring.
@@ -792,13 +726,6 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 
 							if ((scaled_area_orig > 1 && area_altered >= 0) ||
 							    (scaled_area_orig < -1 && area_altered <= 0)) {
-#if 0
-								fprintf(stderr, "fixed it: %lld,%lld %lld,%lld %lld,%lld (%f)\n",
-									altered[0 + (k + 0) % altered.size()].x, altered[0 + (k + 0) % altered.size()].y,
-									altered[0 + (k + 1) % altered.size()].x, altered[0 + (k + 1) % altered.size()].y,
-									altered[0 + (k + 2) % altered.size()].x, altered[0 + (k + 2) % altered.size()].y,
-									area_altered);
-#endif
 								ring = altered;
 
 								dx = dy = INT_MAX;  // break from both loops
@@ -806,15 +733,6 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 							}
 						}
 					}
-
-#if 0
-					drawvec check;
-					check.push_back(draw(VT_MOVETO, ring[0 + (k + 0) % ring.size()].x, ring[0 + (k + 0) % ring.size()].y));
-					check.push_back(draw(VT_LINETO, ring[0 + (k + 1) % ring.size()].x, ring[0 + (k + 1) % ring.size()].y));
-					check.push_back(draw(VT_LINETO, ring[0 + (k + 2) % ring.size()].x, ring[0 + (k + 2) % ring.size()].y));
-					check.push_back(draw(VT_LINETO, ring[0 + (k + 0) % ring.size()].x, ring[0 + (k + 0) % ring.size()].y));
-					printf("%f vs %f\n", area_scaled, get_area(check, 0, check.size()));
-#endif
 				}
 			}
 
@@ -882,21 +800,11 @@ drawvec clean_polygon(drawvec geom, int z, int detail) {
 					// inner ring inside an outer ring;
 					// attribute it to the outer ring
 					rings[j].children.push_back(i);
-#if 0
-					fprintf(stderr, "inner within outer: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
-						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
-#endif
 				} else if (rings[i].area < 0 && rings[j].area < 0) {
-#if 0
-					fprintf(stderr, "inner within inner: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
-						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
-#endif
+					// inner ring within inner ring
 					rings[i].geom.clear();
 				} else if (rings[i].area > 0 && rings[j].area > 0) {
-#if 0
-					fprintf(stderr, "outer within outer: ring %zd (%f) encloses ring %zu (%f) %s\n", j, rings[j].area, i, rings[i].area,
-						signbit(rings[j].area) == signbit(rings[i].area) ? "!!!!" : "");
-#endif
+					// outer ring within outer ring
 					rings[i].geom.clear();
 				} else {
 					// outer ring within an inner ring;
@@ -927,27 +835,7 @@ drawvec clean_polygon(drawvec geom, int z, int detail) {
 		}
 	}
 
-#if 0
-	for (size_t i = 0; i < rings.size(); i++) {
-		if (get_area(rings[i].geom, 0, rings[i].geom.size()) > 0) {
-			for (auto const &g : rings[i].geom) {
-				ret.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
-			}
-		}
-	}
-#endif
-
 	// remove collinear points
 
-	ret = remove_collinear(ret);
-
-#if 0
-	drawvec ret;
-	for (auto const &segment : segments) {
-		ret.emplace_back(VT_MOVETO, segment.first.x, segment.first.y);
-		ret.emplace_back(VT_LINETO, segment.second.x, segment.second.y);
-	}
-#endif
-
-	return ret;
+	return remove_collinear(ret);
 }
