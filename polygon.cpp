@@ -452,9 +452,17 @@ struct ring_area {
 		// this sorts backwards, so the ring with the largest area comes first
 		if (std::fabs(area) > std::fabs(s.area)) {
 			return true;
-		} else {
-			return false;
+		} else if (std::fabs(area) == std::fabs(s.area)) {
+			if (ear_x < s.ear_x) {
+				return true;
+			} else if (ear_x == s.ear_x) {
+				if (ear_y < s.ear_y) {
+					return true;
+				}
+			}
 		}
+
+		return false;
 	}
 };
 
