@@ -751,6 +751,7 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 				// to avoid excessive fiddling with the geometry
 				if ((scaled_area_orig > 1 && area_scaled < -1) ||
 				    (scaled_area_orig < -1 && area_scaled > 1)) {
+#if 0
 					fprintf(stderr, "z%d winding reversed: %f,%f, %f,%f, %f,%f (%f) vs %lld,%lld %lld,%lld %lld,%lld (%f)\n",
 						z,
 						geom[i + (k + 0) % ring.size()].x / scale, geom[i + (k + 0) % ring.size()].y / scale,
@@ -761,6 +762,7 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 						ring[0 + (k + 1) % ring.size()].x, ring[0 + (k + 1) % ring.size()].y,
 						ring[0 + (k + 2) % ring.size()].x, ring[0 + (k + 2) % ring.size()].y,
 						area_scaled);
+#endif
 
 					// jitter one of the coordinates to try to fix it,
 					// on the theory that a slightly-wrong ring is
@@ -777,11 +779,13 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 
 							if ((scaled_area_orig > 1 && area_altered >= 0) ||
 							    (scaled_area_orig < -1 && area_altered <= 0)) {
+#if 0
 								fprintf(stderr, "fixed it: %lld,%lld %lld,%lld %lld,%lld (%f)\n",
 									altered[0 + (k + 0) % altered.size()].x, altered[0 + (k + 0) % altered.size()].y,
 									altered[0 + (k + 1) % altered.size()].x, altered[0 + (k + 1) % altered.size()].y,
 									altered[0 + (k + 2) % altered.size()].x, altered[0 + (k + 2) % altered.size()].y,
 									area_altered);
+#endif
 								ring = altered;
 
 								dx = dy = INT_MAX;  // break from both loops
