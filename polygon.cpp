@@ -323,9 +323,13 @@ struct scan_transition {
 	bool operator<(scan_transition const &s) const {
 		if (y < s.y) {
 			return true;
-		} else {
-			return false;
+		} else if (y == s.y) {
+			if (segment < s.segment) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 };
 
