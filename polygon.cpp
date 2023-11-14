@@ -674,47 +674,6 @@ bool encloses(ring_area const &parent, ring_area const &child) {
 	return a;
 }
 
-void flatten_rings(std::vector<ring_area> &rings, size_t i, drawvec &out, ssize_t winding, ssize_t parent) {
-	if (rings[i].geom.size() == 0) {
-		return;
-	}
-
-	// only the transition from winding order 0 to 1 or from 1 to 0
-	// is actually represented in the geometry.
-	//
-	// other transitions are outer rings nested inside other outer rings,
-	// or inner rings nested inside other inner rings.
-	if ((winding == 0 && rings[i].area > 0) ||
-	    (winding == 1 && rings[i].area < 0)) {
-		for (auto const &g : rings[i].geom) {
-			out.emplace_back(g.op, g.x / SCALE, g.y / SCALE);
-		}
-		if (rings[i].geom.size() > 0 && rings[i].geom[0] != rings[i].geom[rings[i].geom.size() - 1]) {
-			fprintf(stderr, "Ring not closed\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
-	} else {
-		fprintf(stderr, "skipping ring %zu %f within winding %zd (%zd)\n", i, rings[i].area, winding, parent);
-	}
-	rings[i].geom.clear();
-
-	if (rings[i].area > 0) {
-		winding++;
-	} else if (rings[i].area < 0) {
-		winding--;
-	}
-
-	fprintf(stderr, "ring %zu contains rings:", i);
-	for (size_t j = 0; j < rings[i].children.size(); j++) {
-		fprintf(stderr, " %zu", rings[i].children[j]);
-	}
-	fprintf(stderr, "\n");
-
-	for (size_t j = 0; j < rings[i].children.size(); j++) {
-		flatten_rings(rings, rings[i].children[j], out, winding, i);
-	}
-}
-
 bool same_slope(draw d1, draw d2, draw d3) {
 	long long dx12 = d2.x - d1.x;
 	long long dy12 = d2.y - d1.y;
