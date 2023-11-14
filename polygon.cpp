@@ -712,8 +712,111 @@ drawvec remove_collinear(drawvec const &geom) {
 	return out;
 }
 
-drawvec clean_polygon(drawvec const &geom, int z, int detail) {
+// https://www.cuemath.com/geometry/area-of-triangle-in-coordinate-geometry/
+double triangle_area(drawvec const &geom, size_t base, size_t increment, size_t len) {
+	double area = ((double) geom[base + (increment + 0) % len].x * (geom[base + (increment + 1) % len].y - geom[base + (increment + 2) % len].y) +
+		       (double) geom[base + (increment + 1) % len].x * (geom[base + (increment + 2) % len].y - geom[base + (increment + 0) % len].y) +
+		       (double) geom[base + (increment + 2) % len].x * (geom[base + (increment + 0) % len].y - geom[base + (increment + 1) % len].y)) /
+		      2;
+
+	return area;
+}
+
+drawvec scale_poly(drawvec const &geom, int z, int detail) {
 	double scale = 1LL << (32 - detail - z);
+	drawvec out;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			drawvec ring;
+			// k + 1 to avoid copying duplicate last point for the moment
+			for (size_t k = i; k + 1 < j; k++) {
+				ring.emplace_back(geom[k].op, std::llround(geom[k].x / scale), std::llround(geom[k].y / scale));
+			}
+
+			for (size_t k = 0; k < ring.size(); k++) {
+				double scaled_area_orig = triangle_area(geom, i, k, ring.size()) / scale / scale;
+				double area_scaled = triangle_area(ring, 0, k, ring.size());
+
+				// Was this ear's winding corrupted during scaling?
+				// But ignore ears with area less than one pixel,
+				// to avoid excessive fiddling with the geometry
+				if ((scaled_area_orig > 1 && area_scaled < -1) ||
+				    (scaled_area_orig < -1 && area_scaled > 1)) {
+					fprintf(stderr, "z%d winding reversed: %f,%f, %f,%f, %f,%f (%f) vs %lld,%lld %lld,%lld %lld,%lld (%f)\n",
+						z,
+						geom[i + (k + 0) % ring.size()].x / scale, geom[i + (k + 0) % ring.size()].y / scale,
+						geom[i + (k + 1) % ring.size()].x / scale, geom[i + (k + 1) % ring.size()].y / scale,
+						geom[i + (k + 2) % ring.size()].x / scale, geom[i + (k + 2) % ring.size()].y / scale,
+						scaled_area_orig,
+						ring[0 + (k + 0) % ring.size()].x, ring[0 + (k + 0) % ring.size()].y,
+						ring[0 + (k + 1) % ring.size()].x, ring[0 + (k + 1) % ring.size()].y,
+						ring[0 + (k + 2) % ring.size()].x, ring[0 + (k + 2) % ring.size()].y,
+						area_scaled);
+
+					// jitter one of the coordinates to try to fix it,
+					// on the theory that a slightly-wrong ring is
+					// better than an entirely missing ring.
+					//
+					// getting to an area of 0 is good enough because
+					// that is addressed in fix_opposites()
+					for (long long dx = -1; dx <= 1; dx++) {
+						for (long long dy = -1; dy <= 1; dy++) {
+							drawvec altered = ring;
+							altered[0 + (k + 1) % ring.size()].x += dx;
+							altered[0 + (k + 1) % ring.size()].y += dy;
+							double area_altered = triangle_area(altered, 0, k, altered.size());
+
+							if ((scaled_area_orig > 1 && area_altered >= 0) ||
+							    (scaled_area_orig < -1 && area_altered <= 0)) {
+								fprintf(stderr, "fixed it: %lld,%lld %lld,%lld %lld,%lld (%f)\n",
+									altered[0 + (k + 0) % altered.size()].x, altered[0 + (k + 0) % altered.size()].y,
+									altered[0 + (k + 1) % altered.size()].x, altered[0 + (k + 1) % altered.size()].y,
+									altered[0 + (k + 2) % altered.size()].x, altered[0 + (k + 2) % altered.size()].y,
+									area_altered);
+								ring = altered;
+
+								dx = dy = INT_MAX;  // break from both loops
+								break;
+							}
+						}
+					}
+
+#if 0
+					drawvec check;
+					check.push_back(draw(VT_MOVETO, ring[0 + (k + 0) % ring.size()].x, ring[0 + (k + 0) % ring.size()].y));
+					check.push_back(draw(VT_LINETO, ring[0 + (k + 1) % ring.size()].x, ring[0 + (k + 1) % ring.size()].y));
+					check.push_back(draw(VT_LINETO, ring[0 + (k + 2) % ring.size()].x, ring[0 + (k + 2) % ring.size()].y));
+					check.push_back(draw(VT_LINETO, ring[0 + (k + 0) % ring.size()].x, ring[0 + (k + 0) % ring.size()].y));
+					printf("%f vs %f\n", area_scaled, get_area(check, 0, check.size()));
+#endif
+				}
+			}
+
+			for (auto const &g : ring) {
+				out.push_back(g);
+			}
+
+			// close the ring
+			out.push_back(draw(VT_LINETO, ring[0].x, ring[0].y));
+
+			i = j - 1;
+		}
+	}
+
+	return out;
+}
+
+drawvec clean_polygon(drawvec geom, int z, int detail) {
+	geom = scale_poly(geom, z, detail);
 
 	// decompose polygon rings into segments
 
@@ -731,8 +834,8 @@ drawvec clean_polygon(drawvec const &geom, int z, int detail) {
 
 			for (size_t k = i; k + 1 < j; k++) {
 				std::pair<point, point> seg = std::make_pair(
-					point(std::round(geom[k].x / scale), std::round(geom[k].y / scale)),
-					point(std::round(geom[k + 1].x / scale), std::round(geom[k + 1].y / scale)));
+					point(geom[k].x, geom[k].y),
+					point(geom[k + 1].x, geom[k + 1].y));
 
 				if (seg.first.x != seg.second.x ||
 				    seg.first.y != seg.second.y) {
