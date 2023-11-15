@@ -430,6 +430,16 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 	}
 }
 
+// https://www.cuemath.com/geometry/area-of-triangle-in-coordinate-geometry/
+double triangle_area(drawvec const &geom, size_t base, size_t increment, size_t len) {
+	double area = ((double) geom[base + (increment + 0) % len].x * (geom[base + (increment + 1) % len].y - geom[base + (increment + 2) % len].y) +
+		       (double) geom[base + (increment + 1) % len].x * (geom[base + (increment + 2) % len].y - geom[base + (increment + 0) % len].y) +
+		       (double) geom[base + (increment + 2) % len].x * (geom[base + (increment + 0) % len].y - geom[base + (increment + 1) % len].y)) /
+		      2;
+
+	return area;
+}
+
 struct ring_area {
 	drawvec geom;
 	double area;
@@ -446,7 +456,7 @@ struct ring_area {
 			long long x = (geom[i].x + geom[i + 1].x + geom[i + 2].x) / 3;
 			long long y = (geom[i].y + geom[i + 1].y + geom[i + 2].y) / 3;
 
-			if (get_area(geom, i, i + 3) != 0 && pnpoly(geom, 0, geom.size(), x, y)) {
+			if (triangle_area(geom, 0, i, geom.size() - 1) != 0 && pnpoly(geom, 0, geom.size(), x, y)) {
 				ear_x = x;
 				ear_y = y;
 				return;
@@ -687,16 +697,6 @@ drawvec remove_collinear(drawvec const &geom) {
 	}
 
 	return out;
-}
-
-// https://www.cuemath.com/geometry/area-of-triangle-in-coordinate-geometry/
-double triangle_area(drawvec const &geom, size_t base, size_t increment, size_t len) {
-	double area = ((double) geom[base + (increment + 0) % len].x * (geom[base + (increment + 1) % len].y - geom[base + (increment + 2) % len].y) +
-		       (double) geom[base + (increment + 1) % len].x * (geom[base + (increment + 2) % len].y - geom[base + (increment + 0) % len].y) +
-		       (double) geom[base + (increment + 2) % len].x * (geom[base + (increment + 0) % len].y - geom[base + (increment + 1) % len].y)) /
-		      2;
-
-	return area;
 }
 
 drawvec scale_polygon(drawvec const &geom, int z, int detail) {

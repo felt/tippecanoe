@@ -577,9 +577,7 @@ double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_no
 					// clean coalesced polygons before simplification to avoid
 					// introducing shards between shapes that otherwise would have
 					// unioned exactly
-					//
-					// don't try to scale up because these are still world coordinates
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					geom = clean_polygon(geom, 1LL << (32 - z));  // world coordinates at zoom z
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -616,7 +614,7 @@ void *partial_feature_worker(void *v) {
 
 		if (t == VT_POLYGON) {
 			geom = scale_polygon(geom, z, out_detail);
-			geom = clean_polygon(geom, 1LL << out_detail);
+			geom = clean_polygon(geom, 1LL << out_detail);	// tile coordinates
 		} else {
 			to_tile_scale(geom, z, out_detail);
 		}
@@ -1643,7 +1641,7 @@ void *run_prefilter(void *v) {
 		tmp_layer.name = (*(rpa->layer_unmaps))[sf.segment][sf.layer];
 
 		if (sf.t == VT_POLYGON) {
-			sf.geometry = close_poly(sf.geometry);
+			sf.geometry = close_poly(sf.geometry);	// i.e., change last lineto to closepath
 		}
 
 		mvt_feature tmp_feature;
@@ -2277,8 +2275,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
-									// don't scale up because this is still world coordinates
-									g = clean_or_clip_poly(g, 0, 0, false, false);
+									g = clean_polygon(g, 1LL << (32 - z));	// world coordinates at zoom z
 								}
 							}
 						}
@@ -2517,11 +2514,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (layer_features[x].type == VT_POLYGON) {
 					if (layer_features[x].coalesced) {
-						// we can try scaling up because this is tile coordinates
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
+						layer_features[x].geom = clean_polygon(layer_features[x].geom, 1LL << (32 - z));  // world coordinates at zoom z
 					}
 
-					layer_features[x].geom = close_poly(layer_features[x].geom);
+					layer_features[x].geom = close_poly(layer_features[x].geom);  // i.e., change last lineto to closepath
 				}
 
 				if (layer_features[x].geom.size() > 0) {

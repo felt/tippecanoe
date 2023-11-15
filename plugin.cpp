@@ -25,6 +25,7 @@
 #include "geometry.hpp"
 #include "serial.hpp"
 #include "errors.hpp"
+#include "polygon.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -194,16 +195,22 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 			dv = fix_polygon(dv);
 		}
 
-		// Scale and offset geometry from global to tile
+		// Offset geometry from global to tile
 		for (size_t i = 0; i < dv.size(); i++) {
 			long long scale = 1LL << (32 - z);
-			dv[i].x = std::round((dv[i].x - scale * x) * extent / (double) scale);
-			dv[i].y = std::round((dv[i].y - scale * y) * extent / (double) scale);
+			dv[i].x = dv[i].x - scale * x;
+			dv[i].y = dv[i].y - scale * y;
+		}
+		// Scale to tile extent
+		int detail = std::round(log(extent) / log(2));
+		if (t == VT_POLYGON) {
+			dv = scale_polygon(dv, z, detail);
+		} else {
+			to_tile_scale(dv, z, detail);
 		}
 
 		if (mb_geometry[t] == VT_POLYGON) {
-			// we can try scaling up because these are tile coordinates
-			dv = clean_or_clip_poly(dv, 0, 0, false, true);
+			dv = clean_polygon(dv, extent);	 // tile coordinates
 			if (dv.size() < 3) {
 				dv.clear();
 			}
