@@ -615,35 +615,11 @@ void *partial_feature_worker(void *v) {
 		drawvec geom = (*partials)[i].geoms[0];
 
 		if (t == VT_POLYGON) {
-			geom = clean_polygon(geom, z, out_detail);
-			// (*partials)[i].t = t = VT_LINE;
+			geom = scale_polygon(geom, z, out_detail);
+			geom = clean_polygon(geom, 1LL << out_detail);
 		} else {
 			to_tile_scale(geom, z, out_detail);
 		}
-
-#if 0
-		if (t == VT_POLYGON) {
-			// Scaling may have made the polygon degenerate.
-			// Give Clipper a chance to try to fix it.
-			{
-				drawvec before = geom;
-				// we can try scaling up because this is now tile scale
-				geom = clean_or_clip_poly(geom, 0, 0, false, true);
-				if (additional[A_DEBUG_POLYGON]) {
-					check_polygon(geom);
-				}
-
-				if (geom.size() < 3) {
-					if (area > 0) {
-						// area is in world coordinates, calculated before scaling down
-						geom = revive_polygon(before, area, z, out_detail);
-					} else {
-						geom.clear();
-					}
-				}
-			}
-		}
-#endif
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 			t = (*partials)[i].t = VT_POINT;

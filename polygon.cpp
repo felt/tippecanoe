@@ -40,7 +40,12 @@ struct point {
 
 typedef std::pair<point, point> segment;
 
-bool visible(segment const &seg, long long extent) {
+bool spindle_visible(segment const &seg, long long extent) {
+	if (extent == 0) {
+		// extent of 0 means no spindle revival
+		return false;
+	}
+
 	long long minx = std::min(seg.first.x, seg.second.x);
 	long long miny = std::min(seg.first.y, seg.second.y);
 	long long maxx = std::max(seg.first.x, seg.second.x);
@@ -77,7 +82,7 @@ bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected, long
 			long long dx = segs[i].second.x - segs[i].first.x;
 			long long dy = segs[i].second.y - segs[i].first.y;
 			long long dsq = dx * dx + dy * dy;
-			if (visible(segs[i], extent) && dsq >= 5 * 5) {
+			if (spindle_visible(segs[i], extent) && dsq >= 5 * 5) {
 				// alter the segment instead to keep it from collapsing away
 
 				double ang = atan2(dy, dx) - M_PI / 2;
@@ -694,7 +699,7 @@ double triangle_area(drawvec const &geom, size_t base, size_t increment, size_t 
 	return area;
 }
 
-drawvec scale_poly(drawvec const &geom, int z, int detail) {
+drawvec scale_polygon(drawvec const &geom, int z, int detail) {
 	double scale = 1LL << (32 - detail - z);
 	drawvec out;
 
@@ -762,9 +767,7 @@ drawvec scale_poly(drawvec const &geom, int z, int detail) {
 	return out;
 }
 
-drawvec clean_polygon(drawvec geom, int z, int detail) {
-	geom = scale_poly(geom, z, detail);
-
+drawvec clean_polygon(drawvec geom, long long extent) {
 	// decompose polygon rings into segments
 
 	std::vector<std::pair<point, point>> segments;
@@ -796,7 +799,7 @@ drawvec clean_polygon(drawvec geom, int z, int detail) {
 
 	// snap-round intersecting segments
 
-	snap_round(segments, 1LL << detail);
+	snap_round(segments, extent);
 
 	// reassemble segments into rings
 
