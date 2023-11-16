@@ -472,12 +472,8 @@ struct ring_area {
 		if (std::fabs(area) > std::fabs(s.area)) {
 			return true;
 		} else if (std::fabs(area) == std::fabs(s.area)) {
-			if (ear_x < s.ear_x) {
+			if (geom < s.geom) {
 				return true;
-			} else if (ear_x == s.ear_x) {
-				if (ear_y < s.ear_y) {
-					return true;
-				}
 			}
 		}
 
@@ -626,6 +622,22 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 			ring.push_back(here.first);
 		}
 
+		// rotate the ring for idempotence
+		size_t first = 0;
+		for (size_t i = 1; i < ring.size(); i++) {
+			if (ring[i] < ring[first]) {
+				first = i;
+			}
+		}
+
+		{
+			std::vector<point> ring2;
+			for (size_t i = 0; i < ring.size(); i++) {
+				ring2.push_back(ring[(i + first) % ring.size()]);
+			}
+			ring = std::move(ring2);
+		}
+
 		// these coordinates are scaled, so that `encloses` can always find
 		// an interior point in each ring
 		drawvec out;
@@ -633,10 +645,12 @@ std::vector<ring_area> reassemble(std::vector<segment> const &segs) {
 			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x * SCALE, ring[i].y * SCALE);
 		}
 		out.emplace_back(VT_LINETO, ring[0].x * SCALE, ring[0].y * SCALE);
+
 		if (out[0] != out[out.size() - 1]) {
 			fprintf(stderr, "Ring not closed???\n");
 			exit(EXIT_IMPOSSIBLE);
 		}
+
 		double area = get_area(out, 0, out.size());
 		if (area != 0) {
 			ret.push_back(ring_area(out, area));
