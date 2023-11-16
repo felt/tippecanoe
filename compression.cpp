@@ -20,9 +20,6 @@ void decompressor::begin() {
 		fprintf(stderr, "initialize decompression: %d %s\n", d, zs.msg);
 		exit(EXIT_IMPOSSIBLE);
 	}
-
-	zs.avail_out = 0;
-	zs.avail_in = 0;
 }
 
 int decompressor::fread(void *p, size_t size, size_t nmemb, std::atomic<long long> *geompos) {

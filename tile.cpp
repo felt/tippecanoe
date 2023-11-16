@@ -1974,10 +1974,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (geoms->within) {
 					geoms->end(geompos_in);
 				}
-
-				geoms->begin();
 			}
 
+			printf("fseek to %lld\n", (long long) geoms->fp);
 			if (fseek(geoms->fp, og, SEEK_SET) != 0) {
 				perror("fseek geom");
 				exit(EXIT_SEEK);
@@ -1986,6 +1985,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			*geompos_in = og;
 			geoms->zs.avail_in = 0;
 			geoms->zs.avail_out = 0;
+
+			if (compressed_input) {
+				geoms->begin();
+			}
 		}
 
 		int prefilter_write = -1, prefilter_read = -1;
