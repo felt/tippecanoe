@@ -49,6 +49,10 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 			fprintf(stderr, "%s:%d: null geometry (additional not reported): ", sst->fname, sst->line);
 			json_context(feature);
 			warned = 1;
+
+			if (additional[A_REJECT_NULL_GEOMETRY]) {
+				exit(EXIT_INCORRECT_GEOMETRY);
+			}
 		}
 
 		return 0;

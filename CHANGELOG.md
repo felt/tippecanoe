@@ -1,3 +1,7 @@
+# 2.38.0
+
+* Add --reject-null-geometry and more checking of GeoJSON polygon and linestring validity
+
 # 2.37.0
 
 * Speed up tile-join overzooming and make it use less memory, by not including empty child tiles in the enumeration

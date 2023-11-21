@@ -103,6 +103,14 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 	}
 
 	if (t == GEOM_POLYGON) {
+		if (out.size() < 3) {
+			fprintf(stderr, "%s:%d: polygon must contain at least three points: ", fname, line);
+			json_context(j);
+			fprintf(stderr, "%s:%d: polygon must contain at least three points: ", fname, line);
+			json_context(feature);
+			exit(EXIT_INCORRECT_GEOMETRY);
+		}
+
 		// Note that this is not using the correct meaning of closepath.
 		//
 		// We are using it here to close an entire Polygon, to distinguish
@@ -113,6 +121,16 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 		// of the outer ring be the opposite of the order of the inner rings.
 
 		out.push_back(draw(VT_CLOSEPATH, 0, 0));
+	}
+
+	if (t == GEOM_LINESTRING) {
+		if (out.size() < 2) {
+			fprintf(stderr, "%s:%d: linestring must contain at least two points: ", fname, line);
+			json_context(j);
+			fprintf(stderr, "%s:%d: linestring must contain at least two points: ", fname, line);
+			json_context(feature);
+			exit(EXIT_INCORRECT_GEOMETRY);
+		}
 	}
 }
 

@@ -1609,6 +1609,34 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 	}
 }
 
+bool legit_geometry(int t, const drawvec &g) {
+	bool legit = false;
+
+	for (size_t i = 0; i < g.size(); i++) {
+		if (g[i].op == VT_MOVETO) {
+			size_t j;
+
+			for (j = i + 1; j < g.size(); j++) {
+				if (g[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			if (t == VT_LINE && j < i + 2) {
+				return false;
+			}
+			if (t == VT_POLYGON && j < i + 3) {
+				return false;
+			}
+
+			legit = true;  // must contain at least one ring
+			i = j - 1;
+		}
+	}
+
+	return legit;
+}
+
 struct run_prefilter_args {
 	decompressor *geoms = NULL;
 	std::atomic<long long> *geompos_in = NULL;
@@ -1656,6 +1684,11 @@ void *run_prefilter(void *v) {
 		mvt_layer tmp_layer;
 		tmp_layer.extent = 1LL << 32;
 		tmp_layer.name = (*(rpa->layer_unmaps))[sf.segment][sf.layer];
+
+		// make sure the geometry is actually legal geojson
+		if (!legit_geometry(sf.t, sf.geometry)) {
+			continue;
+		}
 
 		if (sf.t == VT_POLYGON) {
 			sf.geometry = close_poly(sf.geometry);

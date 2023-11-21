@@ -19,5 +19,6 @@
 #define EXIT_UNLINK 118
 #define EXIT_UTF8 119
 #define EXIT_WRITE 120
+#define EXIT_INCORRECT_GEOMETRY 121
 
 // avoid 124, 125, 126, 127, 137, which are used by GNU timeout
