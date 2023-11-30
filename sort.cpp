@@ -4,13 +4,15 @@
 #include <vector>
 #include <string>
 
-#define MAX_MEMORY (10 * 1024 * 1024)
+#define MAX_MEMORY (1024 * 1024 * 1024)	 // 1 GB
 
-void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem, size_t depth) {
+void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem) {
 	std::string pivot;
 	FILE *fp1, *fp2;
-	size_t first = 0, second = 0;
-	fprintf(stderr, "using maximum of %zu bytes of memory for sort\n", mem);
+
+	if (mem > MAX_MEMORY) {
+		mem = MAX_MEMORY;
+	}
 
 	{
 		// read some elements into memory to choose a pivot from
@@ -46,9 +48,7 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 			}
 		}
 
-		fprintf(stderr, "%zu: sorting %zu bytes from %zu files\n", depth, buf.size(), inputs.size());
 		qsort((void *) buf.c_str(), buf.size() / width, width, cmp);
-		fprintf(stderr, "%zu: sorted\n", depth);
 
 		// If that was everything we have to sort, we are done.
 
@@ -65,7 +65,6 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 		// that compare equal. Does it matter?
 
 		size_t pivot_off = width * (buf.size() / width / 2);
-		fprintf(stderr, "pivot off is %zu from %zu\n", pivot_off, buf.size());
 		pivot = std::string(buf, pivot_off, width);
 
 		std::string t1 = "/tmp/sort1.XXXXXX";
@@ -89,13 +88,10 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 
 		fwrite((void *) buf.c_str(), sizeof(char), pivot_off, fp1);
 		fwrite((void *) ((char *) buf.c_str() + pivot_off), sizeof(char), buf.size() - pivot_off, fp2);
-		first = pivot_off;
-		second = buf.size() - pivot_off;
 	}
 
 	// read the remaining input into the temporary files
 
-	size_t additional = 0;
 	for (size_t i = 0; i < inputs.size(); i++) {
 		while (true) {
 			std::string element;
@@ -105,18 +101,14 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 			if (n == 0) {
 				break;
 			}
-			additional += n;
 
 			if (cmp((void *) element.c_str(), (void *) pivot.c_str()) < 0) {
 				fwrite((void *) element.c_str(), width, 1, fp1);
-				first += width;
 			} else {
 				fwrite((void *) element.c_str(), width, 1, fp2);
-				second += width;
 			}
 		}
 	}
-	fprintf(stderr, "plus %zu additional bytes (total %zu and %zu)\n", additional, first, second);
 
 	// Now sort the sub-ranges into the output.
 
@@ -125,11 +117,11 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 
 	std::vector<FILE *> v1;
 	v1.emplace_back(fp1);
-	fqsort(v1, width, cmp, out, mem, depth + 1);
+	fqsort(v1, width, cmp, out, mem);
 	fclose(fp1);
 
 	std::vector<FILE *> v2;
 	v2.emplace_back(fp2);
-	fqsort(v2, width, cmp, out, mem, depth + 1);
+	fqsort(v2, width, cmp, out, mem);
 	fclose(fp2);
 }
