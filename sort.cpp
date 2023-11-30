@@ -10,6 +10,7 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 	std::string pivot;
 	FILE *fp1, *fp2;
 	size_t first = 0, second = 0;
+	fprintf(stderr, "using maximum of %zu bytes of memory for sort\n", mem);
 
 	{
 		// read some elements into memory to choose a pivot from
