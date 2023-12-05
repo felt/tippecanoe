@@ -2303,11 +2303,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
 							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
 
-							for (auto &g : partials[simplified_geometry_through].geoms) {
-								if (partials[simplified_geometry_through].t == VT_POLYGON) {
-									// don't scale up because this is still world coordinates
-									g = clean_or_clip_poly(g, 0, 0, false, false);
+							if (partials[simplified_geometry_through].t == VT_POLYGON) {
+								drawvec to_clean;
+
+								for (auto &g : partials[simplified_geometry_through].geoms) {
+									for (auto &d : g) {
+										to_clean.push_back(d);
+									}
 								}
+
+								// don't scale up because this is still world coordinates
+								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
+								partials[simplified_geometry_through].geoms.clear();
+								partials[simplified_geometry_through].geoms.push_back(to_clean);
 							}
 						}
 
