@@ -4,11 +4,15 @@
 #include <vector>
 #include <string>
 
-#define MAX_MEMORY (10 * 1024 * 1024)
+#define MAX_MEMORY (1024 * 1024 * 1024)	 // 1 GB
 
 void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem) {
 	std::string pivot;
 	FILE *fp1, *fp2;
+
+	if (mem > MAX_MEMORY) {
+		mem = MAX_MEMORY;
+	}
 
 	{
 		// read some elements into memory to choose a pivot from

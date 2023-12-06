@@ -1,3 +1,16 @@
+# 2.37.1
+
+* Reduce maximum memory used for vertex sorting
+
+# 2.37.0
+
+* Speed up tile-join overzooming and make it use less memory, by not including empty child tiles in the enumeration
+
+# 2.36.0
+
+* Make tile-join distrust the source tilesets' metadata maxzoom and minzoom
+* Add a special case in --detect-longitude-wraparound not to wrap around jumps of exactly 360°
+
 # 2.35.0
 
 * Fix a bug in --detect-longitude-wraparound when there are multiple rings
