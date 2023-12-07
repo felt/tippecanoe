@@ -278,6 +278,16 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/13-1310-3166.pbf 13 1310 3166 > tests/pbf/13-1310-3166.pbf.json.check
 	cmp tests/pbf/13-1310-3166.pbf.json.check tests/pbf/13-1310-3166.pbf.json
 	rm tests/pbf/13-1310-3166.pbf tests/pbf/13-1310-3166.pbf.json.check
+	# Basic operation, multiple input form
+	./tippecanoe-overzoom -o tests/pbf/13-1310-3166.pbf -t 13/1310/3166 tests/pbf/11-327-791.pbf 11/327/791
+	./tippecanoe-decode tests/pbf/13-1310-3166.pbf 13 1310 3166 > tests/pbf/13-1310-3166.pbf.json.check
+	cmp tests/pbf/13-1310-3166.pbf.json.check tests/pbf/13-1310-3166.pbf.json
+	rm tests/pbf/13-1310-3166.pbf tests/pbf/13-1310-3166.pbf.json.check
+	# Multiple inputs
+	./tippecanoe-overzoom -o tests/pbf/13-1310-3166-ne.pbf -t 13/1310/3166 tests/pbf/11-327-791.pbf 11/327/791 tests/pbf/0-0-0.pbf 0/0/0
+	./tippecanoe-decode tests/pbf/13-1310-3166-ne.pbf 13 1310 3166 > tests/pbf/13-1310-3166-ne.pbf.json.check
+	cmp tests/pbf/13-1310-3166-ne.pbf.json.check tests/pbf/13-1310-3166-ne.pbf.json
+	rm tests/pbf/13-1310-3166-ne.pbf tests/pbf/13-1310-3166-ne.pbf.json.check
 	# Different detail and buffer, and attribute stripping
 	./tippecanoe-overzoom -d8 -b30 -y NAME -y name -y scalerank -o tests/pbf/13-1310-3166-8-30.pbf tests/pbf/11-327-791.pbf 11/327/791 13/1310/3166
 	./tippecanoe-decode tests/pbf/13-1310-3166-8-30.pbf 13 1310 3166 > tests/pbf/13-1310-3166-8-30.pbf.json.check
@@ -421,7 +431,13 @@ join-test: tippecanoe tippecanoe-decode tile-join
 	./tile-join --overzoom -f -o tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles
 	./tippecanoe-decode -x generator tests/ne_110m_ocean/join/joined.mbtiles > tests/ne_110m_ocean/join/joined.mbtiles.json.check
 	cmp tests/ne_110m_ocean/join/joined.mbtiles.json.check tests/ne_110m_ocean/join/joined.mbtiles.json
-	rm -f tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/joined.mbtiles.json.check
+	#
+	# Test overzooming with tile count limit
+	#
+	./tile-join --overzoom -f -o tests/ne_110m_ocean/join/joined.mbtiles --stop-after 50 tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles
+	./tippecanoe-decode -x generator tests/ne_110m_ocean/join/joined.mbtiles > tests/ne_110m_ocean/join/joined.mbtiles-50.json.check
+	cmp tests/ne_110m_ocean/join/joined.mbtiles-50.json.check tests/ne_110m_ocean/join/joined.mbtiles-50.json
+	rm -f tests/ne_110m_ocean/join/ocean.mbtiles tests/ne_110m_ocean/join/countries.mbtiles tests/ne_110m_ocean/join/joined.mbtiles tests/ne_110m_ocean/join/joined.mbtiles.json.check tests/ne_110m_ocean/join/joined.mbtiles-50.json.check
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost

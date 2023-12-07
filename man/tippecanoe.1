@@ -1005,6 +1005,8 @@ The options are:
 \fB\fC\-z\fR \fIzoom\fP or \fB\fC\-\-maximum\-zoom=\fR\fIzoom\fP: Don't copy tiles from higher zoom levels than the specified zoom
 .IP \(bu 2
 \fB\fC\-Z\fR \fIzoom\fP or \fB\fC\-\-minimum\-zoom=\fR\fIzoom\fP: Don't copy tiles from lower zoom levels than the specified zoom
+.IP \(bu 2
+\fB\fC\-a\fR \fIcount\fP or \fB\fC\-\-stop\-after=\fR\fIcount\fP: Stop copying tile from additional zoom levels after the specified \fIcount\fP of tiles has been written to the output.
 .RE
 .SS Merging attributes from a CSV file
 .RS
@@ -1247,11 +1249,20 @@ some of the precision. Running:
 .PP
 .RS
 .nf
-tippecanoe\-overzoom \-o out.mvt.gz inz/inx/iny outz/outx/outy in.mvt.gz
+tippecanoe\-overzoom \-o out.mvt.gz in.mvt.gz inz/inx/iny outz/outx/outy
 .fi
 .RE
 .PP
 reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR and produces tile \fB\fCoutz/outx/outy\fR of \fB\fCout.mvt.gz\fR\&.
+.PP
+.RS
+.nf
+tippecanoe\-overzoom \-o out.mvt.gz \-t outz/outx/outy in.mvt.gz inz/inx/iny in2.mvt.gz in2z/in2x/in2y in3.mvt.gz in3z/in3x/in3y
+.fi
+.RE
+.PP
+reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR, tile \fB\fCin2z/in2x/in2y\fR of \fB\fCin2.mvt.gz\fR, and tile \fB\fCin3z/in3x/in3y\fR of \fB\fCin3.mvt.gz\fR,
+and produces tile \fB\fCoutz/outx/outy\fR of \fB\fCout.mvt.gz\fR from them.
 .SS Options
 .RS
 .IP \(bu 2

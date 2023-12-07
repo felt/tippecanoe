@@ -1,3 +1,8 @@
+# 2.38.0
+
+* `tippecanoe-overzoom` can now merge multiple tiles when overzooming them
+* Add `--stop-after` option to `tile-join` to limit the total number of tiles copied
+
 # 2.37.1
 
 * Reduce maximum memory used for vertex sorting
