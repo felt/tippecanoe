@@ -54,6 +54,9 @@ int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
 
+size_t stop_after = 0;
+std::atomic<size_t> tiles_queued_for_write(0);
+
 bool want_overzoom = false;
 int buffer = 5;
 
@@ -1084,9 +1087,19 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		// Then this tile is done and we can safely run the output queue.
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
+			tiles_queued_for_write++;
 			if (tasks.size() > 100 * CPUS) {
 				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 				tasks.clear();
+			}
+		}
+
+		if (readers != NULL && readers->zoom != current.first.z && stop_after != 0 && tiles_queued_for_write >= stop_after) {
+			dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+			tasks.clear();
+			if (!quiet) {
+				fprintf(stderr, "stopping after zoom %lld, after writing %zu tiles\n", current.first.z, (size_t) tiles_queued_for_write);
+				break;
 			}
 		}
 
@@ -1315,6 +1328,7 @@ int main(int argc, char **argv) {
 		{"feature-filter", required_argument, 0, 'j'},
 		{"rename-layer", required_argument, 0, 'R'},
 		{"read-from", required_argument, 0, 'r'},
+		{"stop-after", required_argument, 0, 'a'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
 		{"no-tile-compression", no_argument, &pC, 1},
@@ -1446,6 +1460,10 @@ int main(int argc, char **argv) {
 
 		case 'L':
 			remove_layers.insert(std::string(optarg));
+			break;
+
+		case 'a':
+			stop_after = atoll(optarg);
 			break;
 
 		case 'R': {

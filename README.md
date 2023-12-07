@@ -793,6 +793,7 @@ The options are:
 
  * `-z` _zoom_ or `--maximum-zoom=`_zoom_: Don't copy tiles from higher zoom levels than the specified zoom
  * `-Z` _zoom_ or `--minimum-zoom=`_zoom_: Don't copy tiles from lower zoom levels than the specified zoom
+ * `-a` _count_ or `--stop-after=`_count_: Stop copying tile from additional zoom levels after the specified _count_ of tiles has been written to the output.
 
 ### Merging attributes from a CSV file
 
