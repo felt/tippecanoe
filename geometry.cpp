@@ -380,6 +380,29 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 	return out;
 }
 
+double distance_from_line_noclamp(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, double *px, double *py) {
+	long long p2x = segB_x - segA_x;
+	long long p2y = segB_y - segA_y;
+	double something = p2x * p2x + p2y * p2y;
+	double u = (0 == something) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something);
+
+	double x = segA_x + u * p2x;
+	double y = segA_y + u * p2y;
+
+	if (px != NULL) {
+		*px = std::round(x);
+	}
+	if (py != NULL) {
+		*py = std::round(y);
+	}
+
+	double dx = x - point_x;
+	double dy = y - point_y;
+
+	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
+	return out;
+}
+
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
 static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
 	std::stack<int> recursion_stack;
