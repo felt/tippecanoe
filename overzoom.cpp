@@ -24,7 +24,7 @@ void usage(char **argv) {
 }
 
 struct source {
-	std::string file;
+	std::string fname;
 	int z;
 	int x;
 	int y;
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 
 	std::vector<source> sources;
 
-	while ((i = getopt(argc, argv, "y:o:d:b:")) != -1) {
+	while ((i = getopt(argc, argv, "y:o:d:b:t:")) != -1) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
@@ -68,7 +68,10 @@ int main(int argc, char **argv) {
 		usage(argv);
 	}
 
-	if (outtile == NULL) {
+	std::vector<input_tile> its;
+	int nz, nx, ny;
+
+	if (outtile == NULL) {	// single input
 		if (argc - optind != 3) {
 			usage(argv);
 		}
@@ -81,19 +84,53 @@ int main(int argc, char **argv) {
 			usage(argv);
 		}
 
-		int nz, nx, ny;
 		if (sscanf(argv[optind + 2], "%d/%d/%d", &nz, &nx, &ny) != 3) {
 			fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 2]);
 			usage(argv);
 		}
 
+		source s;
+		s.fname = infile;
+		s.z = oz;
+		s.x = ox;
+		s.y = oy;
+
+		sources.push_back(s);
+	} else {  // multiple inputs
+		if ((argc - optind) % 2 != 0) {
+			usage(argv);
+		}
+
+		if (sscanf(outtile, "%d/%d/%d", &nz, &nx, &ny) != 3) {
+			fprintf(stderr, "%s: not in z/x/y form\n", outtile);
+			usage(argv);
+		}
+
+		for (i = optind; i + 1 < argc; i += 2) {
+			int oz, ox, oy;
+			if (sscanf(argv[i + 1], "%d/%d/%d", &oz, &ox, &oy) != 3) {
+				fprintf(stderr, "%s: not in z/x/y form\n", argv[i + 1]);
+				usage(argv);
+			}
+
+			source s;
+			s.fname = argv[i];
+			s.z = oz;
+			s.x = ox;
+			s.y = oy;
+
+			sources.push_back(s);
+		}
+	}
+
+	for (auto const &s : sources) {
 		std::string tile;
 		char buf[1000];
 		int len;
 
-		FILE *f = fopen(infile, "rb");
+		FILE *f = fopen(s.fname.c_str(), "rb");
 		if (f == NULL) {
-			perror(infile);
+			perror(s.fname.c_str());
 			exit(EXIT_FAILURE);
 		}
 
@@ -102,26 +139,24 @@ int main(int argc, char **argv) {
 		}
 		fclose(f);
 
-		f = fopen(outfile, "wb");
-		if (f == NULL) {
-			perror(outfile);
-			exit(EXIT_FAILURE);
-		}
-
 		input_tile it;
 		it.tile = tile;
-		it.z = oz;
-		it.x = ox;
-		it.y = oy;
+		it.z = s.z;
+		it.x = s.x;
+		it.y = s.y;
 
-		std::vector<input_tile> its;
 		its.push_back(it);
-
-		std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL);
-		fwrite(out.c_str(), sizeof(char), out.size(), f);
-		fclose(f);
-	} else {
 	}
+
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL);
+
+	FILE *f = fopen(outfile, "wb");
+	if (f == NULL) {
+		perror(outfile);
+		exit(EXIT_FAILURE);
+	}
+	fwrite(out.c_str(), sizeof(char), out.size(), f);
+	fclose(f);
 
 	return 0;
 }
