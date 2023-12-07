@@ -34,10 +34,11 @@ drawvec reinforce(drawvec const &pts, std::vector<std::vector<Point>> polygon, d
 				double ang = atan2(py - pts[indices[v1]].y, px - pts[indices[v1]].x);
 				double dist = scale - d;
 
-				out2.push_back(draw(VT_MOVETO, pts[indices[v1]].x, pts[indices[v1]].y));
+				out2.push_back(draw(VT_MOVETO, pts[indices[v2]].x, pts[indices[v2]].y));
 				out2.push_back(draw(VT_LINETO, pts[indices[v2]].x + dist * cos(ang), pts[indices[v2]].y + dist * sin(ang)));
 				out2.push_back(draw(VT_LINETO, pts[indices[v3]].x + dist * cos(ang), pts[indices[v3]].y + dist * sin(ang)));
-				out2.push_back(draw(VT_LINETO, pts[indices[v1]].x, pts[indices[v1]].y));
+				out2.push_back(draw(VT_LINETO, pts[indices[v3]].x, pts[indices[v3]].y));
+				out2.push_back(draw(VT_LINETO, pts[indices[v2]].x, pts[indices[v2]].y));
 			}
 		}
 	}
