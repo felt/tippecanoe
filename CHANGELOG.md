@@ -1,3 +1,7 @@
+# 2.37.0
+
+* Tolerate polygon rings with insuffiently many points in input
+
 # 2.37.1
 
 * Reduce maximum memory used for vertex sorting
