@@ -313,11 +313,12 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	return sf;
 }
 
-static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom) {
+static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom, int t) {
 	double scale = 1.0 / (1 << geometry_scale);
 
 	if (additional[A_DETECT_WRAPAROUND]) {
 		drawvec out;
+		bool outer = true;  // first ring is expected to be outer
 
 		for (size_t i = 0; i < geom.size(); i++) {
 			if (geom[i].op == VT_MOVETO) {
@@ -333,6 +334,7 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 				bool balanced = true;
 
 				drawvec ring;
+				bool changed = false;
 				for (size_t k = i; k < j; k++) {
 					draw op = geom[k];
 					op.x += offset;
@@ -349,6 +351,7 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 
 						offset -= 1LL << 32;
 						op.x -= 1LL << 32;
+						changed = true;
 					} else if (prev_x - op.x > (1LL << 31) && prev_x - op.x != (1LL << 32)) {
 						if (offset > 0) {
 							// already shifted right, but seems to need another shift right
@@ -358,22 +361,40 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 
 						offset += 1LL << 32;
 						op.x += 1LL << 32;
+						changed = true;
 					}
 
 					ring.push_back(op);
 					prev_x = op.x;
 				}
 
-				// If this is a polygon, in which the first and last
-				// points of each ring are supposed to be identical,
-				// make sure the antimeridian wraparound detection
-				// preserves that expectation. If it doesn't, it means
-				// we have detected something wrongly.
-				if (geom[j - 1] == geom[i]) {
-					if (offset != 0) {
-						// first and last points are supposed to be the same
-						// but there is an unresolved antimeridian shift
-						balanced = false;
+				if (changed && balanced) {
+					// If this is a polygon, in which the first and last
+					// points of each ring are supposed to be identical,
+					// make sure the antimeridian wraparound detection
+					// preserves that expectation. If it doesn't, it means
+					// we have detected something wrongly.
+					if (geom[j - 1] == geom[i]) {
+						if (offset != 0) {
+							// first and last points are supposed to be the same
+							// but there is an unresolved antimeridian shift
+							balanced = false;
+						}
+					}
+
+					if (t == VT_POLYGON) {
+						// don't accept longitude corrections that would give
+						// a ring a winding counter to what the geojson structure
+						// says the winding should be
+
+						double area_after = get_area(ring, 0, ring.size());
+						if ((outer && area_after < 0) ||
+						    (!outer && area_after > 0)) {
+							// wraparound detection gave a ring a winding different from
+							// what its position in the GeoJSON structure indicates that
+							// it should have.
+							balanced = false;
+						}
 					}
 				}
 
@@ -391,8 +412,10 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 				}
 
 				i = j - 1;
+				outer = false;
 			} else if (geom[i].op == VT_CLOSEPATH) {
 				out.push_back(geom[i]);
+				outer = true;
 			}
 		}
 
@@ -520,7 +543,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	// try to remind myself that the geometry in this function is in SCALED COORDINATES
 	drawvec scaled_geometry = sf.geometry;
 	sf.geometry.clear();
-	scale_geometry(sst, sf.bbox, scaled_geometry);
+	scale_geometry(sst, sf.bbox, scaled_geometry, sf.t);
 
 	// This has to happen after scaling so that the wraparound detection has happened first.
 	// Otherwise the inner/outer calculation will be confused by bad geometries.
