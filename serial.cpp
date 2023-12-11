@@ -364,14 +364,21 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 					prev_x = op.x;
 				}
 
+				// If this is a polygon, in which the first and last
+				// points of each ring are supposed to be identical,
+				// make sure the antimeridian wraparound detection
+				// preserves that expectation. If it doesn't, it means
+				// we have detected something wrongly.
 				if (geom[j - 1] == geom[i]) {
 					if (offset != 0) {
 						// first and last points are supposed to be the same
-						// but there is an unresolved antimeridian shift still
+						// but there is an unresolved antimeridian shift
 						balanced = false;
 					}
 				}
 
+				// If something contradictory happened in longitude
+				// wraparound detection, restore the original geometry
 				if (!balanced) {
 					ring.clear();
 					for (size_t k = i; k < j; k++) {
