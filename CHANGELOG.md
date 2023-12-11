@@ -1,3 +1,7 @@
+# 2.39.0
+
+* Don't use longitude wraparound detection if it makes a self-contradictory geometry
+
 # 2.38.0
 
 * Tolerate polygon rings with insuffiently many points in input

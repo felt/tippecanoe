@@ -313,40 +313,119 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	return sf;
 }
 
-static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom) {
-	long long offset = 0;
-	long long prev = 0;
-	bool has_prev = false;
+static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom, int t) {
 	double scale = 1.0 / (1 << geometry_scale);
+
+	if (additional[A_DETECT_WRAPAROUND]) {
+		drawvec out;
+		bool outer = true;  // first ring is expected to be outer
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				size_t j = 0;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+				}
+
+				long long prev_x = geom[i].x;
+				long long offset = 0;
+				bool balanced = true;
+
+				drawvec ring;
+				bool changed = false;
+				for (size_t k = i; k < j; k++) {
+					draw op = geom[k];
+					op.x += offset;
+
+					// jumps at least 180° but not exactly 360°,
+					// which in some data sets is an intentional
+					// line across the world
+					if (op.x - prev_x > (1LL << 31) && op.x - prev_x != (1LL << 32)) {
+						if (offset < 0) {
+							// already shifted left, but seems to need another shift left
+							balanced = false;
+							break;
+						}
+
+						offset -= 1LL << 32;
+						op.x -= 1LL << 32;
+						changed = true;
+					} else if (prev_x - op.x > (1LL << 31) && prev_x - op.x != (1LL << 32)) {
+						if (offset > 0) {
+							// already shifted right, but seems to need another shift right
+							balanced = false;
+							break;
+						}
+
+						offset += 1LL << 32;
+						op.x += 1LL << 32;
+						changed = true;
+					}
+
+					ring.push_back(op);
+					prev_x = op.x;
+				}
+
+				if (changed && balanced) {
+					// If this is a polygon, in which the first and last
+					// points of each ring are supposed to be identical,
+					// make sure the antimeridian wraparound detection
+					// preserves that expectation. If it doesn't, it means
+					// we have detected something wrongly.
+					if (geom[j - 1] == geom[i]) {
+						if (offset != 0) {
+							// first and last points are supposed to be the same
+							// but there is an unresolved antimeridian shift
+							balanced = false;
+						}
+					}
+
+					if (t == VT_POLYGON) {
+						// don't accept longitude corrections that would give
+						// a ring a winding counter to what the geojson structure
+						// says the winding should be
+
+						double area_after = get_area(ring, 0, ring.size());
+						if ((outer && area_after < 0) ||
+						    (!outer && area_after > 0)) {
+							// wraparound detection gave a ring a winding different from
+							// what its position in the GeoJSON structure indicates that
+							// it should have.
+							balanced = false;
+						}
+					}
+				}
+
+				// If something contradictory happened in longitude
+				// wraparound detection, restore the original geometry
+				if (!balanced) {
+					ring.clear();
+					for (size_t k = i; k < j; k++) {
+						ring.push_back(geom[k]);
+					}
+				}
+
+				for (auto const &g : ring) {
+					out.push_back(g);
+				}
+
+				i = j - 1;
+				outer = false;
+			} else if (geom[i].op == VT_CLOSEPATH) {
+				out.push_back(geom[i]);
+				outer = true;
+			}
+		}
+
+		geom = std::move(out);
+	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO || geom[i].op == VT_LINETO) {
 			long long x = geom[i].x;
 			long long y = geom[i].y;
-
-			if (additional[A_DETECT_WRAPAROUND]) {
-				if (geom[i].op == VT_LINETO) {
-					x += offset;
-					if (has_prev) {
-						// jumps at least 180° but not exactly 360°,
-						// which in some data sets is an intentional
-						// line across the world
-						if (x - prev > (1LL << 31) && x - prev != (1LL << 32)) {
-							offset -= 1LL << 32;
-							x -= 1LL << 32;
-						} else if (prev - x > (1LL << 31) && prev - x != (1LL << 32)) {
-							offset += 1LL << 32;
-							x += 1LL << 32;
-						}
-					}
-
-					has_prev = true;
-					prev = x;
-				} else {
-					offset = 0;
-					prev = x;
-				}
-			}
 
 			if (x < bbox[0]) {
 				bbox[0] = x;
@@ -464,7 +543,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	// try to remind myself that the geometry in this function is in SCALED COORDINATES
 	drawvec scaled_geometry = sf.geometry;
 	sf.geometry.clear();
-	scale_geometry(sst, sf.bbox, scaled_geometry);
+	scale_geometry(sst, sf.bbox, scaled_geometry, sf.t);
 
 	// This has to happen after scaling so that the wraparound detection has happened first.
 	// Otherwise the inner/outer calculation will be confused by bad geometries.
