@@ -314,39 +314,88 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 }
 
 static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom) {
-	long long offset = 0;
-	long long prev = 0;
-	bool has_prev = false;
 	double scale = 1.0 / (1 << geometry_scale);
+
+	if (additional[A_DETECT_WRAPAROUND]) {
+		drawvec out;
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				size_t j = 0;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+				}
+
+				long long prev_x = geom[i].x;
+				long long offset = 0;
+				bool balanced = true;
+
+				drawvec ring;
+				for (size_t k = i; k < j; k++) {
+					draw op = geom[k];
+					op.x += offset;
+
+					// jumps at least 180° but not exactly 360°,
+					// which in some data sets is an intentional
+					// line across the world
+					if (op.x - prev_x > (1LL << 31) && op.x - prev_x != (1LL << 32)) {
+						if (offset < 0) {
+							// already shifted left, but seems to need another shift left
+							balanced = false;
+							break;
+						}
+
+						offset -= 1LL << 32;
+						op.x -= 1LL << 32;
+					} else if (prev_x - op.x > (1LL << 31) && prev_x - op.x != (1LL << 32)) {
+						if (offset > 0) {
+							// already shifted right, but seems to need another shift right
+							balanced = false;
+							break;
+						}
+
+						offset += 1LL << 32;
+						op.x += 1LL << 32;
+					}
+
+					ring.push_back(op);
+					prev_x = op.x;
+				}
+
+				if (geom[j - 1] == geom[i]) {
+					if (offset != 0) {
+						// first and last points are supposed to be the same
+						// but there is an unresolved antimeridian shift still
+						balanced = false;
+					}
+				}
+
+				if (!balanced) {
+					ring.clear();
+					for (size_t k = i; k < j; k++) {
+						ring.push_back(geom[k]);
+					}
+				}
+
+				for (auto const &g : ring) {
+					out.push_back(g);
+				}
+
+				i = j - 1;
+			} else if (geom[i].op == VT_CLOSEPATH) {
+				out.push_back(geom[i]);
+			}
+		}
+
+		geom = std::move(out);
+	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO || geom[i].op == VT_LINETO) {
 			long long x = geom[i].x;
 			long long y = geom[i].y;
-
-			if (additional[A_DETECT_WRAPAROUND]) {
-				if (geom[i].op == VT_LINETO) {
-					x += offset;
-					if (has_prev) {
-						// jumps at least 180° but not exactly 360°,
-						// which in some data sets is an intentional
-						// line across the world
-						if (x - prev > (1LL << 31) && x - prev != (1LL << 32)) {
-							offset -= 1LL << 32;
-							x -= 1LL << 32;
-						} else if (prev - x > (1LL << 31) && prev - x != (1LL << 32)) {
-							offset += 1LL << 32;
-							x += 1LL << 32;
-						}
-					}
-
-					has_prev = true;
-					prev = x;
-				} else {
-					offset = 0;
-					prev = x;
-				}
-			}
 
 			if (x < bbox[0]) {
 				bbox[0] = x;

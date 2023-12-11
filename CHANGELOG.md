@@ -1,3 +1,5 @@
+* Don't use longitude wraparound detection if it makes a self-contradictory geometry
+
 # 2.37.1
 
 * Reduce maximum memory used for vertex sorting
