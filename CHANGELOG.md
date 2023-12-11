@@ -1,4 +1,4 @@
-# 2.37.0
+# 2.38.0
 
 * Tolerate polygon rings with insuffiently many points in input
 
