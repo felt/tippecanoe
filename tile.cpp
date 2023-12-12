@@ -2430,7 +2430,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		for (size_t i = 0; i < partials.size(); i++) {
+		std::reverse(partials.begin(), partials.end());
+		for (ssize_t i = partials.size() - 1; i >= 0; i--) {
 			std::vector<drawvec> &pgeoms = partials[i].geoms;
 			signed char t = partials[i].t;
 			long long original_seq = partials[i].original_seq;
@@ -2474,6 +2475,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					l->second.push_back(c);
 				}
 			}
+
+			partials.erase(partials.begin() + i);
 		}
 
 		partials.clear();
