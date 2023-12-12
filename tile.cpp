@@ -2568,16 +2568,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		mvt_tile tile;
+		size_t totalsize = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
 			std::vector<coalesce> &layer_features = layer_iterator->second;
+			totalsize += layer_features.size();
 
 			mvt_layer layer;
 			layer.name = layer_iterator->first;
 			layer.version = 2;
 			layer.extent = 1 << tile_detail;
 
-			for (size_t x = 0; x < layer_features.size(); x++) {
+			std::reverse(layer_features.begin(), layer_features.end());
+			for (ssize_t x = layer_features.size() - 1; x >= 0; x--) {
 				mvt_feature feature;
 
 				if (layer_features[x].type == VT_LINE || layer_features[x].type == VT_POLYGON) {
@@ -2625,6 +2628,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(feature);
+				layer_features.erase(layer_features.begin() + x);
 			}
 
 			if (layer.features.size() > 0) {
@@ -2639,12 +2643,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		if (z == 0 && unclipped_features < original_features / 2 && clipbboxes.size() == 0) {
 			fprintf(stderr, "\n\nMore than half the features were clipped away at zoom level 0.\n");
 			fprintf(stderr, "Is your data in the wrong projection? It should be in WGS84/EPSG:4326.\n");
-		}
-
-		size_t totalsize = 0;
-		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<coalesce> &layer_features = layer_iterator->second;
-			totalsize += layer_features.size();
 		}
 
 		size_t passes = pass + 1;
