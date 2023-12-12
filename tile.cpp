@@ -1898,6 +1898,19 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
+void coalesce_geometry(partial &p, serial_feature &sf) {
+	// if the geometry being coalesced on is an exact duplicate
+	// of an existing geometry, just drop it
+
+	for (size_t i = 0; i < p.geoms.size(); i++) {
+		if (p.geoms[i] == sf.geometry) {
+			return;
+		}
+	}
+
+	p.geoms.push_back(sf.geometry);
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, struct node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -2145,7 +2158,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					indices.push_back(sf.index);
 				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2164,7 +2177,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2188,7 +2201,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			fraction_accum += fraction;
 			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
@@ -2290,11 +2303,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
 							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
 
-							for (auto &g : partials[simplified_geometry_through].geoms) {
-								if (partials[simplified_geometry_through].t == VT_POLYGON) {
-									// don't scale up because this is still world coordinates
-									g = clean_or_clip_poly(g, 0, 0, false, false);
+							if (partials[simplified_geometry_through].t == VT_POLYGON) {
+								drawvec to_clean;
+
+								for (auto &g : partials[simplified_geometry_through].geoms) {
+									for (auto &d : g) {
+										to_clean.push_back(d);
+									}
 								}
+
+								// don't scale up because this is still world coordinates
+								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
+								partials[simplified_geometry_through].geoms.clear();
+								partials[simplified_geometry_through].geoms.push_back(to_clean);
 							}
 						}
 
