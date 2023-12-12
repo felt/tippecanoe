@@ -2753,6 +2753,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::string compressed;
 			std::string pbf = tile.encode();
 
+			tile.layers.clear();
+
 			if (!prevent[P_TILE_COMPRESSION]) {
 				compress(pbf, compressed, true);
 			} else {
