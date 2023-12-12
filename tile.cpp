@@ -2497,7 +2497,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				std::sort(layer_features.begin(), layer_features.end());
 			}
 
-			{
+			if (additional[A_COALESCE]) {
+				// coalesce adjacent identical features if requested
+
 				size_t out = 0;
 				if (layer_features.size() > 0) {
 					out++;
@@ -2506,7 +2508,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				for (size_t x = 1; x < layer_features.size(); x++) {
 					size_t y = out - 1;
 
-					if (additional[A_COALESCE] && out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
+					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
 						for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
 							layer_features[y].geom.push_back(layer_features[x].geom[g]);
 						}
@@ -2519,31 +2521,40 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				layer_features.resize(out);
 			}
 
-			std::vector<coalesce> out;
-			for (size_t x = 0; x < layer_features.size(); x++) {
-				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
-					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
-					if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
-						// XXX revisit: why does this not take zoom into account?
-						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
-											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+			{
+				// clean up coalesced linestrings by simplification
+				// and coalesced polygons by cleaning
+				//
+				// then close polygons
+
+				size_t out = 0;
+
+				for (size_t x = 0; x < layer_features.size(); x++) {
+					if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
+						layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+							// XXX revisit: why does this not take zoom into account?
+							layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
+												!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+						}
+					}
+
+					if (layer_features[x].type == VT_POLYGON) {
+						if (layer_features[x].coalesced) {
+							// we can try scaling up because this is tile coordinates
+							layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
+						}
+
+						layer_features[x].geom = close_poly(layer_features[x].geom);
+					}
+
+					if (layer_features[x].geom.size() > 0) {
+						layer_features[out++] = layer_features[x];
 					}
 				}
 
-				if (layer_features[x].type == VT_POLYGON) {
-					if (layer_features[x].coalesced) {
-						// we can try scaling up because this is tile coordinates
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
-					}
-
-					layer_features[x].geom = close_poly(layer_features[x].geom);
-				}
-
-				if (layer_features[x].geom.size() > 0) {
-					out.push_back(layer_features[x]);
-				}
+				layer_features.resize(out);
 			}
-			layer_features = out;
 
 			if (prevent[P_INPUT_ORDER]) {
 				std::sort(layer_features.begin(), layer_features.end(), preservecmp);
