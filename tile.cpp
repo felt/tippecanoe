@@ -2497,32 +2497,29 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				std::sort(layer_features.begin(), layer_features.end());
 			}
 
-			std::vector<coalesce> out;
-			if (layer_features.size() > 0) {
-				out.push_back(layer_features[0]);
-			}
-			for (size_t x = 1; x < layer_features.size(); x++) {
-				size_t y = out.size() - 1;
-
-#if 0
-				if (out.size() > 0 && coalcmp(&layer_features[x], &out[y]) < 0) {
-					fprintf(stderr, "\nfeature out of order\n");
+			{
+				size_t out = 0;
+				if (layer_features.size() > 0) {
+					out++;
 				}
-#endif
 
-				if (additional[A_COALESCE] && out.size() > 0 && coalcmp(&layer_features[x], &out[y]) == 0) {
-					for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
-						out[y].geom.push_back(layer_features[x].geom[g]);
+				for (size_t x = 1; x < layer_features.size(); x++) {
+					size_t y = out - 1;
+
+					if (additional[A_COALESCE] && out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
+						for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
+							layer_features[y].geom.push_back(layer_features[x].geom[g]);
+						}
+						layer_features[y].coalesced = true;
+					} else {
+						layer_features[out++] = layer_features[x];
 					}
-					out[y].coalesced = true;
-				} else {
-					out.push_back(layer_features[x]);
 				}
+
+				layer_features.resize(out);
 			}
 
-			layer_features = out;
-
-			out.clear();
+			std::vector<coalesce> out;
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
 					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
