@@ -203,7 +203,8 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 
 		if (mb_geometry[t] == VT_POLYGON) {
 			// we can try scaling up because these are tile coordinates
-			dv = clean_or_clip_poly(dv, 0, 0, false, true);
+			// these are already scaled, so even-odd winding
+			dv = clean_or_clip_poly(dv, 0, 0, false, true, true);
 			if (dv.size() < 3) {
 				dv.clear();
 			}
