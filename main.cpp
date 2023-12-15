@@ -3359,8 +3359,8 @@ int main(int argc, char **argv) {
 				order_by.push_back(order_field(ORDER_BY_SIZE, true));
 				order_by_size = true;
 			} else if (strcmp(opt, "order-spatial-inverse") == 0) {
-				order_by.push_back(order_field(ORDER_SPATIAL, false));
 				order_by.push_back(order_field(ORDER_BY_FEATURE_MINZOOM, false));
+				order_by.push_back(order_field(ORDER_SPATIAL, false));
 			} else if (strcmp(opt, "simplification-at-maximum-zoom") == 0) {
 				maxzoom_simplification = atof_require(optarg, "Mazoom simplification");
 				if (maxzoom_simplification <= 0) {
