@@ -100,6 +100,7 @@ struct coalesce {
 	bool has_id = false;
 	unsigned long long id = 0;
 	long long extent = 0;
+	signed char feature_minzoom = 0;
 
 	bool operator<(const coalesce &o) const {
 		int cmp = coalindexcmp(this, &o);
@@ -253,11 +254,32 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
+static unsigned long long flop(unsigned long long v) {
+	unsigned long long out = 0;
+	for (size_t i = 0; i < 64; i++) {
+		out |= ((v >> i) & 1) << (63 - i);
+	}
+
+	return out;
+}
+
 static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
 		v.numeric_value.double_value = c1->extent;
+		return v;
+	}
+	if (key == ORDER_SPATIAL) {
+		mvt_value v;
+		v.type = mvt_uint;
+		v.numeric_value.uint_value = flop(c1->index);
+		return v;
+	}
+	if (key == ORDER_BY_FEATURE_MINZOOM) {
+		mvt_value v;
+		v.type = mvt_double;
+		v.numeric_value.double_value = c1->feature_minzoom;
 		return v;
 	}
 
@@ -467,6 +489,7 @@ struct partial {
 	double spacing = 0;
 	double simplification = 0;
 	signed char t = 0;
+	signed char feature_minzoom = 0;
 	unsigned long long id = 0;
 	bool has_id = 0;
 	ssize_t renamed = 0;
@@ -2266,6 +2289,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.renamed = -1;
 					p.extent = sf.extent;
 					p.clustered = 0;
+					p.feature_minzoom = sf.feature_minzoom;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						p.extra_detail = extra_detail;
@@ -2311,6 +2335,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		for (size_t i = 0; i < partials.size(); i++) {
 			partial &p = partials[i];
+
+			{
+				std::string layername = (*layer_unmaps)[p.segment][p.layer];
+
+				serial_val sv, sv2;
+				p.full_keys.push_back("inverse_index");
+				sv.type = mvt_double;
+				sv.s = std::to_string(flop(p.index));
+				p.full_values.push_back(sv);
+
+				p.full_keys.push_back("feature_minzoom");
+				sv2.type = mvt_double;
+				sv2.s = std::to_string(p.feature_minzoom);
+				p.full_values.push_back(sv2);
+			}
 
 			if (p.clustered > 0) {
 				std::string layername = (*layer_unmaps)[p.segment][p.layer];
@@ -2456,6 +2495,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					c.id = partials[i].id;
 					c.has_id = partials[i].has_id;
 					c.extent = partials[i].extent;
+					c.feature_minzoom = partials[i].feature_minzoom;
 
 					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 

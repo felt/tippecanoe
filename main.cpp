@@ -3211,6 +3211,7 @@ int main(int argc, char **argv) {
 		{"order-descending-by", required_argument, 0, '~'},
 		{"order-smallest-first", no_argument, 0, '~'},
 		{"order-largest-first", no_argument, 0, '~'},
+		{"order-spatial-inverse", no_argument, 0, '~'},
 
 		{"Adding calculated attributes", 0, 0, 0},
 		{"calculate-feature-density", no_argument, &additional[A_CALCULATE_FEATURE_DENSITY], 1},
@@ -3357,6 +3358,9 @@ int main(int argc, char **argv) {
 			} else if (strcmp(opt, "order-largest-first") == 0) {
 				order_by.push_back(order_field(ORDER_BY_SIZE, true));
 				order_by_size = true;
+			} else if (strcmp(opt, "order-spatial-inverse") == 0) {
+				order_by.push_back(order_field(ORDER_SPATIAL, false));
+				order_by.push_back(order_field(ORDER_BY_FEATURE_MINZOOM, false));
 			} else if (strcmp(opt, "simplification-at-maximum-zoom") == 0) {
 				maxzoom_simplification = atof_require(optarg, "Mazoom simplification");
 				if (maxzoom_simplification <= 0) {

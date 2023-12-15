@@ -729,11 +729,14 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		}
 	}
 
+#if 0
 	if (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED] || additional[A_CALCULATE_FEATURE_DENSITY] || additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED] || additional[A_INCREASE_GAMMA_AS_NEEDED] || additional[A_GENERATE_POLYGON_LABEL_POINTS] || sst->uses_gamma || cluster_distance != 0) {
 		sf.index = bbox_index;
 	} else {
 		sf.index = 0;
 	}
+#endif
+	sf.index = bbox_index;
 
 	if (sst->layermap->count(sf.layername) == 0) {
 		sst->layermap->insert(std::pair<std::string, layermap_entry>(sf.layername, layermap_entry(sst->layermap->size())));
