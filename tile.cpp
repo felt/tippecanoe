@@ -578,7 +578,8 @@ double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_no
 					// unioned exactly
 					//
 					// don't try to scale up because these are still world coordinates
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					// positive winding because these are world coordinates
+					geom = clean_or_clip_poly(geom, 0, 0, false, false, true);
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -611,7 +612,42 @@ void *partial_feature_worker(void *v) {
 		int z = (*partials)[i].z;
 		int out_detail = (*partials)[i].extra_detail;
 
+#if 0
+		if ((*partials)[i].geoms[0].size() < 1) {
+			fprintf(stderr, "expected at least one geometry in partial_feature_worker\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+		for (size_t x = 1; x < (*partials)[i].geoms.size(); x++) {
+			for (auto const &d : (*partials)[i].geoms[x]) {
+				(*partials)[i].geoms[0].push_back(d);
+			}
+		}
+		(*partials)[i].geoms.resize(1);
+#endif
+
+		if ((*partials)[i].geoms.size() != 1) {
+			fprintf(stderr, "expected single geometry in partial_feature_worker\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
 		drawvec geom = (*partials)[i].geoms[0];
+
+		if (t == VT_POLYGON) {
+			// clean multi-ring polygons with positive winding before scaling
+			// so that polygon dust will be unioned on positively
+
+			size_t ring_count = 0;
+			for (size_t x = 0; x < geom.size(); x++) {
+				if (geom[x].op == VT_MOVETO) {
+					ring_count++;
+
+					if (ring_count == 2) {
+						geom = clean_or_clip_poly(geom, 0, 0, false, false, false);
+						break;
+					}
+				}
+			}
+		}
+
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -620,7 +656,8 @@ void *partial_feature_worker(void *v) {
 			{
 				drawvec before = geom;
 				// we can try scaling up because this is now tile scale
-				geom = clean_or_clip_poly(geom, 0, 0, false, true);
+				// even-odd since we have scaled
+				geom = clean_or_clip_poly(geom, 0, 0, false, true, true);
 				if (additional[A_DEBUG_POLYGON]) {
 					check_polygon(geom);
 				}
@@ -2293,7 +2330,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							for (auto &g : partials[simplified_geometry_through].geoms) {
 								if (partials[simplified_geometry_through].t == VT_POLYGON) {
 									// don't scale up because this is still world coordinates
-									g = clean_or_clip_poly(g, 0, 0, false, false);
+									// positive winding because this before scaling
+									g = clean_or_clip_poly(g, 0, 0, false, false, false);
 								}
 							}
 						}
@@ -2533,7 +2571,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (layer_features[x].type == VT_POLYGON) {
 					if (layer_features[x].coalesced) {
 						// we can try scaling up because this is tile coordinates
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
+						// positive winding because we are trying to union features here
+						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true, false);
 					}
 
 					layer_features[x].geom = close_poly(layer_features[x].geom);

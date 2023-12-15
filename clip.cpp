@@ -249,7 +249,7 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 	}
 }
 
-drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling) {
+drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling, bool even_odd) {
 	geom = remove_noop(geom, VT_POLYGON, 0);
 	mapbox::geometry::multi_polygon<long long> result;
 
@@ -308,7 +308,11 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 
 		try {
 			result.clear();
-			wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+			if (even_odd) {
+				wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_even_odd, mapbox::geometry::wagyu::fill_type_even_odd);
+			} else {
+				wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+			}
 		} catch (std::runtime_error &e) {
 			FILE *f = fopen("/tmp/wagyu.log", "w");
 			fprintf(f, "%s\n", e.what());
@@ -858,7 +862,8 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 			geom = remove_noop(geom, t, 0);
 			if (t == VT_POLYGON) {
-				geom = clean_or_clip_poly(geom, 0, 0, false, false);
+				// this is after scaling, so even-odd to balance scaling errors between features
+				geom = clean_or_clip_poly(geom, 0, 0, false, false, true);
 				geom = close_poly(geom);
 			}
 
