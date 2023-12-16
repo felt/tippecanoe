@@ -10,6 +10,7 @@
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-ae_-zg_-M5000_--drop-fraction-as-needed.json.check.mbtiles",
 "strategies": "[{\"dropped_as_needed\":164,\"tile_size_desired\":39190},{\"dropped_as_needed\":187,\"tile_size_desired\":25154},{\"dropped_as_needed\":190,\"tiny_polygons\":1,\"tile_size_desired\":21201},{\"dropped_as_needed\":181,\"tile_size_desired\":10758},{\"dropped_as_needed\":147,\"tile_size_desired\":6601},{\"tiny_polygons\":2}]",
+"tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":2.500000,\"retain_points_multiplier\":1.000000}",
 "type": "overlay",
 "version": "2"
 }, "features": [

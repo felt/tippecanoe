@@ -10,6 +10,7 @@
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME_-z5_-r1.5.json.check.mbtiles",
 "strategies": "[{\"dropped_by_rate\":211},{\"dropped_by_rate\":214},{\"dropped_by_rate\":179},{\"dropped_by_rate\":138},{\"dropped_by_rate\":70},{}]",
+"tippecanoe_decisions": "{\"basezoom\":5,\"droprate\":1.500000,\"retain_points_multiplier\":1.000000}",
 "type": "overlay",
 "version": "2"
 }, "features": [

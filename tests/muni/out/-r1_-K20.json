@@ -10,6 +10,7 @@
 "minzoom": "0",
 "name": "tests/muni/out/-r1_-K20.json.check.mbtiles",
 "strategies": "[{\"coalesced_as_needed\":4608},{\"coalesced_as_needed\":4608},{\"coalesced_as_needed\":4608},{\"coalesced_as_needed\":4608},{\"coalesced_as_needed\":4608},{\"coalesced_as_needed\":4607},{\"coalesced_as_needed\":4607},{\"coalesced_as_needed\":4606},{\"coalesced_as_needed\":6005},{\"coalesced_as_needed\":5393},{\"coalesced_as_needed\":5012},{\"coalesced_as_needed\":4727},{\"coalesced_as_needed\":4577},{\"coalesced_as_needed\":4003},{\"coalesced_as_needed\":3005}]",
+"tippecanoe_decisions": "{\"basezoom\":14,\"droprate\":1.000000,\"retain_points_multiplier\":1.000000}",
 "type": "overlay",
 "version": "2"
 }, "features": [

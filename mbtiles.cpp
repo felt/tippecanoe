@@ -601,6 +601,17 @@ void mbtiles_write_metadata(sqlite3 *db, const metadata &m, bool forcetable) {
 		sqlite3_free(sql);
 	}
 
+	if (m.decisions_json.size() > 0) {
+		sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('tippecanoe_decisions', %Q);", m.decisions_json.c_str());
+		if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
+			fprintf(stderr, "set decisions: %s\n", err);
+			if (!forcetable) {
+				exit(EXIT_SQLITE);
+			}
+		}
+		sqlite3_free(sql);
+	}
+
 	if (m.vector_layers_json.size() > 0 || m.tilestats_json.size() > 0) {
 		std::string json;
 		json_writer state(&json);
@@ -642,7 +653,7 @@ void mbtiles_write_metadata(sqlite3 *db, const metadata &m, bool forcetable) {
 	}
 }
 
-metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies) {
+metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, double retain_points_multiplier) {
 	metadata m;
 
 	m.name = fname;
@@ -676,6 +687,14 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 	m.generator_options = commandline;
 
 	m.strategies_json = stringify_strategies(strategies);
+
+	if (basezoom != maxzoom || droprate != 2.5 || retain_points_multiplier != 1) {
+		m.decisions_json = std::string("{") +
+				   "\"basezoom\":" + std::to_string(basezoom) + "," +
+				   "\"droprate\":" + std::to_string(droprate) + "," +
+				   "\"retain_points_multiplier\":" + std::to_string(retain_points_multiplier) +
+				   std::string("}");
+	}
 
 	if (vector) {
 		{

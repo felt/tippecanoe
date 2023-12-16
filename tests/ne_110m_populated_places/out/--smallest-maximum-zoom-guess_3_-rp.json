@@ -10,6 +10,7 @@
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/--smallest-maximum-zoom-guess_3_-rp.json.check.mbtiles",
 "strategies": "[{\"dropped_by_rate\":230},{\"dropped_by_rate\":231},{\"dropped_by_rate\":160},{}]",
+"tippecanoe_decisions": "{\"basezoom\":3,\"droprate\":2.658283,\"retain_points_multiplier\":1.000000}",
 "type": "overlay",
 "version": "2"
 }, "features": [

@@ -9,6 +9,7 @@
 "maxzoom": "3",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/--smallest-maximum-zoom-guess_3_-Bg.json.check.mbtiles",
+"tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":2.500000,\"retain_points_multiplier\":1.000000}",
 "type": "overlay",
 "version": "2"
 }, "features": [

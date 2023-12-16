@@ -10,6 +10,7 @@
 "minzoom": "0",
 "name": "tests/muni/out/-z11_--retain-points-multiplier_2_--extend-zooms-if-still-dropping.json.check.mbtiles",
 "strategies": "[{\"dropped_by_rate\":4609},{\"dropped_by_rate\":4609},{\"dropped_by_rate\":4606},{\"dropped_by_rate\":4603},{\"dropped_by_rate\":4594},{\"dropped_by_rate\":4571},{\"dropped_by_rate\":4514},{\"dropped_by_rate\":4372},{\"dropped_by_rate\":5245},{\"dropped_by_rate\":3681},{\"dropped_by_rate\":1012},{}]",
+"tippecanoe_decisions": "{\"basezoom\":11,\"droprate\":2.500000,\"retain_points_multiplier\":2.000000}",
 "type": "overlay",
 "version": "2"
 }, "features": [

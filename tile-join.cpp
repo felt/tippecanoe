@@ -1606,7 +1606,7 @@ int main(int argc, char **argv) {
 		st.maxlon2 = st.maxlon;
 	}
 
-	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
+	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies, st.maxzoom, 2.5, 1);
 
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, true);
