@@ -755,7 +755,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     size_t multiplier, std::string const &filter) {
+		     size_t multiplier, std::string const &order_by) {
 	mvt_tile tile;
 
 	try {
@@ -769,7 +769,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, multiplier, filter);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, multiplier, order_by);
 }
 
 struct tile_feature {
@@ -781,6 +781,12 @@ struct tile_feature {
 	mvt_layer const *layer;
 
 	mvt_value value(std::string const &attr) const {
+		for (size_t i = 0; i + 1 < tags.size(); i += 2) {
+			if (layer->keys[tags[i]] == attr) {
+				return layer->values[tags[i + 1]];
+			}
+		}
+
 		mvt_value v;
 		v.type = mvt_null;
 		return v;
@@ -798,12 +804,12 @@ struct sorter {
 		mvt_value av = a.value(attr);
 		mvt_value bv = b.value(attr);
 
-        av = av.promote_for_comparison_with(bv);
-        bv = bv.promote_for_comparison_with(av);
-        if (av.type != bv.type) {
-            fprintf(stderr, "Sorter: can't happen\n");
-            exit(EXIT_IMPOSSIBLE);
-        }
+		av = av.promote_for_comparison_with(bv);
+		bv = bv.promote_for_comparison_with(av);
+		if (av.type != bv.type) {
+			fprintf(stderr, "Sorter: can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
 
 		return av < bv;
 	}
@@ -839,7 +845,7 @@ void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std:
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     size_t multiplier, std::string const &filter) {
+		     size_t multiplier, std::string const &order_by) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -940,14 +946,14 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			tile_features.push_back(tf);
 
 			if (tile_features.size() >= multiplier) {
-				std::sort(tile_features.begin(), tile_features.end(), sorter(filter));
+				std::sort(tile_features.begin(), tile_features.end(), sorter(order_by));
 				feature_out(tile_features[0], outlayer, keep);
 				tile_features.clear();
 			}
 		}
 
 		if (tile_features.size() > 0) {
-			std::sort(tile_features.begin(), tile_features.end(), sorter(filter));
+			std::sort(tile_features.begin(), tile_features.end(), sorter(order_by));
 			feature_out(tile_features[0], outlayer, keep);
 			tile_features.clear();
 		}
@@ -971,7 +977,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     multiplier, filter);
+								     multiplier, order_by);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}

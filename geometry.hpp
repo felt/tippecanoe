@@ -101,11 +101,11 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     size_t multiplier, std::string const &filter);
+		     size_t multiplier, std::string const &order_by);
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     size_t multiplier, std::string const &filter);
+		     size_t multiplier, std::string const &order_by);
 
 #endif
