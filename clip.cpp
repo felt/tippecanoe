@@ -811,7 +811,8 @@ struct sorter {
 			exit(EXIT_IMPOSSIBLE);
 		}
 
-		return av < bv;
+		// descending; we are keeping the largest value for now
+		return bv < av;
 	}
 };
 

@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
 			break;
 
 		default:
+			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
 		}
 	}
