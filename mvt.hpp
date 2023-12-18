@@ -81,6 +81,7 @@ struct mvt_value {
 	} numeric_value;
 
 	bool operator<(const mvt_value &o) const;
+	mvt_value promote_for_comparison_with(mvt_value const &o) const;
 	std::string toString() const;
 
 	mvt_value() {

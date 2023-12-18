@@ -798,6 +798,13 @@ struct sorter {
 		mvt_value av = a.value(attr);
 		mvt_value bv = b.value(attr);
 
+        av = av.promote_for_comparison_with(bv);
+        bv = bv.promote_for_comparison_with(av);
+        if (av.type != bv.type) {
+            fprintf(stderr, "Sorter: can't happen\n");
+            exit(EXIT_IMPOSSIBLE);
+        }
+
 		return av < bv;
 	}
 };
