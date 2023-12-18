@@ -12,6 +12,8 @@ extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
+int multiplier = 1;
+std::string filter;
 
 std::set<std::string> keep;
 
@@ -25,7 +27,7 @@ int main(int argc, char **argv) {
 	int i;
 	const char *outfile = NULL;
 
-	while ((i = getopt(argc, argv, "y:o:d:b:")) != -1) {
+	while ((i = getopt(argc, argv, "y:o:d:b:f:m:")) != -1) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
@@ -41,6 +43,14 @@ int main(int argc, char **argv) {
 
 		case 'b':
 			buffer = atoi(optarg);
+			break;
+
+		case 'm':
+			multiplier = atoi(optarg);
+			break;
+
+		case 'f':
+			filter = optarg;
 			break;
 
 		default:
@@ -91,7 +101,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL);
+	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, multiplier, filter);
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 
