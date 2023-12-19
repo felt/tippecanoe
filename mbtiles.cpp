@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sqlite3.h>
+#include <cmath>
+#include <climits>
 #include <vector>
 #include <string>
 #include <set>
@@ -688,6 +690,9 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 
 	m.strategies_json = stringify_strategies(strategies);
 
+	if (isinf(droprate)) {
+		droprate = LLONG_MAX;
+	}
 	if (basezoom != maxzoom || droprate != 2.5 || retain_points_multiplier != 1) {
 		m.decisions_json = std::string("{") +
 				   "\"basezoom\":" + std::to_string(basezoom) + "," +
