@@ -103,6 +103,13 @@ std::string metadata_to_pmtiles_json(metadata m) {
 		state.json_write_string("strategies");
 		state.json_write_json(m.strategies_json);
 	}
+
+	if (m.decisions_json.size() > 0) {
+		state.json_comma_newline();
+		state.json_write_string("tippecanoe_decisions");
+		state.json_write_json(m.decisions_json);
+	}
+
 	out(state, "generator", m.generator);
 	out(state, "generator_options", m.generator_options);
 
@@ -424,6 +431,12 @@ sqlite3 *pmtilesmeta2tmp(const char *fname, const char *pmtiles_map) {
 			state.json_write_json(json_stringify(o->value.object.values[i]));
 		} else if (strcmp(key, "strategies") == 0 && o->value.object.values[i]->type == JSON_ARRAY) {
 			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('strategies', %Q);", json_stringify(o->value.object.values[i]));
+			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
+				fprintf(stderr, "set %s in metadata: %s\n", key, err);
+			}
+			sqlite3_free(sql);
+		} else if (strcmp(key, "tippecanoe_decisions") == 0 && o->value.object.values[i]->type == JSON_HASH) {
+			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('tippecanoe_decisions', %Q);", json_stringify(o->value.object.values[i]));
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
 				fprintf(stderr, "set %s in metadata: %s\n", key, err);
 			}
