@@ -304,7 +304,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
-		ssize_t chosen = maxzoom + 1;
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
@@ -318,7 +317,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 					ds[j].previndex = ix->ix;
 				}
 
-				chosen = i + 1;
 				break;
 			} else {
 				ds[i].seq -= ds[i].interval;
@@ -331,7 +329,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		// we will go ahead and push it out.
 
 		if (preserve_point_density_threshold > 0) {
-			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
+			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
