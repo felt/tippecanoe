@@ -337,6 +337,27 @@ double xcoord(std::vector<segment> const &segs, size_t seg, long long y) {
 	return 0;
 }
 
+struct active {
+	long long x;
+	size_t seg;
+
+	active(long long x_, size_t seg_)
+	    : x(x_), seg(seg_) {
+	}
+
+	bool operator<(active const &s) const {
+		if (x < s.x || (x == s.x && seg < s.seg)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	bool operator>(active const &s) const {
+		return s < *this;
+	}
+};
+
 void snap_round(std::vector<segment> &segs, long long extent) {
 	bool again = true;
 
@@ -376,7 +397,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 
 		// do the scan
 
-		std::vector<std::pair<double, size_t>> active;
+		std::vector<active> active;
 
 		size_t i = 0;
 		while (i < transitions.size()) {
@@ -385,34 +406,34 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			// update the active positions to correspond to the new Y coordinate
 
 			for (size_t j = 0; j < active.size(); j++) {
-				long long x = xcoord(segs, active[j].second, y);
+				long long x = xcoord(segs, active[j].seg, y);
 
 				// look for anything that might be collinear with this segment
 				// (has the same x coordinate above; still has the same
 				// x coordinate here).
 
-				for (size_t k = j + 1; k < active.size() && active[k].first == active[j].first; k++) {
-					long long kx = xcoord(segs, active[k].second, y);
+				for (size_t k = j + 1; k < active.size() && active[k].x == active[j].x; k++) {
+					long long kx = xcoord(segs, active[k].seg, y);
 
 					if (kx == x) {
-						if (intersect(segs, active[j].second, active[k].second)) {
+						if (intersect(segs, active[j].seg, active[k].seg)) {
 							again = true;
 						}
 					}
 				}
 
-				active[j].first = x;
+				active[j].x = x;
 			}
 
 			// are they still in order?
 
 			for (size_t j = 0; j < active.size(); j++) {
-				for (size_t k = j; k + 1 < active.size() && active[k].first > active[k + 1].first; k++) {
+				for (size_t k = j; k + 1 < active.size() && active[k] > active[k + 1]; k++) {
 					// no, they are out of order. bubble them into order,
 					// and check where the intersection was at each step
 
 					std::swap(active[k], active[k + 1]);
-					if (intersect(segs, active[k].second, active[k + 1].second)) {
+					if (intersect(segs, active[k].seg, active[k + 1].seg)) {
 						again = true;
 					} else {
 						fprintf(stderr, "can't happen: they don't actually intersect?\n");
@@ -424,7 +445,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			// activate any new tops at this y coordinate
 
 			for (; i < transitions.size() && transitions[i].kind < 0 && transitions[i].y == y; i++) {
-				std::pair<double, size_t> top(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
+				struct active top(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
 				auto where = std::upper_bound(active.begin(), active.end(), top);
 				active.insert(where, top);
 			}
@@ -438,7 +459,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			// deactivate any bottoms at this y coordinate
 
 			for (; i < transitions.size() && transitions[i].kind > 0 && transitions[i].y == y; i++) {
-				std::pair<double, size_t> bottom(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
+				struct active bottom(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
 				auto where = std::lower_bound(active.begin(), active.end(), bottom);
 				active.erase(where);
 			}
