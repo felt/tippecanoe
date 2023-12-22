@@ -1,3 +1,7 @@
+# 2.39.0
+
+* Reduce memory usage during tiling
+
 # 2.38.0
 
 * Tolerate polygon rings with insuffiently many points in input
