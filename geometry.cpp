@@ -644,9 +644,9 @@ drawvec fix_polygon(drawvec &geom) {
 
 			// A polygon ring must contain at least three points
 			// (and really should contain four). If this one does
-			// not have enough, avoid a division by zero trying to
+			// not have any, avoid a division by zero trying to
 			// calculate the centroid below.
-			if (j - i < 3) {
+			if (j - i < 1) {
 				i = j - 1;
 				outer = 0;
 				continue;
@@ -660,6 +660,13 @@ drawvec fix_polygon(drawvec &geom) {
 				ring.push_back(geom[a]);
 			}
 			if (j - i != 0 && (ring[0].x != ring[j - i - 1].x || ring[0].y != ring[j - i - 1].y)) {
+				ring.push_back(ring[0]);
+			}
+
+			// A polygon ring at this point should contain at least four points.
+			// Flesh it out with some vertex copies if it doesn't.
+
+			while (ring.size() < 4) {
 				ring.push_back(ring[0]);
 			}
 
