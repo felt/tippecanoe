@@ -359,7 +359,6 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 		// index by y coordinates
 
 		std::vector<scan_transition> transitions;
-		std::vector<std::pair<long long, size_t>> verticals;
 
 		for (size_t i = 0; i < segs.size(); i++) {
 			if (segs[i].first.y < segs[i].second.y) {
@@ -371,24 +370,9 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			} else {
 				transitions.emplace_back(segs[i].first.y, 0, i);  // horizontal
 			}
-
-			if (segs[i].first.x == segs[i].second.x) {
-				verticals.emplace_back(segs[i].first.x, i);
-			}
 		}
 
 		std::sort(transitions.begin(), transitions.end());
-		std::sort(verticals.begin(), verticals.end());
-
-		// Intersect any verticals at the same X coordinate with each other
-
-		for (size_t i = 0; i + 1 < verticals.size(); i++) {
-			if (verticals[i].first == verticals[i + 1].first) {
-				if (intersect(segs, verticals[i].second, verticals[i + 1].second)) {
-					again = true;
-				}
-			}
-		}
 
 		// do the scan
 
@@ -401,7 +385,23 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			// update the active positions to correspond to the new Y coordinate
 
 			for (size_t j = 0; j < active.size(); j++) {
-				active[j].first = xcoord(segs, active[j].second, y);
+				long long x = xcoord(segs, active[j].second, y);
+
+				// look for anything that might be collinear with this segment
+				// (has the same x coordinate above; still has the same
+				// x coordinate here).
+
+				for (size_t k = j + 1; k < active.size() && active[k].first == active[j].first; k++) {
+					long long kx = xcoord(segs, active[k].second, y);
+
+					if (kx == x) {
+						if (intersect(segs, active[j].second, active[k].second)) {
+							again = true;
+						}
+					}
+				}
+
+				active[j].first = x;
 			}
 
 			// are they still in order?
@@ -430,6 +430,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			}
 
 			// check any horizontals at this y coordinate against the active set
+			// and check collinear horizontals against each other
 
 			for (; i < transitions.size() && transitions[i].kind == 0 && transitions[i].y == y; i++) {
 			}
