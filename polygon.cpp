@@ -58,7 +58,7 @@ bool spindle_visible(segment const &seg, long long extent) {
 	}
 }
 
-bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected, long long extent) {
+bool fix_opposites(std::vector<segment> &segs, long long extent) {
 	bool changed = false;
 	std::multimap<segment, size_t> opposites;
 	segment erased = std::make_pair(point(INT_MAX, INT_MAX), point(INT_MAX, INT_MAX));
@@ -92,8 +92,6 @@ bool fix_opposites(std::vector<segment> &segs, std::set<segment> &affected, long
 				segs.emplace_back(point(cx, cy), segs[i].second);
 				segs[i] = std::make_pair(segs[i].first, point(cx, cy));
 
-				affected.insert(segs[i]);
-				affected.insert(segs.back());
 				changed = true;
 
 				// segs[i] is not erased, so segs[f.first->second]
@@ -165,21 +163,19 @@ std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, 
 	return SAME_SLOPE;
 }
 
-bool vertical(std::vector<segment> &segs, size_t s, long long y, std::set<segment> &affected) {
+bool vertical(std::vector<segment> &segs, size_t s, long long y) {
 	if ((y > segs[s].first.y && y < segs[s].second.y) ||
 	    (y > segs[s].second.y && y < segs[s].first.y)) {
 		segs.push_back(std::make_pair(point(segs[s].first.x, y), segs[s].second));
 		segs[s] = std::make_pair(segs[s].first, point(segs[s].first.x, y));
 
-		affected.insert(segs[s]);
-		affected.insert(segs.back());
 		return true;
 	}
 
 	return false;
 }
 
-bool horizontal(std::vector<segment> &segs, size_t s, long long x, std::set<segment> &affected) {
+bool horizontal(std::vector<segment> &segs, size_t s, long long x) {
 	if ((x > segs[s].first.x && x < segs[s].second.x) ||
 	    (x > segs[s].second.x && x < segs[s].first.x)) {
 		double slope = (segs[s].second.y - segs[s].first.y) /
@@ -188,15 +184,13 @@ bool horizontal(std::vector<segment> &segs, size_t s, long long x, std::set<segm
 		segs.push_back(std::make_pair(point(x, y), segs[s].second));
 		segs[s] = std::make_pair(segs[s].first, point(x, y));
 
-		affected.insert(segs[s]);
-		affected.insert(segs.back());
 		return true;
 	}
 
 	return false;
 }
 
-bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segment> &affected) {
+bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 	bool changed = false;
 
 	if (segs[s1].first.x == segs[s1].second.x) {
@@ -208,16 +202,16 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2, std::
 			if (segs[s1].first.x == segs[s2].first.x) {
 				// collinear, not parallel
 
-				if (vertical(segs, s1, segs[s2].first.y, affected)) {
+				if (vertical(segs, s1, segs[s2].first.y)) {
 					changed = true;
 				}
-				if (vertical(segs, s1, segs[s2].second.y, affected)) {
+				if (vertical(segs, s1, segs[s2].second.y)) {
 					changed = true;
 				}
-				if (vertical(segs, s2, segs[s1].first.y, affected)) {
+				if (vertical(segs, s2, segs[s1].first.y)) {
 					changed = true;
 				}
-				if (vertical(segs, s2, segs[s1].second.y, affected)) {
+				if (vertical(segs, s2, segs[s1].second.y)) {
 					changed = true;
 				}
 			}
@@ -244,16 +238,16 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2, std::
 			if (y1 == y2) {
 				// collinear, not parallel
 
-				if (horizontal(segs, s1, segs[s2].first.x, affected)) {
+				if (horizontal(segs, s1, segs[s2].first.x)) {
 					changed = true;
 				}
-				if (horizontal(segs, s1, segs[s2].second.x, affected)) {
+				if (horizontal(segs, s1, segs[s2].second.x)) {
 					changed = true;
 				}
-				if (horizontal(segs, s2, segs[s1].first.x, affected)) {
+				if (horizontal(segs, s2, segs[s1].first.x)) {
 					changed = true;
 				}
-				if (horizontal(segs, s2, segs[s1].second.x, affected)) {
+				if (horizontal(segs, s2, segs[s1].second.x)) {
 					changed = true;
 				}
 			}
@@ -269,7 +263,7 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2, std::
 	return changed;
 }
 
-bool intersect(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segment> &affected) {
+bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 	auto intersections = get_line_intersection(segs[s1].first.x, segs[s1].first.y,
 						   segs[s1].second.x, segs[s1].second.y,
 						   segs[s2].first.x, segs[s2].first.y,
@@ -289,8 +283,6 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segmen
 			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
 
 			changed = true;
-			affected.insert(segs[s1]);
-			affected.insert(segs.back());
 		}
 
 		if ((x == segs[s2].first.x && y == segs[s2].first.y) ||
@@ -303,11 +295,9 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segmen
 			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
 
 			changed = true;
-			affected.insert(segs[s2]);
-			affected.insert(segs.back());
 		}
 	} else if (intersections == SAME_SLOPE) {
-		if (intersect_collinear(segs, s1, s2, affected)) {
+		if (intersect_collinear(segs, s1, s2)) {
 			changed = true;
 		}
 	} else {
@@ -319,18 +309,23 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2, std::set<segmen
 
 struct scan_transition {
 	long long y;
+	int kind;  // -1 == top, 0 == horizontal, +1 == bottom
 	size_t segment;
 
-	scan_transition(long long y_, size_t segment_)
-	    : y(y_), segment(segment_) {
+	scan_transition(long long y_, bool kind_, size_t segment_)
+	    : y(y_), kind(kind_), segment(segment_) {
 	}
 
 	bool operator<(scan_transition const &s) const {
 		if (y < s.y) {
 			return true;
 		} else if (y == s.y) {
-			if (segment < s.segment) {
+			if (kind < s.kind) {
 				return true;
+			} else if (kind == s.kind) {
+				if (segment < s.segment) {
+					return true;
+				}
 			}
 		}
 
@@ -338,17 +333,15 @@ struct scan_transition {
 	}
 };
 
+double xcoord(std::vector<segment> const &segs, size_t seg, long long y) {
+	return 0;
+}
+
 void snap_round(std::vector<segment> &segs, long long extent) {
 	bool again = true;
 
-	// affected is indexed by segment instead of just segment index
-	// because fix_opposites() causes renumbering
-	std::set<segment> affected;
-
 	while (again) {
 		again = false;
-		std::set<segment> previously_affected = affected;
-		affected.clear();
 
 		// find identical opposite-winding segments and adjust for them
 		//
@@ -356,75 +349,81 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 		// in the course of trying to keep spindles alive, and will then need to
 		// resolve those.
 
-		if (fix_opposites(segs, affected, extent)) {
+		if (fix_opposites(segs, extent)) {
 			again = true;
 		}
 
 		// set up for a scanline traversal of the segments
 		// to find the pairs that intersect
 		// while not looking at pairs that can't possibly intersect
+		// index by y coordinates
 
-		// index by rounded y coordinates, since we will be
-		// intersecting with rounded coordinates
-
-		std::vector<scan_transition> tops;
-		std::vector<scan_transition> bottoms;
+		std::vector<scan_transition> transitions;
 
 		for (size_t i = 0; i < segs.size(); i++) {
 			if (segs[i].first.y < segs[i].second.y) {
-				tops.emplace_back(segs[i].first.y, i);
-				bottoms.emplace_back(segs[i].second.y, i);
+				transitions.emplace_back(segs[i].first.y, -1, i);  // top
+				transitions.emplace_back(segs[i].second.y, 1, i);  // bottom
+			} else if (segs[i].first.y > segs[i].second.y) {
+				transitions.emplace_back(segs[i].second.y, -1, i);  // top
+				transitions.emplace_back(segs[i].first.y, 1, i);    // bottom
 			} else {
-				tops.emplace_back(segs[i].second.y, i);
-				bottoms.emplace_back(segs[i].first.y, i);
+				transitions.emplace_back(segs[i].first.y, 0, i);  // horizontal
 			}
 		}
 
-		std::sort(tops.begin(), tops.end());
-		std::sort(bottoms.begin(), bottoms.end());
+		std::sort(transitions.begin(), transitions.end());
 
 		// do the scan
 
-		std::set<size_t> active;
-		size_t bottom = 0;
+		std::vector<std::pair<double, size_t>> active;
 
-		for (size_t i = 0; i < tops.size(); i++) {
-			// activate anything that is coming into view.
+		size_t i = 0;
+		while (i < transitions.size()) {
+			long long y = transitions[i].y;
 
-			active.insert(tops[i].segment);
-			// fprintf(stderr, "into scope: %zu at %lld\n", tops[i].segment, tops[i].y);
+			// update the active positions to correspond to the new Y coordinate
 
-			// compare anything coming into view with the other
-			// currently-active segments
+			for (size_t j = 0; j < active.size(); j++) {
+				active[j].first = xcoord(segs, active[j].second, y);
+			}
 
-			for (size_t s2 : active) {
-				size_t s1 = tops[i].segment;
+			// are they still in order?
 
-				if (s1 != s2) {
-					if (previously_affected.size() == 0 ||	// first time
-					    previously_affected.count(segs[s1]) > 0 ||
-					    previously_affected.count(segs[s2]) > 0) {
-						// fprintf(stderr, "check %zu vs %zu\n", s1, s2);
-						if (intersect(segs, s1, s2, affected)) {
-							// if the segments intersected,
-							// we need to do another scan,
-							// because introducing a new node
-							// may have caused new intersections
-							again = true;
-						}
+			for (size_t j = 0; j < active.size(); j++) {
+				for (size_t k = j; k + 1 < active.size() && active[k].first > active[k + 1].first; k++) {
+					// no, they are out of order. bubble them into order,
+					// and check where the intersection was at each step
+
+					std::swap(active[k], active[k + 1]);
+					if (intersect(segs, active[k].second, active[k + 1].second)) {
+						again = true;
+					} else {
+						fprintf(stderr, "can't happen: they don't actually intersect?\n");
+						exit(EXIT_IMPOSSIBLE);
 					}
 				}
 			}
 
-			// deactivate anything that is going out of view
+			// activate any new tops at this y coordinate
 
-			if (i + 1 < tops.size()) {
-				while (bottom < bottoms.size() && bottoms[bottom].y < tops[i + 1].y) {
-					auto found = active.find(bottoms[bottom].segment);
-					active.erase(found);
-					// fprintf(stderr, "out of scope: %zu at %lld\n", bottoms[bottom].segment, bottoms[bottom].y);
-					bottom++;
-				}
+			for (; i < transitions.size() && transitions[i].kind < 0 && transitions[i].y == y; i++) {
+				std::pair<double, size_t> top(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
+				auto where = std::upper_bound(active.begin(), active.end(), top);
+				active.insert(where, top);
+			}
+
+			// check any horizontals at this y coordinate against the active set
+
+			for (; i < transitions.size() && transitions[i].kind == 0 && transitions[i].y == y; i++) {
+			}
+
+			// deactivate any bottoms at this y coordinate
+
+			for (; i < transitions.size() && transitions[i].kind > 0 && transitions[i].y == y; i++) {
+				std::pair<double, size_t> bottom(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
+				auto where = std::lower_bound(active.begin(), active.end(), bottom);
+				active.erase(where);
 			}
 		}
 	}
