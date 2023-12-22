@@ -359,6 +359,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 		// index by y coordinates
 
 		std::vector<scan_transition> transitions;
+		std::vector<std::pair<long long, size_t>> verticals;
 
 		for (size_t i = 0; i < segs.size(); i++) {
 			if (segs[i].first.y < segs[i].second.y) {
@@ -370,9 +371,24 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			} else {
 				transitions.emplace_back(segs[i].first.y, 0, i);  // horizontal
 			}
+
+			if (segs[i].first.x == segs[i].second.x) {
+				verticals.emplace_back(segs[i].first.x, i);
+			}
 		}
 
 		std::sort(transitions.begin(), transitions.end());
+		std::sort(verticals.begin(), verticals.end());
+
+		// Intersect any verticals at the same X coordinate with each other
+
+		for (size_t i = 0; i + 1 < verticals.size(); i++) {
+			if (verticals[i].first == verticals[i + 1].first) {
+				if (intersect(segs, verticals[i].second, verticals[i + 1].second)) {
+					again = true;
+				}
+			}
+		}
 
 		// do the scan
 
