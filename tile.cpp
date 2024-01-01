@@ -612,6 +612,20 @@ void *partial_feature_worker(void *v) {
 		int out_detail = (*partials)[i].extra_detail;
 
 		drawvec geom = (*partials)[i].geoms[0];
+
+		if (t == VT_POLYGON) {
+			geom = remove_noop(geom, VT_POLYGON, 0);
+			drawvec cleaned = clean_or_clip_poly(geom, 0, 0, false, false);
+			drawvec fixed = fix_by_triangulation(cleaned, z, out_detail);
+			geom = clean_or_clip_poly(fixed, 0, 0, false, false);
+#if 0
+			if (fixed != cleaned) {
+				geom = fixed;
+			}
+			(*partials)[i].t = t = VT_LINE;
+#endif
+		}
+
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -625,7 +639,7 @@ void *partial_feature_worker(void *v) {
 					check_polygon(geom);
 				}
 
-				if (geom.size() < 3) {
+				if (geom.size() < 4) {
 					if (area > 0) {
 						// area is in world coordinates, calculated before scaling down
 						geom = revive_polygon(before, area, z, out_detail);

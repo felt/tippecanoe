@@ -589,7 +589,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 						for (size_t k = i + 1; k < j - 1; k++) {
 							double d = distance_from_line(scaled_geometry[k].x, scaled_geometry[k].y,
 										      scaled_geometry[i].x, scaled_geometry[i].y,
-										      scaled_geometry[which].x, scaled_geometry[which].y);
+										      scaled_geometry[which].x, scaled_geometry[which].y, NULL, NULL);
 							if ((d > far) ||
 							    ((d == far) && (scaled_geometry[k] < scaled_geometry[which2]))) {
 								far = d;

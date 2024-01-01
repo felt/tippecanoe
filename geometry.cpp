@@ -197,6 +197,23 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 
 			double area = get_area(geom, i, j);
 
+			long long minx = LLONG_MAX;
+			long long maxx = LLONG_MIN;
+			long long miny = LLONG_MAX;
+			long long maxy = LLONG_MIN;
+			for (auto const &d : geom) {
+				minx = std::min(minx, (long long) d.x);
+				maxx = std::max(maxx, (long long) d.x);
+				miny = std::min(miny, (long long) d.y);
+				maxy = std::max(maxy, (long long) d.y);
+			}
+			if (area > 0 && area <= pixel * pixel && area < (maxx - minx) * (maxy - miny) / 3) {
+				// if the polygon doesn't use most of its area,
+				// don't let it be dust, because the shape is
+				// probably something weird and interesting.
+				area = pixel * pixel * 2;
+			}
+
 			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
 			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
 			// that these subsequent holes are somehow being subtracted from. I hope that if a polygon
@@ -334,7 +351,7 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, double *px, double *py) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
 	double something = p2x * p2x + p2y * p2y;
@@ -348,6 +365,36 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 
 	double x = segA_x + u * p2x;
 	double y = segA_y + u * p2y;
+
+	if (px != NULL) {
+		*px = std::round(x);
+	}
+	if (py != NULL) {
+		*py = std::round(y);
+	}
+
+	double dx = x - point_x;
+	double dy = y - point_y;
+
+	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
+	return out;
+}
+
+double distance_from_line_noclamp(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y, double *px, double *py) {
+	long long p2x = segB_x - segA_x;
+	long long p2y = segB_y - segA_y;
+	double something = p2x * p2x + p2y * p2y;
+	double u = (0 == something) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something);
+
+	double x = segA_x + u * p2x;
+	double y = segA_y + u * p2y;
+
+	if (px != NULL) {
+		*px = std::round(x);
+	}
+	if (py != NULL) {
+		*py = std::round(y);
+	}
 
 	double dx = x - point_x;
 	double dy = y - point_y;
@@ -400,7 +447,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y, NULL, NULL);
 
 				double distance = std::fabs(temp_dist);
 
@@ -412,7 +459,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y, NULL, NULL);
 
 				double distance = std::fabs(temp_dist);
 
@@ -1053,7 +1100,7 @@ double label_goodness(const drawvec &dv, long long x, long long y) {
 		}
 
 		if (i > 0 && dv[i].op == VT_LINETO) {
-			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y);
+			dist = distance_from_line(x, y, dv[i - 1].x, dv[i - 1].y, dv[i].x, dv[i].y, NULL, NULL);
 			if (dist < closest) {
 				closest = dist;
 			}
