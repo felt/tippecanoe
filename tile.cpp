@@ -1922,6 +1922,19 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
+void coalesce_geometry(partial &p, serial_feature &sf) {
+	// if the geometry being coalesced on is an exact duplicate
+	// of an existing geometry, just drop it
+
+	for (size_t i = 0; i < p.geoms.size(); i++) {
+		if (p.geoms[i] == sf.geometry) {
+			return;
+		}
+	}
+
+	p.geoms.push_back(sf.geometry);
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, struct node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -2169,7 +2182,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					indices.push_back(sf.index);
 				}
 				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2188,7 +2201,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2212,7 +2225,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			fraction_accum += fraction;
 			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					partials[which_partial].geoms.push_back(sf.geometry);
+					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
@@ -2315,11 +2328,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
 							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
 
-							for (auto &g : partials[simplified_geometry_through].geoms) {
-								if (partials[simplified_geometry_through].t == VT_POLYGON) {
-									// don't scale up because this is still world coordinates
-									g = clean_or_clip_poly(g, 0, 0, false, false);
+							if (partials[simplified_geometry_through].t == VT_POLYGON) {
+								drawvec to_clean;
+
+								for (auto &g : partials[simplified_geometry_through].geoms) {
+									for (auto &d : g) {
+										to_clean.push_back(d);
+									}
 								}
+
+								// don't scale up because this is still world coordinates
+								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
+								partials[simplified_geometry_through].geoms.clear();
+								partials[simplified_geometry_through].geoms.push_back(to_clean);
 							}
 						}
 
@@ -2472,7 +2493,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		for (size_t i = 0; i < partials.size(); i++) {
+		std::reverse(partials.begin(), partials.end());
+		for (ssize_t i = partials.size() - 1; i >= 0; i--) {
 			std::vector<drawvec> &pgeoms = partials[i].geoms;
 			signed char t = partials[i].t;
 			long long original_seq = partials[i].original_seq;
@@ -2517,6 +2539,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					l->second.push_back(c);
 				}
 			}
+
+			partials.erase(partials.begin() + i);
 		}
 
 		partials.clear();
@@ -2537,56 +2561,64 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				std::sort(layer_features.begin(), layer_features.end());
 			}
 
-			std::vector<coalesce> out;
-			if (layer_features.size() > 0) {
-				out.push_back(layer_features[0]);
-			}
-			for (size_t x = 1; x < layer_features.size(); x++) {
-				size_t y = out.size() - 1;
+			if (additional[A_COALESCE]) {
+				// coalesce adjacent identical features if requested
 
-#if 0
-				if (out.size() > 0 && coalcmp(&layer_features[x], &out[y]) < 0) {
-					fprintf(stderr, "\nfeature out of order\n");
+				size_t out = 0;
+				if (layer_features.size() > 0) {
+					out++;
 				}
-#endif
 
-				if (additional[A_COALESCE] && out.size() > 0 && coalcmp(&layer_features[x], &out[y]) == 0) {
-					for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
-						out[y].geom.push_back(layer_features[x].geom[g]);
-					}
-					out[y].coalesced = true;
-				} else {
-					out.push_back(layer_features[x]);
-				}
-			}
+				for (size_t x = 1; x < layer_features.size(); x++) {
+					size_t y = out - 1;
 
-			layer_features = out;
-
-			out.clear();
-			for (size_t x = 0; x < layer_features.size(); x++) {
-				if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
-					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
-					if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
-						// XXX revisit: why does this not take zoom into account?
-						layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
-											!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
+						for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
+							layer_features[y].geom.push_back(layer_features[x].geom[g]);
+						}
+						layer_features[y].coalesced = true;
+					} else {
+						layer_features[out++] = layer_features[x];
 					}
 				}
 
-				if (layer_features[x].type == VT_POLYGON) {
-					if (layer_features[x].coalesced) {
-						// we can try scaling up because this is tile coordinates
-						layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
+				layer_features.resize(out);
+			}
+
+			{
+				// clean up coalesced linestrings by simplification
+				// and coalesced polygons by cleaning
+				//
+				// then close polygons
+
+				size_t out = 0;
+
+				for (size_t x = 0; x < layer_features.size(); x++) {
+					if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
+						layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+							// XXX revisit: why does this not take zoom into account?
+							layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
+												!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+						}
 					}
 
-					layer_features[x].geom = close_poly(layer_features[x].geom);
+					if (layer_features[x].type == VT_POLYGON) {
+						if (layer_features[x].coalesced) {
+							// we can try scaling up because this is tile coordinates
+							layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
+						}
+
+						layer_features[x].geom = close_poly(layer_features[x].geom);
+					}
+
+					if (layer_features[x].geom.size() > 0) {
+						layer_features[out++] = layer_features[x];
+					}
 				}
 
-				if (layer_features[x].geom.size() > 0) {
-					out.push_back(layer_features[x]);
-				}
+				layer_features.resize(out);
 			}
-			layer_features = out;
 
 			if (prevent[P_INPUT_ORDER]) {
 				std::sort(layer_features.begin(), layer_features.end(), preservecmp);
@@ -2608,16 +2640,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		mvt_tile tile;
+		size_t totalsize = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
 			std::vector<coalesce> &layer_features = layer_iterator->second;
+			totalsize += layer_features.size();
 
 			mvt_layer layer;
 			layer.name = layer_iterator->first;
 			layer.version = 2;
 			layer.extent = 1 << tile_detail;
 
-			for (size_t x = 0; x < layer_features.size(); x++) {
+			std::reverse(layer_features.begin(), layer_features.end());
+			for (ssize_t x = layer_features.size() - 1; x >= 0; x--) {
 				mvt_feature feature;
 
 				if (layer_features[x].type == VT_LINE || layer_features[x].type == VT_POLYGON) {
@@ -2665,6 +2700,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(feature);
+				layer_features.erase(layer_features.begin() + x);
 			}
 
 			if (layer.features.size() > 0) {
@@ -2679,12 +2715,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		if (z == 0 && unclipped_features < original_features / 2 && clipbboxes.size() == 0) {
 			fprintf(stderr, "\n\nMore than half the features were clipped away at zoom level 0.\n");
 			fprintf(stderr, "Is your data in the wrong projection? It should be in WGS84/EPSG:4326.\n");
-		}
-
-		size_t totalsize = 0;
-		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<coalesce> &layer_features = layer_iterator->second;
-			totalsize += layer_features.size();
 		}
 
 		size_t passes = pass + 1;
@@ -2786,6 +2816,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			std::string compressed;
 			std::string pbf = tile.encode();
+
+			tile.layers.clear();
 
 			if (!prevent[P_TILE_COMPRESSION]) {
 				compress(pbf, compressed, true);
