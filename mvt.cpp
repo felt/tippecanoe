@@ -89,7 +89,7 @@ int compress(std::string const &input, std::string &output, bool gz) {
 	deflate_s.opaque = Z_NULL;
 	deflate_s.avail_in = 0;
 	deflate_s.next_in = Z_NULL;
-	deflateInit2(&deflate_s, Z_BEST_COMPRESSION, Z_DEFLATED, gz ? 31 : 15, 8, Z_DEFAULT_STRATEGY);
+	deflateInit2(&deflate_s, Z_DEFAULT_COMPRESSION, Z_DEFLATED, gz ? 31 : 15, 8, Z_DEFAULT_STRATEGY);
 	deflate_s.next_in = (Bytef *) input.data();
 	deflate_s.avail_in = input.size();
 	size_t length = 0;
