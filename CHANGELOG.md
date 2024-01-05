@@ -1,3 +1,7 @@
+# 2.40.0
+
+* Slightly reduce compression aggressiveness to improve as-needed dropping speed
+
 # 2.39.0
 
 * Reduce memory usage during tiling
