@@ -9,7 +9,7 @@
 "maxzoom": "2",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-z0_-M10000_--drop-densest-as-needed_--extend-zooms-if-still-dropping-maximum_2.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":219,\"tile_size_desired\":74691},{\"dropped_as_needed\":207,\"tile_size_desired\":44398},{\"dropped_as_needed\":181,\"tile_size_desired\":35126}]",
+"strategies": "[{\"dropped_as_needed\":219,\"tile_size_desired\":74734},{\"dropped_as_needed\":207,\"tile_size_desired\":44415},{\"dropped_as_needed\":181,\"tile_size_desired\":35130}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
