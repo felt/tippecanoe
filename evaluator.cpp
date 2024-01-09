@@ -6,6 +6,89 @@
 #include "evaluator.hpp"
 #include "errors.hpp"
 
+int compare_fsl(mvt_value one, json_object *two, bool &fail) {
+	// In FSL expressions, the attribute value is coerced to the type
+	// of the JSON literal value it is being compared to.
+	//
+	// If it cannot be converted, the comparison returns null
+	// (which is distinct from true and false but is falsy if
+	// it is the final output value).
+
+	if (two->type == JSON_NULL) {
+		fail = true;  // anything op null => null
+		return 0;
+	}
+
+	if (two->type == JSON_NUMBER) {
+		double lhs;
+
+		if (one.type == mvt_string) {
+			char *endptr = NULL;
+			const char *s = one.string_value.c_str();
+			lhs = strtod(s, &endptr);
+			if (endptr == s) {
+				fail = true;  // non-numeric-string op number => null
+				return 0;
+			}
+		} else if (one.type == mvt_float) {
+			lhs = one.numeric_value.float_value;
+		} else if (one.type == mvt_double) {
+			lhs = one.numeric_value.double_value;
+		} else if (one.type == mvt_int) {
+			lhs = one.numeric_value.int_value;
+		} else if (one.type == mvt_uint) {
+			lhs = one.numeric_value.uint_value;
+		} else if (one.type == mvt_sint) {
+			lhs = one.numeric_value.sint_value;
+		} else if (one.type == mvt_bool) {
+			lhs = one.numeric_value.bool_value;
+		} else if (one.type == mvt_null) {
+			fail = true;  // null op number => null
+			return 0;
+		} else {
+			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		if (lhs < two->value.number.number) {
+			return -1;
+		} else if (lhs > two->value.number.number) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
+	if (two->type == JSON_STRING) {
+		std::string lhs;
+
+		if (one.type == mvt_string) {
+			lhs = one.string_value;
+		} else if (one.type == mvt_float) {
+			lhs = std::to_string(one.numeric_value.float_value);
+		} else if (one.type == mvt_double) {
+			lhs = std::to_string(one.numeric_value.double_value);
+		} else if (one.type == mvt_int) {
+			lhs = std::to_string(one.numeric_value.int_value);
+		} else if (one.type == mvt_uint) {
+			lhs = std::to_string(one.numeric_value.uint_value);
+		} else if (one.type == mvt_sint) {
+			lhs = std::to_string(one.numeric_value.sint_value);
+		} else if (one.type == mvt_bool) {
+			lhs = one.numeric_value.bool_value ? "true" : "false";
+		} else if (one.type == mvt_null) {
+			fail = true;  // null op string => null
+			return 0;
+		} else {
+			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	fprintf(stderr, "unhandled JSON type %d\n", two->type);
+	exit(EXIT_IMPOSSIBLE);
+}
+
 int compare(mvt_value one, json_object *two, bool &fail) {
 	if (one.type == mvt_string) {
 		if (two->type != JSON_STRING) {
@@ -98,9 +181,7 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	     strcmp(f->value.array.array[1]->value.string.string, "le") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "ge") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "eq") == 0 ||
-	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0 ||
-	     strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
-	     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0)) {
+	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0)) {
 		mvt_value lhs;
 		lhs.type = mvt_null;  // attributes that aren't found are nulls
 		auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
@@ -108,7 +189,33 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 			lhs = ff->second;
 		}
 
-		// int cmp = compare_fsl(lhs, f->value.array.array[2]);
+		bool fail = false;
+		int cmp = compare_fsl(ff->second, f->value.array.array[2], fail);
+		if (fail) {
+			return -1;  // null
+		}
+
+		if (strcmp(f->value.array.array[1]->value.string.string, "eq") == 0) {
+			return cmp == 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "ne") == 0) {
+			return cmp != 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "gt") == 0) {
+			return cmp > 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "ge") == 0) {
+			return cmp >= 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "lt") == 0) {
+			return cmp < 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "le") == 0) {
+			return cmp <= 0;
+		}
+
+		fprintf(stderr, "expression fsl comparison: can't happen %s\n", f->value.array.array[1]->value.string.string);
+		exit(EXIT_IMPOSSIBLE);
 	}
 
 	if (strcmp(f->value.array.array[0]->value.string.string, "has") == 0 ||
