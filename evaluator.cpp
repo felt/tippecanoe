@@ -70,7 +70,10 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 	exit(EXIT_IMPOSSIBLE);
 }
 
-bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
+// 0: false
+// 1: true
+// -1: incomparable (sql null), treated as false in final output
+static int eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
 	if (f == NULL || f->type != JSON_ARRAY) {
 		fprintf(stderr, "Filter is not an array: %s\n", json_stringify(f));
 		exit(EXIT_FILTER);
@@ -84,6 +87,28 @@ bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::
 	if (f->value.array.array[0]->type != JSON_STRING) {
 		fprintf(stderr, "Filter operation is not a string: %s\n", json_stringify(f));
 		exit(EXIT_FILTER);
+	}
+
+	// FSL comparators
+	if (f->value.array.length == 3 &&
+	    f->value.array.array[0]->type == JSON_STRING &&
+	    f->value.array.array[1]->type == JSON_STRING &&
+	    (strcmp(f->value.array.array[1]->value.string.string, "lt") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "gt") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "le") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "ge") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "eq") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0)) {
+		mvt_value lhs;
+		lhs.type = mvt_null;  // attributes that aren't found are nulls
+		auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
+		if (ff != feature.end()) {
+			lhs = ff->second;
+		}
+
+		// int cmp = compare_fsl(lhs, f->value.array.array[2]);
 	}
 
 	if (strcmp(f->value.array.array[0]->value.string.string, "has") == 0 ||
@@ -192,17 +217,19 @@ bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::
 		}
 
 		for (size_t i = 1; i < f->value.array.length; i++) {
-			bool out = eval(feature, f->value.array.array[i], exclude_attributes);
+			int out = eval(feature, f->value.array.array[i], exclude_attributes);
 
-			if (strcmp(f->value.array.array[0]->value.string.string, "all") == 0) {
-				v = v && out;
-				if (!v) {
-					break;
-				}
-			} else {
-				v = v || out;
-				if (v) {
-					break;
+			if (out >= 0) {	 // nulls are ignored in boolean and/or expressions
+				if (strcmp(f->value.array.array[0]->value.string.string, "all") == 0) {
+					v = v && out;
+					if (!v) {
+						break;
+					}
+				} else {
+					v = v || out;
+					if (v) {
+						break;
+					}
 				}
 			}
 		}
@@ -281,7 +308,7 @@ bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::
 			exit(EXIT_FILTER);
 		}
 
-		bool ok = eval(feature, f->value.array.array[2], exclude_attributes);
+		bool ok = eval(feature, f->value.array.array[2], exclude_attributes) > 0;
 		if (!ok) {
 			exclude_attributes.insert(f->value.array.array[1]->value.string.string);
 		}
@@ -304,12 +331,12 @@ bool evaluate(std::map<std::string, mvt_value> const &feature, std::string const
 
 	f = json_hash_get(filter, layer.c_str());
 	if (ok && f != NULL) {
-		ok = eval(feature, f, exclude_attributes);
+		ok = eval(feature, f, exclude_attributes) > 0;
 	}
 
 	f = json_hash_get(filter, "*");
 	if (ok && f != NULL) {
-		ok = eval(feature, f, exclude_attributes);
+		ok = eval(feature, f, exclude_attributes) > 0;
 	}
 
 	return ok;
