@@ -83,6 +83,37 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
 			exit(EXIT_IMPOSSIBLE);
 		}
+
+		return strcmp(lhs.c_str(), two->value.string.string);
+	}
+
+	if (two->type == JSON_TRUE || two->type == JSON_FALSE) {
+		bool lhs;
+
+		if (one.type == mvt_string) {
+			lhs = one.string_value.size() > 0;
+		} else if (one.type == mvt_float) {
+			lhs = one.numeric_value.float_value != 0;
+		} else if (one.type == mvt_double) {
+			lhs = one.numeric_value.double_value != 0;
+		} else if (one.type == mvt_int) {
+			lhs = one.numeric_value.int_value != 0;
+		} else if (one.type == mvt_uint) {
+			lhs = one.numeric_value.uint_value != 0;
+		} else if (one.type == mvt_sint) {
+			lhs = one.numeric_value.sint_value != 0;
+		} else if (one.type == mvt_bool) {
+			lhs = one.numeric_value.bool_value;
+		} else if (one.type == mvt_null) {
+			fail = true;  // null op bool => null
+			return 0;
+		} else {
+			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		bool rhs = two->type == JSON_TRUE;
+		return lhs - rhs;
 	}
 
 	fprintf(stderr, "unhandled JSON type %d\n", two->type);
