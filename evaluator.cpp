@@ -188,6 +188,32 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 // 1: true
 // -1: incomparable (sql null), treated as false in final output
 static int eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
+	if (f != NULL) {
+		if (f->type == JSON_TRUE) {
+			return 1;
+		} else if (f->type == JSON_FALSE) {
+			return 0;
+		} else if (f->type == JSON_NULL) {
+			return -1;
+		}
+
+		if (f->type == JSON_NUMBER) {
+			if (f->value.number.number == 0) {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
+
+		if (f->type == JSON_STRING) {
+			if (f->value.string.string[0] == '\0') {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
+	}
+
 	if (f == NULL || f->type != JSON_ARRAY) {
 		fprintf(stderr, "Filter is not an array: %s\n", json_stringify(f));
 		exit(EXIT_FILTER);
@@ -201,6 +227,23 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	if (f->value.array.array[0]->type != JSON_STRING) {
 		fprintf(stderr, "Filter operation is not a string: %s\n", json_stringify(f));
 		exit(EXIT_FILTER);
+	}
+
+	// FSL conjunctions
+	if (f->value.array.length == 3 &&
+	    f->value.array.array[1]->type == JSON_STRING &&
+	    (strcmp(f->value.array.array[1]->value.string.string, "or") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "and") == 0)) {
+		int lhs = eval(feature, f->value.array.array[0], exclude_attributes);
+		int rhs = eval(feature, f->value.array.array[2], exclude_attributes);
+		if (lhs < 0 || rhs < 0) {
+			return -1;  // null op anything => null, anything op null => null
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "or") == 0) {
+			return lhs || rhs;
+		} else {
+			return lhs && rhs;
+		}
 	}
 
 	// FSL comparators
