@@ -224,11 +224,6 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 		exit(EXIT_FILTER);
 	}
 
-	if (f->value.array.array[0]->type != JSON_STRING) {
-		fprintf(stderr, "Filter operation is not a string: %s\n", json_stringify(f));
-		exit(EXIT_FILTER);
-	}
-
 	// FSL conjunctions
 	if (f->value.array.length == 3 &&
 	    f->value.array.array[1]->type == JSON_STRING &&
@@ -290,6 +285,11 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 
 		fprintf(stderr, "expression fsl comparison: can't happen %s\n", f->value.array.array[1]->value.string.string);
 		exit(EXIT_IMPOSSIBLE);
+	}
+
+	if (f->value.array.array[0]->type != JSON_STRING) {
+		fprintf(stderr, "Filter operation is not a string: %s\n", json_stringify(f));
+		exit(EXIT_FILTER);
 	}
 
 	if (strcmp(f->value.array.array[0]->value.string.string, "has") == 0 ||
