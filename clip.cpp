@@ -864,7 +864,10 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 		std::vector<tile_feature> tile_features;
 
+		size_t examined = 0;
 		for (auto const &feature : layer.features) {
+			examined++;
+
 			std::set<std::string> exclude_attributes;
 			if (!evaluate(feature, layer, filter, exclude_attributes, nz)) {
 				continue;
@@ -952,10 +955,14 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 			tile_features.push_back(tf);
 
-			if (tile_features.size() >= multiplier) {
+			if (examined >= multiplier) {
+				examined = 0;
 				std::sort(tile_features.begin(), tile_features.end(), sorter(order_by));
-				feature_out(tile_features[0], outlayer, keep);
-				tile_features.clear();
+
+				if (tile_features.size() > 0) {
+					feature_out(tile_features[0], outlayer, keep);
+					tile_features.clear();
+				}
 			}
 		}
 
