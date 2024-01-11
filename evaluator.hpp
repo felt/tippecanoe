@@ -11,4 +11,6 @@ bool evaluate(std::map<std::string, mvt_value> const &feature, std::string const
 json_object *parse_filter(const char *s);
 json_object *read_filter(const char *fname);
 
+bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z);
+
 #endif

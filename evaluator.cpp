@@ -554,3 +554,49 @@ json_object *parse_filter(const char *s) {
 	json_end(jp);
 	return filter;
 }
+
+bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
+	if (filter != NULL) {
+		std::map<std::string, mvt_value> attributes;
+
+		for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+			std::string key = layer.keys[feat.tags[t]];
+			const mvt_value &val = layer.values[feat.tags[t + 1]];
+
+			attributes.insert(std::pair<std::string, mvt_value>(key, val));
+		}
+
+		if (feat.has_id) {
+			mvt_value v;
+			v.type = mvt_uint;
+			v.numeric_value.uint_value = feat.id;
+
+			attributes.insert(std::pair<std::string, mvt_value>("$id", v));
+		}
+
+		mvt_value v;
+		v.type = mvt_string;
+
+		if (feat.type == mvt_point) {
+			v.string_value = "Point";
+		} else if (feat.type == mvt_linestring) {
+			v.string_value = "LineString";
+		} else if (feat.type == mvt_polygon) {
+			v.string_value = "Polygon";
+		}
+
+		attributes.insert(std::pair<std::string, mvt_value>("$type", v));
+
+		mvt_value v2;
+		v2.type = mvt_uint;
+		v2.numeric_value.uint_value = z;
+
+		attributes.insert(std::pair<std::string, mvt_value>("$zoom", v2));
+
+		if (!evaluate(attributes, layer.name, filter, exclude_attributes)) {
+			return false;
+		}
+	}
+
+	return true;
+}
