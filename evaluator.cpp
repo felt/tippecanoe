@@ -6,6 +6,30 @@
 #include "evaluator.hpp"
 #include "errors.hpp"
 
+static std::string mvt_value_to_string(mvt_value one, bool &fail) {
+	if (one.type == mvt_string) {
+		return one.string_value;
+	} else if (one.type == mvt_float) {
+		return std::to_string(one.numeric_value.float_value);
+	} else if (one.type == mvt_double) {
+		return std::to_string(one.numeric_value.double_value);
+	} else if (one.type == mvt_int) {
+		return std::to_string(one.numeric_value.int_value);
+	} else if (one.type == mvt_uint) {
+		return std::to_string(one.numeric_value.uint_value);
+	} else if (one.type == mvt_sint) {
+		return std::to_string(one.numeric_value.sint_value);
+	} else if (one.type == mvt_bool) {
+		return one.numeric_value.bool_value ? "true" : "false";
+	} else if (one.type == mvt_null) {
+		fail = true;  // null op string => null
+		return "";
+	} else {
+		fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+		exit(EXIT_IMPOSSIBLE);
+	}
+}
+
 int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 	// In FSL expressions, the attribute value is coerced to the type
 	// of the JSON literal value it is being compared to.
@@ -60,29 +84,7 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 	}
 
 	if (two->type == JSON_STRING) {
-		std::string lhs;
-
-		if (one.type == mvt_string) {
-			lhs = one.string_value;
-		} else if (one.type == mvt_float) {
-			lhs = std::to_string(one.numeric_value.float_value);
-		} else if (one.type == mvt_double) {
-			lhs = std::to_string(one.numeric_value.double_value);
-		} else if (one.type == mvt_int) {
-			lhs = std::to_string(one.numeric_value.int_value);
-		} else if (one.type == mvt_uint) {
-			lhs = std::to_string(one.numeric_value.uint_value);
-		} else if (one.type == mvt_sint) {
-			lhs = std::to_string(one.numeric_value.sint_value);
-		} else if (one.type == mvt_bool) {
-			lhs = one.numeric_value.bool_value ? "true" : "false";
-		} else if (one.type == mvt_null) {
-			fail = true;  // null op string => null
-			return 0;
-		} else {
-			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
-			exit(EXIT_IMPOSSIBLE);
-		}
+		std::string lhs = mvt_value_to_string(one, fail);
 
 		return strcmp(lhs.c_str(), two->value.string.string);
 	}
@@ -250,7 +252,10 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	     strcmp(f->value.array.array[1]->value.string.string, "le") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "ge") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "eq") == 0 ||
-	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0)) {
+	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0 ||
+	     false)) {
 		mvt_value lhs;
 		lhs.type = mvt_null;  // attributes that aren't found are nulls
 		auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
@@ -258,7 +263,28 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 			lhs = ff->second;
 		}
 
+		if (lhs.type == mvt_null) {
+			return -1;  // null op anything => null
+		}
+
 		bool fail = false;
+
+		if (f->value.array.array[2]->type == JSON_STRING &&
+		    (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
+		     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0)) {
+			std::string s = mvt_value_to_string(lhs, fail);
+			if (fail) {
+				return -1;  // null cn anything => false
+			}
+
+			bool contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
+			if (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0) {
+				return contains;
+			} else {
+				return !contains;
+			}
+		}
+
 		int cmp = compare_fsl(ff->second, f->value.array.array[2], fail);
 		if (fail) {
 			return -1;  // null
