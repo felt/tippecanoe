@@ -309,8 +309,8 @@ overzoom-test: tippecanoe-overzoom
 	cmp tests/pbf/0-0-0-filter-mult.pbf.json.check tests/pbf/0-0-0-filter-mult.pbf.json
 	rm tests/pbf/0-0-0-filter-mult.pbf tests/pbf/0-0-0-filter-mult.pbf.json.check
 	# Test that overzooming with a multiplier exactly reverses the effect of tiling with a multiplier
-	./tippecanoe -q -z5 --retain-points-multiplier 3 -f -e tests/muni/out/out.dir tests/muni/muni.json
-	./tippecanoe -q -z5 -f -o tests/muni/out/out.mbtiles tests/muni/muni.json
+	./tippecanoe -q -z5 --preserve-point-density-threshold 8 --retain-points-multiplier 3 -f -e tests/muni/out/out.dir tests/muni/muni.json
+	./tippecanoe -q -z5 --preserve-point-density-threshold 8 -f -o tests/muni/out/out.mbtiles tests/muni/muni.json
 	./tippecanoe-overzoom -m 3 -o tests/muni/out/out.dir/000.pbf tests/muni/out/out.dir/0/0/0.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/muni/out/out.mbtiles 0 0 0 > tests/muni/out/out.dir/direct.json
 	./tippecanoe-decode tests/muni/out/out.dir/000.pbf 0 0 0 > tests/muni/out/out.dir/overzoomed.json
