@@ -255,6 +255,8 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0 ||
 	     false)) {
 		mvt_value lhs;
 		lhs.type = mvt_null;  // attributes that aren't found are nulls
@@ -279,6 +281,33 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 
 			bool contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
 			if (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0) {
+				return contains;
+			} else {
+				return !contains;
+			}
+		}
+
+		if (f->value.array.array[2]->type == JSON_ARRAY &&
+		    (strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
+		     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0)) {
+			std::string s = mvt_value_to_string(lhs, fail);
+			if (fail) {
+				return -1;  // null in anything => false
+			}
+
+			bool contains = false;
+			for (size_t i = 0; i < f->value.array.array[2]->value.array.length; i++) {
+				if (f->value.array.array[2]->value.array.array[i]->type != JSON_STRING) {
+					return -1;  // anything in [not-a-string] => null
+				}
+
+				if (s == f->value.array.array[2]->value.array.array[i]->value.string.string) {
+					contains = true;
+					break;
+				}
+			}
+
+			if (strcmp(f->value.array.array[1]->value.string.string, "in") == 0) {
 				return contains;
 			} else {
 				return !contains;
