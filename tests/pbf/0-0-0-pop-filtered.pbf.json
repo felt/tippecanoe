@@ -1,12 +1,12 @@
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "NAME": "Mexico City" }, "geometry": { "type": "Point", "coordinates": [ -99.140625, 19.476950 ] } }
+{ "type": "Feature", "properties": { "NAME": "Mexico City" }, "geometry": { "type": "Point", "coordinates": [ -99.140625, 19.394068 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "London" }, "geometry": { "type": "Point", "coordinates": [ -0.087891, 51.508742 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Sao Paulo" }, "geometry": { "type": "Point", "coordinates": [ -46.669922, -23.563987 ] } }
+{ "type": "Feature", "properties": { "NAME": "Sao Paulo" }, "geometry": { "type": "Point", "coordinates": [ -46.582031, -23.563987 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Moscow" }, "geometry": { "type": "Point", "coordinates": [ 37.617188, 55.776573 ] } }
+{ "type": "Feature", "properties": { "NAME": "Moscow" }, "geometry": { "type": "Point", "coordinates": [ 37.617188, 55.727110 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Cairo" }, "geometry": { "type": "Point", "coordinates": [ 31.289062, 30.069094 ] } }
 ,
@@ -14,8 +14,8 @@
 ,
 { "type": "Feature", "properties": { "NAME": "Shanghai" }, "geometry": { "type": "Point", "coordinates": [ 121.464844, 31.203405 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Jakarta" }, "geometry": { "type": "Point", "coordinates": [ 106.787109, -6.140555 ] } }
+{ "type": "Feature", "properties": { "NAME": "Jakarta" }, "geometry": { "type": "Point", "coordinates": [ 106.875000, -6.227934 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Auckland" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 174.726562, -36.879621 ], [ -185.273438, -36.879621 ] ] } }
+{ "type": "Feature", "properties": { "NAME": "Auckland" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 174.814453, -36.879621 ], [ -185.273438, -36.879621 ] ] } }
 ] }
 ] }

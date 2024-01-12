@@ -756,7 +756,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     size_t multiplier, std::string const &order_by, json_object *filter) {
+		     bool demultiply, std::string const &order_by, json_object *filter) {
 	mvt_tile tile;
 
 	try {
@@ -770,7 +770,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, multiplier, order_by, filter);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, order_by, filter);
 }
 
 struct tile_feature {
@@ -847,7 +847,7 @@ void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std:
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     size_t multiplier, std::string const &order_by, json_object *filter) {
+		     bool demultiply, std::string const &order_by, json_object *filter) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -862,11 +862,33 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		outlayer.version = layer.version;
 		outlayer.extent = 1LL << det;
 
-		std::vector<tile_feature> tile_features;
+		std::vector<tile_feature> pending_tile_features;
 
-		size_t examined = 0;
-		for (auto const &feature : layer.features) {
-			examined++;
+		for (auto feature : layer.features) {
+			bool flush_multiplier_cluster = false;
+			if (demultiply) {
+				for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+					if (layer.keys[feature.tags[i]] == "tippecanoe:retain_points_multiplier_first") {
+						mvt_value v = layer.values[feature.tags[i + 1]];
+						if (v.type == mvt_bool && v.numeric_value.bool_value) {
+							flush_multiplier_cluster = true;
+							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
+							break;
+						}
+					}
+				}
+			} else {
+				flush_multiplier_cluster = true;
+			}
+
+			if (flush_multiplier_cluster) {
+				std::sort(pending_tile_features.begin(), pending_tile_features.end(), sorter(order_by));
+
+				if (pending_tile_features.size() > 0) {
+					feature_out(pending_tile_features[0], outlayer, keep);
+					pending_tile_features.clear();
+				}
+			}
 
 			std::set<std::string> exclude_attributes;
 			if (!evaluate(feature, layer, filter, exclude_attributes, nz)) {
@@ -953,23 +975,13 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			tf.tags = feature.tags;
 			tf.layer = &layer;
 
-			tile_features.push_back(tf);
-
-			if (examined >= multiplier) {
-				examined = 0;
-				std::sort(tile_features.begin(), tile_features.end(), sorter(order_by));
-
-				if (tile_features.size() > 0) {
-					feature_out(tile_features[0], outlayer, keep);
-					tile_features.clear();
-				}
-			}
+			pending_tile_features.push_back(tf);
 		}
 
-		if (tile_features.size() > 0) {
-			std::sort(tile_features.begin(), tile_features.end(), sorter(order_by));
-			feature_out(tile_features[0], outlayer, keep);
-			tile_features.clear();
+		if (pending_tile_features.size() > 0) {
+			std::sort(pending_tile_features.begin(), pending_tile_features.end(), sorter(order_by));
+			feature_out(pending_tile_features[0], outlayer, keep);
+			pending_tile_features.clear();
 		}
 
 		if (outlayer.features.size() > 0) {
@@ -991,7 +1003,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     multiplier, order_by, filter);
+								     demultiply, order_by, filter);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}

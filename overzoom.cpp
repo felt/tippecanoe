@@ -13,7 +13,7 @@ extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
-int multiplier = 1;
+bool demultiply = false;
 std::string order_by;
 std::string filter;
 
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 	int i;
 	const char *outfile = NULL;
 
-	while ((i = getopt(argc, argv, "y:o:d:b:O:m:j:")) != -1) {
+	while ((i = getopt(argc, argv, "y:o:d:b:O:mj:")) != -1) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'm':
-			multiplier = atoi(optarg);
+			demultiply = true;
 			break;
 
 		case 'O':
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
 		json_filter = parse_filter(filter.c_str());
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, multiplier, order_by, json_filter);
+	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, order_by, json_filter);
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 

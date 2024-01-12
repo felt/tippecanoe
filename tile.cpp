@@ -1480,7 +1480,11 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, size_t *multiplier_state) {
+struct multiplier_state {
+	size_t count = 0;
+};
+
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1611,12 +1615,21 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			sf.dropped = true;
 
 			if (z >= sf.feature_minzoom) {
-				*multiplier_state += retain_points_multiplier;
+				multiplier_state->count = retain_points_multiplier;
+
+				if (retain_points_multiplier > 1) {
+					serial_val val;
+					val.type = mvt_bool;
+					val.s = "true";
+
+					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
+					sf.full_values.push_back(val);
+				}
 			}
 
-			if (*multiplier_state > 0) {
+			if (multiplier_state->count > 0) {
 				sf.dropped = false;
-				*multiplier_state -= 1;
+				multiplier_state->count -= 1;
 			}
 		}
 
@@ -1679,7 +1692,7 @@ struct run_prefilter_args {
 void *run_prefilter(void *v) {
 	run_prefilter_args *rpa = (run_prefilter_args *) v;
 	json_writer state(rpa->prefilter_fp);
-	size_t multiplier_state = 0;
+	struct multiplier_state multiplier_state;
 
 	while (1) {
 		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state);
@@ -2103,7 +2116,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
-		size_t multiplier_state = 0;
+		struct multiplier_state multiplier_state;
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
