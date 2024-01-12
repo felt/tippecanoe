@@ -295,46 +295,25 @@ struct drop_densest {
 	}
 };
 
-int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
+int calc_feature_minzoom(struct index *ix, struct drop_state *ds, size_t maxzoom, double gamma) {
 	int feature_minzoom = 0;
 
 	if (gamma >= 0 && (ix->t == VT_POINT ||
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
 			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
-		for (ssize_t i = maxzoom; i >= 0; i--) {
-			ds[i].seq++;
-		}
-		for (ssize_t i = maxzoom; i >= 0; i--) {
-			if (ds[i].seq < 0) {
-				feature_minzoom = i + 1;
-
-				// The feature we are pushing out
-				// appears in zooms i + 1 through maxzoom,
-				// so track where that was so we can make sure
-				// not to cluster something else that is *too*
-				// far away into it.
-				for (ssize_t j = i + 1; j <= maxzoom; j++) {
-					ds[j].previndex = ix->ix;
-				}
-
-				break;
-			} else {
-				ds[i].seq -= ds[i].interval;
-			}
-		}
-
-		// If this feature has been chosen only for a high zoom level,
-		// check whether at a low zoom level it is nevertheless too far
-		// from the last feature chosen for that low zoom, in which case
-		// we will go ahead and push it out.
+		feature_minzoom = maxzoom + 1;
 
 		if (preserve_point_density_threshold > 0) {
-			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
-				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
-					feature_minzoom = i;
+			// Is there a zoom level that is overdue for a feature
+			// on the basis of the point being considered being too far
+			// from the last point that was output? If so, adjust the
+			// current sequence to make one (or several if there is
+			// a retain points multiplier) come out right away.
 
-					for (ssize_t j = i; j <= maxzoom; j++) {
-						ds[j].previndex = ix->ix;
+			for (size_t i = 0; i <= maxzoom; i++) {
+				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
+					for (size_t j = i; j <= maxzoom; j++) {
+						ds[j].seq += ds[j].interval * retain_points_multiplier;
 					}
 
 					break;
@@ -342,7 +321,28 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 			}
 		}
 
-		// XXX manage_gap
+		// All zooms become a little more due for a feature
+
+		for (size_t i = 0; i <= maxzoom; i++) {
+			ds[i].seq++;
+		}
+
+		// Find the lowest zoom that is due for a feature
+
+		for (size_t i = 0; i <= maxzoom; i++) {
+			if (ds[i].seq >= ds[i].interval) {
+				feature_minzoom = i;
+				break;
+			}
+		}
+
+		// Update counter and last location in all the zooms
+		// that this feature will appear in.
+
+		for (size_t j = feature_minzoom; j <= maxzoom; j++) {
+			ds[j].seq -= ds[j].interval;
+			ds[j].previndex = ix->ix;
+		}
 	}
 
 	return feature_minzoom;
@@ -1054,9 +1054,9 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 	for (ssize_t i = 0; i <= maxzoom; i++) {
 		ds[i].gap = 0;
 		ds[i].previndex = 0;
-		ds[i].interval = 0;
+		ds[i].interval = 1;
 
-		if (i < basezoom) {
+		if (i <= basezoom) {
 			ds[i].interval = std::exp(std::log(droprate) * (basezoom - i)) / retain_points_multiplier;
 			if (ds[i].interval < 1) {
 				ds[i].interval = 1;
@@ -2611,11 +2611,17 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 			for (z = basezoom - 1; z >= 0; z--) {
 				double interval = exp(log(droprate) * (basezoom - z));
+				if (interval < 1) {
+					interval = 1;
+				}
 
 				if (max[z].count / interval >= max_features) {
 					interval = (double) max[z].count / max_features;
 					droprate = exp(log(interval) / (basezoom - z));
 					interval = exp(log(droprate) * (basezoom - z));
+					if (interval < 1) {
+						interval = 1;
+					}
 
 					if (!quiet) {
 						fprintf(stderr, "Choosing a drop rate of -r%f to keep %f features in tile %d/%u/%u.\n", droprate, max[z].count / interval, z, max[z].x, max[z].y);
