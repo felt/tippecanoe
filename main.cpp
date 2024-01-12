@@ -1057,7 +1057,7 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 		ds[i].interval = 0;
 
 		if (i < basezoom) {
-			ds[i].interval = std::exp(std::log(droprate) * (basezoom - i)) / retain_points_multiplier;
+			ds[i].interval = std::exp(std::log(droprate) * (basezoom - i));
 			if (ds[i].interval < 1) {
 				ds[i].interval = 1;
 			}
@@ -2707,7 +2707,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 			size_t i = 0;
 			for (int z = 0; z <= basezoom; z++) {
-				double keep_fraction = 1.0 / std::exp(std::log(droprate) * (basezoom - z)) / retain_points_multiplier;
+				double keep_fraction = 1.0 / std::exp(std::log(droprate) * (basezoom - z));
 				if (keep_fraction > 1) {
 					keep_fraction = 1;
 				}
