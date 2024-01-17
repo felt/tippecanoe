@@ -756,7 +756,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, std::string const &order_by, json_object *filter) {
+		     bool demultiply, json_object *filter) {
 	mvt_tile tile;
 
 	try {
@@ -770,7 +770,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, order_by, filter);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter);
 }
 
 struct tile_feature {
@@ -782,12 +782,6 @@ struct tile_feature {
 	mvt_layer const *layer;
 
 	mvt_value value(std::string const &attr) const {
-		for (size_t i = 0; i + 1 < tags.size(); i += 2) {
-			if (layer->keys[tags[i]] == attr) {
-				return layer->values[tags[i + 1]];
-			}
-		}
-
 		mvt_value v;
 		v.type = mvt_null;
 		return v;
@@ -805,12 +799,12 @@ struct sorter {
 		mvt_value av = a.value(attr);
 		mvt_value bv = b.value(attr);
 
-		av = av.promote_for_comparison_with(bv);
-		bv = bv.promote_for_comparison_with(av);
-		if (av.type != bv.type) {
-			fprintf(stderr, "Sorter: can't happen\n");
-			exit(EXIT_IMPOSSIBLE);
-		}
+        av = av.promote_for_comparison_with(bv);
+        bv = bv.promote_for_comparison_with(av);
+        if (av.type != bv.type) {
+            fprintf(stderr, "Sorter: can't happen\n");
+            exit(EXIT_IMPOSSIBLE);
+        }
 
 		// descending; we are keeping the largest value for now
 		return bv < av;
@@ -847,7 +841,7 @@ void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std:
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, std::string const &order_by, json_object *filter) {
+		     bool demultiply, json_object *filter) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -882,8 +876,6 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			}
 
 			if (flush_multiplier_cluster) {
-				std::sort(pending_tile_features.begin(), pending_tile_features.end(), sorter(order_by));
-
 				if (pending_tile_features.size() > 0) {
 					feature_out(pending_tile_features[0], outlayer, keep);
 					pending_tile_features.clear();
@@ -979,7 +971,6 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		}
 
 		if (pending_tile_features.size() > 0) {
-			std::sort(pending_tile_features.begin(), pending_tile_features.end(), sorter(order_by));
 			feature_out(pending_tile_features[0], outlayer, keep);
 			pending_tile_features.clear();
 		}
@@ -1003,7 +994,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, order_by, filter);
+								     demultiply, filter);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}

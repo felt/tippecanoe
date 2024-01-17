@@ -287,19 +287,19 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-overzoom -o tests/pbf/14-2616-6331.pbf tests/pbf/11-327-791.pbf 11/327/791 14/2616/6331
 	cmp tests/pbf/14-2616-6331.pbf /dev/null
 	rm tests/pbf/14-2616-6331.pbf
-	# Thinning and ordering
+	# Thinning
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
 	# 9 of them survive as the best of each cluster of 30
 	# ./tippecanoe -z1 -r30 --retain-points-multiplier 30 -f -e out.dir tests/ne_110m_populated_places/in.json
 	# cp out.dir/0/0/0.pbf tests/pbf/0-0-0-pop.pbf
-	./tippecanoe-overzoom -y NAME -O MAX_POP10 -m -o tests/pbf/0-0-0-pop-filtered.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom -y NAME -m -o tests/pbf/0-0-0-pop-filtered.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/0-0-0-pop-filtered.pbf 0 0 0 > tests/pbf/0-0-0-pop-filtered.pbf.json.check
 	cmp tests/pbf/0-0-0-pop-filtered.pbf.json.check tests/pbf/0-0-0-pop-filtered.pbf.json
 	rm tests/pbf/0-0-0-pop-filtered.pbf tests/pbf/0-0-0-pop-filtered.pbf.json.check
 	# Filtering
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
 	# 27 of them match the filter and are retained
-	./tippecanoe-overzoom -y NAME -O MAX_POP10 -j'{"*":["SCALERANK","eq",0]}' -o tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom -y NAME -j'{"*":["SCALERANK","eq",0]}' -o tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/0-0-0-pop-expr.pbf 0 0 0 > tests/pbf/0-0-0-pop-expr.pbf.json.check
 	cmp tests/pbf/0-0-0-pop-expr.pbf.json.check tests/pbf/0-0-0-pop-expr.pbf.json
 	rm tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop-expr.pbf.json.check
