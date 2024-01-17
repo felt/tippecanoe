@@ -10,7 +10,7 @@
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-Bf2000.json.check.mbtiles",
 "strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":2910},{},{}]",
-"tippecanoe_decisions": "{\"basezoom\":12,\"droprate\":2.500000,\"retain_points_multiplier\":1.000000}",
+"tippecanoe_decisions": "{\"basezoom\":12,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [

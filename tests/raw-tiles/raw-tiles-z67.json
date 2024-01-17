@@ -9,6 +9,7 @@
 "maxzoom": "14",
 "minzoom": "0",
 "name": "tests/raw-tiles/raw-tiles",
+"tippecanoe_decisions": "{\"basezoom\":14,\"droprate\":1,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [
