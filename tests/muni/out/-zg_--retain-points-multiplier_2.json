@@ -10,7 +10,7 @@
 "minzoom": "0",
 "name": "tests/muni/out/-zg_--retain-points-multiplier_2.json.check.mbtiles",
 "strategies": "[{\"dropped_by_rate\":4608},{\"dropped_by_rate\":4608},{\"dropped_by_rate\":4607},{\"dropped_by_rate\":4603},{\"dropped_by_rate\":4593},{\"dropped_by_rate\":4571},{\"dropped_by_rate\":4515},{\"dropped_by_rate\":4373},{\"dropped_by_rate\":5242},{\"dropped_by_rate\":3672},{\"dropped_by_rate\":1025},{}]",
-"tippecanoe_decisions": "{\"basezoom\":11,\"droprate\":2.500000,\"retain_points_multiplier\":2.000000}",
+"tippecanoe_decisions": "{\"basezoom\":11,\"droprate\":2.5,\"retain_points_multiplier\":2}",
 "type": "overlay",
 "version": "2"
 }, "features": [

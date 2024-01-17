@@ -695,9 +695,9 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 	}
 	if (basezoom != maxzoom || droprate != 2.5 || retain_points_multiplier != 1) {
 		m.decisions_json = std::string("{") +
-				   "\"basezoom\":" + std::to_string(basezoom) + "," +
-				   "\"droprate\":" + std::to_string(droprate) + "," +
-				   "\"retain_points_multiplier\":" + std::to_string(retain_points_multiplier) +
+				   "\"basezoom\":" + milo::dtoa_milo(basezoom) + "," +
+				   "\"droprate\":" + milo::dtoa_milo(droprate) + "," +
+				   "\"retain_points_multiplier\":" + milo::dtoa_milo(retain_points_multiplier) +
 				   std::string("}");
 	}
 

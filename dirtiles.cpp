@@ -318,6 +318,9 @@ void dir_write_metadata(const char *outdir, const metadata &m) {
 		if (m.strategies_json.size() > 0) {
 			out(state, "strategies", m.strategies_json);
 		}
+		if (m.decisions_json.size() > 0) {
+			out(state, "tippecanoe_decisions", m.decisions_json);
+		}
 		out(state, "format", m.format);
 		out(state, "generator", m.generator);
 		out(state, "generator_options", m.generator_options);

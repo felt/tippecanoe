@@ -9,7 +9,7 @@
 "maxzoom": "8",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-r1_-z8_-J_tests%2ffeature-filter%2fplaces-filter.json.check.mbtiles",
-"tippecanoe_decisions": "{\"basezoom\":8,\"droprate\":1.000000,\"retain_points_multiplier\":1.000000}",
+"tippecanoe_decisions": "{\"basezoom\":8,\"droprate\":1,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [

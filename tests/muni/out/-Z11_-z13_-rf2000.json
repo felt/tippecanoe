@@ -10,7 +10,7 @@
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-rf2000.json.check.mbtiles",
 "strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":2542},{\"dropped_by_rate\":1547},{}]",
-"tippecanoe_decisions": "{\"basezoom\":13,\"droprate\":1.451034,\"retain_points_multiplier\":1.000000}",
+"tippecanoe_decisions": "{\"basezoom\":13,\"droprate\":1.4510341140028376,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [

@@ -10,7 +10,7 @@
 "minzoom": "0",
 "name": "tests/accumulate/out/-z3_-Ethesum%3asum_-Etheproduct%3aproduct_-Ethemax%3amax_-Ethemin%3amin_-Ethemean%3amean_-Etheconcat%3aconcat_-Ethecomma%3acomma_-r1_-K100.json.check.mbtiles",
 "strategies": "[{\"coalesced_as_needed\":78},{\"coalesced_as_needed\":65},{\"coalesced_as_needed\":43},{\"coalesced_as_needed\":17}]",
-"tippecanoe_decisions": "{\"basezoom\":3,\"droprate\":1.000000,\"retain_points_multiplier\":1.000000}",
+"tippecanoe_decisions": "{\"basezoom\":3,\"droprate\":1,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [

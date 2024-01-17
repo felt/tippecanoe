@@ -9,7 +9,7 @@
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-z0_-r1_-yNAME_-ySOV0NAME_-yELEVATION_-YNAME%3aCity_-YSOV0NAME%3aCountry.json.check.mbtiles",
-"tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":1.000000,\"retain_points_multiplier\":1.000000}",
+"tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":1,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [
