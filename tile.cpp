@@ -1881,11 +1881,12 @@ bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &o
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
 			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
-				multiplier_seq--;
 				if (multiplier_seq <= 0) {
 					out = i - 1;
 					return true;
 				}
+
+				multiplier_seq--;
 			}
 		}
 	}
