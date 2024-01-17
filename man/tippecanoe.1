@@ -526,7 +526,7 @@ The attributes and values may also be specified as JSON keys and values: \fB\fC\
 .SS Filtering features by attributes
 .RS
 .IP \(bu 2
-\fB\fC\-j\fR \fIfilter\fP or \fB\fC\-\-feature\-filter\fR=\fIfilter\fP: Check features against a per\-layer filter (as defined in the Mapbox GL Style Specification \[la]https://docs.mapbox.com/mapbox-gl-js/style-spec/#other-filter\[ra]) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB\fC"*"\fR apply to all layers. The special variable \fB\fC$zoom\fR refers to the current zoom level.
+\fB\fC\-j\fR \fIfilter\fP or \fB\fC\-\-feature\-filter\fR=\fIfilter\fP: Check features against a per\-layer filter (as defined in the Mapbox GL Style Specification \[la]https://docs.mapbox.com/mapbox-gl-js/style-spec/#other-filter\[ra] or in a Felt filter specification still to be finalized) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB\fC"*"\fR apply to all layers. The special variable \fB\fC$zoom\fR refers to the current zoom level.
 .IP \(bu 2
 \fB\fC\-J\fR \fIfilter\-file\fP or \fB\fC\-\-feature\-filter\-file\fR=\fIfilter\-file\fP: Like \fB\fC\-j\fR, but read the filter from a file.
 .RE
@@ -573,6 +573,8 @@ distance\-between\-features metrics as are used to choose the maxzoom.
 If you use \fB\fC\-Bg\fR, it will guess a zoom level that will keep at most 50,000 features in the densest tile.
 You can also specify a marker\-width with \fB\fC\-Bg\fR\fIwidth\fP to allow fewer features in the densest tile to
 compensate for the larger marker, or \fB\fC\-Bf\fR\fInumber\fP to allow at most \fInumber\fP features in the densest tile.
+.IP \(bu 2
+\fB\fC\-\-retain\-points\-multiplier=\fR\fImultiple\fP: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the \fB\fC\-m\fR option to \fB\fCtippecanoe\-overzoom\fR\&.
 .IP \(bu 2
 \fB\fC\-\-drop\-denser=\fR\fIpercentage\fP: When dropping dots at zoom levels below the base zoom, give the specified \fIpercentage\fP
 preference to retaining points in sparse areas and dropping points in dense areas.
@@ -1260,4 +1262,8 @@ reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR and produces tile \fB\fCou
 \fB\fC\-d\fR \fIdetail\fP: Set the detail of the output tile (default 12)
 .IP \(bu 2
 \fB\fC\-y\fR \fIattribute\fP: Retain the specified \fIattribute\fP in the output features. All attributes that are not named in a \fB\fC\-y\fR option will be removed.
+.IP \(bu 2
+\fB\fC\-j\fR \fIfilter\fP: Filter features using the same expression syntax as in tippecanoe.
+.IP \(bu 2
+\fB\fC\-m\fR: If a tile was created with the \fB\fC\-\-retain\-points\-multiplier\fR option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless \fB\fC\-j\fR is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
 .RE
