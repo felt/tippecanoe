@@ -780,35 +780,6 @@ struct tile_feature {
 	unsigned long long id;
 	std::vector<unsigned> tags;
 	mvt_layer const *layer;
-
-	mvt_value value(std::string const &attr) const {
-		mvt_value v;
-		v.type = mvt_null;
-		return v;
-	}
-};
-
-struct sorter {
-	std::string attr;
-
-	sorter(std::string const attr_)
-	    : attr(attr_) {
-	}
-
-	bool operator()(const struct tile_feature &a, const struct tile_feature &b) {
-		mvt_value av = a.value(attr);
-		mvt_value bv = b.value(attr);
-
-        av = av.promote_for_comparison_with(bv);
-        bv = bv.promote_for_comparison_with(av);
-        if (av.type != bv.type) {
-            fprintf(stderr, "Sorter: can't happen\n");
-            exit(EXIT_IMPOSSIBLE);
-        }
-
-		// descending; we are keeping the largest value for now
-		return bv < av;
-	}
 };
 
 void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std::string> const &keep) {
