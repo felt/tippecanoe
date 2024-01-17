@@ -80,9 +80,6 @@ extern std::vector<order_field> order_by;
 #define ORDER_BY_SIZE "\200size"
 extern bool order_by_size;
 
-#define ORDER_SPATIAL "\200spatial"
-#define ORDER_BY_FEATURE_MINZOOM "\200feature_minzoom"
-
 int mkstemp_cloexec(char *name);
 FILE *fopen_oflag(const char *name, const char *mode, int oflag);
 bool progress_time();
