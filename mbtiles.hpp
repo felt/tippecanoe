@@ -76,7 +76,7 @@ sqlite3 *mbtiles_open(char *dbname, char **argv, int forcetable);
 void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data, int size);
 void mbtiles_erase_zoom(sqlite3 *outdb, int z);
 
-metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, double retain_points_multiplier);
+metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, int retain_points_multiplier);
 void mbtiles_write_metadata(sqlite3 *db, const metadata &m, bool forcetable);
 
 void mbtiles_close(sqlite3 *outdb, const char *pgm);

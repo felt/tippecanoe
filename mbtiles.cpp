@@ -655,7 +655,7 @@ void mbtiles_write_metadata(sqlite3 *db, const metadata &m, bool forcetable) {
 	}
 }
 
-metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, double retain_points_multiplier) {
+metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, int retain_points_multiplier) {
 	metadata m;
 
 	m.name = fname;
@@ -697,7 +697,7 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 		m.decisions_json = std::string("{") +
 				   "\"basezoom\":" + milo::dtoa_milo(basezoom) + "," +
 				   "\"droprate\":" + milo::dtoa_milo(droprate) + "," +
-				   "\"retain_points_multiplier\":" + milo::dtoa_milo(retain_points_multiplier) +
+				   "\"retain_points_multiplier\":" + std::to_string(retain_points_multiplier) +
 				   std::string("}");
 	}
 

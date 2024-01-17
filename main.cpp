@@ -93,7 +93,7 @@ unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
 long long extend_zooms_max = 0;
-double retain_points_multiplier = 1;
+int retain_points_multiplier = 1;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -3377,7 +3377,7 @@ int main(int argc, char **argv) {
 			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
 			} else if (strcmp(opt, "retain-points-multiplier") == 0) {
-				retain_points_multiplier = atof_require(optarg, "Multiply the fraction of points retained by zoom level");
+				retain_points_multiplier = atoll_require(optarg, "Multiply the fraction of points retained by zoom level");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
