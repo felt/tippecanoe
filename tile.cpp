@@ -1457,7 +1457,7 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 }
 
 struct multiplier_state {
-	size_t count = 0;
+	std::map<std::string, size_t> count;
 };
 
 serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state) {
@@ -1588,10 +1588,20 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		}
 
 		if (sf.tippecanoe_minzoom == -1) {
+			bool keep = false;
+
+			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
+			auto count = multiplier_state->count.find(layername);
+			if (count == multiplier_state->count.end()) {
+				multiplier_state->count.emplace(layername, 0);
+				count = multiplier_state->count.find(layername);
+				keep = true;  // the first feature in each layer in each tile is always kept
+			}
+
 			sf.dropped = true;
 
-			if (z >= sf.feature_minzoom) {
-				multiplier_state->count = retain_points_multiplier;
+			if (z >= sf.feature_minzoom || keep) {
+				count->second = retain_points_multiplier;
 
 				if (retain_points_multiplier > 1) {
 					serial_val val;
@@ -1603,9 +1613,9 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 				}
 			}
 
-			if (multiplier_state->count > 0) {
+			if (count->second > 0) {
 				sf.dropped = false;
-				multiplier_state->count -= 1;
+				count->second -= 1;
 			}
 		}
 
@@ -1871,8 +1881,11 @@ bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &o
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
 			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
-				out = i - 1;
-				return true;
+				multiplier_seq--;
+				if (multiplier_seq <= 0) {
+					out = i - 1;
+					return true;
+				}
 			}
 		}
 	}
@@ -2093,10 +2106,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		struct multiplier_state multiplier_state;
+		size_t multiplier_seq = retain_points_multiplier - 1;
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
-			size_t multiplier_seq = retain_points_multiplier - 1;
 
 			if (prefilter == NULL) {
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state);
