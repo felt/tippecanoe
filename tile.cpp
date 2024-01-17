@@ -665,8 +665,7 @@ void *partial_feature_worker(void *v) {
 			to_tile_scale(geom, z, out_detail);
 		}
 
-		// what was this for?
-		// (*partials)[i].index = i;
+		(*partials)[i].index = i;
 
 		std::vector<drawvec> geoms;  // artifact of former polygon-splitting to reduce geometric complexity
 		geoms.push_back(geom);
@@ -2382,7 +2381,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		for (size_t i = 0; i < partials.size(); i++) {
 			partial &p = partials[i];
 
-#if 0
 			{
 				std::string layername = (*layer_unmaps)[p.segment][p.layer];
 
@@ -2397,7 +2395,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				sv2.s = std::to_string(p.feature_minzoom);
 				p.full_values.push_back(sv2);
 			}
-#endif
 
 			if (p.clustered > 0) {
 				std::string layername = (*layer_unmaps)[p.segment][p.layer];
