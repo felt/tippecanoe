@@ -5,14 +5,15 @@
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
+#include "milo/dtoa_milo.h"
 
 static std::string mvt_value_to_string(mvt_value one, bool &fail) {
 	if (one.type == mvt_string) {
 		return one.string_value;
 	} else if (one.type == mvt_float) {
-		return std::to_string(one.numeric_value.float_value);
+		return milo::dtoa_milo(one.numeric_value.float_value);
 	} else if (one.type == mvt_double) {
-		return std::to_string(one.numeric_value.double_value);
+		return milo::dtoa_milo(one.numeric_value.double_value);
 	} else if (one.type == mvt_int) {
 		return std::to_string(one.numeric_value.int_value);
 	} else if (one.type == mvt_uint) {
@@ -231,15 +232,32 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	    f->value.array.array[1]->type == JSON_STRING &&
 	    (strcmp(f->value.array.array[1]->value.string.string, "or") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "and") == 0)) {
-		int lhs = eval(feature, f->value.array.array[0], exclude_attributes);
+		int lhs;
+
+		if (f->value.array.array[0]->type == JSON_STRING) {
+			// if LHS of a boolean conjunction is a string, it is an attribute reference
+			auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
+			if (ff != feature.end()) {
+				if (ff->second.type == mvt_bool) {
+					lhs = ff->second.numeric_value.bool_value;
+				} else {
+					lhs = -1;  // not boolean: null
+				}
+			} else {
+				lhs = -1;  // not found: null
+			}
+		} else {
+			lhs = eval(feature, f->value.array.array[0], exclude_attributes);
+		}
+
 		int rhs = eval(feature, f->value.array.array[2], exclude_attributes);
-		if (lhs < 0 || rhs < 0) {
-			return -1;  // null op anything => null, anything op null => null
+		if (lhs < 0 && rhs < 0) {
+			return -1;  // null op null => null
 		}
 		if (strcmp(f->value.array.array[1]->value.string.string, "or") == 0) {
-			return lhs || rhs;
+			return (lhs > 0) || (rhs > 0);
 		} else {
-			return lhs && rhs;
+			return (lhs > 0) && (rhs > 0);
 		}
 	}
 
