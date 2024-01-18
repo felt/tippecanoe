@@ -1874,6 +1874,14 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 	}
 }
 
+// This function finds the feature in `partials` onto which the attributes or geometry
+// of a feature that is being dropped (`sf`) will be accumulated or coalesced. It
+// ordinarily returns the most recently-added feature from the same layer as the feature
+// that is being dropped, but if there is an active multiplier, will walk multiple
+// features backward so that the features being dropped will be accumulated round-robin
+// onto the N features that are being kept. The caller increments the `multiplier_seq`
+// mod N with each dropped feature to drive the round-robin decision.
+//
 bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
 	for (size_t i = partials.size(); i > 0; i--) {
 		if (partials[i - 1].t == sf.t) {

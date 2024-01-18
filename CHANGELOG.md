@@ -1,6 +1,6 @@
 # 2.41.0
 
-* Add felt-style expression support for -j feature filters
+* Add Felt-style expression support for -j feature filters
 * Add --retain-points-multiplier option
 * Add tippecanoe_decisions metadata field to record basezoom, drop rate, and multiplier
 * Add multiplier thinning (-m) and feature filters (-j) to tippecanoe-overzoom

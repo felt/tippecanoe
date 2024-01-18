@@ -574,7 +574,7 @@ If you use \fB\fC\-Bg\fR, it will guess a zoom level that will keep at most 50,0
 You can also specify a marker\-width with \fB\fC\-Bg\fR\fIwidth\fP to allow fewer features in the densest tile to
 compensate for the larger marker, or \fB\fC\-Bf\fR\fInumber\fP to allow at most \fInumber\fP features in the densest tile.
 .IP \(bu 2
-\fB\fC\-\-retain\-points\-multiplier=\fR\fImultiple\fP: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the \fB\fC\-m\fR option to \fB\fCtippecanoe\-overzoom\fR\&.
+\fB\fC\-\-retain\-points\-multiplier=\fR\fImultiple\fP: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the \fB\fC\-m\fR option to \fB\fCtippecanoe\-overzoom\fR\&. The start of each cluster is marked in the feature sequence by the \fB\fCtippecanoe:retain_points_multiplier_first\fR attribute.
 .IP \(bu 2
 \fB\fC\-\-drop\-denser=\fR\fIpercentage\fP: When dropping dots at zoom levels below the base zoom, give the specified \fIpercentage\fP
 preference to retaining points in sparse areas and dropping points in dense areas.
