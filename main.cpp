@@ -93,6 +93,7 @@ unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
 long long extend_zooms_max = 0;
+int retain_points_multiplier = 1;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -303,7 +304,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
-		ssize_t chosen = maxzoom + 1;
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
@@ -317,7 +317,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 					ds[j].previndex = ix->ix;
 				}
 
-				chosen = i + 1;
 				break;
 			} else {
 				ds[i].seq -= ds[i].interval;
@@ -330,7 +329,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		// we will go ahead and push it out.
 
 		if (preserve_point_density_threshold > 0) {
-			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
+			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
@@ -2825,7 +2824,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		ai->second.maxzoom = maxzoom;
 	}
 
-	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies);
+	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, forcetable);
 	} else {
@@ -3150,6 +3149,7 @@ int main(int argc, char **argv) {
 
 		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 		{"drop-rate", required_argument, 0, 'r'},
+		{"retain-points-multiplier", required_argument, 0, '~'},
 		{"base-zoom", required_argument, 0, 'B'},
 		{"drop-denser", required_argument, 0, '~'},
 		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
@@ -3370,6 +3370,8 @@ int main(int argc, char **argv) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
+			} else if (strcmp(opt, "retain-points-multiplier") == 0) {
+				retain_points_multiplier = atoll_require(optarg, "Multiply the fraction of points retained by zoom level");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);

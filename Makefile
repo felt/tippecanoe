@@ -76,7 +76,7 @@ tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o
 unit: unit.o text.o sort.o mvt.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-tippecanoe-overzoom: overzoom.o mvt.o clip.o
+tippecanoe-overzoom: overzoom.o mvt.o clip.o evaluator.o jsonpull/jsonpull.o text.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 -include $(wildcard *.d)
@@ -287,6 +287,37 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-overzoom -o tests/pbf/14-2616-6331.pbf tests/pbf/11-327-791.pbf 11/327/791 14/2616/6331
 	cmp tests/pbf/14-2616-6331.pbf /dev/null
 	rm tests/pbf/14-2616-6331.pbf
+	# Thinning
+	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
+	# 9 of them survive as the best of each cluster of 30
+	# ./tippecanoe -z1 -r30 --retain-points-multiplier 30 -f -e out.dir tests/ne_110m_populated_places/in.json
+	# cp out.dir/0/0/0.pbf tests/pbf/0-0-0-pop.pbf
+	./tippecanoe-overzoom -y NAME -m -o tests/pbf/0-0-0-pop-filtered.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/0-0-0-pop-filtered.pbf 0 0 0 > tests/pbf/0-0-0-pop-filtered.pbf.json.check
+	cmp tests/pbf/0-0-0-pop-filtered.pbf.json.check tests/pbf/0-0-0-pop-filtered.pbf.json
+	rm tests/pbf/0-0-0-pop-filtered.pbf tests/pbf/0-0-0-pop-filtered.pbf.json.check
+	# Filtering
+	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
+	# 27 of them match the filter and are retained
+	./tippecanoe-overzoom -y NAME -j'{"*":["SCALERANK","eq",0]}' -o tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/0-0-0-pop-expr.pbf 0 0 0 > tests/pbf/0-0-0-pop-expr.pbf.json.check
+	cmp tests/pbf/0-0-0-pop-expr.pbf.json.check tests/pbf/0-0-0-pop-expr.pbf.json
+	rm tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop-expr.pbf.json.check
+	# Filtering with multiplier
+	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
+	# 8 features survive into the output, from 9 clusters of 30
+	./tippecanoe-overzoom -y NAME -y SCALERANK -j'{"*":["SCALERANK","eq",0]}' -m -o tests/pbf/0-0-0-filter-mult.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/0-0-0-filter-mult.pbf 0 0 0 > tests/pbf/0-0-0-filter-mult.pbf.json.check
+	cmp tests/pbf/0-0-0-filter-mult.pbf.json.check tests/pbf/0-0-0-filter-mult.pbf.json
+	rm tests/pbf/0-0-0-filter-mult.pbf tests/pbf/0-0-0-filter-mult.pbf.json.check
+	# Test that overzooming with a multiplier exactly reverses the effect of tiling with a multiplier
+	./tippecanoe -q -z5 --preserve-point-density-threshold 8 --retain-points-multiplier 3 -f -e tests/muni/out/out.dir tests/muni/muni.json
+	./tippecanoe -q -z5 --preserve-point-density-threshold 8 -f -o tests/muni/out/out.mbtiles tests/muni/muni.json
+	./tippecanoe-overzoom -m -o tests/muni/out/out.dir/000.pbf tests/muni/out/out.dir/0/0/0.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/muni/out/out.mbtiles 0 0 0 > tests/muni/out/out.dir/direct.json
+	./tippecanoe-decode tests/muni/out/out.dir/000.pbf 0 0 0 > tests/muni/out/out.dir/overzoomed.json
+	cmp tests/muni/out/out.dir/overzoomed.json tests/muni/out/out.dir/direct.json
+	rm -rf tests/muni/out/out.dir tests/muni/out/out.mbtiles tests/muni/out/out.dir/overzoomed.json tests/muni/out/out.dir/direct.json
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'

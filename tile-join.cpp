@@ -155,46 +155,8 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			mvt_feature feat = layer.features[f];
 			std::set<std::string> exclude_attributes;
 
-			if (filter != NULL) {
-				std::map<std::string, mvt_value> attributes;
-
-				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
-					std::string key = layer.keys[feat.tags[t]];
-					mvt_value &val = layer.values[feat.tags[t + 1]];
-
-					attributes.insert(std::pair<std::string, mvt_value>(key, val));
-				}
-
-				if (feat.has_id) {
-					mvt_value v;
-					v.type = mvt_uint;
-					v.numeric_value.uint_value = feat.id;
-
-					attributes.insert(std::pair<std::string, mvt_value>("$id", v));
-				}
-
-				mvt_value v;
-				v.type = mvt_string;
-
-				if (feat.type == mvt_point) {
-					v.string_value = "Point";
-				} else if (feat.type == mvt_linestring) {
-					v.string_value = "LineString";
-				} else if (feat.type == mvt_polygon) {
-					v.string_value = "Polygon";
-				}
-
-				attributes.insert(std::pair<std::string, mvt_value>("$type", v));
-
-				mvt_value v2;
-				v2.type = mvt_uint;
-				v2.numeric_value.uint_value = z;
-
-				attributes.insert(std::pair<std::string, mvt_value>("$zoom", v2));
-
-				if (!evaluate(attributes, layer.name, filter, exclude_attributes)) {
-					continue;
-				}
+			if (!evaluate(feat, layer, filter, exclude_attributes, z)) {
+				continue;
 			}
 
 			mvt_feature outfeature;
@@ -782,7 +744,7 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles);
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL);
 			return ret;
 		}
 
@@ -1606,7 +1568,7 @@ int main(int argc, char **argv) {
 		st.maxlon2 = st.maxlon;
 	}
 
-	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
+	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies, st.maxzoom, 2.5, 1);
 
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, true);

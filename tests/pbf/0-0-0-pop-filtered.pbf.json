@@ -1,0 +1,21 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Vancouver" }, "geometry": { "type": "Point", "coordinates": [ -123.134766, 49.267805 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Castries" }, "geometry": { "type": "Point", "coordinates": [ -60.996094, 14.008696 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Nukualofa" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -175.166016, -21.125498 ], [ 184.833984, -21.125498 ] ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Vienna" }, "geometry": { "type": "Point", "coordinates": [ 16.347656, 48.166085 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Niamey" }, "geometry": { "type": "Point", "coordinates": [ 2.109375, 13.496473 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Hargeysa" }, "geometry": { "type": "Point", "coordinates": [ 44.121094, 9.535749 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Chengdu" }, "geometry": { "type": "Point", "coordinates": [ 104.062500, 30.675715 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Cape Town" }, "geometry": { "type": "Point", "coordinates": [ 18.457031, -33.943360 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Suva" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 178.505859, -18.145852 ], [ -181.582031, -18.145852 ] ] } }
+] }
+] }

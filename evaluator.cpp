@@ -5,6 +5,123 @@
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
+#include "milo/dtoa_milo.h"
+
+static std::string mvt_value_to_string(mvt_value one, bool &fail) {
+	if (one.type == mvt_string) {
+		return one.string_value;
+	} else if (one.type == mvt_float) {
+		return milo::dtoa_milo(one.numeric_value.float_value);
+	} else if (one.type == mvt_double) {
+		return milo::dtoa_milo(one.numeric_value.double_value);
+	} else if (one.type == mvt_int) {
+		return std::to_string(one.numeric_value.int_value);
+	} else if (one.type == mvt_uint) {
+		return std::to_string(one.numeric_value.uint_value);
+	} else if (one.type == mvt_sint) {
+		return std::to_string(one.numeric_value.sint_value);
+	} else if (one.type == mvt_bool) {
+		return one.numeric_value.bool_value ? "true" : "false";
+	} else if (one.type == mvt_null) {
+		fail = true;  // null op string => null
+		return "";
+	} else {
+		fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+		exit(EXIT_IMPOSSIBLE);
+	}
+}
+
+int compare_fsl(mvt_value one, json_object *two, bool &fail) {
+	// In FSL expressions, the attribute value is coerced to the type
+	// of the JSON literal value it is being compared to.
+	//
+	// If it cannot be converted, the comparison returns null
+	// (which is distinct from true and false but is falsy if
+	// it is the final output value).
+
+	if (two->type == JSON_NULL) {
+		fail = true;  // anything op null => null
+		return 0;
+	}
+
+	if (two->type == JSON_NUMBER) {
+		double lhs;
+
+		if (one.type == mvt_string) {
+			char *endptr = NULL;
+			const char *s = one.string_value.c_str();
+			lhs = strtod(s, &endptr);
+			if (endptr == s) {
+				fail = true;  // non-numeric-string op number => null
+				return 0;
+			}
+		} else if (one.type == mvt_float) {
+			lhs = one.numeric_value.float_value;
+		} else if (one.type == mvt_double) {
+			lhs = one.numeric_value.double_value;
+		} else if (one.type == mvt_int) {
+			lhs = one.numeric_value.int_value;
+		} else if (one.type == mvt_uint) {
+			lhs = one.numeric_value.uint_value;
+		} else if (one.type == mvt_sint) {
+			lhs = one.numeric_value.sint_value;
+		} else if (one.type == mvt_bool) {
+			lhs = one.numeric_value.bool_value;
+		} else if (one.type == mvt_null) {
+			fail = true;  // null op number => null
+			return 0;
+		} else {
+			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		if (lhs < two->value.number.number) {
+			return -1;
+		} else if (lhs > two->value.number.number) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
+	if (two->type == JSON_STRING) {
+		std::string lhs = mvt_value_to_string(one, fail);
+
+		return strcmp(lhs.c_str(), two->value.string.string);
+	}
+
+	if (two->type == JSON_TRUE || two->type == JSON_FALSE) {
+		bool lhs;
+
+		if (one.type == mvt_string) {
+			lhs = one.string_value.size() > 0;
+		} else if (one.type == mvt_float) {
+			lhs = one.numeric_value.float_value != 0;
+		} else if (one.type == mvt_double) {
+			lhs = one.numeric_value.double_value != 0;
+		} else if (one.type == mvt_int) {
+			lhs = one.numeric_value.int_value != 0;
+		} else if (one.type == mvt_uint) {
+			lhs = one.numeric_value.uint_value != 0;
+		} else if (one.type == mvt_sint) {
+			lhs = one.numeric_value.sint_value != 0;
+		} else if (one.type == mvt_bool) {
+			lhs = one.numeric_value.bool_value;
+		} else if (one.type == mvt_null) {
+			fail = true;  // null op bool => null
+			return 0;
+		} else {
+			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		bool rhs = two->type == JSON_TRUE;
+		return lhs - rhs;
+	}
+
+	fprintf(stderr, "unhandled JSON type %d\n", two->type);
+	exit(EXIT_IMPOSSIBLE);
+}
 
 int compare(mvt_value one, json_object *two, bool &fail) {
 	if (one.type == mvt_string) {
@@ -70,7 +187,36 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 	exit(EXIT_IMPOSSIBLE);
 }
 
-bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
+// 0: false
+// 1: true
+// -1: incomparable (sql null), treated as false in final output
+static int eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
+	if (f != NULL) {
+		if (f->type == JSON_TRUE) {
+			return 1;
+		} else if (f->type == JSON_FALSE) {
+			return 0;
+		} else if (f->type == JSON_NULL) {
+			return -1;
+		}
+
+		if (f->type == JSON_NUMBER) {
+			if (f->value.number.number == 0) {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
+
+		if (f->type == JSON_STRING) {
+			if (f->value.string.string[0] == '\0') {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
+	}
+
 	if (f == NULL || f->type != JSON_ARRAY) {
 		fprintf(stderr, "Filter is not an array: %s\n", json_stringify(f));
 		exit(EXIT_FILTER);
@@ -79,6 +225,149 @@ bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::
 	if (f->value.array.length < 1) {
 		fprintf(stderr, "Array too small in filter: %s\n", json_stringify(f));
 		exit(EXIT_FILTER);
+	}
+
+	// FSL conjunctions
+	if (f->value.array.length == 3 &&
+	    f->value.array.array[1]->type == JSON_STRING &&
+	    (strcmp(f->value.array.array[1]->value.string.string, "or") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "and") == 0)) {
+		int lhs;
+
+		if (f->value.array.array[0]->type == JSON_STRING) {
+			// if LHS of a boolean conjunction is a string, it is an attribute reference
+			auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
+			if (ff != feature.end()) {
+				if (ff->second.type == mvt_bool) {
+					lhs = ff->second.numeric_value.bool_value;
+				} else {
+					lhs = -1;  // not boolean: null
+				}
+			} else {
+				lhs = -1;  // not found: null
+			}
+		} else {
+			lhs = eval(feature, f->value.array.array[0], exclude_attributes);
+		}
+
+		int rhs = eval(feature, f->value.array.array[2], exclude_attributes);
+		if (lhs < 0 && rhs < 0) {
+			return -1;  // null op null => null
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "or") == 0) {
+			return (lhs > 0) || (rhs > 0);
+		} else {
+			return (lhs > 0) && (rhs > 0);
+		}
+	}
+
+	// FSL comparators
+	if (f->value.array.length == 3 &&
+	    f->value.array.array[0]->type == JSON_STRING &&
+	    f->value.array.array[1]->type == JSON_STRING &&
+	    (strcmp(f->value.array.array[1]->value.string.string, "lt") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "gt") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "le") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "ge") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "eq") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "ne") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "is") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "isnt") == 0 ||
+	     false)) {
+		mvt_value lhs;
+		lhs.type = mvt_null;  // attributes that aren't found are nulls
+		auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
+		if (ff != feature.end()) {
+			lhs = ff->second;
+		}
+
+		if (f->value.array.array[2]->type == JSON_NULL && strcmp(f->value.array.array[1]->value.string.string, "is") == 0) {
+			return lhs.type == mvt_null;  // null is null => true, anything is null => false
+		}
+		if (f->value.array.array[2]->type == JSON_NULL && strcmp(f->value.array.array[1]->value.string.string, "isnt") == 0) {
+			return lhs.type != mvt_null;  // null isnt null => false, anything isnt null => true
+		}
+
+		if (lhs.type == mvt_null) {
+			return -1;  // null op anything => null
+		}
+
+		bool fail = false;
+
+		if (f->value.array.array[2]->type == JSON_STRING &&
+		    (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
+		     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0)) {
+			std::string s = mvt_value_to_string(lhs, fail);
+			if (fail) {
+				return -1;  // null cn anything => false
+			}
+
+			bool contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
+			if (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0) {
+				return contains;
+			} else {
+				return !contains;
+			}
+		}
+
+		if (f->value.array.array[2]->type == JSON_ARRAY &&
+		    (strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
+		     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0)) {
+			std::string s = mvt_value_to_string(lhs, fail);
+			if (fail) {
+				return -1;  // null in anything => false
+			}
+
+			bool contains = false;
+			for (size_t i = 0; i < f->value.array.array[2]->value.array.length; i++) {
+				if (f->value.array.array[2]->value.array.array[i]->type != JSON_STRING) {
+					return -1;  // anything in [not-a-string] => null
+				}
+
+				if (s == f->value.array.array[2]->value.array.array[i]->value.string.string) {
+					contains = true;
+					break;
+				}
+			}
+
+			if (strcmp(f->value.array.array[1]->value.string.string, "in") == 0) {
+				return contains;
+			} else {
+				return !contains;
+			}
+		}
+
+		int cmp = compare_fsl(ff->second, f->value.array.array[2], fail);
+		if (fail) {
+			printf("cast fail\n");
+			return -1;  // null
+		}
+
+		if (strcmp(f->value.array.array[1]->value.string.string, "eq") == 0) {
+			return cmp == 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "ne") == 0) {
+			return cmp != 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "gt") == 0) {
+			return cmp > 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "ge") == 0) {
+			return cmp >= 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "lt") == 0) {
+			return cmp < 0;
+		}
+		if (strcmp(f->value.array.array[1]->value.string.string, "le") == 0) {
+			return cmp <= 0;
+		}
+
+		fprintf(stderr, "expression fsl comparison: can't happen %s\n", f->value.array.array[1]->value.string.string);
+		exit(EXIT_IMPOSSIBLE);
 	}
 
 	if (f->value.array.array[0]->type != JSON_STRING) {
@@ -192,17 +481,19 @@ bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::
 		}
 
 		for (size_t i = 1; i < f->value.array.length; i++) {
-			bool out = eval(feature, f->value.array.array[i], exclude_attributes);
+			int out = eval(feature, f->value.array.array[i], exclude_attributes);
 
-			if (strcmp(f->value.array.array[0]->value.string.string, "all") == 0) {
-				v = v && out;
-				if (!v) {
-					break;
-				}
-			} else {
-				v = v || out;
-				if (v) {
-					break;
+			if (out >= 0) {	 // nulls are ignored in boolean and/or expressions
+				if (strcmp(f->value.array.array[0]->value.string.string, "all") == 0) {
+					v = v && out;
+					if (!v) {
+						break;
+					}
+				} else {
+					v = v || out;
+					if (v) {
+						break;
+					}
 				}
 			}
 		}
@@ -281,7 +572,7 @@ bool eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::
 			exit(EXIT_FILTER);
 		}
 
-		bool ok = eval(feature, f->value.array.array[2], exclude_attributes);
+		bool ok = eval(feature, f->value.array.array[2], exclude_attributes) > 0;
 		if (!ok) {
 			exclude_attributes.insert(f->value.array.array[1]->value.string.string);
 		}
@@ -304,12 +595,12 @@ bool evaluate(std::map<std::string, mvt_value> const &feature, std::string const
 
 	f = json_hash_get(filter, layer.c_str());
 	if (ok && f != NULL) {
-		ok = eval(feature, f, exclude_attributes);
+		ok = eval(feature, f, exclude_attributes) > 0;
 	}
 
 	f = json_hash_get(filter, "*");
 	if (ok && f != NULL) {
-		ok = eval(feature, f, exclude_attributes);
+		ok = eval(feature, f, exclude_attributes) > 0;
 	}
 
 	return ok;
@@ -345,4 +636,50 @@ json_object *parse_filter(const char *s) {
 	json_disconnect(filter);
 	json_end(jp);
 	return filter;
+}
+
+bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
+	if (filter != NULL) {
+		std::map<std::string, mvt_value> attributes;
+
+		for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+			std::string key = layer.keys[feat.tags[t]];
+			const mvt_value &val = layer.values[feat.tags[t + 1]];
+
+			attributes.insert(std::pair<std::string, mvt_value>(key, val));
+		}
+
+		if (feat.has_id) {
+			mvt_value v;
+			v.type = mvt_uint;
+			v.numeric_value.uint_value = feat.id;
+
+			attributes.insert(std::pair<std::string, mvt_value>("$id", v));
+		}
+
+		mvt_value v;
+		v.type = mvt_string;
+
+		if (feat.type == mvt_point) {
+			v.string_value = "Point";
+		} else if (feat.type == mvt_linestring) {
+			v.string_value = "LineString";
+		} else if (feat.type == mvt_polygon) {
+			v.string_value = "Polygon";
+		}
+
+		attributes.insert(std::pair<std::string, mvt_value>("$type", v));
+
+		mvt_value v2;
+		v2.type = mvt_uint;
+		v2.numeric_value.uint_value = z;
+
+		attributes.insert(std::pair<std::string, mvt_value>("$zoom", v2));
+
+		if (!evaluate(attributes, layer.name, filter, exclude_attributes)) {
+			return false;
+		}
+	}
+
+	return true;
 }

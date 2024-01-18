@@ -8,6 +8,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 #include <mvt.hpp>
+#include "jsonpull/jsonpull.h"
 
 #define VT_POINT 1
 #define VT_LINE 2
@@ -100,10 +101,12 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles);
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
+		     bool demultiply, json_object *filter);
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles);
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
+		     bool demultiply, json_object *filter);
 
 #endif

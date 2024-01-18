@@ -1456,7 +1456,11 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed) {
+struct multiplier_state {
+	std::map<std::string, size_t> count;
+};
+
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1583,8 +1587,36 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			}
 		}
 
-		if (sf.tippecanoe_minzoom == -1 && z < sf.feature_minzoom) {
+		if (sf.tippecanoe_minzoom == -1) {
+			bool keep = false;
+
+			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
+			auto count = multiplier_state->count.find(layername);
+			if (count == multiplier_state->count.end()) {
+				multiplier_state->count.emplace(layername, 0);
+				count = multiplier_state->count.find(layername);
+				keep = true;  // the first feature in each layer in each tile is always kept
+			}
+
 			sf.dropped = true;
+
+			if (z >= sf.feature_minzoom || keep) {
+				count->second = retain_points_multiplier;
+
+				if (retain_points_multiplier > 1) {
+					serial_val val;
+					val.type = mvt_bool;
+					val.s = "true";
+
+					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
+					sf.full_values.push_back(val);
+				}
+			}
+
+			if (count->second > 0) {
+				sf.dropped = false;
+				count->second -= 1;
+			}
 		}
 
 		// Remove nulls, now that the expression evaluation filter has run
@@ -1646,9 +1678,10 @@ struct run_prefilter_args {
 void *run_prefilter(void *v) {
 	run_prefilter_args *rpa = (run_prefilter_args *) v;
 	json_writer state(rpa->prefilter_fp);
+	struct multiplier_state multiplier_state;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1841,15 +1874,27 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 	}
 }
 
-bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent) {
+// This function finds the feature in `partials` onto which the attributes or geometry
+// of a feature that is being dropped (`sf`) will be accumulated or coalesced. It
+// ordinarily returns the most recently-added feature from the same layer as the feature
+// that is being dropped, but if there is an active multiplier, will walk multiple
+// features backward so that the features being dropped will be accumulated round-robin
+// onto the N features that are being kept. The caller increments the `multiplier_seq`
+// mod N with each dropped feature to drive the round-robin decision.
+//
+bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
 	for (size_t i = partials.size(); i > 0; i--) {
 		if (partials[i - 1].t == sf.t) {
 			std::string &layername1 = (*layer_unmaps)[partials[i - 1].segment][partials[i - 1].layer];
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
 			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
-				out = i - 1;
-				return true;
+				if (multiplier_seq <= 0) {
+					out = i - 1;
+					return true;
+				}
+
+				multiplier_seq--;
 			}
 		}
 	}
@@ -2069,12 +2114,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
+		struct multiplier_state multiplier_state;
+		size_t multiplier_seq = retain_points_multiplier - 1;
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2098,15 +2145,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (sf.dropped) {
-				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
+
+				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_by_rate++;
 					continue;
 				}
+			} else {
+				multiplier_seq = retain_points_multiplier - 1;
 			}
 
 			if (gamma > 0) {
-				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_by_gamma++;
 					continue;
@@ -2125,7 +2176,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					partials[which_partial].clustered++;
 
 					if (partials[which_partial].t == VT_POINT &&
@@ -2148,7 +2199,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
@@ -2157,7 +2208,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
@@ -2169,14 +2220,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 				// so we shouldn't expect to find anything small that we can related this feature to.
-				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
-				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent)) {
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent, multiplier_seq)) {
 					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;
 					coalesced_area += sf.extent;
@@ -2199,7 +2250,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			fraction_accum += fraction;
-			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX)) {
+			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					coalesce_geometry(partials[which_partial], sf);
 					partials[which_partial].coalesced = true;

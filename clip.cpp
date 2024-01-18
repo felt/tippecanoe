@@ -7,6 +7,7 @@
 #include "errors.hpp"
 #include "compression.hpp"
 #include "mvt.hpp"
+#include "evaluator.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -754,7 +755,8 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles) {
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
+		     bool demultiply, json_object *filter) {
 	mvt_tile tile;
 
 	try {
@@ -768,12 +770,49 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter);
+}
+
+struct tile_feature {
+	drawvec geom;
+	int t;
+	bool has_id;
+	unsigned long long id;
+	std::vector<unsigned> tags;
+	mvt_layer const *layer;
+};
+
+void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std::string> const &keep) {
+	// Add geometry to output feature
+
+	mvt_feature outfeature;
+	outfeature.type = feature.t;
+	for (auto const &g : feature.geom) {
+		outfeature.geometry.emplace_back(g.op, g.x, g.y);
+	}
+
+	// ID and attributes, if it didn't get clipped away
+
+	if (outfeature.geometry.size() > 0) {
+		if (feature.has_id) {
+			outfeature.has_id = true;
+			outfeature.id = feature.id;
+		}
+
+		for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+			if (keep.size() == 0 || keep.find(feature.layer->keys[feature.tags[i]]) != keep.end()) {
+				outlayer.tag(outfeature, feature.layer->keys[feature.tags[i]], feature.layer->values[feature.tags[i + 1]]);
+			}
+		}
+
+		outlayer.features.push_back(outfeature);
+	}
 }
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles) {
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
+		     bool demultiply, json_object *filter) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -788,8 +827,37 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		outlayer.version = layer.version;
 		outlayer.extent = 1LL << det;
 
-		for (auto const &feature : layer.features) {
-			mvt_feature outfeature;
+		std::vector<tile_feature> pending_tile_features;
+
+		for (auto feature : layer.features) {
+			bool flush_multiplier_cluster = false;
+			if (demultiply) {
+				for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+					if (layer.keys[feature.tags[i]] == "tippecanoe:retain_points_multiplier_first") {
+						mvt_value v = layer.values[feature.tags[i + 1]];
+						if (v.type == mvt_bool && v.numeric_value.bool_value) {
+							flush_multiplier_cluster = true;
+							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
+							break;
+						}
+					}
+				}
+			} else {
+				flush_multiplier_cluster = true;
+			}
+
+			if (flush_multiplier_cluster) {
+				if (pending_tile_features.size() > 0) {
+					feature_out(pending_tile_features[0], outlayer, keep);
+					pending_tile_features.clear();
+				}
+			}
+
+			std::set<std::string> exclude_attributes;
+			if (!evaluate(feature, layer, filter, exclude_attributes, nz)) {
+				continue;
+			}
+
 			drawvec geom;
 			int t = feature.type;
 
@@ -862,29 +930,20 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 				geom = close_poly(geom);
 			}
 
-			// Add geometry to output feature
+			tile_feature tf;
+			tf.geom = geom;
+			tf.t = t;
+			tf.has_id = feature.has_id;
+			tf.id = feature.id;
+			tf.tags = feature.tags;
+			tf.layer = &layer;
 
-			outfeature.type = t;
-			for (auto const &g : geom) {
-				outfeature.geometry.emplace_back(g.op, g.x, g.y);
-			}
+			pending_tile_features.push_back(tf);
+		}
 
-			// ID and attributes, if it didn't get clipped away
-
-			if (outfeature.geometry.size() > 0) {
-				if (feature.has_id) {
-					outfeature.has_id = true;
-					outfeature.id = feature.id;
-				}
-
-				for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-					if (keep.size() == 0 || keep.find(layer.keys[feature.tags[i]]) != keep.end()) {
-						outlayer.tag(outfeature, layer.keys[feature.tags[i]], layer.values[feature.tags[i + 1]]);
-					}
-				}
-
-				outlayer.features.push_back(outfeature);
-			}
+		if (pending_tile_features.size() > 0) {
+			feature_out(pending_tile_features[0], outlayer, keep);
+			pending_tile_features.clear();
 		}
 
 		if (outlayer.features.size() > 0) {
@@ -905,7 +964,8 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 				for (size_t y = 0; y < 2; y++) {
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
-								     detail, buffer, keep, false, NULL);
+								     detail, buffer, keep, false, NULL,
+								     demultiply, filter);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
