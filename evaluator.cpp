@@ -257,12 +257,21 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "is") == 0 ||
+	     strcmp(f->value.array.array[1]->value.string.string, "isnt") == 0 ||
 	     false)) {
 		mvt_value lhs;
 		lhs.type = mvt_null;  // attributes that aren't found are nulls
 		auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
 		if (ff != feature.end()) {
 			lhs = ff->second;
+		}
+
+		if (f->value.array.array[2]->type == JSON_NULL && strcmp(f->value.array.array[1]->value.string.string, "is") == 0) {
+			return lhs.type == mvt_null;  // null is null => true, anything is null => false
+		}
+		if (f->value.array.array[2]->type == JSON_NULL && strcmp(f->value.array.array[1]->value.string.string, "isnt") == 0) {
+			return lhs.type != mvt_null;  // null isnt null => false, anything isnt null => true
 		}
 
 		if (lhs.type == mvt_null) {
@@ -316,6 +325,7 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 
 		int cmp = compare_fsl(ff->second, f->value.array.array[2], fail);
 		if (fail) {
+			printf("cast fail\n");
 			return -1;  // null
 		}
 
