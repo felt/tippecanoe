@@ -50,10 +50,6 @@ int main(int argc, char **argv) {
 			demultiply = true;
 			break;
 
-		case 'f':
-			filter = optarg;
-			break;
-
 		case 'j':
 			filter = optarg;
 			break;
