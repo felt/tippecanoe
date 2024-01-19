@@ -1,3 +1,7 @@
+# 2.41.1
+
+* Make --preserve-input-order, --order-by, --order-descending-by, --order-smallest-first, and --order-largest-first cooperate with --retain-points-multiplier. The clusters will be ordered by their lead feature in the specified sequence. The other features in each cluster will continue to be physically near the lead feature, not otherwise sequenced.
+
 # 2.41.0
 
 * Add Felt-style expression support for -j feature filters

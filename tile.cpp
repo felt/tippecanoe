@@ -112,8 +112,8 @@ struct coalesce {
 };
 
 struct preservecmp {
-	bool operator()(const struct coalesce &a, const struct coalesce &b) {
-		return a.original_seq < b.original_seq;
+	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+		return a[0].original_seq < b[0].original_seq;
 	}
 } preservecmp;
 
@@ -303,10 +303,10 @@ static mvt_value coerce_double(mvt_value v) {
 }
 
 struct ordercmp {
-	bool operator()(const struct coalesce &a, const struct coalesce &b) {
+	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
-			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
-			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
+			mvt_value v1 = coerce_double(find_attribute_value(&a[0], order_by[i].name));
+			mvt_value v2 = coerce_double(find_attribute_value(&b[0], order_by[i].name));
 
 			if (order_by[i].descending) {
 				if (v2 < v1) {
@@ -323,13 +323,56 @@ struct ordercmp {
 			}
 		}
 
-		if (a.index < b.index) {
+		if (a[0].index < b[0].index) {
 			return true;
 		}
 
 		return false;  // greater than or equal
 	}
 } ordercmp;
+
+std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> const &features) {
+	std::vector<std::vector<coalesce>> clusters;
+
+	if (retain_points_multiplier == 1) {
+		for (auto const &feature : features) {
+			std::vector<coalesce> cluster;
+			cluster.push_back(feature);
+			clusters.push_back(cluster);
+		}
+	} else {
+		for (auto const &feature : features) {
+			bool is_cluster_start = false;
+
+			for (size_t i = 0; i < feature.full_keys.size(); i++) {
+				if (feature.full_keys[i] == "tippecanoe:retain_points_multiplier_first") {
+					is_cluster_start = true;
+					break;
+				}
+			}
+
+			if (is_cluster_start) {
+				clusters.push_back(std::vector<coalesce>());
+			}
+
+			clusters.back().push_back(feature);
+		}
+	}
+
+	return clusters;
+}
+
+std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<coalesce>> const &clusters) {
+	std::vector<coalesce> out;
+
+	for (auto const &cluster : clusters) {
+		for (auto const &feature : cluster) {
+			out.push_back(feature);
+		}
+	}
+
+	return out;
+}
 
 void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
@@ -2629,11 +2672,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (prevent[P_INPUT_ORDER]) {
-				std::sort(layer_features.begin(), layer_features.end(), preservecmp);
+				auto clustered = assemble_multiplier_clusters(layer_features);
+				std::sort(clustered.begin(), clustered.end(), preservecmp);
+				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (order_by.size() != 0) {
-				std::sort(layer_features.begin(), layer_features.end(), ordercmp);
+				auto clustered = assemble_multiplier_clusters(layer_features);
+				std::sort(clustered.begin(), clustered.end(), ordercmp);
+				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
