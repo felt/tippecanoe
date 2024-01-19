@@ -2212,15 +2212,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
-			if (retain_points_multiplier > 1) {
-				serial_val val;
-				val.type = mvt_double;
-				val.s = std::to_string(sf.seq);
-
-				sf.full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
-				sf.full_values.push_back(val);
-			}
-
 			if (sf.dropped) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
@@ -2454,6 +2445,33 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			merge_previndex = sf.index;
 			coalesced_area = 0;
+		}
+
+		if (retain_points_multiplier > 1) {
+			// mapping from input sequence to current sequence within this tile
+			std::vector<std::pair<size_t, size_t>> feature_sequences;
+
+			for (size_t i = 0; i < partials.size(); i++) {
+				feature_sequences.emplace_back(partials[i].original_seq, i);
+			}
+
+			// tag each feature with its sequence number within the tile
+			// if the tile were sorted by input order
+			//
+			// these will be smaller numbers, and avoid the problem of the
+			// original sequence number varying based on how many reader threads
+			// there were reading the input
+			std::sort(feature_sequences.begin(), feature_sequences.end());
+			for (size_t i = 0; i < feature_sequences.size(); i++) {
+				size_t j = feature_sequences[i].second;
+
+				serial_val val;
+				val.type = mvt_double;
+				val.s = std::to_string(i);
+
+				partials[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+				partials[j].full_values.push_back(val);
+			}
 		}
 
 		std::sort(shared_nodes.begin(), shared_nodes.end());
