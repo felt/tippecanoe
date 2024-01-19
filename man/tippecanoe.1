@@ -1266,4 +1266,6 @@ reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR and produces tile \fB\fCou
 \fB\fC\-j\fR \fIfilter\fP: Filter features using the same expression syntax as in tippecanoe.
 .IP \(bu 2
 \fB\fC\-m\fR: If a tile was created with the \fB\fC\-\-retain\-points\-multiplier\fR option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless \fB\fC\-j\fR is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
+.IP \(bu 2
+\fB\fC\-\-preserve\-input\-order\fR: Restore a set of filtered features to its original input order
 .RE
