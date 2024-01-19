@@ -187,7 +187,6 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 #define FLAG_LAYER 7
 
 #define FLAG_LABEL_POINT 6
-#define FLAG_SEQ 5
 #define FLAG_INDEX 4
 #define FLAG_EXTENT 3
 #define FLAG_ID 2
@@ -197,7 +196,6 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	long long layer = 0;
 	layer |= sf->layer << FLAG_LAYER;
 	layer |= (sf->label_point != 0) << FLAG_LABEL_POINT;
-	layer |= (sf->seq != 0) << FLAG_SEQ;
 	layer |= (sf->index != 0) << FLAG_INDEX;
 	layer |= (sf->extent != 0) << FLAG_EXTENT;
 	layer |= sf->has_id << FLAG_ID;
@@ -205,9 +203,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	layer |= sf->has_tippecanoe_maxzoom << FLAG_MAXZOOM;
 
 	serialize_long_long(s, layer);
-	if (sf->seq != 0) {
-		serialize_long_long(s, sf->seq);
-	}
+	serialize_long_long(s, sf->seq);
 	if (sf->has_tippecanoe_minzoom) {
 		serialize_int(s, sf->tippecanoe_minzoom);
 	}
@@ -252,9 +248,7 @@ serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, 
 	deserialize_long_long(&cp, &sf.layer);
 
 	sf.seq = 0;
-	if (sf.layer & (1 << FLAG_SEQ)) {
-		deserialize_long_long(&cp, &sf.seq);
-	}
+	deserialize_long_long(&cp, &sf.seq);
 
 	sf.tippecanoe_minzoom = -1;
 	sf.tippecanoe_maxzoom = -1;
@@ -681,10 +675,6 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	if (sst->want_dist && sf.t == VT_POLYGON) {
 		*(sst->area_sum) += extent;
-	}
-
-	if (!prevent[P_INPUT_ORDER]) {
-		sf.seq = 0;
 	}
 
 	unsigned long long bbox_index;

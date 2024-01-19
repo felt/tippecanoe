@@ -8,6 +8,7 @@
 #include "compression.hpp"
 #include "mvt.hpp"
 #include "evaluator.hpp"
+#include "serial.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -780,6 +781,7 @@ struct tile_feature {
 	unsigned long long id;
 	std::vector<unsigned> tags;
 	mvt_layer const *layer;
+	size_t seq = 0;
 };
 
 void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std::string> const &keep) {
@@ -838,8 +840,13 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 						if (v.type == mvt_bool && v.numeric_value.bool_value) {
 							flush_multiplier_cluster = true;
 							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
-							break;
 						}
+					}
+
+					if (i + 1 < feature.tags.size() && layer.keys[feature.tags[i]] == "tippecanoe:retain_points_multiplier_sequence") {
+						mvt_value v = layer.values[feature.tags[i + 1]];
+						feature.seq = atoll(mvt_value_to_serial_val(v).s.c_str());
+						feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
 					}
 				}
 			} else {

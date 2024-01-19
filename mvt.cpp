@@ -14,6 +14,7 @@
 #include "protozero/pbf_writer.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "serial.hpp"
 
 mvt_geometry::mvt_geometry(int nop, long long nx, long long ny) {
 	this->op = nop;
@@ -674,4 +675,39 @@ mvt_value stringified_to_mvt_value(int type, const char *s) {
 	}
 
 	return tv;
+}
+
+serial_val mvt_value_to_serial_val(mvt_value const &v) {
+	serial_val sv;
+
+	if (v.type == mvt_string) {
+		sv.type = mvt_string;
+		sv.s = v.string_value;
+	} else if (v.type == mvt_float) {
+		sv.type = mvt_double;
+		sv.s = milo::dtoa_milo(v.numeric_value.float_value);
+	} else if (v.type == mvt_double) {
+		sv.type = mvt_double;
+		sv.s = milo::dtoa_milo(v.numeric_value.double_value);
+	} else if (v.type == mvt_int) {
+		sv.type = mvt_double;
+		sv.s = std::to_string(v.numeric_value.int_value);
+	} else if (v.type == mvt_uint) {
+		sv.type = mvt_double;
+		sv.s = std::to_string(v.numeric_value.uint_value);
+	} else if (v.type == mvt_sint) {
+		sv.type = mvt_double;
+		sv.s = std::to_string(v.numeric_value.sint_value);
+	} else if (v.type == mvt_bool) {
+		sv.type = mvt_bool;
+		sv.s = v.numeric_value.bool_value ? "true" : "false";
+	} else if (v.type == mvt_null) {
+		sv.type = mvt_null;
+		sv.s = "null";
+	} else {
+		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	return sv;
 }

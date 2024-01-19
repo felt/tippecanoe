@@ -2212,6 +2212,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
+			if (retain_points_multiplier > 1) {
+				serial_val val;
+				val.type = mvt_double;
+				val.s = std::to_string(sf.seq);
+
+				sf.full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+				sf.full_values.push_back(val);
+			}
+
 			if (sf.dropped) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
