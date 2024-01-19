@@ -757,7 +757,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter) {
+		     bool demultiply, json_object *filter, bool preserve_input_order) {
 	mvt_tile tile;
 
 	try {
@@ -771,7 +771,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order);
 }
 
 struct tile_feature {
@@ -814,7 +814,7 @@ void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std:
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter) {
+		     bool demultiply, json_object *filter, bool preserve_input_order) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -972,7 +972,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter);
+								     demultiply, filter, preserve_input_order);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
