@@ -111,7 +111,7 @@ struct coalesce {
 	}
 };
 
-struct preservecmp {
+static struct preservecmp {
 	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
 		return operator()(a[0], b[0]);
 	}

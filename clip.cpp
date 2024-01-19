@@ -801,6 +801,8 @@ void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std:
 			outfeature.id = feature.id;
 		}
 
+		outfeature.seq = feature.seq;
+
 		for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
 			if (keep.size() == 0 || keep.find(feature.layer->keys[feature.tags[i]]) != keep.end()) {
 				outlayer.tag(outfeature, feature.layer->keys[feature.tags[i]], feature.layer->values[feature.tags[i + 1]]);
@@ -810,6 +812,12 @@ void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std:
 		outlayer.features.push_back(outfeature);
 	}
 }
+
+static struct preservecmp {
+	bool operator()(const mvt_feature &a, const mvt_feature &b) {
+		return a.seq < b.seq;
+	}
+} preservecmp;
 
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
@@ -944,6 +952,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			tf.id = feature.id;
 			tf.tags = feature.tags;
 			tf.layer = &layer;
+			tf.seq = feature.seq;
 
 			pending_tile_features.push_back(tf);
 		}
@@ -951,6 +960,10 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		if (pending_tile_features.size() > 0) {
 			feature_out(pending_tile_features[0], outlayer, keep);
 			pending_tile_features.clear();
+		}
+
+		if (preserve_input_order) {
+			std::sort(outlayer.features.begin(), outlayer.features.end(), preservecmp);
 		}
 
 		if (outlayer.features.size() > 0) {
