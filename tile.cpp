@@ -113,7 +113,11 @@ struct coalesce {
 
 struct preservecmp {
 	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
-		return a[0].original_seq < b[0].original_seq;
+		return operator()(a[0], b[0]);
+	}
+
+	bool operator()(const struct coalesce &a, const struct coalesce &b) {
+		return a.original_seq < b.original_seq;
 	}
 } preservecmp;
 
@@ -304,9 +308,13 @@ static mvt_value coerce_double(mvt_value v) {
 
 struct ordercmp {
 	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+		return operator()(a[0], b[0]);
+	}
+
+	bool operator()(const struct coalesce &a, const struct coalesce &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
-			mvt_value v1 = coerce_double(find_attribute_value(&a[0], order_by[i].name));
-			mvt_value v2 = coerce_double(find_attribute_value(&b[0], order_by[i].name));
+			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
+			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
 
 			if (order_by[i].descending) {
 				if (v2 < v1) {
@@ -323,7 +331,7 @@ struct ordercmp {
 			}
 		}
 
-		if (a[0].index < b[0].index) {
+		if (a.index < b.index) {
 			return true;
 		}
 
@@ -331,7 +339,7 @@ struct ordercmp {
 	}
 } ordercmp;
 
-std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> const &features) {
+std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> &features) {
 	std::vector<std::vector<coalesce>> clusters;
 
 	if (retain_points_multiplier == 1) {
@@ -362,10 +370,27 @@ std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coal
 	return clusters;
 }
 
-std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<coalesce>> const &clusters) {
+std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<coalesce>> &clusters) {
 	std::vector<coalesce> out;
 
-	for (auto const &cluster : clusters) {
+	for (auto &cluster : clusters) {
+		// fix up the attributes so the first feature of the multiplier cluster
+		// gets the marker attribute
+		for (size_t i = 0; i < cluster.size(); i++) {
+			for (size_t j = 0; j < cluster[i].full_keys.size(); j++) {
+				if (cluster[i].full_keys[j] == "tippecanoe:retain_points_multiplier_first") {
+					cluster[0].full_keys.push_back(cluster[i].full_keys[j]);
+					cluster[0].full_values.push_back(cluster[i].full_values[j]);
+
+					cluster[i].full_keys.erase(cluster[i].full_keys.begin() + j);
+					cluster[i].full_values.erase(cluster[i].full_values.begin() + j);
+
+					i = cluster.size();  // break outer
+					break;
+				}
+			}
+		}
+
 		for (auto const &feature : cluster) {
 			out.push_back(feature);
 		}
@@ -2673,12 +2698,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (prevent[P_INPUT_ORDER]) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
+				for (auto &c : clustered) {
+					std::sort(c.begin(), c.end());
+				}
 				std::sort(clustered.begin(), clustered.end(), preservecmp);
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (order_by.size() != 0) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
+				for (auto &c : clustered) {
+					std::sort(c.begin(), c.end());
+				}
 				std::sort(clustered.begin(), clustered.end(), ordercmp);
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
