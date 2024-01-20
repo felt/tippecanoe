@@ -116,6 +116,10 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 	}
 }
 
+// This is used to convert a JSON attribute value into a serial_val-style
+// type and stringified value. All numeric values, even if they are integers,
+// even integers that are too large to fit in a double but will still be
+// stringified with their original precision, are recorded here as mvt_double.
 void stringify_value(json_object *value, int &type, std::string &stringified, const char *reading, int line, json_object *feature) {
 	if (value != NULL) {
 		int vt = value->type;
