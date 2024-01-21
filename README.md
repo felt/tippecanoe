@@ -409,8 +409,9 @@ be reduced to the maximum that can be used with the specified _maxzoom_.
  * `-Y`_attribute_`:`_description_ or `--attribute-description=`_attribute_`:`_description_: Set the `description` for the specified attribute in the tileset metadata to _description_ instead of the usual `String`, `Number`, or `Boolean`.
  * `-E`_attribute_`:`_operation_ or `--accumulate-attribute=`_attribute_`:`_operation_: Preserve the named _attribute_ from features
    that are dropped, coalesced-as-needed, or clustered. The _operation_ may be
-   `sum`, `product`, `mean`, `max`, `min`, `concat`, or `comma`
+   `sum`, `product`, `mean`, `max`, `min`, `and`, `or`, `concat`, or `comma`
    to specify how the named _attribute_ is accumulated onto the attribute of the same name in a feature that does survive.
+   Note, that `and` and `or` are only intended for boolean input.
    The attributes and operations may also be specified as JSON keys and values: `--accumulate-attribute='{"attr": "operation", "attr2", "operation2"}'`.
  * `--set-attribute` _attribute_`:`_value_: Set the value of the specified _attribute_ in each feature to the specified _value_. This is mostly useful to give an attribute in each feature an initial value for `--accumulate-attribute`.
    The attributes and values may also be specified as JSON keys and values: `--set-attribute='{"attr": value, "attr2", value}'`.
