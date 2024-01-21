@@ -111,7 +111,11 @@ struct coalesce {
 	}
 };
 
-struct preservecmp {
+static struct preservecmp {
+	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+		return operator()(a[0], b[0]);
+	}
+
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
 		return a.original_seq < b.original_seq;
 	}
@@ -303,6 +307,10 @@ static mvt_value coerce_double(mvt_value v) {
 }
 
 struct ordercmp {
+	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+		return operator()(a[0], b[0]);
+	}
+
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
 			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
@@ -330,6 +338,66 @@ struct ordercmp {
 		return false;  // greater than or equal
 	}
 } ordercmp;
+
+std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> &features) {
+	std::vector<std::vector<coalesce>> clusters;
+
+	if (retain_points_multiplier == 1) {
+		for (auto const &feature : features) {
+			std::vector<coalesce> cluster;
+			cluster.push_back(feature);
+			clusters.push_back(cluster);
+		}
+	} else {
+		for (auto const &feature : features) {
+			bool is_cluster_start = false;
+
+			for (size_t i = 0; i < feature.full_keys.size(); i++) {
+				if (feature.full_keys[i] == "tippecanoe:retain_points_multiplier_first") {
+					is_cluster_start = true;
+					break;
+				}
+			}
+
+			if (is_cluster_start) {
+				clusters.push_back(std::vector<coalesce>());
+			}
+
+			clusters.back().push_back(feature);
+		}
+	}
+
+	return clusters;
+}
+
+std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<coalesce>> &clusters) {
+	std::vector<coalesce> out;
+
+	for (auto &cluster : clusters) {
+		// fix up the attributes so the first feature of the multiplier cluster
+		// gets the marker attribute
+		for (size_t i = 0; i < cluster.size(); i++) {
+			for (size_t j = 0; j < cluster[i].full_keys.size(); j++) {
+				if (cluster[i].full_keys[j] == "tippecanoe:retain_points_multiplier_first") {
+					cluster[0].full_keys.push_back(cluster[i].full_keys[j]);
+					cluster[0].full_values.push_back(cluster[i].full_values[j]);
+
+					cluster[i].full_keys.erase(cluster[i].full_keys.begin() + j);
+					cluster[i].full_values.erase(cluster[i].full_values.begin() + j);
+
+					i = cluster.size();  // break outer
+					break;
+				}
+			}
+		}
+
+		for (auto const &feature : cluster) {
+			out.push_back(feature);
+		}
+	}
+
+	return out;
+}
 
 void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
@@ -2379,6 +2447,33 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			coalesced_area = 0;
 		}
 
+		if (retain_points_multiplier > 1) {
+			// mapping from input sequence to current sequence within this tile
+			std::vector<std::pair<size_t, size_t>> feature_sequences;
+
+			for (size_t i = 0; i < partials.size(); i++) {
+				feature_sequences.emplace_back(partials[i].original_seq, i);
+			}
+
+			// tag each feature with its sequence number within the tile
+			// if the tile were sorted by input order
+			//
+			// these will be smaller numbers, and avoid the problem of the
+			// original sequence number varying based on how many reader threads
+			// there were reading the input
+			std::sort(feature_sequences.begin(), feature_sequences.end());
+			for (size_t i = 0; i < feature_sequences.size(); i++) {
+				size_t j = feature_sequences[i].second;
+
+				serial_val val;
+				val.type = mvt_double;
+				val.s = std::to_string(i);
+
+				partials[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+				partials[j].full_values.push_back(val);
+			}
+		}
+
 		std::sort(shared_nodes.begin(), shared_nodes.end());
 
 		for (size_t i = 0; i < partials.size(); i++) {
@@ -2629,11 +2724,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (prevent[P_INPUT_ORDER]) {
-				std::sort(layer_features.begin(), layer_features.end(), preservecmp);
+				auto clustered = assemble_multiplier_clusters(layer_features);
+				for (auto &c : clustered) {
+					std::sort(c.begin(), c.end());
+				}
+				std::sort(clustered.begin(), clustered.end(), preservecmp);
+				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (order_by.size() != 0) {
-				std::sort(layer_features.begin(), layer_features.end(), ordercmp);
+				auto clustered = assemble_multiplier_clusters(layer_features);
+				for (auto &c : clustered) {
+					std::sort(c.begin(), c.end());
+				}
+				std::sort(clustered.begin(), clustered.end(), ordercmp);
+				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {

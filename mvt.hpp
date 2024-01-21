@@ -49,6 +49,7 @@ struct mvt_feature {
 	unsigned long long id = 0;
 	bool has_id = false;
 	bool dropped = false;
+	size_t seq = 0;	 // used for ordering in overzoom
 
 	mvt_feature() {
 		has_id = false;
@@ -122,4 +123,7 @@ mvt_value stringified_to_mvt_value(int type, const char *s);
 
 bool is_integer(const char *s, long long *v);
 bool is_unsigned_integer(const char *s, unsigned long long *v);
+
+struct serial_val;
+serial_val mvt_value_to_serial_val(mvt_value const &v);
 #endif

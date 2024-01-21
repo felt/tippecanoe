@@ -31,6 +31,10 @@ void deserialize_ulong_long(char **f, unsigned long long *n);
 void deserialize_uint(char **f, unsigned *n);
 void deserialize_byte(char **f, signed char *n);
 
+// This is the main representation of attribute values in memory and
+// in the string pool. The type is one of the mvt_value type (mvt_string,
+// mvt_double, mvt_bool, or mvt_null). Note that all numeric values,
+// whether integer or floating point, use mvt_double here.
 struct serial_val {
 	int type = 0;
 	std::string s = "";
