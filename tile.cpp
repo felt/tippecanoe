@@ -508,11 +508,6 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 	}
 }
 
-struct accum_state {
-	double sum = 0;
-	double count = 0;
-};
-
 struct partial {
 	std::vector<drawvec> geoms = std::vector<drawvec>();
 	std::vector<long long> keys = std::vector<long long>();
@@ -1830,7 +1825,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 	add_to_file_keys(fk->second.file_keys, key, attrib);
 }
 
-void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, long long *pool_off, std::string &key, serial_val &val, partial &p) {
+void promote_attribute(std::string const &key, partial &p, char *stringpool, long long *pool_off) {
 	if (p.need_tilestats.count(key) == 0) {
 		p.need_tilestats.insert(key);
 	}
@@ -1853,70 +1848,6 @@ void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, lon
 			break;
 		}
 	}
-
-	for (size_t i = 0; i < p.full_keys.size(); i++) {
-		if (key == p.full_keys[i]) {
-			switch (op) {
-			case op_sum:
-				p.full_values[i].s = milo::dtoa_milo(atof(p.full_values[i].s.c_str()) + atof(val.s.c_str()));
-				p.full_values[i].type = mvt_double;
-				break;
-
-			case op_product:
-				p.full_values[i].s = milo::dtoa_milo(atof(p.full_values[i].s.c_str()) * atof(val.s.c_str()));
-				p.full_values[i].type = mvt_double;
-				break;
-
-			case op_max: {
-				double existing = atof(p.full_values[i].s.c_str());
-				double maybe = atof(val.s.c_str());
-				if (maybe > existing) {
-					p.full_values[i].s = val.s.c_str();
-					p.full_values[i].type = mvt_double;
-				}
-				break;
-			}
-
-			case op_min: {
-				double existing = atof(p.full_values[i].s.c_str());
-				double maybe = atof(val.s.c_str());
-				if (maybe < existing) {
-					p.full_values[i].s = val.s.c_str();
-					p.full_values[i].type = mvt_double;
-				}
-				break;
-			}
-
-			case op_mean: {
-				auto state = p.attribute_accum_state.find(key);
-				if (state == p.attribute_accum_state.end()) {
-					accum_state s;
-					s.sum = atof(p.full_values[i].s.c_str()) + atof(val.s.c_str());
-					s.count = 2;
-					p.attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
-
-					p.full_values[i].s = milo::dtoa_milo(s.sum / s.count);
-				} else {
-					state->second.sum += atof(val.s.c_str());
-					state->second.count += 1;
-
-					p.full_values[i].s = milo::dtoa_milo(state->second.sum / state->second.count);
-				}
-				break;
-			}
-
-			case op_concat:
-				p.full_values[i].s += val.s;
-				p.full_values[i].type = mvt_string;
-				break;
-
-			case op_comma:
-				p.full_values[i].s += std::string(",") + val.s;
-				p.full_values[i].type = mvt_string;
-				break;
-			}
-		}
-	}
 }
 
 void preserve_attributes(std::map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, partial &p) {
@@ -1929,7 +1860,8 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			preserve_attribute(f->second, sf, stringpool, pool_off, key, sv, p);
+			promote_attribute(key, p, stringpool, pool_off);
+			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
@@ -1938,7 +1870,8 @@ void preserve_attributes(std::map<std::string, attribute_op> const *attribute_ac
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			preserve_attribute(f->second, sf, stringpool, pool_off, key, sv, p);
+			promote_attribute(key, p, stringpool, pool_off);
+			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
 }
