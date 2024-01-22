@@ -70,21 +70,6 @@ struct stats {
 	std::vector<struct strategy> strategies;
 };
 
-void aprintf(std::string *buf, const char *format, ...) {
-	va_list ap;
-	char *tmp;
-
-	va_start(ap, format);
-	if (vasprintf(&tmp, format, ap) < 0) {
-		fprintf(stderr, "memory allocation failure\n");
-		exit(EXIT_MEMORY);
-	}
-	va_end(ap);
-
-	buf->append(tmp, strlen(tmp));
-	free(tmp);
-}
-
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
@@ -173,49 +158,23 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
 				const char *key = layer.keys[feat.tags[t]].c_str();
 				mvt_value &val = layer.values[feat.tags[t + 1]];
-				std::string value;
-				int type = -1;
+				serial_val sv = mvt_value_to_serial_val(val);
 
-				if (val.type == mvt_string) {
-					value = val.string_value;
-					type = mvt_string;
-				} else if (val.type == mvt_int) {
-					aprintf(&value, "%lld", (long long) val.numeric_value.int_value);
-					type = mvt_double;
-				} else if (val.type == mvt_double) {
-					aprintf(&value, "%s", milo::dtoa_milo(val.numeric_value.double_value).c_str());
-					type = mvt_double;
-				} else if (val.type == mvt_float) {
-					aprintf(&value, "%s", milo::dtoa_milo(val.numeric_value.float_value).c_str());
-					type = mvt_double;
-				} else if (val.type == mvt_bool) {
-					aprintf(&value, "%s", val.numeric_value.bool_value ? "true" : "false");
-					type = mvt_bool;
-				} else if (val.type == mvt_sint) {
-					aprintf(&value, "%lld", (long long) val.numeric_value.sint_value);
-					type = mvt_double;
-				} else if (val.type == mvt_uint) {
-					aprintf(&value, "%llu", (long long) val.numeric_value.uint_value);
-					type = mvt_double;
-				} else {
-					continue;
-				}
-
-				if (type < 0) {
+				if (sv.type < 0) {
 					continue;
 				}
 
 				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
 					type_and_string tas;
-					tas.type = type;
-					tas.string = value;
+					tas.type = sv.type;
+					tas.string = sv.s;
 
 					attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(key, std::pair<mvt_value, type_and_string>(val, tas)));
 					key_order.push_back(key);
 				}
 
 				if (header.size() > 0 && strcmp(key, header[0].c_str()) == 0) {
-					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(value);
+					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(sv.s);
 
 					if (ii != mapping.end()) {
 						std::vector<std::string> fields = ii->second;
