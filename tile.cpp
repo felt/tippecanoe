@@ -43,6 +43,7 @@
 #include "errors.hpp"
 #include "compression.hpp"
 #include "protozero/varint.hpp"
+#include "attribute.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
