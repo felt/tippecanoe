@@ -703,7 +703,7 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false);
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::map<std::string, attribute_op>());
 			return ret;
 		}
 
