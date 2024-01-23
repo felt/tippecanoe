@@ -167,7 +167,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				outfeature.id = feat.id;
 			}
 
-			std::map<std::string, std::pair<mvt_value, type_and_string>> attributes;
+			std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
 			std::vector<std::string> key_order;
 
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
@@ -206,11 +206,11 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 
 				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
-					type_and_string tas;
+					serial_val tas;
 					tas.type = type;
-					tas.string = value;
+					tas.s = value;
 
-					attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(key, std::pair<mvt_value, type_and_string>(val, tas)));
+					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, tas)));
 					key_order.push_back(key);
 				}
 
@@ -253,14 +253,14 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 									attributes.erase(fa);
 								}
 
-								type_and_string tas;
+								serial_val tas;
 								tas.type = outval.type;
-								tas.string = joinval;
+								tas.s = joinval;
 
 								// Convert from double to int if the joined attribute is an integer
 								outval = stringified_to_mvt_value(outval.type, joinval.c_str());
 
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(joinkey, std::pair<mvt_value, type_and_string>(outval, tas)));
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, tas)));
 								key_order.push_back(joinkey);
 							}
 						}

@@ -1822,11 +1822,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	type_and_string attrib;
-	attrib.type = val.type;
-	attrib.string = val.s;
-
-	add_to_file_keys(fk->second.file_keys, key, attrib);
+	add_to_file_keys(fk->second.file_keys, key, val);
 }
 
 void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, long long *pool_off, std::string &key, serial_val &val, partial &p) {

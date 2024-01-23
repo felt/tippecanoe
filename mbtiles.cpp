@@ -196,21 +196,21 @@ void mbtiles_erase_zoom(sqlite3 *outdb, int z) {
 	}
 }
 
-bool type_and_string::operator<(const type_and_string &o) const {
-	if (string < o.string) {
+bool serial_val::operator<(const serial_val &o) const {
+	if (s < o.s) {
 		return true;
 	}
-	if (string == o.string && type < o.type) {
+	if (s == o.s && type < o.type) {
 		return true;
 	}
 	return false;
 }
 
-bool type_and_string::operator!=(const type_and_string &o) const {
+bool serial_val::operator!=(const serial_val &o) const {
 	if (type != o.type) {
 		return true;
 	}
-	if (string != o.string) {
+	if (s != o.s) {
 		return true;
 	}
 	return false;
@@ -338,15 +338,15 @@ void tilestats(std::map<std::string, layermap_entry> const &layermap1, size_t el
 					vals++;
 
 					state.nospace = true;
-					state.json_write_stringified(value.string);
+					state.json_write_stringified(value.s);
 				} else {
-					std::string trunc = truncate16(value.string, 256);
+					std::string trunc = truncate16(value.s, 256);
 
-					if (trunc.size() == value.string.size()) {
+					if (trunc.size() == value.s.size()) {
 						vals++;
 
 						state.nospace = true;
-						state.json_write_string(value.string);
+						state.json_write_string(value.s);
 					}
 				}
 			}
@@ -861,7 +861,7 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 				auto fk2 = out_entry->second.file_keys.find(attribname);
 
 				if (fk2 == out_entry->second.file_keys.end()) {
-					out_entry->second.file_keys.insert(std::pair<std::string, type_and_string_stats>(attribname, fk->second));
+					out_entry->second.file_keys.insert(std::pair<std::string, tilestat>(attribname, fk->second));
 				} else {
 					for (auto val : fk->second.sample_values) {
 						auto pt = std::lower_bound(fk2->second.sample_values.begin(), fk2->second.sample_values.end(), val);
@@ -901,14 +901,14 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 	return out;
 }
 
-void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, std::string const &attrib, type_and_string const &val) {
+void add_to_file_keys(std::map<std::string, tilestat> &file_keys, std::string const &attrib, serial_val const &val) {
 	if (val.type == mvt_null) {
 		return;
 	}
 
 	auto fka = file_keys.find(attrib);
 	if (fka == file_keys.end()) {
-		file_keys.insert(std::pair<std::string, type_and_string_stats>(attrib, type_and_string_stats()));
+		file_keys.insert(std::pair<std::string, tilestat>(attrib, tilestat()));
 		fka = file_keys.find(attrib);
 	}
 
@@ -918,7 +918,7 @@ void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, s
 	}
 
 	if (val.type == mvt_double) {
-		double d = atof(val.string.c_str());
+		double d = atof(val.s.c_str());
 
 		if (d < fka->second.min) {
 			fka->second.min = d;

@@ -274,9 +274,9 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 					mvt_value v = stringified_to_mvt_value(tp, s.c_str());
 					l->second.tag(feature, std::string(properties->value.object.keys[i]->value.string.string), v);
 
-					type_and_string attrib;
+					serial_val attrib;
 					attrib.type = tp;
-					attrib.string = s;
+					attrib.s = s;
 
 					add_to_file_keys(fk->second.file_keys, std::string(properties->value.object.keys[i]->value.string.string), attrib);
 				}
@@ -515,8 +515,8 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 					sf.full_keys.push_back(std::string(properties->value.object.keys[i]->value.string.string));
 					sf.full_values.push_back(v);
 
-					type_and_string attrib;
-					attrib.string = v.s;
+					serial_val attrib;
+					attrib.s = v.s;
 					attrib.type = v.type;
 
 					if (!postfilter) {
