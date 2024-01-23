@@ -8,17 +8,8 @@
 #include <map>
 #include "mbtiles.hpp"
 #include "serial.hpp"
+#include "attribute.hpp"
 #include "jsonpull/jsonpull.h"
-
-enum attribute_op {
-	op_sum,
-	op_product,
-	op_mean,
-	op_concat,
-	op_comma,
-	op_max,
-	op_min,
-};
 
 struct atomic_strategy {
 	std::atomic<size_t> dropped_by_rate;

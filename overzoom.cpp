@@ -7,6 +7,7 @@
 #include "mvt.hpp"
 #include "geometry.hpp"
 #include "evaluator.hpp"
+#include "attribute.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -16,6 +17,7 @@ int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 bool demultiply = false;
 std::string filter;
 bool preserve_input_order = false;
+std::map<std::string, attribute_op> attribute_accum;
 
 std::set<std::string> keep;
 
@@ -37,6 +39,7 @@ int main(int argc, char **argv) {
 		{"filter-points-multiplier", no_argument, 0, 'm'},
 		{"feature-filter", required_argument, 0, 'j'},
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
+		{"accumulate-attribute", required_argument, 0, 'E'},
 
 		{0, 0, 0, 0},
 	};
@@ -81,6 +84,10 @@ int main(int argc, char **argv) {
 
 		case 'o' & 0x1F:
 			preserve_input_order = true;
+			break;
+
+		case 'E':
+			set_attribute_accum(attribute_accum, optarg, argv);
 			break;
 
 		default:
@@ -137,7 +144,7 @@ int main(int argc, char **argv) {
 		json_filter = parse_filter(filter.c_str());
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order);
+	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum);
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 

@@ -9,6 +9,7 @@
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "serial.hpp"
+#include "attribute.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -757,7 +758,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::map<std::string, attribute_op> const &attribute_accum) {
 	mvt_tile tile;
 
 	try {
@@ -771,7 +772,7 @@ std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int 
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum);
 }
 
 struct tile_feature {
@@ -784,28 +785,69 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-void feature_out(tile_feature const &feature, mvt_layer &outlayer, std::set<std::string> const &keep) {
+static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::map<std::string, attribute_op> const &attribute_accum) {
 	// Add geometry to output feature
 
 	mvt_feature outfeature;
-	outfeature.type = feature.t;
-	for (auto const &g : feature.geom) {
+	outfeature.type = features[0].t;
+	for (auto const &g : features[0].geom) {
 		outfeature.geometry.emplace_back(g.op, g.x, g.y);
 	}
 
 	// ID and attributes, if it didn't get clipped away
 
 	if (outfeature.geometry.size() > 0) {
-		if (feature.has_id) {
+		if (features[0].has_id) {
 			outfeature.has_id = true;
-			outfeature.id = feature.id;
+			outfeature.id = features[0].id;
 		}
 
-		outfeature.seq = feature.seq;
+		outfeature.seq = features[0].seq;
 
-		for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-			if (keep.size() == 0 || keep.find(feature.layer->keys[feature.tags[i]]) != keep.end()) {
-				outlayer.tag(outfeature, feature.layer->keys[feature.tags[i]], feature.layer->values[feature.tags[i + 1]]);
+		if (attribute_accum.size() > 0) {
+			// convert the attributes of the output feature
+			// from mvt_value to serial_val so they can have
+			// attributes from the other features of the
+			// multiplier cluster accumulated onto them
+
+			std::map<std::string, accum_state> attribute_accum_state;
+			std::vector<std::string> full_keys;
+			std::vector<serial_val> full_values;
+
+			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
+				full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
+				full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
+			}
+
+			// accumulate whatever attributes are specified to be accumulated
+			// onto the feature that will survive into the output, from the
+			// features that will not
+
+			for (size_t i = 1; i < features.size(); i++) {
+				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
+					std::string key = features[i].layer->keys[features[i].tags[j]];
+
+					auto f = attribute_accum.find(key);
+					if (f != attribute_accum.end()) {
+						serial_val val = mvt_value_to_serial_val(features[i].layer->values[features[i].tags[j + 1]]);
+						preserve_attribute(f->second, key, val, full_keys, full_values, attribute_accum_state);
+					}
+				}
+			}
+
+			// convert the final attributes back to mvt_value
+			// and tag them onto the output feature
+
+			for (size_t i = 0; i < full_keys.size(); i++) {
+				if (keep.size() == 0 || keep.find(full_keys[i]) != keep.end()) {
+					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str()));
+				}
+			}
+		} else {
+			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
+				if (keep.size() == 0 || keep.find(features[0].layer->keys[features[0].tags[i]]) != keep.end()) {
+					outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
+				}
 			}
 		}
 
@@ -822,7 +864,7 @@ static struct preservecmp {
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::map<std::string, attribute_op> const &attribute_accum) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
@@ -863,7 +905,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 			if (flush_multiplier_cluster) {
 				if (pending_tile_features.size() > 0) {
-					feature_out(pending_tile_features[0], outlayer, keep);
+					feature_out(pending_tile_features, outlayer, keep, attribute_accum);
 					pending_tile_features.clear();
 				}
 			}
@@ -958,7 +1000,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		}
 
 		if (pending_tile_features.size() > 0) {
-			feature_out(pending_tile_features[0], outlayer, keep);
+			feature_out(pending_tile_features, outlayer, keep, attribute_accum);
 			pending_tile_features.clear();
 		}
 
@@ -985,7 +1027,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter, preserve_input_order);
+								     demultiply, filter, preserve_input_order, attribute_accum);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
