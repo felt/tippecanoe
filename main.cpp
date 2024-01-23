@@ -395,7 +395,7 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 }
 
 struct sort_arg {
-	int task;
+	int svk;
 	int cpus;
 	long long indexpos;
 	struct mergelist *merges;
@@ -404,8 +404,8 @@ struct sort_arg {
 	long long unit;
 	int bytes;
 
-	sort_arg(int task1, int cpus1, long long indexpos1, struct mergelist *merges1, int indexfd1, size_t nmerges1, long long unit1, int bytes1)
-	    : task(task1), cpus(cpus1), indexpos(indexpos1), merges(merges1), indexfd(indexfd1), nmerges(nmerges1), unit(unit1), bytes(bytes1) {
+	sort_arg(int svk1, int cpus1, long long indexpos1, struct mergelist *merges1, int indexfd1, size_t nmerges1, long long unit1, int bytes1)
+	    : svk(svk1), cpus(cpus1), indexpos(indexpos1), merges(merges1), indexfd(indexfd1), nmerges(nmerges1), unit(unit1), bytes(bytes1) {
 	}
 };
 
@@ -413,7 +413,7 @@ void *run_sort(void *v) {
 	struct sort_arg *a = (struct sort_arg *) v;
 
 	long long start;
-	for (start = a->task * a->unit; start < a->indexpos; start += a->unit * a->cpus) {
+	for (start = a->svk * a->unit; start < a->indexpos; start += a->unit * a->cpus) {
 		long long end = start + a->unit;
 		if (end > a->indexpos) {
 			end = a->indexpos;

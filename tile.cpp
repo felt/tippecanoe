@@ -546,8 +546,8 @@ struct partial {
 
 struct partial_arg {
 	std::vector<struct partial> *partials = NULL;
-	int task = 0;
-	int tasks = 0;
+	int svk = 0;
+	int svks = 0;
 
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
@@ -672,7 +672,7 @@ void *partial_feature_worker(void *v) {
 	struct partial_arg *a = (struct partial_arg *) v;
 	std::vector<struct partial> *partials = a->partials;
 
-	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
+	for (size_t i = a->svk; i < (*partials).size(); i += a->svks) {
 		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
 
 		signed char t = (*partials)[i].t;
@@ -1367,7 +1367,7 @@ long long choose_minextent(std::vector<long long> &extents, double f) {
 }
 
 struct write_tile_args {
-	struct task *tasks = NULL;
+	struct svk *svks = NULL;
 	char *stringpool = NULL;
 	int min_detail = 0;
 	sqlite3 *outdb = NULL;
@@ -2557,23 +2557,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
 		}
 
-		int tasks = ceil((double) CPUS / *running);
-		if (tasks < 1) {
-			tasks = 1;
+		int svks = ceil((double) CPUS / *running);
+		if (svks < 1) {
+			svks = 1;
 		}
 
-		pthread_t pthreads[tasks];
+		pthread_t pthreads[svks];
 		std::vector<partial_arg> args;
-		args.resize(tasks);
-		for (int i = 0; i < tasks; i++) {
-			args[i].task = i;
-			args[i].tasks = tasks;
+		args.resize(svks);
+		for (int i = 0; i < svks; i++) {
+			args[i].svk = i;
+			args[i].svks = svks;
 			args[i].partials = &partials;
 			args[i].shared_nodes = &shared_nodes;
 			args[i].shared_nodes_map = shared_nodes_map;
 			args[i].nodepos = nodepos;
 
-			if (tasks > 1) {
+			if (svks > 1) {
 				if (pthread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
 					perror("pthread_create");
 					exit(EXIT_PTHREAD);
@@ -2583,8 +2583,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		if (tasks > 1) {
-			for (int i = 0; i < tasks; i++) {
+		if (svks > 1) {
+			for (int i = 0; i < svks; i++) {
 				void *retval;
 
 				if (pthread_join(pthreads[i], &retval) != 0) {
@@ -3055,17 +3055,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	return -1;
 }
 
-struct task {
+struct svk {
 	int fileno = 0;
-	struct task *next = NULL;
+	struct svk *next = NULL;
 };
 
 void *run_thread(void *vargs) {
 	write_tile_args *arg = (write_tile_args *) vargs;
-	struct task *task;
+	struct svk *svk;
 
-	for (task = arg->tasks; task != NULL; task = task->next) {
-		int j = task->fileno;
+	for (svk = arg->svks; svk != NULL; svk = svk->next) {
+		int j = svk->fileno;
 
 		if (arg->geomfd[j] < 0) {
 			// only one source file for zoom level 0
@@ -3275,11 +3275,11 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 
 		// Assign temporary files to threads
 
-		std::vector<struct task> tasks;
-		tasks.resize(TEMP_FILES);
+		std::vector<struct svk> svks;
+		svks.resize(TEMP_FILES);
 
 		struct dispatch {
-			struct task *tasks = NULL;
+			struct svk *svks = NULL;
 			long long todo = 0;
 			struct dispatch *next = NULL;
 		};
@@ -3288,7 +3288,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 
 		struct dispatch *dispatch_head = &dispatches[0];
 		for (size_t j = 0; j < threads; j++) {
-			dispatches[j].tasks = NULL;
+			dispatches[j].svks = NULL;
 			dispatches[j].todo = 0;
 			if (j + 1 < threads) {
 				dispatches[j].next = &dispatches[j + 1];
@@ -3302,9 +3302,9 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				continue;
 			}
 
-			tasks[j].fileno = j;
-			tasks[j].next = dispatch_head->tasks;
-			dispatch_head->tasks = &tasks[j];
+			svks[j].fileno = j;
+			svks[j].next = dispatch_head->svks;
+			dispatch_head->svks = &svks[j];
 			dispatch_head->todo += geom_size[j];
 
 			struct dispatch *here = dispatch_head;
@@ -3386,7 +3386,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				args[thread].attribute_accum = attribute_accum;
 				args[thread].filter = filter;
 
-				args[thread].tasks = dispatches[thread].tasks;
+				args[thread].svks = dispatches[thread].svks;
 				args[thread].running = &running;
 				args[thread].pass = pass;
 				args[thread].wrote_zoom = -1;
