@@ -1,0 +1,21 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Vancouver,San Francisco,Los Angeles,Denver,Monterrey,Houston,Mexico City,Guatemala,Chicago,Toronto,Ottawa,Atlanta,Havana,Miami,Washington, D.C.,New York,Nassau,Belmopan,Tegucigalpa,San Salvador,Managua,San Jose,Panama City,Kingston,Port-au-Prince,Santo Domingo,Bogota,Basseterre,Saint John's,Roseau" }, "geometry": { "type": "Point", "coordinates": [ -123.134766, 49.267805 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Castries,Kingstown,Saint George's,Bridgetown,Caracas,Port-of-Spain,Georgetown,Paramaribo,Reykjavík,Dublin,London,Praia,Laayoune,Lisbon,Casablanca,Rabat,Madrid,Bir Lehlou,Dakar,Nouakchott,Banjul,Bissau,Conakry,Freetown,Bamako,Ouagadougou,Monrovia,Yamoussoukro,Abidjan,Accra" }, "geometry": { "type": "Point", "coordinates": [ -60.996094, 14.008696 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Nukualofa,Apia,Quito,Lima,La Paz,Valparaiso,Santiago,Sucre,Brasilia,Asuncion,Buenos Aires,Sao Paulo,Montevideo,Rio de Janeiro,Oslo,Stockholm,The Hague,Amsterdam,Brussels,Luxembourg,Paris,Andorra,Geneva,Bern,Vaduz,Monaco,København,Berlin,Prague,Warsaw" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -175.166016, -21.125498 ], [ 184.833984, -21.125498 ] ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Vienna,Ljubljana,Zagreb,San Marino,Vatican City,Rome,Bratislava,Budapest,Sarajevo,Podgorica,Belgrade,Tirana,Pristina,Skopje,Helsinki,Tallinn,Riga,Vilnius,Minsk,Kiev,Sofia,Bucharest,Chisinau,Istanbul,Moscow,Tbilisi,Algiers,Tunis,Tripoli,Valletta" }, "geometry": { "type": "Point", "coordinates": [ 16.347656, 48.166085 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Niamey,Lome,Cotonou,Porto-Novo,Lagos,Abuja,Sao Tome,Malabo,Libreville,Ndjamena,Yaounde,Bangui,Athens,Ankara,Nicosia,Cairo,Tel Aviv-Yafo,Beirut,Damascus,Yerevan,Baghdad,Jerusalem,Amman,Khartoum,Juba,Kampala,Asmara,Sanaa,Djibouti,Addis Ababa" }, "geometry": { "type": "Point", "coordinates": [ 2.109375, 13.496473 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Hargeysa,Astana,Tashkent,Bishkek,Urumqi,Baku,Tehran,Kuwait,Riyadh,Manama,Doha,Dubai,Abu Dhabi,Ashgabat,Muscat,Mogadishu,Dushanbe,Kabul,Islamabad,New Delhi,Kathmandu,Thimphu,Kolkata,Mumbai,Bangalore,Male,Colombo,Sri Jawewardenepura Kotte,Ulaanbaatar,Dhaka" }, "geometry": { "type": "Point", "coordinates": [ 44.121094, 9.535749 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Chengdu,Naypyidaw,Rangoon,Bangkok,Vientiane,Hanoi,Phnom Penh,Kuala Lumpur,Putrajaya,Singapore,Beijing,Hong Kong,Shanghai,Taipei,Pyongyang,Seoul,Baguio City,Manila,Bandar Seri Begawan,Melekeok,Osaka,Kyoto,Tokyo,Palikir,Majuro,Tarawa,Brazzaville,Kinshasa,Luanda,Windhoek" }, "geometry": { "type": "Point", "coordinates": [ 104.062500, 30.675715 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Cape Town,Kigali,Bujumbura,Lusaka,Harare,Nairobi,Dodoma,Dar es Salaam,Lilongwe,Moroni,Gaborone,Johannesburg,Bloemfontein,Maseru,Pretoria,Mbabane,Lobamba,Maputo,Victoria,Antananarivo,Port Louis,Jakarta,Dili,Port Moresby,Melbourne,Sydney,Canberra,Honiara,Port Vila,Funafuti" }, "geometry": { "type": "Point", "coordinates": [ 18.457031, -33.943360 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Suva,Auckland,Wellington" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 178.505859, -18.145852 ], [ -181.582031, -18.145852 ] ] } }
+] }
+] }

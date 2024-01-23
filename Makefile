@@ -296,6 +296,11 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/0-0-0-pop-filtered.pbf 0 0 0 > tests/pbf/0-0-0-pop-filtered.pbf.json.check
 	cmp tests/pbf/0-0-0-pop-filtered.pbf.json.check tests/pbf/0-0-0-pop-filtered.pbf.json
 	rm tests/pbf/0-0-0-pop-filtered.pbf tests/pbf/0-0-0-pop-filtered.pbf.json.check
+	# Thinning with accumulation
+	./tippecanoe-overzoom -y NAME -m --accumulate-attribute NAME:comma -o tests/pbf/0-0-0-pop-accum.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/0-0-0-pop-accum.pbf 0 0 0 > tests/pbf/0-0-0-pop-accum.pbf.json.check
+	cmp tests/pbf/0-0-0-pop-accum.pbf.json.check tests/pbf/0-0-0-pop-accum.pbf.json
+	rm tests/pbf/0-0-0-pop-accum.pbf tests/pbf/0-0-0-pop-accum.pbf.json.check
 	# Filtering
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
 	# 27 of them match the filter and are retained
