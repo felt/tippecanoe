@@ -714,7 +714,7 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 			}
 
 			for (size_t i = 0; i < lnames.size(); i++) {
-				auto fk = layermap.find(lnames[i]);
+				auto ts = layermap.find(lnames[i]);
 				state.nospace = true;
 				state.json_write_hash();
 
@@ -726,17 +726,17 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 				state.nospace = true;
 				state.json_write_string("description");
 				state.nospace = true;
-				state.json_write_string(fk->second.description);
+				state.json_write_string(ts->second.description);
 
 				state.nospace = true;
 				state.json_write_string("minzoom");
 				state.nospace = true;
-				state.json_write_signed(fk->second.minzoom);
+				state.json_write_signed(ts->second.minzoom);
 
 				state.nospace = true;
 				state.json_write_string("maxzoom");
 				state.nospace = true;
-				state.json_write_signed(fk->second.maxzoom);
+				state.json_write_signed(ts->second.maxzoom);
 
 				state.nospace = true;
 				state.json_write_string("fields");
@@ -745,7 +745,7 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 
 				bool first = true;
 				size_t attribute_count = 0;
-				for (auto j = fk->second.tilestats.begin(); j != fk->second.tilestats.end(); ++j) {
+				for (auto j = ts->second.tilestats.begin(); j != ts->second.tilestats.end(); ++j) {
 					if (first) {
 						first = false;
 					}
@@ -852,35 +852,35 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 				exit(EXIT_IMPOSSIBLE);
 			}
 
-			for (auto fk = map->second.tilestats.begin(); fk != map->second.tilestats.end(); ++fk) {
-				std::string attribname = fk->first;
+			for (auto ts = map->second.tilestats.begin(); ts != map->second.tilestats.end(); ++ts) {
+				std::string attribname = ts->first;
 				if (trunc) {
 					attribname = truncate16(attribname, 256);
 				}
 
-				auto fk2 = out_entry->second.tilestats.find(attribname);
+				auto ts2 = out_entry->second.tilestats.find(attribname);
 
-				if (fk2 == out_entry->second.tilestats.end()) {
-					out_entry->second.tilestats.insert(std::pair<std::string, tilestat>(attribname, fk->second));
+				if (ts2 == out_entry->second.tilestats.end()) {
+					out_entry->second.tilestats.insert(std::pair<std::string, tilestat>(attribname, ts->second));
 				} else {
-					for (auto val : fk->second.sample_values) {
-						auto pt = std::lower_bound(fk2->second.sample_values.begin(), fk2->second.sample_values.end(), val);
-						if (pt == fk2->second.sample_values.end() || *pt != val) {  // not found
-							fk2->second.sample_values.insert(pt, val);
+					for (auto val : ts->second.sample_values) {
+						auto pt = std::lower_bound(ts2->second.sample_values.begin(), ts2->second.sample_values.end(), val);
+						if (pt == ts2->second.sample_values.end() || *pt != val) {  // not found
+							ts2->second.sample_values.insert(pt, val);
 
-							if (fk2->second.sample_values.size() > max_tilestats_sample_values) {
-								fk2->second.sample_values.pop_back();
+							if (ts2->second.sample_values.size() > max_tilestats_sample_values) {
+								ts2->second.sample_values.pop_back();
 							}
 						}
 					}
 
-					fk2->second.type |= fk->second.type;
+					ts2->second.type |= ts->second.type;
 
-					if (fk->second.min < fk2->second.min) {
-						fk2->second.min = fk->second.min;
+					if (ts->second.min < ts2->second.min) {
+						ts2->second.min = ts->second.min;
 					}
-					if (fk->second.max > fk2->second.max) {
-						fk2->second.max = fk->second.max;
+					if (ts->second.max > ts2->second.max) {
+						ts2->second.max = ts->second.max;
 					}
 				}
 			}
@@ -906,13 +906,13 @@ void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string co
 		return;
 	}
 
-	auto fka = tilestats.find(attrib);
-	if (fka == tilestats.end()) {
+	auto tsa = tilestats.find(attrib);
+	if (tsa == tilestats.end()) {
 		tilestats.insert(std::pair<std::string, tilestat>(attrib, tilestat()));
-		fka = tilestats.find(attrib);
+		tsa = tilestats.find(attrib);
 	}
 
-	if (fka == tilestats.end()) {
+	if (tsa == tilestats.end()) {
 		fprintf(stderr, "Can't happen (tilestats)\n");
 		exit(EXIT_IMPOSSIBLE);
 	}
@@ -920,22 +920,22 @@ void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string co
 	if (val.type == mvt_double) {
 		double d = atof(val.s.c_str());
 
-		if (d < fka->second.min) {
-			fka->second.min = d;
+		if (d < tsa->second.min) {
+			tsa->second.min = d;
 		}
-		if (d > fka->second.max) {
-			fka->second.max = d;
-		}
-	}
-
-	auto pt = std::lower_bound(fka->second.sample_values.begin(), fka->second.sample_values.end(), val);
-	if (pt == fka->second.sample_values.end() || *pt != val) {  // not found
-		fka->second.sample_values.insert(pt, val);
-
-		if (fka->second.sample_values.size() > max_tilestats_sample_values) {
-			fka->second.sample_values.pop_back();
+		if (d > tsa->second.max) {
+			tsa->second.max = d;
 		}
 	}
 
-	fka->second.type |= (1 << val.type);
+	auto pt = std::lower_bound(tsa->second.sample_values.begin(), tsa->second.sample_values.end(), val);
+	if (pt == tsa->second.sample_values.end() || *pt != val) {  // not found
+		tsa->second.sample_values.insert(pt, val);
+
+		if (tsa->second.sample_values.size() > max_tilestats_sample_values) {
+			tsa->second.sample_values.pop_back();
+		}
+	}
+
+	tsa->second.type |= (1 << val.type);
 }

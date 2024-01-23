@@ -241,24 +241,24 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 				}
 			}
 
-			auto fk = layermap.find(layername);
-			if (fk == layermap.end()) {
+			auto ts = layermap.find(layername);
+			if (ts == layermap.end()) {
 				fprintf(stderr, "Internal error: layer %s not found\n", layername.c_str());
 				exit(EXIT_IMPOSSIBLE);
 			}
-			if (z < fk->second.minzoom) {
-				fk->second.minzoom = z;
+			if (z < ts->second.minzoom) {
+				ts->second.minzoom = z;
 			}
-			if (z > fk->second.maxzoom) {
-				fk->second.maxzoom = z;
+			if (z > ts->second.maxzoom) {
+				ts->second.maxzoom = z;
 			}
 
 			if (feature.type == mvt_point) {
-				fk->second.points++;
+				ts->second.points++;
 			} else if (feature.type == mvt_linestring) {
-				fk->second.lines++;
+				ts->second.lines++;
 			} else if (feature.type == mvt_polygon) {
-				fk->second.polygons++;
+				ts->second.polygons++;
 			}
 
 			for (size_t i = 0; i < properties->value.object.length; i++) {
@@ -278,7 +278,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 					attrib.type = tp;
 					attrib.s = s;
 
-					add_to_tilestats(fk->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
+					add_to_tilestats(ts->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
 				}
 			}
 
@@ -478,27 +478,27 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 				}
 			}
 
-			auto fk = layermap.find(layername);
-			if (fk == layermap.end()) {
+			auto ts = layermap.find(layername);
+			if (ts == layermap.end()) {
 				fprintf(stderr, "Internal error: layer %s not found\n", layername.c_str());
 				exit(EXIT_IMPOSSIBLE);
 			}
-			sf.layer = fk->second.id;
+			sf.layer = ts->second.id;
 
-			if (z < fk->second.minzoom) {
-				fk->second.minzoom = z;
+			if (z < ts->second.minzoom) {
+				ts->second.minzoom = z;
 			}
-			if (z > fk->second.maxzoom) {
-				fk->second.maxzoom = z;
+			if (z > ts->second.maxzoom) {
+				ts->second.maxzoom = z;
 			}
 
 			if (!postfilter) {
 				if (sf.t == mvt_point) {
-					fk->second.points++;
+					ts->second.points++;
 				} else if (sf.t == mvt_linestring) {
-					fk->second.lines++;
+					ts->second.lines++;
 				} else if (sf.t == mvt_polygon) {
-					fk->second.polygons++;
+					ts->second.polygons++;
 				}
 			}
 
@@ -520,7 +520,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 					attrib.type = v.type;
 
 					if (!postfilter) {
-						add_to_tilestats(fk->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
+						add_to_tilestats(ts->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
 					}
 				}
 			}
