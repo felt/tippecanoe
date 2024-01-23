@@ -1816,17 +1816,13 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 			(*layer_unmaps)[tiling_seg][lme.id] = layername;
 		}
 	}
-	auto fk = layermap.find(layername);
-	if (fk == layermap.end()) {
+	auto ts = layermap.find(layername);
+	if (ts == layermap.end()) {
 		fprintf(stderr, "Internal error: layer %s not found\n", layername.c_str());
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	type_and_string attrib;
-	attrib.type = val.type;
-	attrib.string = val.s;
-
-	add_to_file_keys(fk->second.file_keys, key, attrib);
+	add_to_tilestats(ts->second.tilestats, key, val);
 }
 
 void preserve_attribute(attribute_op op, serial_feature &, char *stringpool, long long *pool_off, std::string &key, serial_val &val, partial &p) {

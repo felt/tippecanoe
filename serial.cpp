@@ -827,12 +827,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	if (!sst->filters) {
 		for (size_t i = 0; i < sf.full_keys.size(); i++) {
-			type_and_string attrib;
-			attrib.type = sf.full_values[i].type;
-			attrib.string = sf.full_values[i].s;
-
-			auto fk = sst->layermap->find(sf.layername);
-			add_to_file_keys(fk->second.file_keys, sf.full_keys[i], attrib);
+			auto ts = sst->layermap->find(sf.layername);
+			add_to_tilestats(ts->second.tilestats, sf.full_keys[i], sf.full_values[i]);
 		}
 	}
 
