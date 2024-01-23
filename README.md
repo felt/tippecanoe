@@ -997,3 +997,4 @@ reads tile `inz/inx/iny` of `in.mvt.gz` and produces tile `outz/outx/outy` of `o
  * `-j` *filter*: Filter features using the same expression syntax as in tippecanoe.
  * `-m`: If a tile was created with the `--retain-points-multiplier` option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless `-j` is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
  * `--preserve-input-order`: Restore a set of filtered features to its original input order
+ * `--accumulate-attribute`: Behaves as in `tippecanoe` to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with `-j` are *not* accumulated onto the output feature.

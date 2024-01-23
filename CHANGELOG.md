@@ -1,3 +1,8 @@
+# 2.41.2
+
+* Add --accumulate-attribute to tippecanoe-overzoom
+* Go back to ordering features within each multiplier cluster spatially, not in the order specified for tile feature order
+
 # 2.41.1
 
 * Make --preserve-input-order, --order-by, --order-descending-by, --order-smallest-first, and --order-largest-first cooperate with --retain-points-multiplier. The clusters will be ordered by their lead feature in the specified sequence. The other features in each cluster will continue to be physically near the lead feature, but ordered as specified within the cluster.
