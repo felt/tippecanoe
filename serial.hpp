@@ -38,6 +38,9 @@ void deserialize_byte(char **f, signed char *n);
 struct serial_val {
 	int type = 0;
 	std::string s = "";
+
+	bool operator<(const serial_val &o) const;
+	bool operator!=(const serial_val &o) const;
 };
 
 struct serial_feature {

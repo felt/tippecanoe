@@ -134,7 +134,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 		}
 
-		auto file_keys = layermap.find(layer.name);
+		auto tilestats = layermap.find(layer.name);
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
 			mvt_feature feat = layer.features[f];
@@ -152,7 +152,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				outfeature.id = feat.id;
 			}
 
-			std::map<std::string, std::pair<mvt_value, type_and_string>> attributes;
+			std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
 			std::vector<std::string> key_order;
 
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
@@ -160,16 +160,12 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				mvt_value &val = layer.values[feat.tags[t + 1]];
 				serial_val sv = mvt_value_to_serial_val(val);
 
-				if (sv.type < 0) {
+				if (sv.type == mvt_null) {
 					continue;
 				}
 
 				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
-					type_and_string tas;
-					tas.type = sv.type;
-					tas.string = sv.s;
-
-					attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(key, std::pair<mvt_value, type_and_string>(val, tas)));
+					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
 					key_order.push_back(key);
 				}
 
@@ -212,14 +208,14 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 									attributes.erase(fa);
 								}
 
-								type_and_string tas;
-								tas.type = outval.type;
-								tas.string = joinval;
+								serial_val outsv;
+								outsv.type = outval.type;
+								outsv.s = joinval;
 
 								// Convert from double to int if the joined attribute is an integer
 								outval = stringified_to_mvt_value(outval.type, joinval.c_str());
 
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(joinkey, std::pair<mvt_value, type_and_string>(outval, tas)));
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
 								key_order.push_back(joinkey);
 							}
 						}
@@ -228,11 +224,11 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 
 			if (matched || !ifmatched) {
-				if (file_keys == layermap.end()) {
+				if (tilestats == layermap.end()) {
 					layermap.insert(std::pair<std::string, layermap_entry>(layer.name, layermap_entry(layermap.size())));
-					file_keys = layermap.find(layer.name);
-					file_keys->second.minzoom = z;
-					file_keys->second.maxzoom = z;
+					tilestats = layermap.find(layer.name);
+					tilestats->second.minzoom = z;
+					tilestats->second.maxzoom = z;
 				}
 
 				// To keep attributes in their original order instead of alphabetical
@@ -241,7 +237,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 
 					if (fa != attributes.end()) {
 						outlayer.tag(outfeature, k, fa->second.first);
-						add_to_file_keys(file_keys->second.file_keys, k, fa->second.second);
+						add_to_tilestats(tilestats->second.tilestats, k, fa->second.second);
 						attributes.erase(fa);
 					}
 				}
@@ -259,19 +255,19 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				features_added++;
 				outlayer.features.push_back(outfeature);
 
-				if (z < file_keys->second.minzoom) {
-					file_keys->second.minzoom = z;
+				if (z < tilestats->second.minzoom) {
+					tilestats->second.minzoom = z;
 				}
-				if (z > file_keys->second.maxzoom) {
-					file_keys->second.maxzoom = z;
+				if (z > tilestats->second.maxzoom) {
+					tilestats->second.maxzoom = z;
 				}
 
 				if (feat.type == mvt_point) {
-					file_keys->second.points++;
+					tilestats->second.points++;
 				} else if (feat.type == mvt_linestring) {
-					file_keys->second.lines++;
+					tilestats->second.lines++;
 				} else if (feat.type == mvt_polygon) {
-					file_keys->second.polygons++;
+					tilestats->second.polygons++;
 				}
 			}
 		}

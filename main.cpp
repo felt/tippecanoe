@@ -480,10 +480,10 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	sst.resize(CPUS);
 
 	pthread_t pthreads[CPUS];
-	std::vector<std::set<type_and_string> > file_subkeys;
+	std::vector<std::set<serial_val> > file_subkeys;
 
 	for (size_t i = 0; i < CPUS; i++) {
-		file_subkeys.push_back(std::set<type_and_string>());
+		file_subkeys.push_back(std::set<serial_val>());
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {

@@ -9,16 +9,8 @@ extern size_t max_tilestats_attributes;
 extern size_t max_tilestats_sample_values;
 extern size_t max_tilestats_values;
 
-struct type_and_string {
-	int type = 0;
-	std::string string = "";
-
-	bool operator<(const type_and_string &o) const;
-	bool operator!=(const type_and_string &o) const;
-};
-
-struct type_and_string_stats {
-	std::vector<type_and_string> sample_values = std::vector<type_and_string>();  // sorted
+struct tilestat {
+	std::vector<serial_val> sample_values = std::vector<serial_val>();  // sorted
 	double min = INFINITY;
 	double max = -INFINITY;
 	int type = 0;
@@ -26,7 +18,7 @@ struct type_and_string_stats {
 
 struct layermap_entry {
 	size_t id = 0;
-	std::map<std::string, type_and_string_stats> file_keys{};
+	std::map<std::string, tilestat> tilestats{};
 	int minzoom = 0;
 	int maxzoom = 0;
 	std::string description = "";
@@ -84,7 +76,7 @@ void mbtiles_close(sqlite3 *outdb, const char *pgm);
 std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::string, layermap_entry> > const &maps);
 std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::string, layermap_entry> > const &maps, bool trunc);
 
-void add_to_file_keys(std::map<std::string, type_and_string_stats> &file_keys, std::string const &layername, type_and_string const &val);
+void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string const &layername, serial_val const &val);
 
 unsigned long long fnv1a(std::string const &s);
 
