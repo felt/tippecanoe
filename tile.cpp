@@ -2659,18 +2659,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (prevent[P_INPUT_ORDER]) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
-				for (auto &c : clustered) {
-					std::sort(c.begin(), c.end());
-				}
 				std::sort(clustered.begin(), clustered.end(), preservecmp);
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (order_by.size() != 0) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
-				for (auto &c : clustered) {
-					std::sort(c.begin(), c.end());
-				}
 				std::sort(clustered.begin(), clustered.end(), ordercmp);
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
