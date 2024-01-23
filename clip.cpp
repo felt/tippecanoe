@@ -805,9 +805,10 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 		outfeature.seq = features[0].seq;
 
 		if (attribute_accum.size() > 0) {
-			// accumulate whatever attributes are specified to be accumulated
-			// onto the feature that will survive into the output, from the
-			// features that will not
+			// convert the attributes of the output feature
+			// from mvt_value to serial_val so they can have
+			// attributes from the other features of the
+			// multiplier cluster accumulated onto them
 
 			std::map<std::string, accum_state> attribute_accum_state;
 			std::vector<std::string> full_keys;
@@ -817,6 +818,10 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
 				full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
 			}
+
+			// accumulate whatever attributes are specified to be accumulated
+			// onto the feature that will survive into the output, from the
+			// features that will not
 
 			for (size_t i = 1; i < features.size(); i++) {
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
@@ -829,6 +834,9 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					}
 				}
 			}
+
+			// convert the final attributes back to mvt_value
+			// and tag them onto the output feature
 
 			for (size_t i = 0; i < full_keys.size(); i++) {
 				if (keep.size() == 0 || keep.find(full_keys[i]) != keep.end()) {
