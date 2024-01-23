@@ -18,7 +18,7 @@ struct tilestat {
 
 struct layermap_entry {
 	size_t id = 0;
-	std::map<std::string, tilestat> file_keys{};
+	std::map<std::string, tilestat> tilestats{};
 	int minzoom = 0;
 	int maxzoom = 0;
 	std::string description = "";
@@ -76,7 +76,7 @@ void mbtiles_close(sqlite3 *outdb, const char *pgm);
 std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::string, layermap_entry> > const &maps);
 std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::string, layermap_entry> > const &maps, bool trunc);
 
-void add_to_file_keys(std::map<std::string, tilestat> &file_keys, std::string const &layername, serial_val const &val);
+void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string const &layername, serial_val const &val);
 
 unsigned long long fnv1a(std::string const &s);
 

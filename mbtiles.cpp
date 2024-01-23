@@ -261,7 +261,7 @@ void tilestats(std::map<std::string, layermap_entry> const &layermap1, size_t el
 		state.nospace = true;
 		state.json_write_string(geomtype);
 
-		size_t attrib_count = layer.second.file_keys.size();
+		size_t attrib_count = layer.second.tilestats.size();
 		if (attrib_count > max_tilestats_attributes) {
 			attrib_count = max_tilestats_attributes;
 		}
@@ -277,7 +277,7 @@ void tilestats(std::map<std::string, layermap_entry> const &layermap1, size_t el
 		state.json_write_array();
 
 		size_t attrs = 0;
-		for (auto attribute : layer.second.file_keys) {
+		for (auto attribute : layer.second.tilestats) {
 			if (attrs == elements) {
 				break;
 			}
@@ -745,7 +745,7 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 
 				bool first = true;
 				size_t attribute_count = 0;
-				for (auto j = fk->second.file_keys.begin(); j != fk->second.file_keys.end(); ++j) {
+				for (auto j = fk->second.tilestats.begin(); j != fk->second.tilestats.end(); ++j) {
 					if (first) {
 						first = false;
 					}
@@ -852,16 +852,16 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 				exit(EXIT_IMPOSSIBLE);
 			}
 
-			for (auto fk = map->second.file_keys.begin(); fk != map->second.file_keys.end(); ++fk) {
+			for (auto fk = map->second.tilestats.begin(); fk != map->second.tilestats.end(); ++fk) {
 				std::string attribname = fk->first;
 				if (trunc) {
 					attribname = truncate16(attribname, 256);
 				}
 
-				auto fk2 = out_entry->second.file_keys.find(attribname);
+				auto fk2 = out_entry->second.tilestats.find(attribname);
 
-				if (fk2 == out_entry->second.file_keys.end()) {
-					out_entry->second.file_keys.insert(std::pair<std::string, tilestat>(attribname, fk->second));
+				if (fk2 == out_entry->second.tilestats.end()) {
+					out_entry->second.tilestats.insert(std::pair<std::string, tilestat>(attribname, fk->second));
 				} else {
 					for (auto val : fk->second.sample_values) {
 						auto pt = std::lower_bound(fk2->second.sample_values.begin(), fk2->second.sample_values.end(), val);
@@ -901,18 +901,18 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 	return out;
 }
 
-void add_to_file_keys(std::map<std::string, tilestat> &file_keys, std::string const &attrib, serial_val const &val) {
+void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string const &attrib, serial_val const &val) {
 	if (val.type == mvt_null) {
 		return;
 	}
 
-	auto fka = file_keys.find(attrib);
-	if (fka == file_keys.end()) {
-		file_keys.insert(std::pair<std::string, tilestat>(attrib, tilestat()));
-		fka = file_keys.find(attrib);
+	auto fka = tilestats.find(attrib);
+	if (fka == tilestats.end()) {
+		tilestats.insert(std::pair<std::string, tilestat>(attrib, tilestat()));
+		fka = tilestats.find(attrib);
 	}
 
-	if (fka == file_keys.end()) {
+	if (fka == tilestats.end()) {
 		fprintf(stderr, "Can't happen (tilestats)\n");
 		exit(EXIT_IMPOSSIBLE);
 	}

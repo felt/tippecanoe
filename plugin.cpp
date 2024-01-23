@@ -278,7 +278,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 					attrib.type = tp;
 					attrib.s = s;
 
-					add_to_file_keys(fk->second.file_keys, std::string(properties->value.object.keys[i]->value.string.string), attrib);
+					add_to_tilestats(fk->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
 				}
 			}
 
@@ -520,7 +520,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 					attrib.type = v.type;
 
 					if (!postfilter) {
-						add_to_file_keys(fk->second.file_keys, std::string(properties->value.object.keys[i]->value.string.string), attrib);
+						add_to_tilestats(fk->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
 					}
 				}
 			}
