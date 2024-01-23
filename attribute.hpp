@@ -1,6 +1,9 @@
 #ifndef ATTRIBUTE_HPP
 #define ATTRIBUTE_HPP
 
+#include <vector>
+#include <map>
+
 enum attribute_op {
 	op_sum,
 	op_product,
