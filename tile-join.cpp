@@ -206,11 +206,11 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 
 				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
-					serial_val sv;
-					sv.type = type;
-					sv.s = value;
+					serial_val tas;
+					tas.type = type;
+					tas.s = value;
 
-					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
+					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, tas)));
 					key_order.push_back(key);
 				}
 
@@ -253,14 +253,14 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 									attributes.erase(fa);
 								}
 
-								serial_val sv;
-								sv.type = outval.type;
-								sv.s = joinval;
+								serial_val tas;
+								tas.type = outval.type;
+								tas.s = joinval;
 
 								// Convert from double to int if the joined attribute is an integer
 								outval = stringified_to_mvt_value(outval.type, joinval.c_str());
 
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, sv)));
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, tas)));
 								key_order.push_back(joinkey);
 							}
 						}
@@ -821,7 +821,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void dispatch_svks(std::map<zxy, std::vector<std::string>> &svks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers) {
+void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -841,14 +841,14 @@ void dispatch_svks(std::map<zxy, std::vector<std::string>> &svks, std::vector<st
 	}
 
 	size_t count = 0;
-	// This isn't careful about distributing svks evenly across CPUs,
+	// This isn't careful about distributing tasks evenly across CPUs,
 	// but, from testing, it actually takes a little longer to do
 	// the proper allocation than is saved by perfectly balanced threads.
-	for (auto ai = svks.begin(); ai != svks.end(); ++ai) {
+	for (auto ai = tasks.begin(); ai != tasks.end(); ++ai) {
 		args[count].inputs.insert(*ai);
 		count = (count + 1) % CPUS;
 
-		if (ai == svks.begin()) {
+		if (ai == tasks.begin()) {
 			if (!quiet) {
 				fprintf(stderr, "%lld/%lld/%lld  \r", ai->first.z, ai->first.x, ai->first.y);
 				fflush(stderr);
@@ -975,7 +975,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		layermaps.push_back(std::map<std::string, layermap_entry>());
 	}
 
-	std::map<zxy, std::vector<std::string>> svks;
+	std::map<zxy, std::vector<std::string>> tasks;
 	double minlat = INT_MAX;
 	double minlon = INT_MAX;
 	double maxlat = INT_MIN;
@@ -1014,14 +1014,14 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 
 		if (current.first.z >= minzoom && current.first.z <= maxzoom) {
 			zxy tile = current.first;
-			if (svks.count(tile) == 0) {
-				svks.insert(std::pair<zxy, std::vector<std::string>>(tile, std::vector<std::string>()));
+			if (tasks.count(tile) == 0) {
+				tasks.insert(std::pair<zxy, std::vector<std::string>>(tile, std::vector<std::string>()));
 			}
-			auto f = svks.find(tile);
+			auto f = tasks.find(tile);
 			f->second.push_back(current.second);
 		}
 
-		// Advance the tileset_reader that we just added as a svk.
+		// Advance the tileset_reader that we just added as a task.
 		// The reason this prefetches is so the tileset_reader queue can be
 		// priority-ordered, so the one with the next relevant tile
 		// is first in line.
@@ -1037,9 +1037,9 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		// Then this tile is done and we can safely run the output queue.
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
-			if (svks.size() > 100 * CPUS) {
-				dispatch_svks(svks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
-				svks.clear();
+			if (tasks.size() > 100 * CPUS) {
+				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+				tasks.clear();
 			}
 		}
 
@@ -1067,7 +1067,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 	st->minlat2 = min(minlat, st->minlat2);
 	st->maxlat2 = max(maxlat, st->maxlat2);
 
-	dispatch_svks(svks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 	layermap = merge_layermaps(layermaps);
 
 	struct tileset_reader *next;
