@@ -667,6 +667,10 @@ json_object *parse_filter(const char *s) {
 
 bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
 	if (filter != NULL) {
+		if (filter->type == JSON_TRUE) {
+			return true;
+		}
+
 		std::map<std::string, mvt_value> attributes;
 
 		for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
