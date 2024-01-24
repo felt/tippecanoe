@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <map>
+#include <unordered_map>
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
@@ -217,7 +217,7 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 // 0: false
 // 1: true
 // -1: incomparable (sql null), treated as false in final output
-static int eval(std::map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
+static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
 	if (f != NULL) {
 		if (f->type == JSON_TRUE) {
 			return 1;
@@ -611,7 +611,7 @@ static int eval(std::map<std::string, mvt_value> const &feature, json_object *f,
 	exit(EXIT_FILTER);
 }
 
-bool evaluate(std::map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
+bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
 	if (filter == NULL || filter->type != JSON_HASH) {
 		fprintf(stderr, "Error: filter is not a hash: %s\n", json_stringify(filter));
 		exit(EXIT_JSON);
@@ -667,7 +667,7 @@ json_object *parse_filter(const char *s) {
 
 bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
 	if (filter != NULL) {
-		std::map<std::string, mvt_value> attributes;
+		std::unordered_map<std::string, mvt_value> attributes;
 
 		for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
 			std::string key = layer.keys[feat.tags[t]];

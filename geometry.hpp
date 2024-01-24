@@ -104,12 +104,12 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
-		     std::map<std::string, attribute_op> const &attribute_accum);
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum);
 
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
-		     std::map<std::string, attribute_op> const &attribute_accum);
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum);
 
 #endif

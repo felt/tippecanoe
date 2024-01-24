@@ -175,7 +175,7 @@ struct serialization_state {
 
 	std::map<std::string, layermap_entry> *layermap = NULL;
 
-	std::map<std::string, int> const *attribute_types = NULL;
+	std::unordered_map<std::string, int> const *attribute_types = NULL;
 	std::set<std::string> *exclude = NULL;
 	std::set<std::string> *include = NULL;
 	int exclude_all = 0;
@@ -228,6 +228,6 @@ struct node {
 int nodecmp(const void *void1, const void *void2);
 
 int serialize_feature(struct serialization_state *sst, serial_feature &sf);
-void coerce_value(std::string const &key, int &vt, std::string &val, std::map<std::string, int> const *attribute_types);
+void coerce_value(std::string const &key, int &vt, std::string &val, std::unordered_map<std::string, int> const *attribute_types);
 
 #endif

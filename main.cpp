@@ -448,7 +448,7 @@ void *run_sort(void *v) {
 	return NULL;
 }
 
-void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	long long segs[CPUS + 1];
 	segs[0] = 0;
 	segs[CPUS] = len;
@@ -649,7 +649,7 @@ struct read_parallel_arg {
 	unsigned *initial_y = NULL;
 	std::string layername = "";
 	bool uses_gamma = false;
-	std::map<std::string, int> const *attribute_types = NULL;
+	std::unordered_map<std::string, int> const *attribute_types = NULL;
 	double *dist_sum = NULL;
 	size_t *dist_count = NULL;
 	double *area_sum = NULL;
@@ -693,7 +693,7 @@ void *run_read_parallel(void *v) {
 	return NULL;
 }
 
-void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	// This has to kick off an intermediate thread to start the parser threads,
 	// so the main thread can get back to reading the next input stage while
 	// the intermediate thread waits for the completion of the parser threads.
@@ -1237,7 +1237,7 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
-std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -2845,7 +2845,7 @@ static bool has_name(struct option *long_options, int *pl) {
 	return false;
 }
 
-void set_attribute_type(std::map<std::string, int> &attribute_types, const char *arg) {
+void set_attribute_type(std::unordered_map<std::string, int> &attribute_types, const char *arg) {
 	const char *s = strchr(arg, ':');
 	if (s == NULL) {
 		fprintf(stderr, "-T%s option must be in the form -Tname:type\n", arg);
@@ -3005,8 +3005,8 @@ int main(int argc, char **argv) {
 	bool guess_cluster_maxzoom = false;
 
 	std::set<std::string> exclude, include;
-	std::map<std::string, int> attribute_types;
-	std::map<std::string, attribute_op> attribute_accum;
+	std::unordered_map<std::string, int> attribute_types;
+	std::unordered_map<std::string, attribute_op> attribute_accum;
 	std::map<std::string, std::string> attribute_descriptions;
 	int exclude_all = 0;
 	int read_parallel = 0;

@@ -758,7 +758,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::map<std::string, attribute_op> const &attribute_accum) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum) {
 	mvt_tile tile;
 
 	try {
@@ -785,7 +785,7 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::map<std::string, attribute_op> const &attribute_accum) {
+static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::unordered_map<std::string, attribute_op> const &attribute_accum) {
 	// Add geometry to output feature
 
 	mvt_feature outfeature;
@@ -810,7 +810,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			// attributes from the other features of the
 			// multiplier cluster accumulated onto them
 
-			std::map<std::string, accum_state> attribute_accum_state;
+			std::unordered_map<std::string, accum_state> attribute_accum_state;
 			std::vector<std::string> full_keys;
 			std::vector<serial_val> full_values;
 
@@ -873,7 +873,7 @@ static struct preservecmp {
 std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::map<std::string, attribute_op> const &attribute_accum) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum) {
 	mvt_tile outtile;
 
 	for (auto const &layer : tile.layers) {
