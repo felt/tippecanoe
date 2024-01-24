@@ -860,7 +860,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			}
 		}
 
-		outlayer.features.push_back(outfeature);
+		outlayer.features.push_back(std::move(outfeature));
 	}
 }
 
@@ -1018,7 +1018,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 		}
 
 		if (outlayer.features.size() > 0) {
-			outtile.layers.push_back(outlayer);
+			outtile.layers.push_back(std::move(outlayer));
 		}
 	}
 
