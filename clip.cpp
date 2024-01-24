@@ -904,7 +904,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 					if (layer.keys[feature.tags[i]] == "tippecanoe:retain_points_multiplier_sequence") {
 						mvt_value v = layer.values[feature.tags[i + 1]];
-						feature.seq = atoll(mvt_value_to_serial_val(v).s.c_str());
+						feature.seq = mvt_value_to_long_long(v);
 						feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
 					}
 				}

@@ -162,6 +162,7 @@ int compress(std::string const &input, std::string &output, bool gz);
 int dezig(unsigned n);
 
 mvt_value stringified_to_mvt_value(int type, const char *s);
+long long mvt_value_to_long_long(mvt_value const &v);
 
 bool is_integer(const char *s, long long *v);
 bool is_unsigned_integer(const char *s, unsigned long long *v);
