@@ -591,10 +591,10 @@ void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
 	// only tile writers actually need this.
 	if (key_map.size() == 0) {
 		for (size_t i = 0; i < keys.size(); i++) {
-			key_map.insert(std::pair<std::string, size_t>(keys[i], i));
+			key_map.emplace(keys[i], i);
 		}
 		for (size_t i = 0; i < values.size(); i++) {
-			value_map.insert(std::pair<mvt_value, size_t>(values[i], i));
+			value_map.emplace(values[i], i);
 		}
 	}
 
@@ -604,7 +604,7 @@ void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
 	if (ki == key_map.end()) {
 		ko = keys.size();
 		keys.push_back(key);
-		key_map.insert(std::pair<std::string, size_t>(key, ko));
+		key_map.emplace(key, ko);
 	} else {
 		ko = ki->second;
 	}
@@ -612,7 +612,7 @@ void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
 	if (vi == value_map.end()) {
 		vo = values.size();
 		values.push_back(value);
-		value_map.insert(std::pair<mvt_value, size_t>(value, vo));
+		value_map.emplace(value, vo);
 	} else {
 		vo = vi->second;
 	}
