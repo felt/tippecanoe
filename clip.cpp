@@ -815,8 +815,17 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::vector<serial_val> full_values;
 
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
-				full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
-				full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
+				auto f = attribute_accum.find(features[0].layer->keys[features[0].tags[i]]);
+				if (f != attribute_accum.end()) {
+					// this attribute has an accumulator, so convert it
+					full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
+					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
+				} else {
+					// otherwise just tag it directly onto the output feature
+					if (keep.size() == 0 || keep.find(features[0].layer->keys[features[0].tags[i]]) != keep.end()) {
+						outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
+					}
+				}
 			}
 
 			// accumulate whatever attributes are specified to be accumulated
