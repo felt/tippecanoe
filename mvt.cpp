@@ -278,13 +278,6 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 				}
 			}
 
-			for (size_t i = 0; i < layer.keys.size(); i++) {
-				layer.key_map.insert(std::pair<std::string, size_t>(layer.keys[i], i));
-			}
-			for (size_t i = 0; i < layer.values.size(); i++) {
-				layer.value_map.insert(std::pair<mvt_value, size_t>(layer.values[i], i));
-			}
-
 			layers.push_back(layer);
 			break;
 		}
@@ -592,6 +585,18 @@ std::string mvt_value::toString() const {
 
 void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
 	size_t ko, vo;
+
+	// initialize lazily the first time anyone tags an attribute
+	// to save the time of doing it in decode, which never actually matters.
+	// only tile writers actually need this.
+	if (key_map.size() == 0) {
+		for (size_t i = 0; i < keys.size(); i++) {
+			key_map.insert(std::pair<std::string, size_t>(keys[i], i));
+		}
+		for (size_t i = 0; i < values.size(); i++) {
+			value_map.insert(std::pair<mvt_value, size_t>(values[i], i));
+		}
+	}
 
 	std::unordered_map<std::string, size_t>::iterator ki = key_map.find(key);
 	std::unordered_map<mvt_value, size_t>::iterator vi = value_map.find(value);
