@@ -26,6 +26,7 @@ static std::string mvt_value_to_string(mvt_value one, bool &fail) {
 	case mvt_null:
 		fail = true;  // null op string => null
 		return "";
+	case mvt_no_such_key:
 	default:
 		fprintf(stderr, "unhandled mvt_type %d\n", one.type);
 		exit(EXIT_IMPOSSIBLE);
@@ -127,6 +128,8 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 		case mvt_null:
 			fail = true;  // null op bool => null
 			return 0;
+
+		case mvt_no_such_key:
 		default:
 			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
 			exit(EXIT_IMPOSSIBLE);
@@ -177,6 +180,7 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 		case mvt_sint:
 			v = one.numeric_value.sint_value;
 			break;
+		case mvt_no_such_key:
 		default:
 			fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
 			exit(EXIT_IMPOSSIBLE);
@@ -208,6 +212,10 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 		}
 
 		return 0;  // null equals null
+
+	case mvt_no_such_key:
+	default:
+		break;
 	}
 
 	fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
@@ -217,7 +225,7 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 // 0: false
 // 1: true
 // -1: incomparable (sql null), treated as false in final output
-static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_object *f, std::set<std::string> &exclude_attributes) {
+static int eval(std::function<mvt_value(std::string const &)> feature, json_object *f, std::set<std::string> &exclude_attributes) {
 	if (f != NULL) {
 		if (f->type == JSON_TRUE) {
 			return 1;
@@ -263,10 +271,10 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 
 		if (f->value.array.array[0]->type == JSON_STRING) {
 			// if LHS of a boolean conjunction is a string, it is an attribute reference
-			auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
-			if (ff != feature.end()) {
-				if (ff->second.type == mvt_bool) {
-					lhs = ff->second.numeric_value.bool_value;
+			mvt_value ff = feature(std::string(f->value.array.array[0]->value.string.string));
+			if (ff.type != mvt_no_such_key) {
+				if (ff.type == mvt_bool) {
+					lhs = ff.numeric_value.bool_value;
 				} else {
 					lhs = -1;  // not boolean: null
 				}
@@ -307,9 +315,9 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 	     false)) {
 		mvt_value lhs;
 		lhs.type = mvt_null;  // attributes that aren't found are nulls
-		auto ff = feature.find(std::string(f->value.array.array[0]->value.string.string));
-		if (ff != feature.end()) {
-			lhs = ff->second;
+		mvt_value ff = feature(std::string(f->value.array.array[0]->value.string.string));
+		if (ff.type != mvt_no_such_key) {
+			lhs = ff;
 		}
 
 		if (f->value.array.array[2]->type == JSON_NULL && strcmp(f->value.array.array[1]->value.string.string, "is") == 0) {
@@ -368,7 +376,7 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 			}
 		}
 
-		int cmp = compare_fsl(ff->second, f->value.array.array[2], fail);
+		int cmp = compare_fsl(ff, f->value.array.array[2], fail);
 		if (fail) {
 			printf("cast fail\n");
 			return -1;  // null
@@ -414,7 +422,7 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 				fprintf(stderr, "\"has\" key is not a string: %s\n", json_stringify(f));
 				exit(EXIT_FILTER);
 			}
-			return feature.count(std::string(f->value.array.array[1]->value.string.string)) != 0;
+			return feature(std::string(f->value.array.array[1]->value.string.string)).type != mvt_no_such_key;
 		}
 
 		if (strcmp(f->value.array.array[0]->value.string.string, "!has") == 0) {
@@ -422,7 +430,7 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 				fprintf(stderr, "\"!has\" key is not a string: %s\n", json_stringify(f));
 				exit(EXIT_FILTER);
 			}
-			return feature.count(std::string(f->value.array.array[1]->value.string.string)) == 0;
+			return feature(std::string(f->value.array.array[1]->value.string.string)).type == mvt_no_such_key;
 		}
 	}
 
@@ -441,8 +449,8 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 			exit(EXIT_FILTER);
 		}
 
-		auto ff = feature.find(std::string(f->value.array.array[1]->value.string.string));
-		if (ff == feature.end()) {
+		mvt_value ff = feature(std::string(f->value.array.array[1]->value.string.string));
+		if (ff.type == mvt_no_such_key) {
 			static bool warned = false;
 			if (!warned) {
 				const char *s = json_stringify(f);
@@ -457,7 +465,7 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 		}
 
 		bool fail = false;
-		int cmp = compare(ff->second, f->value.array.array[2], fail);
+		int cmp = compare(ff, f->value.array.array[2], fail);
 
 		if (fail) {
 			static bool warned = false;
@@ -544,8 +552,8 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 			exit(EXIT_FILTER);
 		}
 
-		auto ff = feature.find(std::string(f->value.array.array[1]->value.string.string));
-		if (ff == feature.end()) {
+		mvt_value ff = feature(std::string(f->value.array.array[1]->value.string.string));
+		if (ff.type == mvt_no_such_key) {
 			static bool warned = false;
 			if (!warned) {
 				const char *s = json_stringify(f);
@@ -562,7 +570,7 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 		bool found = false;
 		for (size_t i = 2; i < f->value.array.length; i++) {
 			bool fail = false;
-			int cmp = compare(ff->second, f->value.array.array[i], fail);
+			int cmp = compare(ff, f->value.array.array[i], fail);
 
 			if (fail) {
 				static bool warned = false;
@@ -611,7 +619,7 @@ static int eval(std::unordered_map<std::string, mvt_value> const &feature, json_
 	exit(EXIT_FILTER);
 }
 
-bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
+bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
 	if (filter == NULL || filter->type != JSON_HASH) {
 		fprintf(stderr, "Error: filter is not a hash: %s\n", json_stringify(filter));
 		exit(EXIT_JSON);
@@ -665,48 +673,63 @@ json_object *parse_filter(const char *s) {
 	return filter;
 }
 
-bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
-	if (filter != NULL) {
-		std::unordered_map<std::string, mvt_value> attributes;
-
-		for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
-			std::string key = layer.keys[feat.tags[t]];
-			const mvt_value &val = layer.values[feat.tags[t + 1]];
-
-			attributes.emplace(key, val);
+bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
+	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
+		auto f = feature.find(key);
+		if (f != feature.end()) {
+			return f->second;
+		} else {
+			mvt_value v;
+			v.type = mvt_no_such_key;
+			v.numeric_value.null_value = 0;
+			return v;
 		}
+	};
 
-		if (feat.has_id) {
+	return evaluate(getter, layer, filter, exclude_attributes);
+}
+
+bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
+	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
+		if (key == "$id" && feat.has_id) {
 			mvt_value v;
 			v.type = mvt_uint;
 			v.numeric_value.uint_value = feat.id;
+			return v;
+		}
 
-			attributes.emplace("$id", v);
+		if (key == "$type") {
+			mvt_value v;
+			v.type = mvt_string;
+
+			if (feat.type == mvt_point) {
+				v.string_value = "Point";
+			} else if (feat.type == mvt_linestring) {
+				v.string_value = "LineString";
+			} else if (feat.type == mvt_polygon) {
+				v.string_value = "Polygon";
+			}
+			return v;
+		}
+
+		if (key == "$zoom") {
+			mvt_value v2;
+			v2.type = mvt_uint;
+			v2.numeric_value.uint_value = z;
+			return v2;
+		}
+
+		for (size_t i = 0; i + 1 < feat.tags.size(); i += 2) {
+			if (layer.keys[feat.tags[i]] == key) {
+				return layer.values[feat.tags[i + 1]];
+			}
 		}
 
 		mvt_value v;
-		v.type = mvt_string;
+		v.type = mvt_no_such_key;
+		v.numeric_value.null_value = 0;
+		return v;
+	};
 
-		if (feat.type == mvt_point) {
-			v.string_value = "Point";
-		} else if (feat.type == mvt_linestring) {
-			v.string_value = "LineString";
-		} else if (feat.type == mvt_polygon) {
-			v.string_value = "Polygon";
-		}
-
-		attributes.emplace("$type", v);
-
-		mvt_value v2;
-		v2.type = mvt_uint;
-		v2.numeric_value.uint_value = z;
-
-		attributes.emplace("$zoom", v2);
-
-		if (!evaluate(attributes, layer.name, filter, exclude_attributes)) {
-			return false;
-		}
-	}
-
-	return true;
+	return evaluate(getter, layer.name, filter, exclude_attributes);
 }

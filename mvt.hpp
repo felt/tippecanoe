@@ -68,6 +68,8 @@ enum mvt_value_type {
 	mvt_sint,
 	mvt_bool,
 	mvt_null,
+
+	mvt_no_such_key,
 };
 
 struct mvt_value {

@@ -1594,6 +1594,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		}
 
 		if (filter != NULL) {
+			printf("%s\n", json_stringify(filter));
 			std::unordered_map<std::string, mvt_value> attributes;
 			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
 			std::set<std::string> exclude_attributes;

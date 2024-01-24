@@ -920,7 +920,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			}
 
 			std::set<std::string> exclude_attributes;
-			if (!evaluate(feature, layer, filter, exclude_attributes, nz)) {
+			if (filter != NULL && !evaluate(feature, layer, filter, exclude_attributes, nz)) {
 				continue;
 			}
 

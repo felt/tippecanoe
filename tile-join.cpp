@@ -140,7 +140,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			mvt_feature feat = layer.features[f];
 			std::set<std::string> exclude_attributes;
 
-			if (!evaluate(feat, layer, filter, exclude_attributes, z)) {
+			if (filter != NULL && !evaluate(feat, layer, filter, exclude_attributes, z)) {
 				continue;
 			}
 
