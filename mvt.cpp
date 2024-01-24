@@ -196,7 +196,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 						}
 					}
 
-					layer.values.push_back(value);
+					layer.values.push_back(std::move(value));
 					break;
 				}
 
@@ -261,14 +261,14 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 								py += protozero::decode_zigzag32(geoms[g + 2]);
 								g += 2;
 
-								feature.geometry.push_back(mvt_geometry(op, px, py));
+								feature.geometry.emplace_back(op, px, py);
 							}
 						} else {
-							feature.geometry.push_back(mvt_geometry(op, 0, 0));
+							feature.geometry.emplace_back(op, 0, 0);
 						}
 					}
 
-					layer.features.push_back(feature);
+					layer.features.push_back(std::move(feature));
 					break;
 				}
 
@@ -278,7 +278,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 				}
 			}
 
-			layers.push_back(layer);
+			layers.push_back(std::move(layer));
 			break;
 		}
 
@@ -361,7 +361,7 @@ std::string mvt_tile::encode() {
 			sorted_value sv;
 			sv.val = value_string;
 			sv.orig = v;
-			sorted_values.push_back(sv);
+			sorted_values.push_back(std::move(sv));
 		}
 
 		std::sort(sorted_values.begin(), sorted_values.end());
