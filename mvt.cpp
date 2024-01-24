@@ -498,6 +498,42 @@ bool mvt_value::operator<(const mvt_value &o) const {
 	return false;
 }
 
+bool mvt_value::operator==(const mvt_value &o) const {
+	if (type == o.type) {
+		switch (type) {
+		case mvt_string:
+			return string_value == o.string_value;
+
+		case mvt_float:
+			return numeric_value.float_value == o.numeric_value.float_value;
+
+		case mvt_double:
+			return numeric_value.double_value == o.numeric_value.double_value;
+
+		case mvt_int:
+			return numeric_value.int_value == o.numeric_value.int_value;
+
+		case mvt_uint:
+			return numeric_value.uint_value == o.numeric_value.uint_value;
+
+		case mvt_sint:
+			return numeric_value.sint_value == o.numeric_value.sint_value;
+
+		case mvt_bool:
+			return numeric_value.bool_value == o.numeric_value.bool_value;
+
+		case mvt_null:
+			return numeric_value.null_value == o.numeric_value.null_value;
+
+		default:
+			fprintf(stderr, "mvt_value::operator==: can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	return false;
+}
+
 static std::string quote(std::string const &s) {
 	std::string buf;
 
@@ -557,8 +593,8 @@ std::string mvt_value::toString() const {
 void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
 	size_t ko, vo;
 
-	std::map<std::string, size_t>::iterator ki = key_map.find(key);
-	std::map<mvt_value, size_t>::iterator vi = value_map.find(value);
+	std::unordered_map<std::string, size_t>::iterator ki = key_map.find(key);
+	std::unordered_map<mvt_value, size_t>::iterator vi = value_map.find(value);
 
 	if (ki == key_map.end()) {
 		ko = keys.size();

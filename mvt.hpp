@@ -7,6 +7,8 @@
 #include <set>
 #include <vector>
 
+#include "errors.hpp"
+
 struct mvt_value;
 struct mvt_layer;
 
@@ -82,12 +84,52 @@ struct mvt_value {
 	} numeric_value;
 
 	bool operator<(const mvt_value &o) const;
+	bool operator==(const mvt_value &o) const;
 	std::string toString() const;
 
 	mvt_value() {
 		this->type = mvt_double;
 		this->string_value = "";
 		this->numeric_value.double_value = 0;
+	}
+};
+
+template <>
+struct std::hash<mvt_value> {
+	std::size_t operator()(const mvt_value &k) const {
+		using std::hash;
+		using std::size_t;
+		using std::string;
+
+		switch (k.type) {
+		case mvt_string:
+			return std::hash<string>()(k.string_value);
+
+		case mvt_float:
+			return std::hash<float>()(k.numeric_value.float_value);
+
+		case mvt_double:
+			return std::hash<double>()(k.numeric_value.double_value);
+
+		case mvt_int:
+			return std::hash<long long>()(k.numeric_value.int_value);
+
+		case mvt_uint:
+			return std::hash<unsigned long long>()(k.numeric_value.uint_value);
+
+		case mvt_sint:
+			return std::hash<long long>()(k.numeric_value.sint_value);
+
+		case mvt_bool:
+			return std::hash<bool>()(k.numeric_value.bool_value);
+
+		case mvt_null:
+			return std::hash<int>()(k.numeric_value.null_value);
+
+		default:
+			fprintf(stderr, "mvt_value hash can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
 	}
 };
 
@@ -103,8 +145,8 @@ struct mvt_layer {
 	void tag(mvt_feature &feature, std::string key, mvt_value value);
 
 	// For tracking the key-value constants already used in this layer
-	std::map<std::string, size_t> key_map{};
-	std::map<mvt_value, size_t> value_map{};
+	std::unordered_map<std::string, size_t> key_map{};
+	std::unordered_map<mvt_value, size_t> value_map{};
 };
 
 struct mvt_tile {
