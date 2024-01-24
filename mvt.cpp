@@ -335,24 +335,32 @@ std::string mvt_tile::encode() {
 			protozero::pbf_writer value_writer(value_string);
 			mvt_value &pbv = layers[i].values[v];
 
-			if (pbv.type == mvt_string) {
+			switch (pbv.type) {
+			case mvt_string:
 				value_writer.add_string(1, pbv.string_value);
-			} else if (pbv.type == mvt_float) {
+				break;
+			case mvt_float:
 				value_writer.add_float(2, pbv.numeric_value.float_value);
-			} else if (pbv.type == mvt_double) {
+				break;
+			case mvt_double:
 				value_writer.add_double(3, pbv.numeric_value.double_value);
-			} else if (pbv.type == mvt_int) {
+				break;
+			case mvt_int:
 				value_writer.add_int64(4, pbv.numeric_value.int_value);
-			} else if (pbv.type == mvt_uint) {
+				break;
+			case mvt_uint:
 				value_writer.add_uint64(5, pbv.numeric_value.uint_value);
-			} else if (pbv.type == mvt_sint) {
+				break;
+			case mvt_sint:
 				value_writer.add_sint64(6, pbv.numeric_value.sint_value);
-			} else if (pbv.type == mvt_bool) {
+				break;
+			case mvt_bool:
 				value_writer.add_bool(7, pbv.numeric_value.bool_value);
-			} else if (pbv.type == mvt_null) {
+				break;
+			case mvt_null:
 				fprintf(stderr, "Internal error: trying to write null attribute to tile\n");
 				exit(EXIT_IMPOSSIBLE);
-			} else {
+			default:
 				fprintf(stderr, "Internal error: trying to write undefined attribute type to tile\n");
 				exit(EXIT_IMPOSSIBLE);
 			}
@@ -512,33 +520,36 @@ static std::string quote(std::string const &s) {
 }
 
 std::string mvt_value::toString() const {
-	if (type == mvt_string) {
+	switch (type) {
+	case mvt_string:
 		return quote(string_value);
-	} else if (type == mvt_int) {
+	case mvt_int:
 		return std::to_string(numeric_value.int_value);
-	} else if (type == mvt_double) {
+	case mvt_double: {
 		double v = numeric_value.double_value;
 		if (v == (long long) v) {
 			return std::to_string((long long) v);
 		} else {
 			return milo::dtoa_milo(v);
 		}
-	} else if (type == mvt_float) {
+	}
+	case mvt_float: {
 		double v = numeric_value.float_value;
 		if (v == (long long) v) {
 			return std::to_string((long long) v);
 		} else {
 			return milo::dtoa_milo(v);
 		}
-	} else if (type == mvt_sint) {
+	}
+	case mvt_sint:
 		return std::to_string(numeric_value.sint_value);
-	} else if (type == mvt_uint) {
+	case mvt_uint:
 		return std::to_string(numeric_value.uint_value);
-	} else if (type == mvt_bool) {
+	case mvt_bool:
 		return numeric_value.bool_value ? "true" : "false";
-	} else if (type == mvt_null) {
+	case mvt_null:
 		return "null";
-	} else {
+	default:
 		return "unknown";
 	}
 }
@@ -648,7 +659,8 @@ bool is_unsigned_integer(const char *s, unsigned long long *v) {
 mvt_value stringified_to_mvt_value(int type, const char *s) {
 	mvt_value tv;
 
-	if (type == mvt_double) {
+	switch (type) {
+	case mvt_double: {
 		long long v;
 		unsigned long long uv;
 		if (is_unsigned_integer(s, &uv)) {
@@ -687,13 +699,16 @@ mvt_value stringified_to_mvt_value(int type, const char *s) {
 				}
 			}
 		}
-	} else if (type == mvt_bool) {
+	} break;
+	case mvt_bool:
 		tv.type = mvt_bool;
 		tv.numeric_value.bool_value = (s[0] == 't');
-	} else if (type == mvt_null) {
+		break;
+	case mvt_null:
 		tv.type = mvt_null;
 		tv.numeric_value.null_value = 0;
-	} else {
+		break;
+	default:
 		tv.type = mvt_string;
 		tv.string_value = s;
 	}
@@ -709,31 +724,40 @@ mvt_value stringified_to_mvt_value(int type, const char *s) {
 serial_val mvt_value_to_serial_val(mvt_value const &v) {
 	serial_val sv;
 
-	if (v.type == mvt_string) {
+	switch (v.type) {
+	case mvt_string:
 		sv.type = mvt_string;
 		sv.s = v.string_value;
-	} else if (v.type == mvt_float) {
+		break;
+	case mvt_float:
 		sv.type = mvt_double;
 		sv.s = milo::dtoa_milo(v.numeric_value.float_value);
-	} else if (v.type == mvt_double) {
+		break;
+	case mvt_double:
 		sv.type = mvt_double;
 		sv.s = milo::dtoa_milo(v.numeric_value.double_value);
-	} else if (v.type == mvt_int) {
+		break;
+	case mvt_int:
 		sv.type = mvt_double;
 		sv.s = std::to_string(v.numeric_value.int_value);
-	} else if (v.type == mvt_uint) {
+		break;
+	case mvt_uint:
 		sv.type = mvt_double;
 		sv.s = std::to_string(v.numeric_value.uint_value);
-	} else if (v.type == mvt_sint) {
+		break;
+	case mvt_sint:
 		sv.type = mvt_double;
 		sv.s = std::to_string(v.numeric_value.sint_value);
-	} else if (v.type == mvt_bool) {
+		break;
+	case mvt_bool:
 		sv.type = mvt_bool;
 		sv.s = v.numeric_value.bool_value ? "true" : "false";
-	} else if (v.type == mvt_null) {
+		break;
+	case mvt_null:
 		sv.type = mvt_null;
 		sv.s = "null";
-	} else {
+		break;
+	default:
 		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
 		exit(EXIT_IMPOSSIBLE);
 	}
