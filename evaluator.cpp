@@ -673,7 +673,7 @@ bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filt
 			std::string key = layer.keys[feat.tags[t]];
 			const mvt_value &val = layer.values[feat.tags[t + 1]];
 
-			attributes.insert(std::pair<std::string, mvt_value>(key, val));
+			attributes.emplace(key, val);
 		}
 
 		if (feat.has_id) {
@@ -681,7 +681,7 @@ bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filt
 			v.type = mvt_uint;
 			v.numeric_value.uint_value = feat.id;
 
-			attributes.insert(std::pair<std::string, mvt_value>("$id", v));
+			attributes.emplace("$id", v);
 		}
 
 		mvt_value v;
@@ -695,13 +695,13 @@ bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filt
 			v.string_value = "Polygon";
 		}
 
-		attributes.insert(std::pair<std::string, mvt_value>("$type", v));
+		attributes.emplace("$type", v);
 
 		mvt_value v2;
 		v2.type = mvt_uint;
 		v2.numeric_value.uint_value = z;
 
-		attributes.insert(std::pair<std::string, mvt_value>("$zoom", v2));
+		attributes.emplace("$zoom", v2);
 
 		if (!evaluate(attributes, layer.name, filter, exclude_attributes)) {
 			return false;
