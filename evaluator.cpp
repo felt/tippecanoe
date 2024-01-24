@@ -8,24 +8,25 @@
 #include "milo/dtoa_milo.h"
 
 static std::string mvt_value_to_string(mvt_value one, bool &fail) {
-	if (one.type == mvt_string) {
+	switch (one.type) {
+	case mvt_string:
 		return one.string_value;
-	} else if (one.type == mvt_float) {
+	case mvt_float:
 		return milo::dtoa_milo(one.numeric_value.float_value);
-	} else if (one.type == mvt_double) {
+	case mvt_double:
 		return milo::dtoa_milo(one.numeric_value.double_value);
-	} else if (one.type == mvt_int) {
+	case mvt_int:
 		return std::to_string(one.numeric_value.int_value);
-	} else if (one.type == mvt_uint) {
+	case mvt_uint:
 		return std::to_string(one.numeric_value.uint_value);
-	} else if (one.type == mvt_sint) {
+	case mvt_sint:
 		return std::to_string(one.numeric_value.sint_value);
-	} else if (one.type == mvt_bool) {
+	case mvt_bool:
 		return one.numeric_value.bool_value ? "true" : "false";
-	} else if (one.type == mvt_null) {
+	case mvt_null:
 		fail = true;  // null op string => null
 		return "";
-	} else {
+	default:
 		fprintf(stderr, "unhandled mvt_type %d\n", one.type);
 		exit(EXIT_IMPOSSIBLE);
 	}
@@ -47,7 +48,8 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 	if (two->type == JSON_NUMBER) {
 		double lhs;
 
-		if (one.type == mvt_string) {
+		switch (one.type) {
+		case mvt_string: {
 			char *endptr = NULL;
 			const char *s = one.string_value.c_str();
 			lhs = strtod(s, &endptr);
@@ -55,22 +57,29 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 				fail = true;  // non-numeric-string op number => null
 				return 0;
 			}
-		} else if (one.type == mvt_float) {
+		} break;
+		case mvt_float:
 			lhs = one.numeric_value.float_value;
-		} else if (one.type == mvt_double) {
+			break;
+		case mvt_double:
 			lhs = one.numeric_value.double_value;
-		} else if (one.type == mvt_int) {
+			break;
+		case mvt_int:
 			lhs = one.numeric_value.int_value;
-		} else if (one.type == mvt_uint) {
+			break;
+		case mvt_uint:
 			lhs = one.numeric_value.uint_value;
-		} else if (one.type == mvt_sint) {
+			break;
+		case mvt_sint:
 			lhs = one.numeric_value.sint_value;
-		} else if (one.type == mvt_bool) {
+			break;
+		case mvt_bool:
 			lhs = one.numeric_value.bool_value;
-		} else if (one.type == mvt_null) {
+			break;
+		case mvt_null:
 			fail = true;  // null op number => null
 			return 0;
-		} else {
+		default:
 			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
 			exit(EXIT_IMPOSSIBLE);
 		}
@@ -93,24 +102,32 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 	if (two->type == JSON_TRUE || two->type == JSON_FALSE) {
 		bool lhs;
 
-		if (one.type == mvt_string) {
+		switch (one.type) {
+		case mvt_string:
 			lhs = one.string_value.size() > 0;
-		} else if (one.type == mvt_float) {
+			break;
+		case mvt_float:
 			lhs = one.numeric_value.float_value != 0;
-		} else if (one.type == mvt_double) {
+			break;
+		case mvt_double:
 			lhs = one.numeric_value.double_value != 0;
-		} else if (one.type == mvt_int) {
+			break;
+		case mvt_int:
 			lhs = one.numeric_value.int_value != 0;
-		} else if (one.type == mvt_uint) {
+			break;
+		case mvt_uint:
 			lhs = one.numeric_value.uint_value != 0;
-		} else if (one.type == mvt_sint) {
+			break;
+		case mvt_sint:
 			lhs = one.numeric_value.sint_value != 0;
-		} else if (one.type == mvt_bool) {
+			break;
+		case mvt_bool:
 			lhs = one.numeric_value.bool_value;
-		} else if (one.type == mvt_null) {
+			break;
+		case mvt_null:
 			fail = true;  // null op bool => null
 			return 0;
-		} else {
+		default:
 			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
 			exit(EXIT_IMPOSSIBLE);
 		}
@@ -124,33 +141,43 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 }
 
 int compare(mvt_value one, json_object *two, bool &fail) {
-	if (one.type == mvt_string) {
+	switch (one.type) {
+	case mvt_string:
 		if (two->type != JSON_STRING) {
 			fail = true;
 			return false;  // string vs non-string
 		}
 
 		return strcmp(one.string_value.c_str(), two->value.string.string);
-	}
 
-	if (one.type == mvt_double || one.type == mvt_float || one.type == mvt_int || one.type == mvt_uint || one.type == mvt_sint) {
+	case mvt_double:
+	case mvt_float:
+	case mvt_int:
+	case mvt_uint:
+	case mvt_sint:
 		if (two->type != JSON_NUMBER) {
 			fail = true;
 			return false;  // number vs non-number
 		}
 
 		double v;
-		if (one.type == mvt_double) {
+		switch (one.type) {
+		case mvt_double:
 			v = one.numeric_value.double_value;
-		} else if (one.type == mvt_float) {
+			break;
+		case mvt_float:
 			v = one.numeric_value.float_value;
-		} else if (one.type == mvt_int) {
+			break;
+		case mvt_int:
 			v = one.numeric_value.int_value;
-		} else if (one.type == mvt_uint) {
+			break;
+		case mvt_uint:
 			v = one.numeric_value.uint_value;
-		} else if (one.type == mvt_sint) {
+			break;
+		case mvt_sint:
 			v = one.numeric_value.sint_value;
-		} else {
+			break;
+		default:
 			fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
 			exit(EXIT_IMPOSSIBLE);
 		}
@@ -162,19 +189,19 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 		} else {
 			return 0;
 		}
-	}
 
-	if (one.type == mvt_bool) {
+	case mvt_bool:
 		if (two->type != JSON_TRUE && two->type != JSON_FALSE) {
 			fail = true;
 			return false;  // bool vs non-bool
 		}
 
-		bool b = two->type != JSON_FALSE;
-		return one.numeric_value.bool_value > b;
-	}
+		{
+			bool b = two->type != JSON_FALSE;
+			return one.numeric_value.bool_value > b;
+		}
 
-	if (one.type == mvt_null) {
+	case mvt_null:
 		if (two->type != JSON_NULL) {
 			fail = true;
 			return false;  // null vs non-null
