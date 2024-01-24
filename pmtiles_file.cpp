@@ -263,7 +263,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 
 	// finalize PMTiles archive.
 	{
-		std::sort(entries.begin(), entries.end(), pmtiles::entryv3_cmp);
+		std::sort(entries.begin(), entries.end(), pmtiles::entryv3_cmp());
 
 		std::string root_bytes;
 		std::string leaves_bytes;
