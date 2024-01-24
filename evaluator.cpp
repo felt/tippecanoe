@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unordered_map>
+#include <functional>
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
@@ -378,7 +379,6 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 
 		int cmp = compare_fsl(ff, f->value.array.array[2], fail);
 		if (fail) {
-			printf("cast fail\n");
 			return -1;  // null
 		}
 
