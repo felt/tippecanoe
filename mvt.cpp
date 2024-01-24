@@ -456,15 +456,34 @@ bool mvt_value::operator<(const mvt_value &o) const {
 		return true;
 	}
 	if (type == o.type) {
-		if ((type == mvt_string && string_value < o.string_value) ||
-		    (type == mvt_float && numeric_value.float_value < o.numeric_value.float_value) ||
-		    (type == mvt_double && numeric_value.double_value < o.numeric_value.double_value) ||
-		    (type == mvt_int && numeric_value.int_value < o.numeric_value.int_value) ||
-		    (type == mvt_uint && numeric_value.uint_value < o.numeric_value.uint_value) ||
-		    (type == mvt_sint && numeric_value.sint_value < o.numeric_value.sint_value) ||
-		    (type == mvt_bool && numeric_value.bool_value < o.numeric_value.bool_value) ||
-		    (type == mvt_null && numeric_value.null_value < o.numeric_value.null_value)) {
-			return true;
+		switch (type) {
+		case mvt_string:
+			return string_value < o.string_value;
+
+		case mvt_float:
+			return numeric_value.float_value < o.numeric_value.float_value;
+
+		case mvt_double:
+			return numeric_value.double_value < o.numeric_value.double_value;
+
+		case mvt_int:
+			return numeric_value.int_value < o.numeric_value.int_value;
+
+		case mvt_uint:
+			return numeric_value.uint_value < o.numeric_value.uint_value;
+
+		case mvt_sint:
+			return numeric_value.sint_value < o.numeric_value.sint_value;
+
+		case mvt_bool:
+			return numeric_value.bool_value < o.numeric_value.bool_value;
+
+		case mvt_null:
+			return numeric_value.null_value < o.numeric_value.null_value;
+
+		default:
+			fprintf(stderr, "mvt_value::operator<<: can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
 		}
 	}
 
