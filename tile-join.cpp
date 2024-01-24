@@ -688,8 +688,8 @@ struct tileset_reader {
 			perror("pthread_mutex_lock");
 		}
 
-		std::function<mvt_tile(zxy)> getter = [&](zxy tile) {
-			return get_tile(tile);
+		std::function<mvt_tile(zxy)> getter = [&](zxy tileno) {
+			return get_tile(tileno);
 		};
 
 		mvt_tile source = cache.get(parent_tile, getter);

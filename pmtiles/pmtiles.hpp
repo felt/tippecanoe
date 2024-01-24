@@ -166,7 +166,7 @@ struct entryv3 {
 	}
 };
 
-struct {
+static struct {
 	bool operator()(entryv3 a, entryv3 b) const {
 		return a.tile_id < b.tile_id;
 	}
@@ -388,7 +388,7 @@ inline uint64_t zxy_to_tileid(uint8_t z, uint32_t x, uint32_t y) {
 	if (z > 31) {
 		throw std::overflow_error("tile zoom exceeds 64-bit limit");
 	}
-	if (x > (1 << z) - 1 || y > (1 << z) - 1) {
+	if (x > (1U << z) - 1 || y > (1U << z) - 1) {
 		throw std::overflow_error("tile x/y outside zoom level bounds");
 	}
 	uint64_t acc = 0;
