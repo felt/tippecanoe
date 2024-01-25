@@ -143,7 +143,7 @@ struct mvt_layer {
 	long long extent = 0;
 
 	// Add a key-value pair to a feature, using this layer's constant pool
-	void tag(mvt_feature &feature, std::string key, mvt_value value);
+	void tag(mvt_feature &feature, std::string const &key, mvt_value const &value);
 
 	// For tracking the key-value constants already used in this layer
 	std::unordered_map<std::string, size_t> key_map{};

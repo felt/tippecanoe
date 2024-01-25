@@ -583,7 +583,7 @@ std::string mvt_value::toString() const {
 	}
 }
 
-void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
+void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
 	size_t ko, vo;
 
 	// initialize lazily the first time anyone tags an attribute
