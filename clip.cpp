@@ -931,6 +931,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 			long long tilesize = 1LL << (32 - oz);	// source tile size in world coordinates
 			draw ring_closure(0, 0, 0);
+			bool sametile = (nz == ox && nx == ox && ny == oy);
 
 			for (auto const &g : feature.geometry) {
 				if (g.op == mvt_closepath) {
@@ -956,43 +957,50 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 				g.y -= ny * outtilesize;
 			}
 
-			// Clip to output tile
+			if (!sametile) {
+				// Clip to output tile
 
-			long long xmin = LLONG_MAX;
-			long long ymin = LLONG_MAX;
-			long long xmax = LLONG_MIN;
-			long long ymax = LLONG_MIN;
+				long long xmin = LLONG_MAX;
+				long long ymin = LLONG_MAX;
+				long long xmax = LLONG_MIN;
+				long long ymax = LLONG_MIN;
 
-			for (auto const &g : geom) {
-				xmin = std::min(xmin, g.x);
-				ymin = std::min(ymin, g.y);
-				xmax = std::max(xmax, g.x);
-				ymax = std::max(ymax, g.y);
-			}
+				for (auto const &g : geom) {
+					xmin = std::min(xmin, g.x);
+					ymin = std::min(ymin, g.y);
+					xmax = std::max(xmax, g.x);
+					ymax = std::max(ymax, g.y);
+				}
 
-			long long b = outtilesize * buffer / 256;
-			if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
-				continue;
-			}
+				long long b = outtilesize * buffer / 256;
+				if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
+					continue;
+				}
 
-			if (t == VT_LINE) {
-				geom = clip_lines(geom, nz, buffer);
-			} else if (t == VT_POLYGON) {
-				drawvec dv;
-				geom = simple_clip_poly(geom, nz, buffer, dv, false);
-			} else if (t == VT_POINT) {
-				geom = clip_point(geom, nz, buffer);
+				if (t == VT_LINE) {
+					geom = clip_lines(geom, nz, buffer);
+				} else if (t == VT_POLYGON) {
+					drawvec dv;
+					geom = simple_clip_poly(geom, nz, buffer, dv, false);
+				} else if (t == VT_POINT) {
+					geom = clip_point(geom, nz, buffer);
+				}
 			}
 
 			// Scale to output tile extent
 
 			to_tile_scale(geom, nz, det);
 
-			// Clean geometries
+			if (!sametile) {
+				// Clean geometries
 
-			geom = remove_noop(geom, t, 0);
+				geom = remove_noop(geom, t, 0);
+				if (t == VT_POLYGON) {
+					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+				}
+			}
+
 			if (t == VT_POLYGON) {
-				geom = clean_or_clip_poly(geom, 0, 0, false, false);
 				geom = close_poly(geom);
 			}
 
