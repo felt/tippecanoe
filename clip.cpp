@@ -890,11 +890,14 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 		std::vector<tile_feature> pending_tile_features;
 
+		static const std::string retain_points_multiplier_first = "tippecanoe:retain_points_multiplier_first";
+		static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
+
 		for (auto feature : layer.features) {
 			bool flush_multiplier_cluster = false;
 			if (demultiply) {
 				for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
-					if (layer.keys[feature.tags[i]] == "tippecanoe:retain_points_multiplier_first") {
+					if (layer.keys[feature.tags[i]] == retain_points_multiplier_first) {
 						mvt_value v = layer.values[feature.tags[i + 1]];
 						if (v.type == mvt_bool && v.numeric_value.bool_value) {
 							flush_multiplier_cluster = true;
@@ -902,7 +905,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 						}
 					}
 
-					if (layer.keys[feature.tags[i]] == "tippecanoe:retain_points_multiplier_sequence") {
+					if (layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
 						mvt_value v = layer.values[feature.tags[i + 1]];
 						feature.seq = mvt_value_to_long_long(v);
 						feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
