@@ -1008,11 +1008,11 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 			}
 
 			tile_feature tf;
-			tf.geom = geom;
+			tf.geom = std::move(geom);
 			tf.t = t;
 			tf.has_id = feature.has_id;
 			tf.id = feature.id;
-			tf.tags = feature.tags;
+			tf.tags = std::move(feature.tags);
 			tf.layer = &layer;
 			tf.seq = feature.seq;
 
