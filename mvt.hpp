@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <set>
 #include <vector>
+#include <optional>
 
 #include "errors.hpp"
 
@@ -74,7 +75,7 @@ enum mvt_value_type {
 
 struct mvt_value {
 	mvt_value_type type;
-	std::string string_value;
+	std::optional<std::string> string_value;
 	union {
 		float float_value;
 		double double_value;
@@ -104,7 +105,7 @@ struct std::hash<mvt_value> {
 
 		switch (k.type) {
 		case mvt_string:
-			return std::hash<string>()(k.string_value);
+			return std::hash<string>()(*(k.string_value));
 
 		case mvt_float:
 			return std::hash<float>()(k.numeric_value.float_value);

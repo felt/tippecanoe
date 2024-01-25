@@ -8,10 +8,10 @@
 #include "errors.hpp"
 #include "milo/dtoa_milo.h"
 
-static std::string mvt_value_to_string(mvt_value one, bool &fail) {
+static std::string mvt_value_to_string(mvt_value const &one, bool &fail) {
 	switch (one.type) {
 	case mvt_string:
-		return one.string_value;
+		return *(one.string_value);
 	case mvt_float:
 		return milo::dtoa_milo(one.numeric_value.float_value);
 	case mvt_double:
@@ -34,7 +34,7 @@ static std::string mvt_value_to_string(mvt_value one, bool &fail) {
 	}
 }
 
-int compare_fsl(mvt_value one, json_object *two, bool &fail) {
+int compare_fsl(mvt_value const &one, json_object *two, bool &fail) {
 	// In FSL expressions, the attribute value is coerced to the type
 	// of the JSON literal value it is being compared to.
 	//
@@ -53,7 +53,7 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 		switch (one.type) {
 		case mvt_string: {
 			char *endptr = NULL;
-			const char *s = one.string_value.c_str();
+			const char *s = one.string_value->c_str();
 			lhs = strtod(s, &endptr);
 			if (endptr == s) {
 				fail = true;  // non-numeric-string op number => null
@@ -106,7 +106,7 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 
 		switch (one.type) {
 		case mvt_string:
-			lhs = one.string_value.size() > 0;
+			lhs = one.string_value->size() > 0;
 			break;
 		case mvt_float:
 			lhs = one.numeric_value.float_value != 0;
@@ -144,7 +144,7 @@ int compare_fsl(mvt_value one, json_object *two, bool &fail) {
 	exit(EXIT_IMPOSSIBLE);
 }
 
-int compare(mvt_value one, json_object *two, bool &fail) {
+int compare(mvt_value const &one, json_object *two, bool &fail) {
 	switch (one.type) {
 	case mvt_string:
 		if (two->type != JSON_STRING) {
@@ -152,7 +152,7 @@ int compare(mvt_value one, json_object *two, bool &fail) {
 			return false;  // string vs non-string
 		}
 
-		return strcmp(one.string_value.c_str(), two->value.string.string);
+		return strcmp(one.string_value->c_str(), two->value.string.string);
 
 	case mvt_double:
 	case mvt_float:

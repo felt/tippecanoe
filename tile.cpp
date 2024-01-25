@@ -217,7 +217,7 @@ void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> 
 		mvt_value key = retrieve_string(metakeys[i], stringpool, NULL);
 		mvt_value value = retrieve_string(metavals[i], stringpool, &otype);
 
-		layer.tag(feature, key.string_value, value);
+		layer.tag(feature, *(key.string_value), value);
 	}
 }
 
@@ -227,9 +227,9 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
 		mvt_value key2 = retrieve_string(keys2[i], stringpool2, NULL);
 
-		if (key1.string_value < key2.string_value) {
+		if (*(key1.string_value) < *(key2.string_value)) {
 			return -1;
-		} else if (key1.string_value > key2.string_value) {
+		} else if (*(key1.string_value) > *(key2.string_value)) {
 			return 1;
 		}
 
@@ -273,7 +273,7 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 
 	for (size_t i = 0; i < keys1.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		if (key == key1.string_value) {
+		if (key == *(key1.string_value)) {
 			return retrieve_string(values1[i], stringpool1, NULL);
 		}
 	}
