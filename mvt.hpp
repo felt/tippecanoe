@@ -105,7 +105,7 @@ struct mvt_value {
 		return s->c_str() + numeric_value.string_value.off;
 	}
 
-	void set_string_value(const std::string &val) {
+	void set_string_value(const std::string_view &val) {
 		if (s == nullptr) {
 			s = std::make_shared<std::string>();
 		}

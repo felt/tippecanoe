@@ -159,7 +159,11 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 						case 1: /* string */
 							value.type = mvt_string;
 							value.s = string_pool;
-							value.set_string_value(value_reader.get_string());
+							{
+								auto v = value_reader.get_view();
+								std::string_view sv(v.data(), v.size());
+								value.set_string_value(sv);
+							}
 							break;
 
 						case 2: /* float */
