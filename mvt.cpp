@@ -110,7 +110,7 @@ int compress(std::string const &input, std::string &output, bool gz) {
 	return 0;
 }
 
-bool mvt_tile::decode(std::string &message, bool &was_compressed) {
+bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 	layers.clear();
 	std::string src;
 

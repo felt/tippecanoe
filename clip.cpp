@@ -755,7 +755,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	return out;
 }
 
-std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum) {
@@ -870,7 +870,7 @@ static struct preservecmp {
 	}
 } preservecmp;
 
-std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum) {
