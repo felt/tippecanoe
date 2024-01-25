@@ -224,6 +224,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 						case 2: /* tag */
 						{
 							auto pi = feature_reader.get_packed_uint32();
+							feature.tags.reserve(std::distance(pi.first, pi.second));
 							for (auto it = pi.first; it != pi.second; ++it) {
 								feature.tags.push_back(*it);
 							}
@@ -237,6 +238,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 						case 4: /* geometry */
 						{
 							auto pi = feature_reader.get_packed_uint32();
+							geoms.reserve(std::distance(pi.first, pi.second));
 							for (auto it = pi.first; it != pi.second; ++it) {
 								geoms.push_back(*it);
 							}
@@ -250,6 +252,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 					}
 
 					long long px = 0, py = 0;
+					feature.geometry.reserve(geoms.size());	 // probably not quite right, but still plausible
 					for (size_t g = 0; g < geoms.size(); g++) {
 						uint32_t geom = geoms[g];
 						uint32_t op = geom & 7;
