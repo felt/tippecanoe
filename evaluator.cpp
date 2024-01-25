@@ -11,7 +11,7 @@
 static std::string mvt_value_to_string(mvt_value const &one, bool &fail) {
 	switch (one.type) {
 	case mvt_string:
-		return *(one.string_value);
+		return one.get_string_value();
 	case mvt_float:
 		return milo::dtoa_milo(one.numeric_value.float_value);
 	case mvt_double:
@@ -53,7 +53,7 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail) {
 		switch (one.type) {
 		case mvt_string: {
 			char *endptr = NULL;
-			const char *s = one.string_value->c_str();
+			const char *s = one.c_str();
 			lhs = strtod(s, &endptr);
 			if (endptr == s) {
 				fail = true;  // non-numeric-string op number => null
@@ -106,7 +106,7 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail) {
 
 		switch (one.type) {
 		case mvt_string:
-			lhs = one.string_value->size() > 0;
+			lhs = one.get_string_view().size() > 0;
 			break;
 		case mvt_float:
 			lhs = one.numeric_value.float_value != 0;
@@ -152,7 +152,7 @@ int compare(mvt_value const &one, json_object *two, bool &fail) {
 			return false;  // string vs non-string
 		}
 
-		return strcmp(one.string_value->c_str(), two->value.string.string);
+		return strcmp(one.c_str(), two->value.string.string);
 
 	case mvt_double:
 	case mvt_float:
@@ -706,13 +706,13 @@ bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filt
 
 			if (feat.type == mvt_point) {
 				const static std::string point = "Point";
-				v.string_value = point;
+				v.set_string_value(point);
 			} else if (feat.type == mvt_linestring) {
 				const static std::string linestring = "LineString";
-				v.string_value = linestring;
+				v.set_string_value(linestring);
 			} else if (feat.type == mvt_polygon) {
 				const static std::string polygon = "Polygon";
-				v.string_value = polygon;
+				v.set_string_value(polygon);
 			}
 			return v;
 		}

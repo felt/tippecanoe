@@ -197,7 +197,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								mvt_value outval;
 								if (attr_type == mvt_string) {
 									outval.type = mvt_string;
-									outval.string_value = joinval;
+									outval.set_string_value(joinval);
 								} else {
 									outval.type = mvt_double;
 									outval.numeric_value.double_value = atof(joinval.c_str());

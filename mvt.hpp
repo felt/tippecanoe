@@ -3,10 +3,12 @@
 
 #include <sqlite3.h>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <set>
 #include <vector>
 #include <optional>
+#include <memory>
 
 #include "errors.hpp"
 
@@ -75,7 +77,8 @@ enum mvt_value_type {
 
 struct mvt_value {
 	mvt_value_type type;
-	std::optional<std::string> string_value;
+	std::shared_ptr<std::string> s;
+
 	union {
 		float float_value;
 		double double_value;
@@ -84,7 +87,35 @@ struct mvt_value {
 		long long sint_value;
 		bool bool_value;
 		int null_value;
+		struct {
+			size_t off;
+			size_t len;
+		} string_value;
 	} numeric_value;
+
+	std::string get_string_value() const {
+		return std::string(*s, numeric_value.string_value.off, numeric_value.string_value.len);
+	}
+
+	std::string_view get_string_view() const {
+		return std::string_view(s->c_str() + numeric_value.string_value.off, numeric_value.string_value.len);
+	}
+
+	const char *c_str() const {
+		return s->c_str() + numeric_value.string_value.off;
+	}
+
+	void set_string_value(const std::string &val) {
+		if (s == nullptr) {
+			s = std::make_shared<std::string>();
+		}
+
+		type = mvt_string;
+		numeric_value.string_value.off = s->size();
+		numeric_value.string_value.len = val.size();
+		s->append(val);
+		s->push_back('\0');
+	}
 
 	bool operator<(const mvt_value &o) const;
 	bool operator==(const mvt_value &o) const;
@@ -99,13 +130,9 @@ struct mvt_value {
 template <>
 struct std::hash<mvt_value> {
 	std::size_t operator()(const mvt_value &k) const {
-		using std::hash;
-		using std::size_t;
-		using std::string;
-
 		switch (k.type) {
 		case mvt_string:
-			return std::hash<string>()(*(k.string_value));
+			return std::hash<std::string_view>()(k.get_string_view());
 
 		case mvt_float:
 			return std::hash<float>()(k.numeric_value.float_value);

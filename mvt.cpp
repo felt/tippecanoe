@@ -157,7 +157,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 						switch (value_reader.tag()) {
 						case 1: /* string */
 							value.type = mvt_string;
-							value.string_value = value_reader.get_string();
+							value.set_string_value(value_reader.get_string());
 							break;
 
 						case 2: /* float */
@@ -332,7 +332,7 @@ std::string mvt_tile::encode() {
 
 			switch (pbv.type) {
 			case mvt_string:
-				value_writer.add_string(1, *(pbv.string_value));
+				value_writer.add_string(1, pbv.get_string_value());
 				break;
 			case mvt_float:
 				value_writer.add_float(2, pbv.numeric_value.float_value);
@@ -461,7 +461,7 @@ bool mvt_value::operator<(const mvt_value &o) const {
 	if (type == o.type) {
 		switch (type) {
 		case mvt_string:
-			return *string_value < *(o.string_value);
+			return get_string_view() < o.get_string_view();
 
 		case mvt_float:
 			return numeric_value.float_value < o.numeric_value.float_value;
@@ -497,7 +497,7 @@ bool mvt_value::operator==(const mvt_value &o) const {
 	if (type == o.type) {
 		switch (type) {
 		case mvt_string:
-			return *string_value == *(o.string_value);
+			return get_string_view() == o.get_string_view();
 
 		case mvt_float:
 			return numeric_value.float_value == o.numeric_value.float_value;
@@ -553,7 +553,7 @@ static std::string quote(std::string const &s) {
 std::string mvt_value::toString() const {
 	switch (type) {
 	case mvt_string:
-		return quote(*string_value);
+		return quote(get_string_value());
 	case mvt_int:
 		return std::to_string(numeric_value.int_value);
 	case mvt_double: {
@@ -753,7 +753,7 @@ mvt_value stringified_to_mvt_value(int type, const char *s) {
 		break;
 	default:
 		tv.type = mvt_string;
-		tv.string_value = s;
+		tv.set_string_value(s);
 	}
 
 	return tv;
@@ -770,7 +770,7 @@ serial_val mvt_value_to_serial_val(mvt_value const &v) {
 	switch (v.type) {
 	case mvt_string:
 		sv.type = mvt_string;
-		sv.s = *(v.string_value);
+		sv.s = v.get_string_value();
 		break;
 	case mvt_float:
 		sv.type = mvt_double;
@@ -812,7 +812,7 @@ serial_val mvt_value_to_serial_val(mvt_value const &v) {
 long long mvt_value_to_long_long(mvt_value const &v) {
 	switch (v.type) {
 	case mvt_string:
-		return atoll(v.string_value->c_str());
+		return atoll(v.c_str());
 	case mvt_float:
 		return v.numeric_value.float_value;
 	case mvt_double:

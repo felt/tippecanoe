@@ -339,7 +339,7 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 			switch (val.type) {
 			case mvt_string:
 				state.json_write_string(key);
-				state.json_write_string(*(val.string_value));
+				state.json_write_string(val.get_string_value());
 				break;
 			case mvt_int:
 				state.json_write_string(key);
