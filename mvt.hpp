@@ -91,7 +91,6 @@ struct mvt_value {
 
 	mvt_value() {
 		this->type = mvt_double;
-		this->string_value = "";
 		this->numeric_value.double_value = 0;
 	}
 };

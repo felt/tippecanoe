@@ -691,28 +691,34 @@ bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::st
 
 bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
 	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
-		if (key == "$id" && feat.has_id) {
+		const static std::string dollar_id = "$id";
+		if (key == dollar_id && feat.has_id) {
 			mvt_value v;
 			v.type = mvt_uint;
 			v.numeric_value.uint_value = feat.id;
 			return v;
 		}
 
-		if (key == "$type") {
+		const static std::string dollar_type = "$type";
+		if (key == dollar_type) {
 			mvt_value v;
 			v.type = mvt_string;
 
 			if (feat.type == mvt_point) {
-				v.string_value = "Point";
+				const static std::string point = "Point";
+				v.string_value = point;
 			} else if (feat.type == mvt_linestring) {
-				v.string_value = "LineString";
+				const static std::string linestring = "LineString";
+				v.string_value = linestring;
 			} else if (feat.type == mvt_polygon) {
-				v.string_value = "Polygon";
+				const static std::string polygon = "Polygon";
+				v.string_value = polygon;
 			}
 			return v;
 		}
 
-		if (key == "$zoom") {
+		const static std::string dollar_zoom = "$zoom";
+		if (key == dollar_zoom) {
 			mvt_value v2;
 			v2.type = mvt_uint;
 			v2.numeric_value.uint_value = z;
