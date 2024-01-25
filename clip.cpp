@@ -931,7 +931,7 @@ std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int 
 
 			long long tilesize = 1LL << (32 - oz);	// source tile size in world coordinates
 			draw ring_closure(0, 0, 0);
-			bool sametile = (nz == ox && nx == ox && ny == oy);
+			bool sametile = (nz == ox && nx == ox && ny == oy && outlayer.extent >= layer.extent);
 
 			for (auto const &g : feature.geometry) {
 				if (g.op == mvt_closepath) {
