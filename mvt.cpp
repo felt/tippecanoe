@@ -306,7 +306,6 @@ struct sorted_value {
 
 std::string mvt_tile::encode() {
 	std::string data;
-
 	protozero::pbf_writer writer(data);
 
 	for (size_t i = 0; i < layers.size(); i++) {
@@ -359,7 +358,7 @@ std::string mvt_tile::encode() {
 			}
 
 			sorted_value sv;
-			sv.val = value_string;
+			sv.val = std::move(value_string);
 			sv.orig = v;
 			sorted_values.push_back(std::move(sv));
 		}
