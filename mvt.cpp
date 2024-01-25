@@ -127,6 +127,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 	}
 
 	protozero::pbf_reader reader(src);
+	std::shared_ptr<std::string> string_pool = std::make_shared<std::string>();
 
 	while (reader.next()) {
 		switch (reader.tag()) {
@@ -157,6 +158,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 						switch (value_reader.tag()) {
 						case 1: /* string */
 							value.type = mvt_string;
+							value.s = string_pool;
 							value.set_string_value(value_reader.get_string());
 							break;
 
