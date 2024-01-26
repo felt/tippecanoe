@@ -1383,6 +1383,8 @@ struct write_tile_args {
 	std::atomic<unsigned> *midy = NULL;
 	int maxzoom = 0;
 	int minzoom = 0;
+	int basezoom = 0;
+	double droprate = 0;
 	int full_detail = 0;
 	int low_detail = 0;
 	double simplification = 0;
@@ -1960,6 +1962,20 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
 
+	// allow larger tile sizes at low zooms when the retain-points-multiplier
+	// is intended to allow more points through. scale back down toward a
+	// tile size multiple of 1 at basezoom and beyond
+	size_t scaled_max_tile_size = max_tile_size;
+	double regular_retention = 1 / exp(log(arg->droprate) * (arg->basezoom - z));
+	if (regular_retention > 1) {
+		regular_retention = 1;
+	}
+	double multiplier_retention = 1 / exp(log(arg->droprate) * (arg->basezoom - z)) * retain_points_multiplier;
+	if (multiplier_retention > 1) {
+		multiplier_retention = 1;
+	}
+	scaled_max_tile_size *= multiplier_retention / regular_retention;
+
 	static std::atomic<double> oprogress(0);
 	long long og = *geompos_in;
 
@@ -2291,7 +2307,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (sf.geometry.size() > 0) {
-				if (partials.size() > max_tile_size) {
+				if (partials.size() > scaled_max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
@@ -2863,7 +2879,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				compressed = pbf;
 			}
 
-			if (compressed.size() > max_tile_size && !prevent[P_KILOBYTE_LIMIT]) {
+			if (compressed.size() > scaled_max_tile_size && !prevent[P_KILOBYTE_LIMIT]) {
 				// Estimate how big it really should have been compressed
 				// from how many features were kept vs skipped for already being
 				// over the threshold
@@ -2876,9 +2892,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (!quiet) {
 					if (skipped > 0) {
-						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %lld) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), (long long) (compressed.size() * kept_adjust), line_detail, max_tile_size);
+						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %lld) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), (long long) (compressed.size() * kept_adjust), line_detail, scaled_max_tile_size);
 					} else {
-						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, max_tile_size);
+						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, scaled_max_tile_size);
 					}
 				}
 
@@ -2899,7 +2915,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.90;
+					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.90;
 					unsigned long long mg = choose_mingap(indices, mingap_fraction);
 					if (mg <= mingap) {
 						double nmg = (mingap + 1) * 1.5;
@@ -2924,7 +2940,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 					line_detail++;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.75;
+					minextent_fraction = minextent_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction);
 					if (m != minextent) {
 						minextent = m;
@@ -2942,7 +2958,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					fraction = fraction * max_tile_size / (kept_adjust * compressed.size()) * 0.95;
+					fraction = fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.95;
 					if (!quiet) {
 						fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", fraction * 100);
 					}
@@ -3118,7 +3134,7 @@ void *run_thread(void *vargs) {
 	return NULL;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -3301,6 +3317,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				args[thread].midy = midy;  // locked with var_lock
 				args[thread].maxzoom = maxzoom;
 				args[thread].minzoom = minzoom;
+				args[thread].basezoom = basezoom;
+				args[thread].droprate = droprate;
 				args[thread].full_detail = full_detail;
 				args[thread].low_detail = low_detail;
 				args[thread].most = &most;  // locked with var_lock
