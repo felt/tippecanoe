@@ -115,9 +115,11 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 	std::string src;
 
 	if (is_compressed(message)) {
-		if (decompress(message, src) == 0) {
+		std::string uncompressed;
+		if (decompress(message, uncompressed) == 0) {
 			exit(EXIT_MVT);
 		}
+		src = uncompressed;
 		was_compressed = true;
 	} else {
 		src = message;
@@ -610,10 +612,7 @@ void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value cons
 	if (ki == key_map.end()) {
 		ko = keys.size();
 		keys.push_back(key);
-
-		if (key_map.size() < 200) {
-			key_map.emplace(key, ko);
-		}
+		key_map.emplace(key, ko);
 	} else {
 		ko = ki->second;
 	}
@@ -621,10 +620,7 @@ void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value cons
 	if (vi == value_map.end()) {
 		vo = values.size();
 		values.push_back(value);
-
-		if (value_map.size() < 200) {
-			value_map.emplace(value, vo);
-		}
+		value_map.emplace(value, vo);
 	} else {
 		vo = vi->second;
 	}
