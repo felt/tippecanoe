@@ -3054,7 +3054,6 @@ int main(int argc, char **argv) {
 		{"visvalingam", no_argument, &additional[A_VISVALINGAM], 1},
 
 		{"Attempts to improve shared polygon boundaries", 0, 0, 0},
-		{"detect-shared-borders", no_argument, &additional[A_DETECT_SHARED_BORDERS], 1},
 		{"grid-low-zooms", no_argument, &additional[A_GRID_LOW_ZOOMS], 1},
 
 		{"Controlling clipping to tile boundaries", 0, 0, 0},
@@ -3119,6 +3118,9 @@ int main(int argc, char **argv) {
 		{"prefer-radix-sort", no_argument, &additional[A_PREFER_RADIX_SORT], 1},
 		{"help", no_argument, 0, 'H'},
 
+		{"Redundant", 0, 0, 0},
+		{"detect-shared-borders", no_argument, &prevent[P_SIMPLIFY_SHARED_NODES], 1},
+
 		{0, 0, 0, 0},
 	};
 
@@ -3145,6 +3147,10 @@ int main(int argc, char **argv) {
 		getopt_str[cout] = '\0';
 
 		for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
+			if (strcmp(long_options[lo].name, "Redundant")) {
+				break;
+			}
+
 			if (long_options[lo].flag != NULL) {
 				if (*long_options[lo].flag != 0) {
 					fprintf(stderr, "Internal error: reused %s\n", long_options[lo].name);

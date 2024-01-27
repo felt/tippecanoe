@@ -7,7 +7,6 @@
 #define A_LINE_DROP ((int) 'l')
 #define A_DEBUG_POLYGON ((int) '@')
 #define A_POLYGON_DROP ((int) 'p')
-#define A_DETECT_SHARED_BORDERS ((int) 'b')
 #define A_PREFER_RADIX_SORT ((int) 'R')
 #define A_CALCULATE_FEATURE_DENSITY ((int) 'g')
 #define A_DROP_DENSEST_AS_NEEDED ((int) 's')
