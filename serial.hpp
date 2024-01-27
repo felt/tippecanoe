@@ -171,7 +171,6 @@ struct serialization_state {
 	int basezoom = 0;
 
 	bool filters = false;
-	bool uses_gamma = false;
 
 	std::map<std::string, layermap_entry> *layermap = NULL;
 

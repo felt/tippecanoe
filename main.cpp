@@ -296,12 +296,12 @@ struct drop_densest {
 	}
 };
 
-int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
+int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom) {
 	int feature_minzoom = 0;
 
-	if (gamma >= 0 && (ix->t == VT_POINT ||
-			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
-			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
+	if ((ix->t == VT_POINT ||
+	     (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
+	     (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
@@ -342,14 +342,12 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 				}
 			}
 		}
-
-		// XXX manage_gap
 	}
 
 	return feature_minzoom;
 }
 
-static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, double gamma, struct drop_state *ds) {
+static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, struct drop_state *ds) {
 	struct mergelist *head = NULL;
 
 	for (size_t i = 0; i < nmerges; i++) {
@@ -368,7 +366,7 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 		// and is writing one byte less and then adding the byte for the minzoom.
 
 		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start - 1, geom_out, geompos, "merge geometry");
-		int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
+		int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom);
 		serialize_byte(geom_out, feature_minzoom, geompos, "merge geometry");
 
 		// Count this as an 75%-accomplishment, since we already 25%-counted it
@@ -448,7 +446,7 @@ void *run_sort(void *v) {
 	return NULL;
 }
 
-void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	long long segs[CPUS + 1];
 	segs[0] = 0;
 	segs[CPUS] = len;
@@ -501,7 +499,6 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 		sst[i].dist_count = &(dist_counts[i]);
 		sst[i].want_dist = want_dist;
 		sst[i].maxzoom = maxzoom;
-		sst[i].uses_gamma = uses_gamma;
 		sst[i].filters = filters;
 		sst[i].layermap = &(*layermaps)[i];
 		sst[i].exclude = exclude;
@@ -648,7 +645,6 @@ struct read_parallel_arg {
 	unsigned *initial_x = NULL;
 	unsigned *initial_y = NULL;
 	std::string layername = "";
-	bool uses_gamma = false;
 	std::map<std::string, int> const *attribute_types = NULL;
 	double *dist_sum = NULL;
 	size_t *dist_count = NULL;
@@ -676,7 +672,7 @@ void *run_read_parallel(void *v) {
 	}
 	madvise(map, rpa->len, MADV_RANDOM);  // sequential, but from several pointers at once
 
-	do_read_parallel(map, rpa->len, rpa->offset, rpa->reading, rpa->readers, rpa->progress_seq, rpa->exclude, rpa->include, rpa->exclude_all, rpa->basezoom, rpa->source, rpa->layermaps, rpa->initialized, rpa->initial_x, rpa->initial_y, rpa->maxzoom, rpa->layername, rpa->uses_gamma, rpa->attribute_types, rpa->separator, rpa->dist_sum, rpa->dist_count, rpa->area_sum, rpa->want_dist, rpa->filters);
+	do_read_parallel(map, rpa->len, rpa->offset, rpa->reading, rpa->readers, rpa->progress_seq, rpa->exclude, rpa->include, rpa->exclude_all, rpa->basezoom, rpa->source, rpa->layermaps, rpa->initialized, rpa->initial_x, rpa->initial_y, rpa->maxzoom, rpa->layername, rpa->attribute_types, rpa->separator, rpa->dist_sum, rpa->dist_count, rpa->area_sum, rpa->want_dist, rpa->filters);
 
 	madvise(map, rpa->len, MADV_DONTNEED);
 	if (munmap(map, rpa->len) != 0) {
@@ -693,7 +689,7 @@ void *run_read_parallel(void *v) {
 	return NULL;
 }
 
-void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	// This has to kick off an intermediate thread to start the parser threads,
 	// so the main thread can get back to reading the next input stage while
 	// the intermediate thread waits for the completion of the parser threads.
@@ -727,7 +723,6 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	rpa->initial_y = initial_y;
 	rpa->maxzoom = maxzoom;
 	rpa->layername = layername;
-	rpa->uses_gamma = uses_gamma;
 	rpa->attribute_types = attribute_types;
 	rpa->dist_sum = dist_sum;
 	rpa->dist_count = dist_count;
@@ -742,7 +737,7 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	parser_created = true;
 }
 
-void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds) {
+void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, struct drop_state *ds) {
 	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge
 	int splitbits = log(splits) / log(2);
 	splits = 1 << splitbits;
@@ -961,7 +956,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
 
-				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
+				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, ds);
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
 				if (munmap(indexmap, indexst.st_size) < 0) {
@@ -995,7 +990,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					long long pos = *geompos_out;
 
 					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
-					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
+					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom);
 					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
 
 					// Count this as an 75%-accomplishment, since we already 25%-counted it
@@ -1030,7 +1025,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				// counter backward but will be an honest estimate of the work remaining.
 				*progress_max += geomst.st_size / 4;
 
-				radix1(&geomfds[i], &indexfds[i], 1, prefix + splitbits, *availfiles / 4, mem, tmpdir, availfiles, geomfile, indexfile, geompos_out, progress, progress_max, progress_reported, maxzoom, basezoom, droprate, gamma, ds);
+				radix1(&geomfds[i], &indexfds[i], 1, prefix + splitbits, *availfiles / 4, mem, tmpdir, availfiles, geomfile, indexfile, geompos_out, progress, progress_max, progress_reported, maxzoom, basezoom, droprate, ds);
 				already_closed = 1;
 			}
 		}
@@ -1090,7 +1085,7 @@ static size_t calc_memsize() {
 	return mem;
 }
 
-void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
+void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate) {
 	// Run through the index and geometry for each reader,
 	// splitting the contents out by index into as many
 	// sub-files as we can write to simultaneously.
@@ -1140,7 +1135,7 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
 	long long availfiles_before = availfiles;
-	radix1(geomfds, indexfds, nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds);
+	radix1(geomfds, indexfds, nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, ds);
 
 	if (availfiles - 2 * nreaders != availfiles_before) {
 		fprintf(stderr, "Internal error: miscounted available file descriptors: %lld vs %lld\n", availfiles - 2 * nreaders, availfiles);
@@ -1237,7 +1232,7 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
-std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, int read_parallel, int forcetable, const char *attribution, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -1514,7 +1509,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				sst[i].want_dist = guess_maxzoom;
 				sst[i].maxzoom = maxzoom;
 				sst[i].filters = prefilter != NULL || postfilter != NULL;
-				sst[i].uses_gamma = uses_gamma;
 				sst[i].layermap = &layermaps[i];
 				sst[i].exclude = exclude;
 				sst[i].include = include;
@@ -1587,7 +1581,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				sst[i].want_dist = guess_maxzoom;
 				sst[i].maxzoom = maxzoom;
 				sst[i].filters = prefilter != NULL || postfilter != NULL;
-				sst[i].uses_gamma = uses_gamma;
 				sst[i].layermap = &layermaps[i];
 				sst[i].exclude = exclude;
 				sst[i].include = include;
@@ -1649,7 +1642,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				sst[i].want_dist = guess_maxzoom;
 				sst[i].maxzoom = maxzoom;
 				sst[i].filters = prefilter != NULL || postfilter != NULL;
-				sst[i].uses_gamma = uses_gamma;
 				sst[i].layermap = &layermaps[i];
 				sst[i].exclude = exclude;
 				sst[i].include = include;
@@ -1707,7 +1699,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 
 		if (map != NULL && map != MAP_FAILED && read_parallel_this) {
-			do_read_parallel(map, st.st_size - off, overall_offset, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, &layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, uses_gamma, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+			do_read_parallel(map, st.st_size - off, overall_offset, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, &layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 			overall_offset += st.st_size - off;
 			checkdisk(&readers);
 
@@ -1786,7 +1778,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 							}
 
 							fflush(readfp);
-							start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+							start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 
 							initial_offset += ahead;
 							overall_offset += ahead;
@@ -1823,7 +1815,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				fflush(readfp);
 
 				if (ahead > 0) {
-					start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+					start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 
 					if (parser_created) {
 						if (pthread_join(parallel_parser, NULL) != 0) {
@@ -1857,7 +1849,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				sst.want_dist = guess_maxzoom;
 				sst.maxzoom = maxzoom;
 				sst.filters = prefilter != NULL || postfilter != NULL;
-				sst.uses_gamma = uses_gamma;
 				sst.layermap = &layermaps[0];
 				sst.exclude = exclude;
 				sst.include = include;
@@ -2219,7 +2210,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	serialize_uint(geomfile, ix, &geompos, fname);
 	serialize_uint(geomfile, iy, &geompos, fname);
 
-	radix(readers, CPUS, geomfile, indexfile, tmpdir, &geompos, maxzoom, basezoom, droprate, gamma);
+	radix(readers, CPUS, geomfile, indexfile, tmpdir, &geompos, maxzoom, basezoom, droprate);
 
 	/* end of tile */
 	serialize_ulong_long(geomfile, 0, &geompos, fname);  // EOF
@@ -2521,8 +2512,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 					yyy = yy >> (32 - z);
 				}
 
-				double scale = (double) (1LL << (64 - 2 * (z + 8)));
-
 				if (tile[z].x != xxx || tile[z].y != yyy) {
 					if (tile[z].count > max[z].count) {
 						max[z] = tile[z];
@@ -2537,11 +2526,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				}
 
 				tile[z].fullcount++;
-
-				if (manage_gap(map[ip].ix, &tile[z].previndex, scale, gamma, &tile[z].gap)) {
-					continue;
-				}
-
 				tile[z].count++;
 			}
 		}
@@ -2578,9 +2562,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		if (obasezoom < 0 && basezoom > maxzoom) {
 			fprintf(stderr, "Couldn't find a suitable base zoom. Working from the other direction.\n");
-			if (gamma == 0) {
-				fprintf(stderr, "You might want to try -g1 to limit near-duplicates.\n");
-			}
 
 			if (droprate < 0) {
 				if (maxzoom == 0) {
@@ -2618,40 +2599,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 					if (!quiet) {
 						fprintf(stderr, "Choosing a drop rate of -r%f to keep %f features in tile %d/%u/%u.\n", droprate, max[z].count / interval, z, max[z].x, max[z].y);
 					}
-				}
-			}
-		}
-
-		if (gamma > 0) {
-			int effective = 0;
-
-			for (z = 0; z < maxzoom; z++) {
-				if (max[z].count < max[z].fullcount) {
-					effective = z + 1;
-				}
-			}
-
-			if (effective == 0) {
-				if (!quiet) {
-					fprintf(stderr, "With gamma, effective base zoom is 0, so no effective drop rate\n");
-				}
-			} else {
-				double interval_0 = exp(log(droprate) * (basezoom - 0));
-				double interval_eff = exp(log(droprate) * (basezoom - effective));
-				if (effective > basezoom) {
-					interval_eff = 1;
-				}
-
-				double scaled_0 = max[0].count / interval_0;
-				double scaled_eff = max[effective].count / interval_eff;
-
-				double rate_at_0 = scaled_0 / max[0].fullcount;
-				double rate_at_eff = scaled_eff / max[effective].fullcount;
-
-				double eff_drop = exp(log(rate_at_eff / rate_at_0) / (effective - 0));
-
-				if (!quiet) {
-					fprintf(stderr, "With gamma, effective base zoom of %d, effective drop rate of %f\n", effective, eff_drop);
 				}
 			}
 		}
@@ -2695,7 +2642,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 						previndex = map[ip].ix;
 					} else {
-						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom);
 						geom[map[ip].end - 1] = feature_minzoom;
 					}
 				}
@@ -2720,7 +2667,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (ip > 0 && map[ip].start != map[ip - 1].end) {
 					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
 				}
-				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom);
 				geom[map[ip].end - 1] = feature_minzoom;
 			}
 		}
@@ -2757,7 +2704,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2993,7 +2940,6 @@ int main(int argc, char **argv) {
 	int force = 0;
 	int forcetable = 0;
 	double droprate = 2.5;
-	double gamma = 0;
 	int buffer = 5;
 	const char *tmpdir = "/tmp";
 	const char *attribution = NULL;
@@ -3096,10 +3042,6 @@ int main(int argc, char **argv) {
 		{"coalesce-smallest-as-needed", no_argument, &additional[A_COALESCE_SMALLEST_AS_NEEDED], 1},
 		{"force-feature-limit", no_argument, &prevent[P_DYNAMIC_DROP], 1},
 		{"cluster-densest-as-needed", no_argument, &additional[A_CLUSTER_DENSEST_AS_NEEDED], 1},
-
-		{"Dropping tightly overlapping features", 0, 0, 0},
-		{"gamma", required_argument, 0, 'g'},
-		{"increase-gamma-as-needed", no_argument, &additional[A_INCREASE_GAMMA_AS_NEEDED], 1},
 
 		{"Line and polygon simplification", 0, 0, 0},
 		{"simplification", required_argument, 0, 'S'},
@@ -3534,10 +3476,6 @@ int main(int argc, char **argv) {
 			}
 			break;
 
-		case 'g':
-			gamma = atof_require(optarg, "Gamma");
-			break;
-
 		case 'q':
 			quiet = 1;
 			break;
@@ -3760,13 +3698,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if ((basezoom < 0 || droprate < 0) && (gamma < 0)) {
-		// Can't use randomized (as opposed to evenly distributed) dot dropping
-		// if rate and base aren't known during feature reading.
-		gamma = 0;
-		fprintf(stderr, "Forcing -g0 since -B or -r is not known\n");
-	}
-
 	if (out_mbtiles == NULL && out_dir == NULL) {
 		fprintf(stderr, "%s: must specify -o out.mbtiles or -e directory\n", argv[0]);
 		exit(EXIT_ARGS);
@@ -3821,7 +3752,7 @@ int main(int argc, char **argv) {
 
 	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
 								       : out_dir,
-				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
+				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, read_parallel, forcetable, attribution, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
 
 	ret = std::get<0>(input_ret);
 

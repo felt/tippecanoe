@@ -612,13 +612,6 @@ preference to retaining points in sparse areas and dropping points in dense area
 .IP \(bu 2
 \fB\fC\-aC\fR or \fB\fC\-\-cluster\-densest\-as\-needed\fR: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a \fB\fC"clustered": true\fR attribute to indicate that it represents a cluster, a \fB\fC"point_count"\fR attribute to indicate the number of features that were clustered into it, and a \fB\fC"sqrt_point_count"\fR attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations; otherwise, one of the original features will be left as the representative.
 .RE
-.SS Dropping tightly overlapping features
-.RS
-.IP \(bu 2
-\fB\fC\-g\fR \fIgamma\fP or \fB\fC\-\-gamma=_gamma\fR_: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.
-.IP \(bu 2
-\fB\fC\-aG\fR or \fB\fC\-\-increase\-gamma\-as\-needed\fR: If a tile is too large, try to reduce it to under 500K by increasing the \fB\fC\-g\fR gamma. The discovered gamma applies to the entire zoom level. You probably want to use \fB\fC\-\-drop\-densest\-as\-needed\fR instead.
-.RE
 .SS Line and polygon simplification
 .RS
 .IP \(bu 2
@@ -759,7 +752,7 @@ as a series of newline\-delimited GeoJSON objects on the standard input, and \fB
 set of GeoJSON features from the filter's standard output.
 .PP
 The prefilter receives the features at the highest available resolution, before line simplification,
-polygon topology repair, gamma calculation, dynamic feature dropping, or other internal processing.
+polygon topology repair, dynamic feature dropping, or other internal processing.
 The postfilter receives the features at tile resolution, after simplification, cleaning, and dropping.
 .PP
 The layer name is provided as part of the \fB\fCtippecanoe\fR element of the feature and must be passed through
@@ -864,10 +857,6 @@ point base zoom (which is normally the same as the \fB\fC\-z\fR max zoom, but ca
 a different zoom specified with \fB\fC\-B\fR if you have precise but sparse data).
 I don't know why 2.5 is the appropriate number, but the densities of many different
 data sets fall off at about this same rate. You can use \-r to specify a different rate.
-.PP
-You can use the gamma option to thin out especially dense clusters of points.
-For any area where dots are closer than one pixel together (at whatever zoom level),
-a gamma of 3, for example, will reduce these clusters to the cube root of their original density.
 .PP
 For line features, it drops any features that are too small to draw at all.
 This still leaves the lower zooms too dark (and too dense for the 500K tile limit,

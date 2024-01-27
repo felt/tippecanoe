@@ -481,11 +481,6 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-pd` or `--force-feature-limit`: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like `-ad` but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
  * `-aC` or `--cluster-densest-as-needed`: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a `"clustered": true` attribute to indicate that it represents a cluster, a `"point_count"` attribute to indicate the number of features that were clustered into it, and a `"sqrt_point_count"` attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations; otherwise, one of the original features will be left as the representative.
 
-### Dropping tightly overlapping features
-
- * `-g` _gamma_ or `--gamma=_gamma`_: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.
- * `-aG` or `--increase-gamma-as-needed`: If a tile is too large, try to reduce it to under 500K by increasing the `-g` gamma. The discovered gamma applies to the entire zoom level. You probably want to use `--drop-densest-as-needed` instead.
-
 ### Line and polygon simplification
 
  * `-S` _scale_ or `--simplification=`_scale_: Multiply the tolerance for line and polygon simplification by _scale_. The standard tolerance tries to keep
@@ -576,7 +571,7 @@ as a series of newline-delimited GeoJSON objects on the standard input, and `tip
 set of GeoJSON features from the filter's standard output.
 
 The prefilter receives the features at the highest available resolution, before line simplification,
-polygon topology repair, gamma calculation, dynamic feature dropping, or other internal processing.
+polygon topology repair, dynamic feature dropping, or other internal processing.
 The postfilter receives the features at tile resolution, after simplification, cleaning, and dropping.
 
 The layer name is provided as part of the `tippecanoe` element of the feature and must be passed through
@@ -670,10 +665,6 @@ point base zoom (which is normally the same as the `-z` max zoom, but can be
 a different zoom specified with `-B` if you have precise but sparse data).
 I don't know why 2.5 is the appropriate number, but the densities of many different
 data sets fall off at about this same rate. You can use -r to specify a different rate.
-
-You can use the gamma option to thin out especially dense clusters of points.
-For any area where dots are closer than one pixel together (at whatever zoom level),
-a gamma of 3, for example, will reduce these clusters to the cube root of their original density.
 
 For line features, it drops any features that are too small to draw at all.
 This still leaves the lower zooms too dark (and too dense for the 500K tile limit,
