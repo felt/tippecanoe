@@ -90,7 +90,6 @@ long justx = -1, justy = -1;
 std::string attribute_for_id = "";
 size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
-unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
 long long extend_zooms_max = 0;
@@ -2606,7 +2605,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fix_dropping = true;
 	}
 
-	if (fix_dropping || drop_denser > 0) {
+	if (fix_dropping) {
 		// Fix up the minzooms for features, now that we really know the base zoom
 		// and drop rate.
 
@@ -2626,43 +2625,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		struct drop_state ds[maxzoom + 1];
 		prep_drop_states(ds, maxzoom, basezoom, droprate);
 
-		if (drop_denser > 0) {
-			std::vector<drop_densest> ddv;
-			unsigned long long previndex = 0;
-
-			for (long long ip = 0; ip < indices; ip++) {
-				if (map[ip].t == VT_POINT ||
-				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
-				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
-					if (map[ip].ix % 100 < drop_denser) {
-						drop_densest dd;
-						dd.gap = map[ip].ix - previndex;
-						dd.seq = ip;
-						ddv.push_back(dd);
-
-						previndex = map[ip].ix;
-					} else {
-						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom);
-						geom[map[ip].end - 1] = feature_minzoom;
-					}
-				}
-			}
-
-			std::sort(ddv.begin(), ddv.end());
-
-			size_t i = 0;
-			for (int z = 0; z <= basezoom; z++) {
-				double keep_fraction = 1.0 / std::exp(std::log(droprate) * (basezoom - z));
-				size_t keep_count = ddv.size() * keep_fraction;
-
-				for (; i < keep_count && i < ddv.size(); i++) {
-					geom[map[ddv[i].seq].end - 1] = z;
-				}
-			}
-			for (; i < ddv.size(); i++) {
-				geom[map[ddv[i].seq].end - 1] = basezoom;
-			}
-		} else {
+		{
 			for (long long ip = 0; ip < indices; ip++) {
 				if (ip > 0 && map[ip].start != map[ip - 1].end) {
 					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
@@ -3024,7 +2987,6 @@ int main(int argc, char **argv) {
 		{"drop-rate", required_argument, 0, 'r'},
 		{"retain-points-multiplier", required_argument, 0, '~'},
 		{"base-zoom", required_argument, 0, 'B'},
-		{"drop-denser", required_argument, 0, '~'},
 		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
 		{"drop-lines", no_argument, &additional[A_LINE_DROP], 1},
 		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
@@ -3235,12 +3197,6 @@ int main(int argc, char **argv) {
 				limit_tile_feature_count = atoll_require(optarg, "Limit tile feature count");
 			} else if (strcmp(opt, "limit-tile-feature-count-at-maximum-zoom") == 0) {
 				limit_tile_feature_count_at_maxzoom = atoll_require(optarg, "Limit tile feature count at maxzoom");
-			} else if (strcmp(opt, "drop-denser") == 0) {
-				drop_denser = atoi_require(optarg, "Drop denser rate");
-				if (drop_denser > 100) {
-					fprintf(stderr, "%s: --drop-denser can be at most 100\n", argv[0]);
-					exit(EXIT_ARGS);
-				}
 			} else if (strcmp(opt, "preserve-point-density-threshold") == 0) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {

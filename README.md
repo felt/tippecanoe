@@ -459,8 +459,6 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
    You can also specify a marker-width with `-Bg`*width* to allow fewer features in the densest tile to
    compensate for the larger marker, or `-Bf`*number* to allow at most *number* features in the densest tile.
  * `--retain-points-multiplier=`_multiple_: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the `-m` option to `tippecanoe-overzoom`. The start of each cluster is marked in the feature sequence by the `tippecanoe:retain_points_multiplier_first` attribute.
- * `--drop-denser=`_percentage_: When dropping dots at zoom levels below the base zoom, give the specified _percentage_
-   preference to retaining points in sparse areas and dropping points in dense areas.
  * `--limit-base-zoom-to-maximum-zoom` or `-Pb`: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
  * `-al` or `--drop-lines`: Let "dot" dropping at lower zooms apply to lines too
  * `-ap` or `--drop-polygons`: Let "dot" dropping at lower zooms apply to polygons too
