@@ -3014,7 +3014,6 @@ int main(int argc, char **argv) {
 		{"empty-csv-columns-are-null", no_argument, &prevent[P_EMPTY_CSV_COLUMNS], 1},
 		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
 		{"use-attribute-for-id", required_argument, 0, '~'},
-		{"single-precision", no_argument, &prevent[P_SINGLE_PRECISION], 1},
 		{"set-attribute", required_argument, 0, '~'},
 
 		{"Filtering features by attributes", 0, 0, 0},
