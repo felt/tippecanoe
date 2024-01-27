@@ -30,7 +30,6 @@
 #define P_SIMPLIFY_SHARED_NODES ((int) 'n')
 #define P_FEATURE_LIMIT ((int) 'f')
 #define P_KILOBYTE_LIMIT ((int) 'k')
-#define P_DYNAMIC_DROP ((int) 'd')
 #define P_INPUT_ORDER ((int) 'i')
 #define P_POLYGON_SPLIT ((int) 'p')
 #define P_CLIPPING ((int) 'c')
