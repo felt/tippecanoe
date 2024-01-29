@@ -336,31 +336,40 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 			const char *key = layer.keys[feat.tags[t]].c_str();
 			mvt_value const &val = layer.values[feat.tags[t + 1]];
 
-			if (val.type == mvt_string) {
+			switch (val.type) {
+			case mvt_string:
 				state.json_write_string(key);
-				state.json_write_string(val.string_value);
-			} else if (val.type == mvt_int) {
+				state.json_write_string(val.get_string_value());
+				break;
+			case mvt_int:
 				state.json_write_string(key);
 				state.json_write_signed(val.numeric_value.int_value);
-			} else if (val.type == mvt_double) {
+				break;
+			case mvt_double:
 				state.json_write_string(key);
 				state.json_write_number(val.numeric_value.double_value);
-			} else if (val.type == mvt_float) {
+				break;
+			case mvt_float:
 				state.json_write_string(key);
 				state.json_write_number(val.numeric_value.float_value);
-			} else if (val.type == mvt_sint) {
+				break;
+			case mvt_sint:
 				state.json_write_string(key);
 				state.json_write_signed(val.numeric_value.sint_value);
-			} else if (val.type == mvt_uint) {
+				break;
+			case mvt_uint:
 				state.json_write_string(key);
 				state.json_write_unsigned(val.numeric_value.uint_value);
-			} else if (val.type == mvt_bool) {
+				break;
+			case mvt_bool:
 				state.json_write_string(key);
 				state.json_write_bool(val.numeric_value.bool_value);
-			} else if (val.type == mvt_null) {
+				break;
+			case mvt_null:
 				state.json_write_string(key);
 				state.json_write_null();
-			} else {
+				break;
+			default:
 				fprintf(stderr, "Internal error: property with unknown type\n");
 				exit(EXIT_IMPOSSIBLE);
 			}

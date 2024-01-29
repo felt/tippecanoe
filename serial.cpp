@@ -878,7 +878,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	return 1;
 }
 
-void coerce_value(std::string const &key, int &vt, std::string &val, std::map<std::string, int> const *attribute_types) {
+void coerce_value(std::string const &key, int &vt, std::string &val, std::unordered_map<std::string, int> const *attribute_types) {
 	auto a = (*attribute_types).find(key);
 	if (a != attribute_types->end()) {
 		if (a->second == mvt_string) {

@@ -3,9 +3,14 @@
 
 #include <sqlite3.h>
 #include <string>
-#include <map>
+#include <string_view>
+#include <unordered_map>
 #include <set>
 #include <vector>
+#include <optional>
+#include <memory>
+
+#include "errors.hpp"
 
 struct mvt_value;
 struct mvt_layer;
@@ -66,11 +71,14 @@ enum mvt_value_type {
 	mvt_sint,
 	mvt_bool,
 	mvt_null,
+
+	mvt_no_such_key,
 };
 
 struct mvt_value {
 	mvt_value_type type;
-	std::string string_value;
+	std::shared_ptr<std::string> s;
+
 	union {
 		float float_value;
 		double double_value;
@@ -79,15 +87,78 @@ struct mvt_value {
 		long long sint_value;
 		bool bool_value;
 		int null_value;
+		struct {
+			size_t off;
+			size_t len;
+		} string_value;
 	} numeric_value;
 
+	std::string get_string_value() const {
+		return std::string(*s, numeric_value.string_value.off, numeric_value.string_value.len);
+	}
+
+	std::string_view get_string_view() const {
+		return std::string_view(s->c_str() + numeric_value.string_value.off, numeric_value.string_value.len);
+	}
+
+	const char *c_str() const {
+		return s->c_str() + numeric_value.string_value.off;
+	}
+
+	void set_string_value(const std::string_view &val) {
+		if (s == nullptr) {
+			s = std::make_shared<std::string>();
+		}
+
+		type = mvt_string;
+		numeric_value.string_value.off = s->size();
+		numeric_value.string_value.len = val.size();
+		s->append(val);
+		s->push_back('\0');
+	}
+
 	bool operator<(const mvt_value &o) const;
+	bool operator==(const mvt_value &o) const;
 	std::string toString() const;
 
 	mvt_value() {
 		this->type = mvt_double;
-		this->string_value = "";
 		this->numeric_value.double_value = 0;
+	}
+};
+
+template <>
+struct std::hash<mvt_value> {
+	std::size_t operator()(const mvt_value &k) const {
+		switch (k.type) {
+		case mvt_string:
+			return std::hash<std::string_view>()(k.get_string_view());
+
+		case mvt_float:
+			return std::hash<float>()(k.numeric_value.float_value);
+
+		case mvt_double:
+			return std::hash<double>()(k.numeric_value.double_value);
+
+		case mvt_int:
+			return std::hash<long long>()(k.numeric_value.int_value);
+
+		case mvt_uint:
+			return std::hash<unsigned long long>()(k.numeric_value.uint_value);
+
+		case mvt_sint:
+			return std::hash<long long>()(k.numeric_value.sint_value);
+
+		case mvt_bool:
+			return std::hash<bool>()(k.numeric_value.bool_value);
+
+		case mvt_null:
+			return std::hash<int>()(k.numeric_value.null_value);
+
+		default:
+			fprintf(stderr, "mvt_value hash can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
 	}
 };
 
@@ -100,18 +171,18 @@ struct mvt_layer {
 	long long extent = 0;
 
 	// Add a key-value pair to a feature, using this layer's constant pool
-	void tag(mvt_feature &feature, std::string key, mvt_value value);
+	void tag(mvt_feature &feature, std::string const &key, mvt_value const &value);
 
 	// For tracking the key-value constants already used in this layer
-	std::map<std::string, size_t> key_map{};
-	std::map<mvt_value, size_t> value_map{};
+	std::unordered_map<std::string, size_t> key_map{};
+	std::unordered_map<mvt_value, size_t> value_map{};
 };
 
 struct mvt_tile {
 	std::vector<mvt_layer> layers{};
 
 	std::string encode();
-	bool decode(std::string &message, bool &was_compressed);
+	bool decode(const std::string &message, bool &was_compressed);
 };
 
 bool is_compressed(std::string const &data);
@@ -120,6 +191,7 @@ int compress(std::string const &input, std::string &output, bool gz);
 int dezig(unsigned n);
 
 mvt_value stringified_to_mvt_value(int type, const char *s);
+long long mvt_value_to_long_long(mvt_value const &v);
 
 bool is_integer(const char *s, long long *v);
 bool is_unsigned_integer(const char *s, unsigned long long *v);

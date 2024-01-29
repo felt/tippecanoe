@@ -1,12 +1,12 @@
 #include <string>
-#include <map>
+#include <unordered_map>
 #include "attribute.hpp"
 #include "errors.hpp"
 #include "serial.hpp"
 #include "jsonpull/jsonpull.h"
 #include "milo/dtoa_milo.h"
 
-void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, std::string name, std::string type) {
+void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribute_accum, std::string name, std::string type) {
 	attribute_op t;
 
 	if (type == "sum") {
@@ -31,7 +31,7 @@ void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, s
 	attribute_accum.insert(std::pair<std::string, attribute_op>(name, t));
 }
 
-void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, const char *arg, char **argv) {
+void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribute_accum, const char *arg, char **argv) {
 	if (*arg == '{') {
 		json_pull *jp = json_begin_string(arg);
 		json_object *o = json_read_tree(jp);
@@ -79,7 +79,7 @@ void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, c
 	set_attribute_accum(attribute_accum, name, type);
 }
 
-void preserve_attribute(attribute_op op, std::string &key, serial_val &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::map<std::string, accum_state> &attribute_accum_state) {
+void preserve_attribute(attribute_op op, std::string &key, serial_val &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
 	for (size_t i = 0; i < full_keys.size(); i++) {
 		if (key == full_keys[i]) {
 			switch (op) {

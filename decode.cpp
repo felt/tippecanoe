@@ -277,7 +277,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 	struct stat st;
 	std::vector<zxy> tiles;
 
-	char *pmtiles_map;
+	char *pmtiles_map = NULL;
 	std::vector<pmtiles::entry_zxy> entries;
 	bool is_pmtiles = false;
 

@@ -1,3 +1,5 @@
+* Performance optimizations to tile reading, writing, and overzooming
+
 # 2.41.2
 
 * Add --accumulate-attribute to tippecanoe-overzoom

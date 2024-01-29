@@ -17,7 +17,7 @@ int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 bool demultiply = false;
 std::string filter;
 bool preserve_input_order = false;
-std::map<std::string, attribute_op> attribute_accum;
+std::unordered_map<std::string, attribute_op> attribute_accum;
 
 std::set<std::string> keep;
 

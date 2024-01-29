@@ -8,6 +8,7 @@
 #include <stack>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <algorithm>
 #include <stdio.h>
@@ -216,7 +217,7 @@ void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> 
 		mvt_value key = retrieve_string(metakeys[i], stringpool, NULL);
 		mvt_value value = retrieve_string(metavals[i], stringpool, &otype);
 
-		layer.tag(feature, key.string_value, value);
+		layer.tag(feature, key.get_string_value(), value);
 	}
 }
 
@@ -226,9 +227,9 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
 		mvt_value key2 = retrieve_string(keys2[i], stringpool2, NULL);
 
-		if (key1.string_value < key2.string_value) {
+		if (key1.get_string_view() < key2.get_string_view()) {
 			return -1;
-		} else if (key1.string_value > key2.string_value) {
+		} else if (key1.get_string_view() > key2.get_string_view()) {
 			return 1;
 		}
 
@@ -258,7 +259,7 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-static mvt_value find_attribute_value(const struct coalesce *c1, std::string key) {
+static mvt_value find_attribute_value(const struct coalesce *c1, std::string const &key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -272,7 +273,7 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string key
 
 	for (size_t i = 0; i < keys1.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		if (key == key1.string_value) {
+		if (key == key1.get_string_value()) {
 			return retrieve_string(values1[i], stringpool1, NULL);
 		}
 	}
@@ -537,7 +538,7 @@ struct partial {
 	long long extent = 0;
 	long long clustered = 0;
 	std::set<std::string> need_tilestats;
-	std::map<std::string, accum_state> attribute_accum_state;
+	std::unordered_map<std::string, accum_state> attribute_accum_state;
 };
 
 struct partial_arg {
@@ -1404,7 +1405,7 @@ struct write_tile_args {
 	size_t feature_count_out = 0;
 	const char *prefilter = NULL;
 	const char *postfilter = NULL;
-	std::map<std::string, attribute_op> const *attribute_accum = NULL;
+	std::unordered_map<std::string, attribute_op> const *attribute_accum = NULL;
 	bool still_dropping = false;
 	int wrote_zoom = 0;
 	size_t tiling_seg = 0;
@@ -1593,7 +1594,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		}
 
 		if (filter != NULL) {
-			std::map<std::string, mvt_value> attributes;
+			std::unordered_map<std::string, mvt_value> attributes;
 			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
 			std::set<std::string> exclude_attributes;
 
@@ -1627,11 +1628,11 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			v.type = mvt_string;
 
 			if (sf.t == mvt_point) {
-				v.string_value = "Point";
+				v.set_string_value("Point");
 			} else if (sf.t == mvt_linestring) {
-				v.string_value = "LineString";
+				v.set_string_value("LineString");
 			} else if (sf.t == mvt_polygon) {
-				v.string_value = "Polygon";
+				v.set_string_value("Polygon");
 			}
 
 			attributes.insert(std::pair<std::string, mvt_value>("$type", v));
@@ -1846,7 +1847,7 @@ void promote_attribute(std::string const &key, partial &p, char *stringpool, lon
 	}
 }
 
-void preserve_attributes(std::map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, partial &p) {
+void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, partial &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
 		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
 
@@ -3117,7 +3118,7 @@ void *run_thread(void *vargs) {
 	return NULL;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.

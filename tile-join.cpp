@@ -140,7 +140,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			mvt_feature feat = layer.features[f];
 			std::set<std::string> exclude_attributes;
 
-			if (!evaluate(feat, layer, filter, exclude_attributes, z)) {
+			if (filter != NULL && !evaluate(feat, layer, filter, exclude_attributes, z)) {
 				continue;
 			}
 
@@ -197,7 +197,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								mvt_value outval;
 								if (attr_type == mvt_string) {
 									outval.type = mvt_string;
-									outval.string_value = joinval;
+									outval.set_string_value(joinval);
 								} else {
 									outval.type = mvt_double;
 									outval.numeric_value.double_value = atof(joinval.c_str());
@@ -688,8 +688,8 @@ struct tileset_reader {
 			perror("pthread_mutex_lock");
 		}
 
-		std::function<mvt_tile(zxy)> getter = [&](zxy tile) {
-			return get_tile(tile);
+		std::function<mvt_tile(zxy)> getter = [&](zxy tileno) {
+			return get_tile(tileno);
 		};
 
 		mvt_tile source = cache.get(parent_tile, getter);
@@ -699,7 +699,7 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::map<std::string, attribute_op>());
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>());
 			return ret;
 		}
 
