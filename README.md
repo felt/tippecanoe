@@ -34,7 +34,9 @@ Installation
 
 The easiest way to install tippecanoe on OSX is with [Homebrew](http://brew.sh/):
 
+```sh
 $ brew install tippecanoe
+```
 
 On Ubuntu it will usually be easiest to build from the source repository:
 
