@@ -1,4 +1,7 @@
+# 2.41.3
+
 * Performance optimizations to tile reading, writing, and overzooming
+* Automatically vary the tile size limit by zoom level to match the intended retain-points-multiplier multiplication
 
 # 2.41.2
 
