@@ -3008,6 +3008,7 @@ struct task {
 void *run_thread(void *vargs) {
 	write_tile_args *arg = (write_tile_args *) vargs;
 	struct task *task;
+	int *err_or_null = NULL;
 
 	for (task = arg->tasks; task != NULL; task = task->next) {
 		int j = task->fileno;
@@ -3071,12 +3072,6 @@ void *run_thread(void *vargs) {
 
 			long long len = write_tile(&dc, &geompos, arg->stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
 
-			if (len < 0) {
-				int *err = &arg->err;
-				*err = z - 1;
-				return err;
-			}
-
 			if (pthread_mutex_lock(&var_lock) != 0) {
 				perror("pthread_mutex_lock");
 				exit(EXIT_PTHREAD);
@@ -3106,6 +3101,12 @@ void *run_thread(void *vargs) {
 				perror("pthread_mutex_unlock");
 				exit(EXIT_PTHREAD);
 			}
+
+			if (len < 0) {
+				err_or_null = &arg->err;
+				*err_or_null = z - 1;
+                break;
+			}
 		}
 
 		if (arg->pass == 1) {
@@ -3131,7 +3132,7 @@ void *run_thread(void *vargs) {
 	}
 
 	arg->running--;
-	return NULL;
+	return err_or_null;
 }
 
 int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
