@@ -1358,9 +1358,15 @@ unsigned long long choose_mingap(std::vector<unsigned long long> const &indices,
 	return top;
 }
 
-long long choose_minextent(std::vector<long long> &extents, double f) {
+long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
 	std::sort(extents.begin(), extents.end());
-	return extents[(extents.size() - 1) * (1 - f)];
+	size_t off = (extents.size() - 1) * (1 - f);
+
+	while (off + 1 < extents.size() && extents[off] == existing_extent) {
+		off++;
+	}
+
+	return extents[off];
 }
 
 struct write_tile_args {
@@ -2833,7 +2839,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * max_tile_features / totalsize * 0.75;
-					long long m = choose_minextent(extents, minextent_fraction);
+					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m != minextent) {
 						minextent = m;
 						if (minextent > arg->minextent_out) {
@@ -2941,7 +2947,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
-					long long m = choose_minextent(extents, minextent_fraction);
+					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m != minextent) {
 						minextent = m;
 						if (minextent > arg->minextent_out) {
