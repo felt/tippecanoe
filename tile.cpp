@@ -361,7 +361,7 @@ std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coal
 				}
 			}
 
-			if (is_cluster_start) {
+			if (is_cluster_start || clusters.size() == 0) {
 				clusters.push_back(std::vector<coalesce>());
 			}
 
@@ -3105,7 +3105,7 @@ void *run_thread(void *vargs) {
 			if (len < 0) {
 				err_or_null = &arg->err;
 				*err_or_null = z - 1;
-                break;
+				break;
 			}
 		}
 
