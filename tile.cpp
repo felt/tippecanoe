@@ -1358,15 +1358,45 @@ unsigned long long choose_mingap(std::vector<unsigned long long> const &indices,
 	return top;
 }
 
+// This function is called to choose the new "extent" threshold to try when a tile exceeds the
+// tile size limit or feature limit and `--drop-smallest-as-needed` or `--coalesce-smallest-as-needed`
+// has been set.
+//
+// The "extents" are the areas of the polygon features or the pseudo-areas associated with the
+// linestring or point features that were examined for inclusion in the most recent
+// iteration of this tile. (This includes features that were dropped because they were below
+// the previous size threshold, but not features that were dropped by fractional point dropping).
+// The extents are placed in order by the sort, from smallest to largest.
+//
+// The `fraction` is the proportion of these features that tippecanoe thinks should be retained to
+// to make the tile small enough now. Because the extents are sorted from smallest to largest,
+// the smallest extent threshold that will retain that fraction of features is found `fraction`
+// distance from the end of the list, or at element `(1 - fraction) * (size() - 1)`.
+//
+// However, the extent found there may be the same extent that was used in the last iteration!
+//
+// (The "existing_extent" is the extent threshold that selected these features in the recent
+// iteration. It is 0 the first time a tile is attempted, and gets higher on successive iterations
+// as tippecanoe restricts the features to be kept to larger and larger features.)
+//
+// The features that are kept are those with a size >= the existing_extent, so if there are a large
+// number of features with identical small areas, the new guess may not exclude enough features
+// to actually choose a new threshold larger than the previous threshold.
+//
+// To address this, the array index `ix` of the new chosen extent is incremented toward the end
+// of the list, until the possibilities run out or something higher than the old extent is found.
+// If there are no higher extents available, the tile has already been reduced as much as possible
+// and tippecanoe will exit with an error.
+
 long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
 	std::sort(extents.begin(), extents.end());
-	size_t off = (extents.size() - 1) * (1 - f);
 
-	while (off + 1 < extents.size() && extents[off] == existing_extent) {
-		off++;
+	size_t ix = (extents.size() - 1) * (1 - f);
+	while (ix + 1 < extents.size() && extents[ix] == existing_extent) {
+		ix++;
 	}
 
-	return extents[off];
+	return extents[ix];
 }
 
 struct write_tile_args {
