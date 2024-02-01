@@ -7,6 +7,7 @@
 #include "milo/dtoa_milo.h"
 #include "main.hpp"
 #include "errors.hpp"
+#include "thread.hpp"
 
 static constexpr uint8_t magicbytes[8] = { 0x66, 0x67, 0x62, 0x03, 0x66, 0x67, 0x62, 0x01 };
 
@@ -303,7 +304,7 @@ void fgbRunQueue() {
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, fgb_run_parse_feature, &qra[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, fgb_run_parse_feature, &qra[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}

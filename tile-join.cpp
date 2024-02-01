@@ -42,6 +42,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "geometry.hpp"
+#include "thread.hpp"
 
 int pk = false;
 int pC = false;
@@ -812,7 +813,7 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}

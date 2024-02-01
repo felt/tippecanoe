@@ -25,6 +25,7 @@
 #include "geometry.hpp"
 #include "serial.hpp"
 #include "errors.hpp"
+#include "thread.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -643,7 +644,7 @@ std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> 
 	wa.extent = extent;
 
 	pthread_t writer;
-	if (pthread_create(&writer, NULL, run_writer, &wa) != 0) {
+	if (thread_create(&writer, NULL, run_writer, &wa) != 0) {
 		perror("pthread_create (filter writer)");
 		exit(EXIT_PTHREAD);
 	}

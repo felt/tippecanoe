@@ -45,6 +45,7 @@
 #include "compression.hpp"
 #include "protozero/varint.hpp"
 #include "attribute.hpp"
+#include "thread.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -2152,7 +2153,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.first_time = first_time;
 			rpa.compressed = compressed_input;
 
-			if (pthread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
+			if (thread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
 				perror("pthread_create (prefilter writer)");
 				exit(EXIT_PTHREAD);
 			}
@@ -2561,7 +2562,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			args[i].nodepos = nodepos;
 
 			if (tasks > 1) {
-				if (pthread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
+				if (thread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
 					perror("pthread_create");
 					exit(EXIT_PTHREAD);
 				}
@@ -3381,7 +3382,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				args[thread].shared_nodes_map = shared_nodes_map;
 				args[thread].nodepos = nodepos;
 
-				if (pthread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
+				if (thread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
 					perror("pthread_create");
 					exit(EXIT_PTHREAD);
 				}

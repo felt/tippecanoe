@@ -67,6 +67,7 @@
 #include "read_json.hpp"
 #include "sort.hpp"
 #include "attribute.hpp"
+#include "thread.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -518,7 +519,7 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, run_parse_json, &pja[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, run_parse_json, &pja[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}
@@ -735,7 +736,7 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	rpa->want_dist = want_dist;
 	rpa->filters = filters;
 
-	if (pthread_create(parallel_parser, NULL, run_read_parallel, rpa) != 0) {
+	if (thread_create(parallel_parser, NULL, run_read_parallel, rpa) != 0) {
 		perror("pthread_create");
 		exit(EXIT_PTHREAD);
 	}
@@ -931,7 +932,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				}
 
 				for (size_t a = 0; a < CPUS; a++) {
-					if (pthread_create(&pthreads[a], NULL, run_sort, &args[a]) != 0) {
+					if (thread_create(&pthreads[a], NULL, run_sort, &args[a]) != 0) {
 						perror("pthread_create");
 						exit(EXIT_PTHREAD);
 					}

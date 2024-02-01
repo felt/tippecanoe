@@ -15,6 +15,7 @@
 #include "jsonpull/jsonpull.h"
 #include "text.hpp"
 #include "errors.hpp"
+#include "thread.hpp"
 
 #define POINT 0
 #define MULTIPOINT 1
@@ -465,7 +466,7 @@ void runQueue() {
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, run_parse_feature, &qra[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, run_parse_feature, &qra[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}
