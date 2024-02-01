@@ -200,33 +200,32 @@ int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2) {
 	return cmp;
 }
 
-mvt_value retrieve_string(long long off, const char *stringpool, int *otype) {
+mvt_value retrieve_string(long long off, const char *stringpool) {
 	int type = stringpool[off];
 	const char *s = stringpool + off + 1;
 
-	if (otype != NULL) {
-		*otype = type;
-	}
-
 	return stringified_to_mvt_value(type, s);
+}
+
+std::string retrieve_std_string(long long off, const char *stringpool) {
+	return std::string(stringpool + off + 1);
 }
 
 void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature) {
 	size_t i;
 	for (i = 0; i < metakeys.size(); i++) {
-		int otype;
-		mvt_value key = retrieve_string(metakeys[i], stringpool, NULL);
-		mvt_value value = retrieve_string(metavals[i], stringpool, &otype);
+		std::string key = retrieve_std_string(metakeys[i], stringpool);
+		mvt_value value = retrieve_string(metavals[i], stringpool);
 
-		layer.tag(feature, key.get_string_value(), value);
+		layer.tag(feature, key, value);
 	}
 }
 
 static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2) {
 	size_t i;
 	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		mvt_value key2 = retrieve_string(keys2[i], stringpool2, NULL);
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1);
+		mvt_value key2 = retrieve_string(keys2[i], stringpool2);
 
 		if (key1.get_string_view() < key2.get_string_view()) {
 			return -1;
@@ -273,9 +272,9 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string con
 	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1);
 		if (key == key1.get_string_value()) {
-			return retrieve_string(values1[i], stringpool1, NULL);
+			return retrieve_string(values1[i], stringpool1);
 		}
 	}
 
