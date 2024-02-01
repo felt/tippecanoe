@@ -1,4 +1,4 @@
-FROM centos:7
+FROM centos:centos8
 
 RUN yum install -y make sqlite-devel zlib-devel bash git gcc-c++
 
