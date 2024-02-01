@@ -930,10 +930,17 @@ void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string co
 
 	auto pt = std::lower_bound(tsa->second.sample_values.begin(), tsa->second.sample_values.end(), val);
 	if (pt == tsa->second.sample_values.end() || *pt != val) {  // not found
-		tsa->second.sample_values.insert(pt, val);
-
-		if (tsa->second.sample_values.size() > max_tilestats_sample_values) {
-			tsa->second.sample_values.pop_back();
+		if (tsa->second.sample_values.size() >= max_tilestats_sample_values) {
+			if (pt == tsa->second.sample_values.end()) {
+				// insertion point would be at the end,
+				// and the list is already full, so do nothing
+			} else {
+				// bump the former last value, insert this one
+				tsa->second.sample_values.insert(pt, val);
+				tsa->second.sample_values.pop_back();
+			}
+		} else {
+			tsa->second.sample_values.insert(pt, val);
 		}
 	}
 
