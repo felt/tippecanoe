@@ -1336,7 +1336,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		// To distinguish a null value
 		{
 			struct stringpool p;
-			memfile_write(r->treefile, &p, sizeof(struct stringpool));
+			bool in_memory;
+			memfile_write(r->treefile, &p, sizeof(struct stringpool), in_memory);
 		}
 
 		r->file_bbox[0] = r->file_bbox[1] = UINT_MAX;

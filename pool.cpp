@@ -64,13 +64,19 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 			// the pool is full yet.
 
 			long long off = poolfile->off;
-			if (memfile_write(poolfile, &type, 1) < 0) {
+			bool in_memory = false;
+
+			if (memfile_write(poolfile, &type, 1, in_memory) < 0) {
 				perror("memfile write");
 				exit(EXIT_WRITE);
 			}
-			if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+			if (memfile_write(poolfile, (void *) s, strlen(s) + 1, in_memory) < 0) {
 				perror("memfile write");
 				exit(EXIT_WRITE);
+			}
+
+			if (in_memory) {
+				dedup[hash_off] = off;
 			}
 			return off;
 		}
@@ -94,11 +100,12 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 		// to the newly-added strings.
 
 		long long off = poolfile->off;
-		if (memfile_write(poolfile, &type, 1) < 0) {
+		bool in_memory;
+		if (memfile_write(poolfile, &type, 1, in_memory) < 0) {
 			perror("memfile write");
 			exit(EXIT_WRITE);
 		}
-		if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+		if (memfile_write(poolfile, (void *) s, strlen(s) + 1, in_memory) < 0) {
 			perror("memfile write");
 			exit(EXIT_WRITE);
 		}
@@ -114,13 +121,17 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	}
 
 	long long off = poolfile->off;
-	if (memfile_write(poolfile, &type, 1) < 0) {
+	bool in_memory = false;
+	if (memfile_write(poolfile, &type, 1, in_memory) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
 	}
-	if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+	if (memfile_write(poolfile, (void *) s, strlen(s) + 1, in_memory) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
+	}
+	if (in_memory) {
+		dedup[hash_off] = off;
 	}
 
 	if (off >= LONG_MAX || treefile->off >= LONG_MAX) {
@@ -139,7 +150,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	tsp.off = off;
 
 	long long p = treefile->off;
-	if (memfile_write(treefile, &tsp, sizeof(struct stringpool)) < 0) {
+	if (memfile_write(treefile, &tsp, sizeof(struct stringpool), in_memory) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
 	}
