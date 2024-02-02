@@ -9,14 +9,13 @@
 #include "errors.hpp"
 #include "text.hpp"
 
-int swizzlecmp(const char *a, const char *b) {
-	unsigned long long h1 = fnv1a(a, 0);
-	unsigned long long h2 = fnv1a(b, 0);
+int swizzlecmp(const char *a, unsigned long long ahash, const char *b, int btype) {
+	unsigned long long bhash = fnv1a(b, btype);
 
-	if (h1 == h2) {
+	if (ahash == bhash) {
 		return strcmp(a, b);
 	} else {
-		return h1 - h2;
+		return (int) ahash - (int) bhash;
 	}
 }
 
@@ -44,11 +43,9 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	}
 
 	while (*sp != 0) {
-		int cmp = swizzlecmp(s, poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1);
-
-		if (cmp == 0) {
-			cmp = type - (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0];
-		}
+		int cmp = swizzlecmp(s, hash,
+				     poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1,
+				     (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0]);
 
 		if (cmp < 0) {
 			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->left);
