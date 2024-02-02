@@ -66,6 +66,8 @@ extern "C" {
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 
+bool clip_to_tile(serial_feature &sf, int z, long long buffer, bool check_bbox);
+
 std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	std::vector<mvt_geometry> out;
 
@@ -442,10 +444,10 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 			sx = tx << (32 - z);
 			sy = ty << (32 - z);
 		}
-
 		drawvec geom2;
+		geom2.reserve(geom.size());
 		for (size_t i = 0; i < geom.size(); i++) {
-			geom2.push_back(draw(geom[i].op, SHIFT_RIGHT(geom[i].x + sx), SHIFT_RIGHT(geom[i].y + sy)));
+			geom2.push_back(draw(geom[i].op, geom[i].x + sx, geom[i].y + sy));
 		}
 
 		for (xo = bbox2[0]; xo <= bbox2[2]; xo++) {
@@ -474,14 +476,6 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					(child_shards - 1);
 
 				{
-					if (!within[j]) {
-						serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
-						serialize_uint(geomfile[j]->fp, tx * span + xo, &geompos[j], fname);
-						serialize_uint(geomfile[j]->fp, ty * span + yo, &geompos[j], fname);
-						geomfile[j]->begin();
-						within[j] = 1;
-					}
-
 					serial_feature sf;
 					sf.layer = layer;
 					sf.segment = segment;
@@ -493,20 +487,47 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					sf.tippecanoe_minzoom = tippecanoe_minzoom;
 					sf.has_tippecanoe_maxzoom = tippecanoe_maxzoom != -1;
 					sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
-					sf.geometry = geom2;
 					sf.index = index;
 					sf.label_point = label_point;
 					sf.extent = extent;
 					sf.feature_minzoom = feature_minzoom;
 
-					for (size_t i = 0; i < metakeys.size(); i++) {
-						sf.keys.push_back(metakeys[i]);
-						sf.values.push_back(metavals[i]);
+					// clip_to_tile unscaled but tile-relative coordinates
+					sf.geometry = geom2;
+					for (auto &g : sf.geometry) {
+						g.x -= jx << (32 - nextzoom);
+						g.y -= jy << (32 - nextzoom);
 					}
 
-					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
-					geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
-					geomfile[j]->fwrite_check(feature.c_str(), sizeof(char), feature.size(), &geompos[j], fname);
+					// printf("%d/%d/%d: %lld,%lld <==\n", nextzoom, jx, jy, sf.geometry[0].x, sf.geometry[0].y);
+
+					clip_to_tile(sf, nextzoom, buffer, false);
+                    if (sf.geometry.size() > 0) {
+						// serialize_feature wants world coordinates, downscaled
+						for (auto &g : sf.geometry) {
+							g.x = SHIFT_RIGHT(g.x + (jx << (32 - nextzoom)));
+							g.y = SHIFT_RIGHT(g.y + (jy << (32 - nextzoom)));
+						}
+
+						for (size_t i = 0; i < metakeys.size(); i++) {
+							sf.keys.push_back(metakeys[i]);
+							sf.values.push_back(metavals[i]);
+						}
+
+						std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
+						if (!within[j]) {
+							serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
+							serialize_uint(geomfile[j]->fp, jx, &geompos[j], fname);
+							serialize_uint(geomfile[j]->fp, jy, &geompos[j], fname);
+							geomfile[j]->begin();
+							within[j] = 1;
+						}
+
+						geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
+						geomfile[j]->fwrite_check(feature.c_str(), sizeof(char), feature.size(), &geompos[j], fname);
+					} else {
+                        printf("clipped away\n");
+                    }
 				}
 			}
 		}
@@ -1460,8 +1481,13 @@ struct write_tile_args {
 	size_t nodepos;
 };
 
-bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
-	int quick = quick_check(sf.bbox, z, buffer);
+// return true if the feature is entirely outside the tile
+// returns false if it has some presence in the tile
+bool clip_to_tile(serial_feature &sf, int z, long long buffer, bool check_bbox) {
+	int quick = 2;	// must actually clip
+	if (check_bbox) {
+		quick = quick_check(sf.bbox, z, buffer);
+	}
 
 	if (z == 0) {
 		if (sf.bbox[0] <= (1LL << 32) * buffer / 256 || sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
@@ -1538,7 +1564,7 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 				// sf.geometry is unchanged
 			}
 		} else {
-			sf.geometry = clipped;
+			sf.geometry = std::move(clipped);
 		}
 	}
 
@@ -1610,7 +1636,10 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		(*original_features)++;
 
-		if (clip_to_tile(sf, z, buffer)) {
+		// printf("%d/%d/%d: %lld,%lld\n", z, tx, ty, sf.geometry[0].x, sf.geometry[0].y);
+
+		if (clip_to_tile(sf, z, buffer, true)) {
+			printf("clipped away in %d\n", z);
 			continue;
 		}
 
