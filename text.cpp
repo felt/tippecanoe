@@ -198,6 +198,7 @@ unsigned long long fnv1a(std::string const &s) {
 	return h;
 }
 
+// The "additional" is to make it easier to hash a serial_val attribute value and type together
 unsigned long long fnv1a(const char *s, char additional) {
 	// http://www.isthe.com/chongo/tech/comp/fnv/
 	const unsigned long long fnv_offset_basis = 14695981039346656037u;
