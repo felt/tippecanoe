@@ -15,7 +15,6 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "serial.hpp"
-#include "text.hpp"
 
 mvt_geometry::mvt_geometry(int nop, long long nx, long long ny) {
 	this->op = nop;
@@ -593,25 +592,41 @@ std::string mvt_value::toString() const {
 }
 
 void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
-	size_t key_hash = std::hash<std::string>()(key) % dedup.size();
-	if (dedup[key_hash] >= 0 &&
-	    dedup[key_hash] < (ssize_t) keys.size() &&
-	    keys[dedup[key_hash]] == key) {
-	} else {
-		dedup[key_hash] = keys.size();
-		keys.push_back(key);
-	}
-	feature.tags.push_back(dedup[key_hash]);
+	size_t ko, vo;
 
-	size_t value_hash = std::hash<mvt_value>()(value) % dedup.size();
-	if (dedup[value_hash] >= 0 &&
-	    dedup[value_hash] < (ssize_t) values.size() &&
-	    values[dedup[value_hash]] == value) {
-	} else {
-		dedup[value_hash] = values.size();
-		values.push_back(value);
+	// initialize lazily the first time anyone tags an attribute
+	// to save the time of doing it in decode, which never actually matters.
+	// only tile writers actually need this.
+	if (key_map.size() == 0) {
+		for (size_t i = 0; i < keys.size(); i++) {
+			key_map.emplace(keys[i], i);
+		}
+		for (size_t i = 0; i < values.size(); i++) {
+			value_map.emplace(values[i], i);
+		}
 	}
-	feature.tags.push_back(dedup[value_hash]);
+
+	std::unordered_map<std::string, size_t>::iterator ki = key_map.find(key);
+	std::unordered_map<mvt_value, size_t>::iterator vi = value_map.find(value);
+
+	if (ki == key_map.end()) {
+		ko = keys.size();
+		keys.push_back(key);
+		key_map.emplace(key, ko);
+	} else {
+		ko = ki->second;
+	}
+
+	if (vi == value_map.end()) {
+		vo = values.size();
+		values.push_back(value);
+		value_map.emplace(value, vo);
+	} else {
+		vo = vi->second;
+	}
+
+	feature.tags.push_back(ko);
+	feature.tags.push_back(vo);
 }
 
 bool is_integer(const char *s, long long *v) {
