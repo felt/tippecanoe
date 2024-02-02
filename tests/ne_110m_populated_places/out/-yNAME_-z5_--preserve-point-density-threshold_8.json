@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME_-z5_--preserve-point-density-threshold_8.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":221},{\"dropped_by_rate\":213},{\"dropped_by_rate\":148},{\"dropped_by_rate\":73},{\"dropped_by_rate\":26},{}]",
+"strategies": "[{\"dropped_by_rate\":221},{\"dropped_by_rate\":211},{\"dropped_by_rate\":148},{\"dropped_by_rate\":73},{\"dropped_by_rate\":26},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

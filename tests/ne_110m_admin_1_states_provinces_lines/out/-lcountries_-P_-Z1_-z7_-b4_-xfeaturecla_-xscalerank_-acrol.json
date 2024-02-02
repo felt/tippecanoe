@@ -9,7 +9,7 @@
 "maxzoom": "7",
 "minzoom": "1",
 "name": "tests/ne_110m_admin_1_states_provinces_lines/out/-lcountries_-P_-Z1_-z7_-b4_-xfeaturecla_-xscalerank_-acrol.json.check.mbtiles",
-"strategies": "[{},{\"dropped_by_rate\":109},{\"dropped_by_rate\":125},{\"dropped_by_rate\":139},{\"dropped_by_rate\":125},{\"dropped_by_rate\":121},{\"dropped_by_rate\":95},{}]",
+"strategies": "[{},{\"dropped_by_rate\":109},{\"dropped_by_rate\":125},{\"dropped_by_rate\":139},{\"dropped_by_rate\":125},{\"dropped_by_rate\":121},{\"dropped_by_rate\":94},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
