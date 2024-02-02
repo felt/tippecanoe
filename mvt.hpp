@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "errors.hpp"
+#include "text.hpp"
 
 struct mvt_value;
 struct mvt_layer;
@@ -132,7 +133,7 @@ struct std::hash<mvt_value> {
 	std::size_t operator()(const mvt_value &k) const {
 		switch (k.type) {
 		case mvt_string:
-			return std::hash<std::string_view>()(k.get_string_view());
+			return fnv1a(k.c_str(), 0);
 
 		case mvt_float:
 			return std::hash<float>()(k.numeric_value.float_value);
