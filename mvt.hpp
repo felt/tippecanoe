@@ -136,25 +136,25 @@ struct std::hash<mvt_value> {
 			return fnv1a(k.c_str(), 0);
 
 		case mvt_float:
-			return std::hash<float>()(k.numeric_value.float_value);
+			return fnv1a(sizeof(float), (void *) &k.numeric_value.float_value);
 
 		case mvt_double:
-			return std::hash<double>()(k.numeric_value.double_value);
+			return fnv1a(sizeof(double), (void *) &k.numeric_value.double_value);
 
 		case mvt_int:
-			return std::hash<long long>()(k.numeric_value.int_value);
+			return fnv1a(sizeof(long long), (void *) &k.numeric_value.int_value);
 
 		case mvt_uint:
-			return std::hash<unsigned long long>()(k.numeric_value.uint_value);
+			return fnv1a(sizeof(unsigned long long), (void *) &k.numeric_value.uint_value);
 
 		case mvt_sint:
-			return std::hash<long long>()(k.numeric_value.sint_value);
+			return fnv1a(sizeof(long long), (void *) &k.numeric_value.sint_value);
 
 		case mvt_bool:
-			return std::hash<bool>()(k.numeric_value.bool_value);
+			return fnv1a(sizeof(bool), (void *) &k.numeric_value.bool_value);
 
 		case mvt_null:
-			return std::hash<int>()(k.numeric_value.null_value);
+			return fnv1a(sizeof(int), (void *) &k.numeric_value.null_value);
 
 		default:
 			fprintf(stderr, "mvt_value hash can't happen\n");
