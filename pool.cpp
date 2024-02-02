@@ -9,11 +9,13 @@
 #include "errors.hpp"
 #include "text.hpp"
 
-int swizzlecmp(const char *a, unsigned long long ahash, const char *b, int btype) {
-	unsigned long long bhash = fnv1a(b, btype);
-
+inline int swizzlecmp(const char *a, int atype, unsigned long long ahash, const char *b, int btype, unsigned long long bhash) {
 	if (ahash == bhash) {
-		return strcmp(a, b);
+		if (atype == btype) {
+			return strcmp(a, b);
+		} else {
+			return atype - btype;
+		}
 	} else {
 		return (int) ahash - (int) bhash;
 	}
@@ -43,9 +45,10 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	}
 
 	while (*sp != 0) {
-		int cmp = swizzlecmp(s, hash,
+		int cmp = swizzlecmp(s, type, hash,
 				     poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1,
-				     (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0]);
+				     (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0],
+				     ((struct stringpool *) (treefile->map.c_str() + *sp))->hash);
 
 		if (cmp < 0) {
 			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->left);
@@ -148,6 +151,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	tsp.left = 0;
 	tsp.right = 0;
 	tsp.off = off;
+	tsp.hash = hash;
 
 	long long p = treefile->off;
 	if (memfile_write(treefile, &tsp, sizeof(struct stringpool), in_memory) < 0) {
