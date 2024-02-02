@@ -690,8 +690,9 @@ bool is_unsigned_integer(const char *s, unsigned long long *v) {
 // the type (int, uint, sint, float, or double) that will give the
 // smallest representation in the tile without losing precision,
 // regardless of how the value was represented in the original source.
-mvt_value stringified_to_mvt_value(int type, const char *s) {
+mvt_value stringified_to_mvt_value(int type, const char *s, std::shared_ptr<std::string> const &tile_stringpool) {
 	mvt_value tv;
+	tv.s = tile_stringpool;
 
 	switch (type) {
 	case mvt_double: {

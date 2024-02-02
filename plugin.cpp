@@ -88,6 +88,7 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 // Reads from the postfilter
 std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, int extent) {
 	std::map<std::string, mvt_layer> ret;
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	FILE *f = fdopen(fd, "r");
 	if (f == NULL) {
@@ -272,7 +273,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 				// and it is nearly time to create the vector representation
 
 				if (tp >= 0 && tp != mvt_null) {
-					mvt_value v = stringified_to_mvt_value(tp, s.c_str());
+					mvt_value v = stringified_to_mvt_value(tp, s.c_str(), tile_stringpool);
 					l->second.tag(feature, std::string(properties->value.object.keys[i]->value.string.string), v);
 
 					serial_val attrib;

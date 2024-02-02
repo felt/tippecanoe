@@ -86,6 +86,8 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		exit(EXIT_MVT);
 	}
 
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
+
 	for (size_t l = 0; l < tile.layers.size(); l++) {
 		mvt_layer &layer = tile.layers[l];
 
@@ -214,7 +216,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								outsv.s = joinval;
 
 								// Convert from double to int if the joined attribute is an integer
-								outval = stringified_to_mvt_value(outval.type, joinval.c_str());
+								outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
 
 								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
 								key_order.push_back(joinkey);

@@ -10,6 +10,7 @@
 #include <map>
 #include <unordered_map>
 #include <set>
+#include <memory>
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,8 +86,8 @@ bool draws_something(drawvec &geom) {
 	return false;
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2);
-int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2);
+static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool);
+int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2, std::shared_ptr<std::string> const &tile_stringpool);
 
 struct coalesce {
 	char *stringpool = NULL;
@@ -103,9 +104,10 @@ struct coalesce {
 	bool has_id = false;
 	unsigned long long id = 0;
 	long long extent = 0;
+	std::shared_ptr<std::string> tile_stringpool;
 
 	bool operator<(const coalesce &o) const {
-		int cmp = coalindexcmp(this, &o);
+		int cmp = coalindexcmp(this, &o, tile_stringpool);
 		if (cmp < 0) {
 			return true;
 		} else {
@@ -124,7 +126,7 @@ static struct preservecmp {
 	}
 } preservecmp;
 
-int coalcmp(const void *v1, const void *v2) {
+int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
 	const struct coalesce *c1 = (const struct coalesce *) v1;
 	const struct coalesce *c2 = (const struct coalesce *) v2;
 
@@ -146,7 +148,7 @@ int coalcmp(const void *v1, const void *v2) {
 		}
 	}
 
-	cmp = metacmp(c1->keys, c1->values, c1->stringpool, c2->keys, c2->values, c2->stringpool);
+	cmp = metacmp(c1->keys, c1->values, c1->stringpool, c2->keys, c2->values, c2->stringpool, tile_stringpool);
 	if (cmp != 0) {
 		return cmp;
 	}
@@ -180,8 +182,8 @@ int coalcmp(const void *v1, const void *v2) {
 	return 0;
 }
 
-int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2) {
-	int cmp = coalcmp((const void *) c1, (const void *) c2);
+int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2, std::shared_ptr<std::string> const &tile_stringpool) {
+	int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
 
 	if (cmp == 0) {
 		if (c1->index < c2->index) {
@@ -200,32 +202,32 @@ int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2) {
 	return cmp;
 }
 
-mvt_value retrieve_string(long long off, const char *stringpool) {
+mvt_value retrieve_string(long long off, const char *stringpool, std::shared_ptr<std::string> const &tile_stringpool) {
 	int type = stringpool[off];
 	const char *s = stringpool + off + 1;
 
-	return stringified_to_mvt_value(type, s);
+	return stringified_to_mvt_value(type, s, tile_stringpool);
 }
 
 std::string retrieve_std_string(long long off, const char *stringpool) {
 	return std::string(stringpool + off + 1);
 }
 
-void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature) {
+void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature, std::shared_ptr<std::string> const &tile_stringpool) {
 	size_t i;
 	for (i = 0; i < metakeys.size(); i++) {
 		std::string key = retrieve_std_string(metakeys[i], stringpool);
-		mvt_value value = retrieve_string(metavals[i], stringpool);
+		mvt_value value = retrieve_string(metavals[i], stringpool, tile_stringpool);
 
 		layer.tag(feature, key, value);
 	}
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2) {
+static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool) {
 	size_t i;
 	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1);
-		mvt_value key2 = retrieve_string(keys2[i], stringpool2);
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1, tile_stringpool);
+		mvt_value key2 = retrieve_string(keys2[i], stringpool2, tile_stringpool);
 
 		if (key1.get_string_view() < key2.get_string_view()) {
 			return -1;
@@ -259,7 +261,7 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-static mvt_value find_attribute_value(const struct coalesce *c1, std::string const &key) {
+static mvt_value find_attribute_value(const struct coalesce *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -272,15 +274,15 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string con
 	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1);
+		mvt_value key1 = retrieve_string(keys1[i], stringpool1, tile_stringpool);
 		if (key == key1.get_string_value()) {
-			return retrieve_string(values1[i], stringpool1);
+			return retrieve_string(values1[i], stringpool1, tile_stringpool);
 		}
 	}
 
 	for (size_t i = 0; i < c1->full_keys.size(); i++) {
 		if (c1->full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
+			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str(), tile_stringpool);
 		}
 	}
 
@@ -309,14 +311,16 @@ static mvt_value coerce_double(mvt_value v) {
 }
 
 struct ordercmp {
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
+
 	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
 		return operator()(a[0], b[0]);
 	}
 
 	bool operator()(const struct coalesce &a, const struct coalesce &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
-			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
-			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
+			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, tile_stringpool));
+			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, tile_stringpool));
 
 			if (order_by[i].descending) {
 				if (v2 < v1) {
@@ -339,7 +343,7 @@ struct ordercmp {
 
 		return false;  // greater than or equal
 	}
-} ordercmp;
+};
 
 std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> &features) {
 	std::vector<std::vector<coalesce>> clusters;
@@ -1563,7 +1567,7 @@ struct multiplier_state {
 	std::map<std::string, size_t> count;
 };
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state) {
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1643,13 +1647,13 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 				sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
 				sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
 
-				mvt_value val = stringified_to_mvt_value(sv.type, sv.s.c_str());
+				mvt_value val = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
 			}
 
 			for (size_t i = 0; i < sf.full_keys.size(); i++) {
 				std::string key = sf.full_keys[i];
-				mvt_value val = stringified_to_mvt_value(sf.full_values[i].type, sf.full_values[i].s.c_str());
+				mvt_value val = stringified_to_mvt_value(sf.full_values[i].type, sf.full_values[i].s.c_str(), tile_stringpool);
 
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
 			}
@@ -1782,9 +1786,10 @@ void *run_prefilter(void *v) {
 	run_prefilter_args *rpa = (run_prefilter_args *) v;
 	json_writer state(rpa->prefilter_fp);
 	struct multiplier_state multiplier_state;
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1815,7 +1820,7 @@ void *run_prefilter(void *v) {
 			tmp_feature.geometry[i].y += sy;
 		}
 
-		decode_meta(sf.keys, sf.values, rpa->stringpool + rpa->pool_off[sf.segment], tmp_layer, tmp_feature);
+		decode_meta(sf.keys, sf.values, rpa->stringpool + rpa->pool_off[sf.segment], tmp_layer, tmp_feature, tile_stringpool);
 		tmp_layer.features.push_back(tmp_feature);
 
 		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0);
@@ -2078,6 +2083,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			within[i] = 0;
 		}
 
+		std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
+
 		if (*geompos_in != og) {
 			if (compressed_input) {
 				if (geoms->within) {
@@ -2172,7 +2179,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_partial = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2607,6 +2614,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					c.id = partials[i].id;
 					c.has_id = partials[i].has_id;
 					c.extent = partials[i].extent;
+					c.tile_stringpool = tile_stringpool;
 
 					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 
@@ -2658,7 +2666,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				for (size_t x = 1; x < layer_features.size(); x++) {
 					size_t y = out - 1;
 
-					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
+					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y], tile_stringpool) == 0) {
 						for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
 							layer_features[y].geom.push_back(layer_features[x].geom[g]);
 						}
@@ -2714,7 +2722,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (order_by.size() != 0) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
-				std::sort(clustered.begin(), clustered.end(), ordercmp);
+				std::sort(clustered.begin(), clustered.end(), ordercmp());
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
@@ -2761,10 +2769,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				feature.id = layer_features[x].id;
 				feature.has_id = layer_features[x].has_id;
 
-				decode_meta(layer_features[x].keys, layer_features[x].values, layer_features[x].stringpool, layer, feature);
+				decode_meta(layer_features[x].keys, layer_features[x].values, layer_features[x].stringpool, layer, feature, tile_stringpool);
 				for (size_t a = 0; a < layer_features[x].full_keys.size(); a++) {
 					serial_val sv = layer_features[x].full_values[a];
-					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str());
+					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 					layer.tag(feature, layer_features[x].full_keys[a], v);
 				}
 
