@@ -837,8 +837,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	}
 
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
-		sf.keys.push_back(addpool(r->poolfile, r->treefile, sf.full_keys[i].c_str(), mvt_string));
-		sf.values.push_back(addpool(r->poolfile, r->treefile, sf.full_values[i].s.c_str(), sf.full_values[i].type));
+		sf.keys.push_back(addpool(r->poolfile, r->treefile, sf.full_keys[i].c_str(), mvt_string, r->key_dedup));
+		sf.values.push_back(addpool(r->poolfile, r->treefile, sf.full_values[i].s.c_str(), sf.full_values[i].type, r->value_dedup));
 	}
 
 	long long geomstart = r->geompos;

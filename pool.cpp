@@ -7,32 +7,33 @@
 #include "memfile.hpp"
 #include "pool.hpp"
 #include "errors.hpp"
+#include "text.hpp"
 
 int swizzlecmp(const char *a, const char *b) {
-	ssize_t alen = strlen(a);
-	ssize_t blen = strlen(b);
+	unsigned long long h1 = fnv1a(a, 0);
+	unsigned long long h2 = fnv1a(b, 0);
 
-	if (strcmp(a, b) == 0) {
-		return 0;
-	}
-
-	long long hash1 = 0, hash2 = 0;
-	for (ssize_t i = alen - 1; i >= 0; i--) {
-		hash1 = (hash1 * 37 + a[i]) & INT_MAX;
-	}
-	for (ssize_t i = blen - 1; i >= 0; i--) {
-		hash2 = (hash2 * 37 + b[i]) & INT_MAX;
-	}
-
-	int h1 = hash1, h2 = hash2;
 	if (h1 == h2) {
 		return strcmp(a, b);
+	} else {
+		return h1 - h2;
 	}
-
-	return h1 - h2;
 }
 
-long long addpool(struct memfile *poolfile, struct memfile *treefile, const char *s, char type) {
+long long addpool(struct memfile *poolfile, struct memfile *treefile, const char *s, char type, std::vector<ssize_t> &dedup) {
+	unsigned long long hash = fnv1a(s, type);
+	size_t hash_off = hash % dedup.size();
+
+	if (dedup[hash_off] >= 0 &&
+	    dedup[hash_off] + 1 < (ssize_t) poolfile->map.size() &&
+	    poolfile->map[dedup[hash_off]] == type &&
+	    strcmp(poolfile->map.c_str() + dedup[hash_off] + 1, s) == 0) {
+		// printf("hit for %s\n", s);
+		return dedup[hash_off];
+	} else {
+		// printf("miss for %s\n", s);
+	}
+
 	unsigned long *sp = &treefile->tree;
 	size_t depth = 0;
 
@@ -54,6 +55,7 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 		} else if (cmp > 0) {
 			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->right);
 		} else {
+			dedup[hash_off] = ((struct stringpool *) (treefile->map.c_str() + *sp))->off;
 			return ((struct stringpool *) (treefile->map.c_str() + *sp))->off;
 		}
 
