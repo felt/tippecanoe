@@ -103,7 +103,7 @@ static inline int read_wrap(json_pull *j) {
 	return c;
 }
 
-#define SIZE_FOR(i, size) ((size_t)((((i) + 7) & ~7) * size))
+#define SIZE_FOR(i, size) ((size_t) ((((i) + 7) & ~7) * size))
 
 static json_object *fabricate_object(json_pull *jp, json_object *parent, json_type type) {
 	json_object *o = malloc(sizeof(struct json_object));
@@ -292,38 +292,45 @@ json_object *json_read_separators(json_pull *j, json_separator_callback cb, void
 	}
 
 again:
-	/////////////////////////// Whitespace
-
-	do {
-		c = read_wrap(j);
-		if (c == EOF) {
-			if (j->container != NULL) {
-				j->error = "Reached EOF without all containers being closed";
-			}
-
-			return NULL;
+	c = read_wrap(j);
+	if (c == EOF) {
+		if (j->container != NULL) {
+			j->error = "Reached EOF without all containers being closed";
 		}
 
-		// Byte-order mark
-		if (c == 0xEF) {
-			int c2 = peek(j);
-			if (c2 == 0xBB) {
+		return NULL;
+	}
+
+	switch (c) {
+		/////////////////////////// Byte order mark
+
+	case 0xEF: {
+		int c2 = peek(j);
+		if (c2 == 0xBB) {
+			c2 = read_wrap(j);
+			c2 = peek(j);
+			if (c2 == 0xBF) {
 				c2 = read_wrap(j);
-				c2 = peek(j);
-				if (c2 == 0xBF) {
-					c2 = read_wrap(j);
-					c = ' ';
-					continue;
-				}
+				c = ' ';
+				goto again;
 			}
-			j->error = "Corrupt byte-order mark found";
-			return NULL;
 		}
-	} while (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == 0x1E);
+		j->error = "Corrupt byte-order mark found";
+		return NULL;
+	}
 
-	/////////////////////////// Arrays
+		/////////////////////////// Whitespace
 
-	if (c == '[') {
+	case ' ':
+	case '\t':
+	case '\r':
+	case '\n':
+	case 0x1E:
+		goto again;
+
+		/////////////////////////// Arrays
+
+	case '[': {
 		json_object *o = add_object(j, JSON_ARRAY);
 		if (o == NULL) {
 			return NULL;
@@ -336,7 +343,9 @@ again:
 		}
 
 		goto again;
-	} else if (c == ']') {
+	}
+
+	case ']': {
 		if (j->container == NULL) {
 			j->error = "Found ] at top level";
 			return NULL;
@@ -359,9 +368,9 @@ again:
 		return ret;
 	}
 
-	/////////////////////////// Hashes
+		/////////////////////////// Hashes
 
-	if (c == '{') {
+	case '{': {
 		json_object *o = add_object(j, JSON_HASH);
 		if (o == NULL) {
 			return NULL;
@@ -374,7 +383,9 @@ again:
 		}
 
 		goto again;
-	} else if (c == '}') {
+	}
+
+	case '}': {
 		if (j->container == NULL) {
 			j->error = "Found } at top level";
 			return NULL;
@@ -397,9 +408,9 @@ again:
 		return ret;
 	}
 
-	/////////////////////////// Null
+		/////////////////////////// Null
 
-	if (c == 'n') {
+	case 'n': {
 		if (read_wrap(j) != 'u' || read_wrap(j) != 'l' || read_wrap(j) != 'l') {
 			j->error = "Found misspelling of null";
 			return NULL;
@@ -408,9 +419,9 @@ again:
 		return add_object(j, JSON_NULL);
 	}
 
-	/////////////////////////// NaN
+		/////////////////////////// NaN
 
-	if (c == 'N') {
+	case 'N': {
 		if (read_wrap(j) != 'a' || read_wrap(j) != 'N') {
 			j->error = "Found misspelling of NaN";
 			return NULL;
@@ -420,9 +431,9 @@ again:
 		return NULL;
 	}
 
-	/////////////////////////// Infinity
+		/////////////////////////// Infinity
 
-	if (c == 'I') {
+	case 'I': {
 		if (read_wrap(j) != 'n' || read_wrap(j) != 'f' || read_wrap(j) != 'i' ||
 		    read_wrap(j) != 'n' || read_wrap(j) != 'i' || read_wrap(j) != 't' ||
 		    read_wrap(j) != 'y') {
@@ -434,9 +445,9 @@ again:
 		return NULL;
 	}
 
-	/////////////////////////// True
+		/////////////////////////// True
 
-	if (c == 't') {
+	case 't': {
 		if (read_wrap(j) != 'r' || read_wrap(j) != 'u' || read_wrap(j) != 'e') {
 			j->error = "Found misspelling of true";
 			return NULL;
@@ -445,9 +456,9 @@ again:
 		return add_object(j, JSON_TRUE);
 	}
 
-	/////////////////////////// False
+		/////////////////////////// False
 
-	if (c == 'f') {
+	case 'f': {
 		if (read_wrap(j) != 'a' || read_wrap(j) != 'l' || read_wrap(j) != 's' || read_wrap(j) != 'e') {
 			j->error = "Found misspelling of false";
 			return NULL;
@@ -456,9 +467,9 @@ again:
 		return add_object(j, JSON_FALSE);
 	}
 
-	/////////////////////////// Comma
+		/////////////////////////// Comma
 
-	if (c == ',') {
+	case ',': {
 		if (j->container != NULL) {
 			if (j->container->expect != JSON_COMMA) {
 				j->error = "Found unexpected comma";
@@ -479,9 +490,9 @@ again:
 		goto again;
 	}
 
-	/////////////////////////// Colon
+		/////////////////////////// Colon
 
-	if (c == ':') {
+	case ':': {
 		if (j->container == NULL) {
 			j->error = "Found colon at top level";
 			return NULL;
@@ -501,9 +512,19 @@ again:
 		goto again;
 	}
 
-	/////////////////////////// Numbers
+		/////////////////////////// Numbers
 
-	if (c == '-' || (c >= '0' && c <= '9')) {
+	case '-':
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9': {
 		struct string val;
 		string_init(&val);
 		int decimal = 0;
@@ -596,9 +617,9 @@ again:
 		return n;
 	}
 
-	/////////////////////////// Strings
+		/////////////////////////// Strings
 
-	if (c == '"') {
+	case '"': {
 		struct string val;
 		string_init(&val);
 
@@ -730,6 +751,7 @@ again:
 			string_free(&val);
 		}
 		return s;
+	}
 	}
 
 	j->error = "Found unexpected character";
