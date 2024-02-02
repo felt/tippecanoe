@@ -502,7 +502,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					// printf("%d/%d/%d: %lld,%lld <==\n", nextzoom, jx, jy, sf.geometry[0].x, sf.geometry[0].y);
 
 					clip_to_tile(sf, nextzoom, buffer, false);
-                    if (sf.geometry.size() > 0) {
+					if (sf.geometry.size() > 0) {
 						// serialize_feature wants world coordinates, downscaled
 						for (auto &g : sf.geometry) {
 							g.x = SHIFT_RIGHT(g.x + (jx << (32 - nextzoom)));
@@ -526,8 +526,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 						geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
 						geomfile[j]->fwrite_check(feature.c_str(), sizeof(char), feature.size(), &geompos[j], fname);
 					} else {
-                        printf("clipped away\n");
-                    }
+						// printf("clipped away\n");
+					}
 				}
 			}
 		}
@@ -1638,9 +1638,11 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		// printf("%d/%d/%d: %lld,%lld\n", z, tx, ty, sf.geometry[0].x, sf.geometry[0].y);
 
-		if (clip_to_tile(sf, z, buffer, true)) {
-			printf("clipped away in %d\n", z);
-			continue;
+		if (z == 0) {  // in other zooms, features will have already been clipped
+			if (clip_to_tile(sf, z, buffer, true)) {
+				// printf("clipped away in %d\n", z);
+				continue;
+			}
 		}
 
 		if (sf.geometry.size() > 0) {
