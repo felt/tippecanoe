@@ -308,9 +308,13 @@ struct sorted_value {
 	bool operator<(const sorted_value &sv) const {
 		if (val < sv.val) {
 			return true;
-		} else {
-			return false;
+		} else if (val == sv.val) {
+			if (orig < sv.orig) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 };
 
@@ -593,25 +597,25 @@ std::string mvt_value::toString() const {
 }
 
 void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
-	size_t key_hash = fnv1a(key) % dedup.size();
-	if (dedup[key_hash] >= 0 &&
-	    dedup[key_hash] < (ssize_t) keys.size() &&
-	    keys[dedup[key_hash]] == key) {
+	size_t key_hash = fnv1a(key) % key_dedup.size();
+	if (key_dedup[key_hash] >= 0 &&
+	    key_dedup[key_hash] < (ssize_t) keys.size() &&
+	    keys[key_dedup[key_hash]] == key) {
 	} else {
-		dedup[key_hash] = keys.size();
+		key_dedup[key_hash] = keys.size();
 		keys.push_back(key);
 	}
-	feature.tags.push_back(dedup[key_hash]);
+	feature.tags.push_back(key_dedup[key_hash]);
 
-	size_t value_hash = std::hash<mvt_value>()(value) % dedup.size();
-	if (dedup[value_hash] >= 0 &&
-	    dedup[value_hash] < (ssize_t) values.size() &&
-	    values[dedup[value_hash]] == value) {
+	size_t value_hash = std::hash<mvt_value>()(value) % value_dedup.size();
+	if (value_dedup[value_hash] >= 0 &&
+	    value_dedup[value_hash] < (ssize_t) values.size() &&
+	    values[value_dedup[value_hash]] == value) {
 	} else {
-		dedup[value_hash] = values.size();
+		value_dedup[value_hash] = values.size();
 		values.push_back(value);
 	}
-	feature.tags.push_back(dedup[value_hash]);
+	feature.tags.push_back(value_dedup[value_hash]);
 }
 
 bool is_integer(const char *s, long long *v) {

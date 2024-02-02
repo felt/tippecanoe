@@ -175,7 +175,8 @@ struct mvt_layer {
 	void tag(mvt_feature &feature, std::string const &key, mvt_value const &value);
 
 	// For tracking the key-value constants already used in this layer
-	std::vector<ssize_t> dedup = std::vector<ssize_t>(65536, -1);
+	std::vector<ssize_t> key_dedup = std::vector<ssize_t>(65536, -1);
+	std::vector<ssize_t> value_dedup = std::vector<ssize_t>(65536, -1);
 };
 
 struct mvt_tile {
