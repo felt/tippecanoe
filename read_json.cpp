@@ -123,51 +123,41 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 void stringify_value(json_object *value, int &type, std::string &stringified, const char *reading, int line, json_object *feature) {
 	if (value != NULL) {
 		int vt = value->type;
-		std::string val;
-
-		if (vt == JSON_STRING) {
-			val = value->value.string.string;
-		} else if (vt == JSON_NUMBER) {
-			if (value->value.number.large_unsigned != 0) {
-				val = std::to_string(value->value.number.large_unsigned);
-			} else if (value->value.number.large_signed != 0) {
-				val = std::to_string(value->value.number.large_signed);
-			} else {
-				val = milo::dtoa_milo(value->value.number.number);
-			}
-		} else if (vt == JSON_TRUE) {
-			val = "true";
-		} else if (vt == JSON_FALSE) {
-			val = "false";
-		} else if (vt == JSON_NULL) {
-			val = "null";
-		} else {
-			const char *v = json_stringify(value);
-			val = std::string(v);
-			free((void *) v);  // stringify
-		}
 
 		if (vt == JSON_STRING) {
 			type = mvt_string;
-			stringified = val;
-			std::string err = check_utf8(val);
-			if (err != "") {
+			stringified = value->value.string.string;
+
+			std::string err = check_utf8(stringified);
+			if (err.size() > 0) {
 				fprintf(stderr, "%s:%d: %s: ", reading, line, err.c_str());
 				json_context(feature);
 				exit(EXIT_UTF8);
 			}
 		} else if (vt == JSON_NUMBER) {
 			type = mvt_double;
-			stringified = val;
-		} else if (vt == JSON_TRUE || vt == JSON_FALSE) {
+
+			if (value->value.number.large_unsigned != 0) {
+				stringified = std::to_string(value->value.number.large_unsigned);
+			} else if (value->value.number.large_signed != 0) {
+				stringified = std::to_string(value->value.number.large_signed);
+			} else {
+				stringified = milo::dtoa_milo(value->value.number.number);
+			}
+		} else if (vt == JSON_TRUE) {
 			type = mvt_bool;
-			stringified = val;
+			stringified = "true";
+		} else if (vt == JSON_FALSE) {
+			type = mvt_bool;
+			stringified = "false";
 		} else if (vt == JSON_NULL) {
 			type = mvt_null;
 			stringified = "null";
 		} else {
 			type = mvt_string;
-			stringified = val;
+			const char *v = json_stringify(value);
+			stringified = std::string(v);
+			free((void *) v);  // stringify
 		}
 	}
 }
