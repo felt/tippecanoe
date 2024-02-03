@@ -36,11 +36,19 @@ void deserialize_byte(char **f, signed char *n);
 // mvt_double, mvt_bool, or mvt_null). Note that all numeric values,
 // whether integer or floating point, use mvt_double here.
 struct serial_val {
-	int type = 0;
-	std::string s = "";
+	int type;
+	std::string s;
 
 	bool operator<(const serial_val &o) const;
 	bool operator!=(const serial_val &o) const;
+
+	serial_val() {
+		type = 0;
+	}
+
+	serial_val(int t, const std::string &val)
+	    : type(t), s(val) {
+	}
 };
 
 struct serial_feature {

@@ -730,7 +730,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 	}
 
 	if (sst->layermap->count(sf.layername) == 0) {
-		sst->layermap->insert(std::pair<std::string, layermap_entry>(sf.layername, layermap_entry(sst->layermap->size())));
+		sst->layermap->emplace(sf.layername, layermap_entry(sst->layermap->size()));
 	}
 
 	auto ai = sst->layermap->find(sf.layername);

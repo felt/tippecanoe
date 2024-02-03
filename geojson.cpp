@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <string.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
@@ -41,7 +40,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 
-int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string layername) {
+int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string const &layername) {
 	json_object *geometry_type = json_hash_get(geometry, "type");
 	if (geometry_type == NULL) {
 		static int warned = 0;
@@ -182,36 +181,21 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		nprop = properties->value.object.length;
 	}
 
-	std::vector<char *> metakey;
-	metakey.resize(nprop);
+	std::vector<std::string> keys;
+	std::vector<serial_val> values;
 
-	std::vector<std::string> metaval;
-	metaval.resize(nprop);
-
-	std::vector<int> metatype;
-	metatype.resize(nprop);
-
-	size_t m = 0;
+	keys.reserve(nprop);
+	values.reserve(nprop);
 
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
-			std::string s(properties->value.object.keys[i]->value.string.string);
-
 			int type = -1;
+
 			std::string val;
 			stringify_value(properties->value.object.values[i], type, val, sst->fname, sst->line, feature);
 
-			if (type >= 0) {
-				metakey[m] = properties->value.object.keys[i]->value.string.string;
-				metatype[m] = type;
-				metaval[m] = val;
-				m++;
-			} else {
-				metakey[m] = properties->value.object.keys[i]->value.string.string;
-				metatype[m] = mvt_null;
-				metaval[m] = "null";
-				m++;
-			}
+			keys.emplace_back(properties->value.object.keys[i]->value.string.string);
+			values.emplace_back(serial_val(type, val));
 		}
 	}
 
@@ -238,15 +222,8 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		sf.layername = layername;
 	}
 
-	for (size_t i = 0; i < m; i++) {
-		sf.full_keys.push_back(metakey[i]);
-
-		serial_val sv;
-		sv.type = metatype[i];
-		sv.s = metaval[i];
-
-		sf.full_values.push_back(sv);
-	}
+	sf.full_keys = std::move(keys);
+	sf.full_values = std::move(values);
 
 	return serialize_feature(sst, sf);
 }
