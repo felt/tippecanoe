@@ -21,6 +21,8 @@
 #include "errors.hpp"
 #include "projection.hpp"
 
+bool is_shared_node(draw d, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos);
+
 drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
 	drawvec out;
 
@@ -176,7 +178,28 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
+bool can_be_dust(drawvec const &geom, size_t i, size_t j, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	if (!prevent[P_SIMPLIFY_SHARED_NODES]) {
+		return true;
+	}
+
+	size_t count = 0;
+	for (; i < j; i++) {
+		if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
+			count++;
+
+			if (count >= 4) {
+				// the three fixed nodes of this feature,
+				// plus some intersection with some other feature
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+drawvec reduce_tiny_poly(drawvec &geom, int z, int tx, int ty, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature, struct node *shared_nodes_map, size_t nodepos) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
 	bool includes_real = false;
@@ -213,7 +236,8 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 				// OR it is an inner ring and we haven't output an outer ring for it to be
 				// cut out of, so we are just subtracting its area from the tiny polygon
 				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
+				if (can_be_dust(geom, i, j, z, tx, ty, shared_nodes_map, nodepos) &&
+				    ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer))) {
 					*accum_area += area;
 					*reduced_away = true;
 
@@ -485,6 +509,26 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 	return out;
 }
 
+bool is_shared_node(draw d, int z, int tx, int ty, struct node *shared_nodes_map, size_t nodepos) {
+	if (nodepos > 0) {
+		// offset to global
+		if (z != 0) {
+			d.x += tx * (1LL << (32 - z));
+			d.y += ty * (1LL << (32 - z));
+		}
+
+		// to quadkey
+		struct node n;
+		n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+
+		if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
@@ -509,26 +553,15 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 			// To look through the latter, we need to offset and encode the coordinates
 			// of the feature we are simplifying.
 
+			// nodes introduced at the tile edge
 			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
 			if (pt != shared_nodes.end() && *pt == geom[i]) {
 				geom[i].necessary = true;
 			}
 
-			if (nodepos > 0) {
-				// offset to global
-				draw d = geom[i];
-				if (z != 0) {
-					d.x += tx * (1LL << (32 - z));
-					d.y += ty * (1LL << (32 - z));
-				}
-
-				// to quadkey
-				struct node n;
-				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
-
-				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-					geom[i].necessary = true;
-				}
+			// global shared nodes
+			if (is_shared_node(geom[i], z, tx, ty, shared_nodes_map, nodepos)) {
+				geom[i].necessary = true;
 			}
 		}
 	}
