@@ -189,13 +189,10 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
-			int type = -1;
-
-			std::string val;
-			stringify_value(properties->value.object.values[i], type, val, sst->fname, sst->line, feature);
+			serial_val sv = stringify_value(properties->value.object.values[i], sst->fname, sst->line, feature);
 
 			keys.emplace_back(properties->value.object.keys[i]->value.string.string);
-			values.emplace_back(serial_val(type, val));
+			values.push_back(std::move(sv));
 		}
 	}
 

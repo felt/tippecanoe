@@ -2898,10 +2898,8 @@ void set_attribute_value(const char *arg) {
 				exit(EXIT_JSON);
 			}
 
-			serial_val val;
-			stringify_value(v, val.type, val.s, "json", 1, o);
-
-			set_attributes.insert(std::pair<std::string, serial_val>(k->value.string.string, val));
+			serial_val val = stringify_value(v, "json", 1, o);
+			set_attributes.emplace(k->value.string.string, val);
 		}
 
 		json_free(o);

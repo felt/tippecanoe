@@ -13,6 +13,7 @@
 #include "mvt.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "serial.hpp"
 
 const char *geometry_names[GEOM_TYPES] = {
 	"Point",
@@ -120,44 +121,48 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 // type and stringified value. All numeric values, even if they are integers,
 // even integers that are too large to fit in a double but will still be
 // stringified with their original precision, are recorded here as mvt_double.
-void stringify_value(json_object *value, int &type, std::string &stringified, const char *reading, int line, json_object *feature) {
+serial_val stringify_value(json_object *value, const char *reading, int line, json_object *feature) {
+	serial_val sv;
+
 	if (value != NULL) {
 		int vt = value->type;
 
 		if (vt == JSON_STRING) {
-			type = mvt_string;
-			stringified = value->value.string.string;
+			sv.type = mvt_string;
+			sv.s = value->value.string.string;
 
-			std::string err = check_utf8(stringified);
+			std::string err = check_utf8(sv.s);
 			if (err.size() > 0) {
 				fprintf(stderr, "%s:%d: %s: ", reading, line, err.c_str());
 				json_context(feature);
 				exit(EXIT_UTF8);
 			}
 		} else if (vt == JSON_NUMBER) {
-			type = mvt_double;
+			sv.type = mvt_double;
 
 			if (value->value.number.large_unsigned != 0) {
-				stringified = std::to_string(value->value.number.large_unsigned);
+				sv.s = std::to_string(value->value.number.large_unsigned);
 			} else if (value->value.number.large_signed != 0) {
-				stringified = std::to_string(value->value.number.large_signed);
+				sv.s = std::to_string(value->value.number.large_signed);
 			} else {
-				stringified = milo::dtoa_milo(value->value.number.number);
+				sv.s = milo::dtoa_milo(value->value.number.number);
 			}
 		} else if (vt == JSON_TRUE) {
-			type = mvt_bool;
-			stringified = "true";
+			sv.type = mvt_bool;
+			sv.s = "true";
 		} else if (vt == JSON_FALSE) {
-			type = mvt_bool;
-			stringified = "false";
+			sv.type = mvt_bool;
+			sv.s = "false";
 		} else if (vt == JSON_NULL) {
-			type = mvt_null;
-			stringified = "null";
+			sv.type = mvt_null;
+			sv.s = "null";
 		} else {
-			type = mvt_string;
+			sv.type = mvt_string;
 			const char *v = json_stringify(value);
-			stringified = std::string(v);
+			sv.s = std::string(v);
 			free((void *) v);  // stringify
 		}
 	}
+
+	return sv;
 }
