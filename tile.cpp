@@ -89,18 +89,18 @@ bool draws_something(drawvec &geom) {
 static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool);
 
 static struct preservecmp {
-	bool operator()(const std::vector<struct serial_feature> &a, const std::vector<struct serial_feature> &b) {
+	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct serial_feature &a, const struct serial_feature &b) {
+	bool operator()(const serial_feature &a, const serial_feature &b) {
 		return a.seq < b.seq;
 	}
 } preservecmp;
 
 int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
-	const struct serial_feature *c1 = (const struct serial_feature *) v1;
-	const struct serial_feature *c2 = (const struct serial_feature *) v2;
+	const serial_feature *c1 = (const serial_feature *) v1;
+	const serial_feature *c2 = (const serial_feature *) v2;
 
 	int cmp = c1->t - c2->t;
 	if (cmp != 0) {
@@ -154,7 +154,7 @@ int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &
 	return 0;
 }
 
-int coalindexcmp(const struct serial_feature *c1, const struct serial_feature *c2, std::shared_ptr<std::string> const &tile_stringpool) {
+int coalindexcmp(const serial_feature *c1, const serial_feature *c2, std::shared_ptr<std::string> const &tile_stringpool) {
 	int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
 
 	if (cmp == 0) {
@@ -244,7 +244,7 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-static mvt_value find_attribute_value(const struct serial_feature *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
+static mvt_value find_attribute_value(const serial_feature *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -296,11 +296,11 @@ static mvt_value coerce_double(mvt_value v) {
 struct ordercmp {
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
-	bool operator()(const std::vector<struct serial_feature> &a, const std::vector<struct serial_feature> &b) {
+	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct serial_feature &a, const struct serial_feature &b) {
+	bool operator()(const serial_feature &a, const serial_feature &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
 			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, tile_stringpool));
 			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, tile_stringpool));
@@ -496,8 +496,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 	}
 }
 
-struct serial_feature_arg {
-	std::vector<struct serial_feature> *features = NULL;
+struct simplification_worker_arg {
+	std::vector<serial_feature> *features = NULL;
 	int task = 0;
 	int tasks = 0;
 
@@ -613,8 +613,8 @@ double simplify_serial_feature(serial_feature *p, drawvec const &shared_nodes, n
 }
 
 void *simplification_worker(void *v) {
-	struct serial_feature_arg *a = (struct serial_feature_arg *) v;
-	std::vector<struct serial_feature> *features = a->features;
+	simplification_worker_arg *a = (simplification_worker_arg *) v;
+	std::vector<serial_feature> *features = a->features;
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
 		double area = simplify_serial_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
@@ -1390,12 +1390,12 @@ struct write_tile_args {
 	bool still_dropping = false;
 	int wrote_zoom = 0;
 	size_t tiling_seg = 0;
-	struct json_object *filter = NULL;
+	json_object *filter = NULL;
 	std::atomic<size_t> *dropped_count = NULL;
 	atomic_strategy *strategy = NULL;
 	int zoom = -1;
 	bool compressed;
-	struct node *shared_nodes_map;
+	node *shared_nodes_map;
 	size_t nodepos;
 };
 
@@ -1506,7 +1506,7 @@ struct multiplier_state {
 	std::map<std::string, size_t> count;
 };
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
+serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
@@ -1716,7 +1716,7 @@ struct run_prefilter_args {
 	char *stringpool = NULL;
 	long long *pool_off = NULL;
 	FILE *prefilter_fp = NULL;
-	struct json_object *filter = NULL;
+	json_object *filter = NULL;
 	bool first_time = false;
 	bool compressed = false;
 };
@@ -1944,7 +1944,7 @@ void coalesce_geometry(serial_feature &p, serial_feature &sf) {
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, struct node *shared_nodes_map, size_t nodepos) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -2005,7 +2005,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long original_features = 0;
 		long long unclipped_features = 0;
 
-		std::vector<struct serial_feature> features;
+		std::vector<serial_feature> features;
 		std::map<std::string, std::vector<serial_feature>> layers;
 
 		std::vector<unsigned long long> indices;
@@ -2501,7 +2501,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		pthread_t pthreads[tasks];
-		std::vector<serial_feature_arg> args;
+		std::vector<simplification_worker_arg> args;
 		args.resize(tasks);
 		for (int i = 0; i < tasks; i++) {
 			args[i].task = i;
@@ -3099,7 +3099,7 @@ void *run_thread(void *vargs) {
 	return err_or_null;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -3185,7 +3185,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 
 		// Assign temporary files to threads
 
-		std::vector<struct task> tasks;
+		std::vector<task> tasks;
 		tasks.resize(TEMP_FILES);
 
 		struct dispatch {
@@ -3193,10 +3193,10 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			long long todo = 0;
 			struct dispatch *next = NULL;
 		};
-		std::vector<struct dispatch> dispatches;
+		std::vector<dispatch> dispatches;
 		dispatches.resize(threads);
 
-		struct dispatch *dispatch_head = &dispatches[0];
+		dispatch *dispatch_head = &dispatches[0];
 		for (size_t j = 0; j < threads; j++) {
 			dispatches[j].tasks = NULL;
 			dispatches[j].todo = 0;
@@ -3217,7 +3217,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			dispatch_head->tasks = &tasks[j];
 			dispatch_head->todo += geom_size[j];
 
-			struct dispatch *here = dispatch_head;
+			dispatch *here = dispatch_head;
 			dispatch_head = dispatch_head->next;
 
 			dispatch **d;
