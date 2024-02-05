@@ -725,6 +725,11 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 	return 0;
 }
 
+// This function is called to choose the new gap threshold for --drop-densest-as-needed
+// and --coalesce-densest-as-needed. The list that is passed in is the list of indices
+// of features that survived the previous gap-choosing, so it first needs to calculate
+// and sort the gaps between them before deciding which new gap threshold will satisfy
+// the need to keep only the requested fraction of features.
 unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
 	unsigned long long bot = ULLONG_MAX;
 	unsigned long long top = 0;
@@ -806,6 +811,13 @@ long long choose_minextent(std::vector<long long> &extents, double f, long long 
 	return extents[ix];
 }
 
+// This is the block of parameters that are passed to write_tile() to read a tile
+// from the serialized form, do whatever needs to be done to it, and to write the
+// MVT-format output to the output tileset.
+//
+// The _out parameters are thresholds calculated during tiling; they are collected
+// by the caller to determine whether the zoom level needs to be done over with
+// new thresholds.
 struct write_tile_args {
 	struct task *tasks = NULL;
 	char *stringpool = NULL;
