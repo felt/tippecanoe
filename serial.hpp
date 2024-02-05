@@ -108,6 +108,12 @@ struct serial_feature {
 	long long clustered;			       // does this feature need the clustered/point_count attributes?
 	char *stringpool;			       // string pool for keys/values lookup
 	std::shared_ptr<std::string> tile_stringpool;  // string pool for mvt_value construction
+	std::set<std::string> need_tilestats;
+	std::unordered_map<std::string, accum_state> attribute_accum_state;
+
+	int z;	// tile being produced
+	int tx;
+	int ty;
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);

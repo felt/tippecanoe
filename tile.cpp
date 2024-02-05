@@ -66,51 +66,6 @@ extern "C" {
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 
-int coalindexcmp(const struct partial *c1, const struct partial *c2, std::shared_ptr<std::string> const &tile_stringpool);
-
-struct partial {
-	drawvec geometry;
-	std::vector<long long> keys = std::vector<long long>();
-	std::vector<long long> values = std::vector<long long>();
-	std::vector<std::string> full_keys = std::vector<std::string>();
-	std::vector<serial_val> full_values = std::vector<serial_val>();
-	std::vector<ssize_t> arc_polygon = std::vector<ssize_t>();
-	long long layer = 0;
-	long long seq = 0;
-	unsigned long long index = 0;
-	unsigned long long label_point = 0;
-	int segment = 0;
-	bool reduced = 0;
-	bool coalesced = 0;
-	int z = 0;
-	int tx = 0;
-	int ty = 0;
-	int line_detail = 0;
-	int extra_detail = 0;
-	int maxzoom = 0;
-	double spacing = 0;
-	double simplification = 0;
-	signed char t = 0;
-	unsigned long long id = 0;
-	bool has_id = 0;
-	ssize_t renamed = 0;
-	long long extent = 0;
-	long long clustered = 0;
-	std::set<std::string> need_tilestats;
-	std::unordered_map<std::string, accum_state> attribute_accum_state;
-	char *stringpool = NULL;
-	std::shared_ptr<std::string> tile_stringpool;
-
-	bool operator<(const partial &o) const {
-		int cmp = coalindexcmp(this, &o, tile_stringpool);
-		if (cmp < 0) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-};
-
 std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	std::vector<mvt_geometry> out;
 
@@ -134,18 +89,18 @@ bool draws_something(drawvec &geom) {
 static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool);
 
 static struct preservecmp {
-	bool operator()(const std::vector<struct partial> &a, const std::vector<struct partial> &b) {
+	bool operator()(const std::vector<struct serial_feature> &a, const std::vector<struct serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct partial &a, const struct partial &b) {
+	bool operator()(const struct serial_feature &a, const struct serial_feature &b) {
 		return a.seq < b.seq;
 	}
 } preservecmp;
 
 int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
-	const struct partial *c1 = (const struct partial *) v1;
-	const struct partial *c2 = (const struct partial *) v2;
+	const struct serial_feature *c1 = (const struct serial_feature *) v1;
+	const struct serial_feature *c2 = (const struct serial_feature *) v2;
 
 	int cmp = c1->t - c2->t;
 	if (cmp != 0) {
@@ -199,7 +154,7 @@ int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &
 	return 0;
 }
 
-int coalindexcmp(const struct partial *c1, const struct partial *c2, std::shared_ptr<std::string> const &tile_stringpool) {
+int coalindexcmp(const struct serial_feature *c1, const struct serial_feature *c2, std::shared_ptr<std::string> const &tile_stringpool) {
 	int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
 
 	if (cmp == 0) {
@@ -218,6 +173,17 @@ int coalindexcmp(const struct partial *c1, const struct partial *c2, std::shared
 
 	return cmp;
 }
+
+struct coalindexcmp_comparator {
+	bool operator()(const serial_feature &a, const serial_feature &o) const {
+		int cmp = coalindexcmp(&a, &o, a.tile_stringpool);
+		if (cmp < 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
 
 mvt_value retrieve_string(long long off, const char *stringpool, std::shared_ptr<std::string> const &tile_stringpool) {
 	int type = stringpool[off];
@@ -278,7 +244,7 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-static mvt_value find_attribute_value(const struct partial *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
+static mvt_value find_attribute_value(const struct serial_feature *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -330,11 +296,11 @@ static mvt_value coerce_double(mvt_value v) {
 struct ordercmp {
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
-	bool operator()(const std::vector<struct partial> &a, const std::vector<struct partial> &b) {
+	bool operator()(const std::vector<struct serial_feature> &a, const std::vector<struct serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct partial &a, const struct partial &b) {
+	bool operator()(const struct serial_feature &a, const struct serial_feature &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
 			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, tile_stringpool));
 			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, tile_stringpool));
@@ -362,12 +328,12 @@ struct ordercmp {
 	}
 };
 
-std::vector<std::vector<partial>> assemble_multiplier_clusters(std::vector<partial> &features) {
-	std::vector<std::vector<partial>> clusters;
+std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std::vector<serial_feature> &features) {
+	std::vector<std::vector<serial_feature>> clusters;
 
 	if (retain_points_multiplier == 1) {
 		for (auto const &feature : features) {
-			std::vector<partial> cluster;
+			std::vector<serial_feature> cluster;
 			cluster.push_back(feature);
 			clusters.push_back(cluster);
 		}
@@ -383,7 +349,7 @@ std::vector<std::vector<partial>> assemble_multiplier_clusters(std::vector<parti
 			}
 
 			if (is_cluster_start || clusters.size() == 0) {
-				clusters.push_back(std::vector<partial>());
+				clusters.push_back(std::vector<serial_feature>());
 			}
 
 			clusters.back().push_back(feature);
@@ -393,8 +359,8 @@ std::vector<std::vector<partial>> assemble_multiplier_clusters(std::vector<parti
 	return clusters;
 }
 
-std::vector<partial> disassemble_multiplier_clusters(std::vector<std::vector<partial>> &clusters) {
-	std::vector<partial> out;
+std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<std::vector<serial_feature>> &clusters) {
+	std::vector<serial_feature> out;
 
 	for (auto &cluster : clusters) {
 		// fix up the attributes so the first feature of the multiplier cluster
@@ -530,8 +496,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 	}
 }
 
-struct partial_arg {
-	std::vector<struct partial> *partials = NULL;
+struct serial_feature_arg {
+	std::vector<struct serial_feature> *serial_features = NULL;
 	int task = 0;
 	int tasks = 0;
 
@@ -581,7 +547,7 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	}
 }
 
-double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
+double simplify_serial_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
 	drawvec geom = p->geometry;
 	signed char t = p->t;
 	int z = p->z;
@@ -646,18 +612,18 @@ double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_no
 	return area;
 }
 
-void *partial_feature_worker(void *v) {
-	struct partial_arg *a = (struct partial_arg *) v;
-	std::vector<struct partial> *partials = a->partials;
+void *serial_feature_feature_worker(void *v) {
+	struct serial_feature_arg *a = (struct serial_feature_arg *) v;
+	std::vector<struct serial_feature> *serial_features = a->serial_features;
 
-	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
-		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+	for (size_t i = a->task; i < (*serial_features).size(); i += a->tasks) {
+		double area = simplify_serial_feature(&((*serial_features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
 
-		signed char t = (*partials)[i].t;
-		int z = (*partials)[i].z;
-		int out_detail = (*partials)[i].extra_detail;
+		signed char t = (*serial_features)[i].t;
+		int z = (*serial_features)[i].z;
+		int out_detail = (*serial_features)[i].extra_detail;
 
-		drawvec geom = (*partials)[i].geometry;
+		drawvec geom = (*serial_features)[i].geometry;
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -683,13 +649,13 @@ void *partial_feature_worker(void *v) {
 		}
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-			t = (*partials)[i].t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*partials)[i].tx, (*partials)[i].ty, z, (*partials)[i].label_point);
+			t = (*serial_features)[i].t = VT_POINT;
+			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*serial_features)[i].tx, (*serial_features)[i].ty, z, (*serial_features)[i].label_point);
 			to_tile_scale(geom, z, out_detail);
 		}
 
-		(*partials)[i].index = i;
-		(*partials)[i].geometry = std::move(geom);
+		(*serial_features)[i].index = i;
+		(*serial_features)[i].geometry = std::move(geom);
 	}
 
 	return NULL;
@@ -804,13 +770,13 @@ bool edges_same(std::pair<std::vector<edge>::iterator, std::vector<edge>::iterat
 	return true;
 }
 
-bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, double simplification, int maxzoom, double merge_fraction) {
-	size_t merge_count = ceil((1 - merge_fraction) * partials.size());
+bool find_common_edges(std::vector<serial_feature> &serial_features, int z, int line_detail, double simplification, int maxzoom, double merge_fraction) {
+	size_t merge_count = ceil((1 - merge_fraction) * serial_features.size());
 
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
+	for (size_t i = 0; i < serial_features.size(); i++) {
+		if (serial_features[i].t == VT_POLYGON) {
 			{
-				drawvec &g = partials[i].geometry;
+				drawvec &g = serial_features[i].geometry;
 				drawvec out;
 
 				for (size_t k = 0; k < g.size(); k++) {
@@ -821,7 +787,7 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 					}
 				}
 
-				partials[i].geometry = out;
+				serial_features[i].geometry = out;
 			}
 		}
 	}
@@ -832,22 +798,22 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	std::vector<edge> edges;
 	size_t ring = 0;
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
+	for (size_t i = 0; i < serial_features.size(); i++) {
+		if (serial_features[i].t == VT_POLYGON) {
 			{
-				for (size_t k = 0; k + 1 < partials[i].geometry.size(); k++) {
-					if (partials[i].geometry[k].op == VT_MOVETO) {
+				for (size_t k = 0; k + 1 < serial_features[i].geometry.size(); k++) {
+					if (serial_features[i].geometry[k].op == VT_MOVETO) {
 						ring++;
 					}
 
-					if (partials[i].geometry[k + 1].op == VT_LINETO) {
+					if (serial_features[i].geometry[k + 1].op == VT_LINETO) {
 						drawvec dv;
-						if (partials[i].geometry[k] < partials[i].geometry[k + 1]) {
-							dv.push_back(partials[i].geometry[k]);
-							dv.push_back(partials[i].geometry[k + 1]);
+						if (serial_features[i].geometry[k] < serial_features[i].geometry[k + 1]) {
+							dv.push_back(serial_features[i].geometry[k]);
+							dv.push_back(serial_features[i].geometry[k + 1]);
 						} else {
-							dv.push_back(partials[i].geometry[k + 1]);
-							dv.push_back(partials[i].geometry[k]);
+							dv.push_back(serial_features[i].geometry[k + 1]);
+							dv.push_back(serial_features[i].geometry[k]);
 						}
 
 						edges.push_back(edge(dv[0].x, dv[0].y, dv[1].x, dv[1].y, ring));
@@ -863,10 +829,10 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 	// Now mark all the points where the set of rings using the edge on one side
 	// is not the same as the set of rings using the edge on the other side.
 
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
+	for (size_t i = 0; i < serial_features.size(); i++) {
+		if (serial_features[i].t == VT_POLYGON) {
 			{
-				drawvec &g = partials[i].geometry;
+				drawvec &g = serial_features[i].geometry;
 
 				for (size_t k = 0; k < g.size(); k++) {
 					g[k].necessary = 0;
@@ -939,14 +905,14 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	edges.clear();
 	std::map<drawvec, size_t> arcs;
-	std::multimap<ssize_t, size_t> merge_candidates;  // from arc to partial
+	std::multimap<ssize_t, size_t> merge_candidates;  // from arc to serial_feature
 
 	// Roll rings that include a necessary point around so they start at one
 
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
+	for (size_t i = 0; i < serial_features.size(); i++) {
+		if (serial_features[i].t == VT_POLYGON) {
 			{
-				drawvec &g = partials[i].geometry;
+				drawvec &g = serial_features[i].geometry;
 
 				for (size_t k = 0; k < g.size(); k++) {
 					if (necessaries.count(g[k]) != 0) {
@@ -1036,21 +1002,21 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 									// Add new arc
 									size_t added = arcs.size() + 1;
 									arcs.insert(std::pair<drawvec, size_t>(arc, added));
-									partials[i].arc_polygon.push_back(added);
+									serial_features[i].arc_polygon.push_back(added);
 									merge_candidates.insert(std::pair<ssize_t, size_t>(added, i));
 								} else {
-									partials[i].arc_polygon.push_back(-(ssize_t) f2->second);
+									serial_features[i].arc_polygon.push_back(-(ssize_t) f2->second);
 									merge_candidates.insert(std::pair<ssize_t, size_t>(-(ssize_t) f2->second, i));
 								}
 							} else {
-								partials[i].arc_polygon.push_back(f->second);
+								serial_features[i].arc_polygon.push_back(f->second);
 								merge_candidates.insert(std::pair<ssize_t, size_t>(f->second, i));
 							}
 
 							m = n - 1;
 						}
 
-						partials[i].arc_polygon.push_back(0);
+						serial_features[i].arc_polygon.push_back(0);
 
 						k = l - 1;
 					}
@@ -1106,10 +1072,10 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 				if (r1i->second != r2i->second) {
 					merge_order mo;
 					mo.edge = i;
-					if (partials[r1i->second].index > partials[r2i->second].index) {
-						mo.gap = partials[r1i->second].index - partials[r2i->second].index;
+					if (serial_features[r1i->second].index > serial_features[r2i->second].index) {
+						mo.gap = serial_features[r1i->second].index - serial_features[r2i->second].index;
 					} else {
-						mo.gap = partials[r2i->second].index - partials[r1i->second].index;
+						mo.gap = serial_features[r2i->second].index - serial_features[r1i->second].index;
 					}
 					mo.p1 = r1i->second;
 					mo.p2 = r2i->second;
@@ -1127,19 +1093,19 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 		}
 
 		size_t i = order[o].p1;
-		while (partials[i].renamed >= 0) {
-			i = partials[i].renamed;
+		while (serial_features[i].renamed >= 0) {
+			i = serial_features[i].renamed;
 		}
 		size_t i2 = order[o].p2;
-		while (partials[i2].renamed >= 0) {
-			i2 = partials[i2].renamed;
+		while (serial_features[i2].renamed >= 0) {
+			i2 = serial_features[i2].renamed;
 		}
 
-		for (size_t j = 0; j < partials[i].arc_polygon.size() && merged < merge_count; j++) {
-			if (partials[i].arc_polygon[j] == order[o].edge) {
+		for (size_t j = 0; j < serial_features[i].arc_polygon.size() && merged < merge_count; j++) {
+			if (serial_features[i].arc_polygon[j] == order[o].edge) {
 				{
 					// XXX snap links
-					if (partials[order[o].p2].arc_polygon.size() > 0) {
+					if (serial_features[order[o].p2].arc_polygon.size() > 0) {
 						// This has to merge the ring that contains the anti-arc to this arc
 						// into the current ring, and then add whatever other rings were in
 						// that feature on to the end.
@@ -1148,11 +1114,11 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 						// the rings in order, but Wagyu should sort that out later
 
 						std::vector<ssize_t> additions;
-						std::vector<ssize_t> &here = partials[i].arc_polygon;
-						std::vector<ssize_t> &other = partials[i2].arc_polygon;
+						std::vector<ssize_t> &here = serial_features[i].arc_polygon;
+						std::vector<ssize_t> &other = serial_features[i2].arc_polygon;
 
 #if 0
-						printf("seeking %zd\n", partials[i].arc_polygon[j]);
+						printf("seeking %zd\n", serial_features[i].arc_polygon[j]);
 						printf("before: ");
 						for (size_t k = 0; k < here.size(); k++) {
 							printf("%zd ", here[k]);
@@ -1185,7 +1151,7 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 							size_t m;
 							for (m = k; m <= l; m++) {
-								if (other[m] == -partials[i].arc_polygon[j]) {
+								if (other[m] == -serial_features[i].arc_polygon[j]) {
 									break;
 								}
 							}
@@ -1215,12 +1181,12 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 							k = l;
 						}
 
-						partials[i2].arc_polygon.clear();
-						partials[i2].renamed = i;
+						serial_features[i2].arc_polygon.clear();
+						serial_features[i2].renamed = i;
 						merged++;
 
 						for (size_t k = 0; k < additions.size(); k++) {
-							partials[i].arc_polygon.push_back(additions[k]);
+							serial_features[i].arc_polygon.push_back(additions[k]);
 						}
 
 #if 0
@@ -1248,38 +1214,38 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	// Turn the arc representations of the polygons back into standard polygon geometries
 
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
-			partials[i].geometry.clear();
+	for (size_t i = 0; i < serial_features.size(); i++) {
+		if (serial_features[i].t == VT_POLYGON) {
+			serial_features[i].geometry.clear();
 			bool at_start = true;
 			draw first(-1, 0, 0);
 
-			for (size_t j = 0; j < partials[i].arc_polygon.size(); j++) {
-				ssize_t p = partials[i].arc_polygon[j];
+			for (size_t j = 0; j < serial_features[i].arc_polygon.size(); j++) {
+				ssize_t p = serial_features[i].arc_polygon[j];
 
 				if (p == 0) {
 					if (first.op >= 0) {
-						partials[i].geometry.push_back(first);
+						serial_features[i].geometry.push_back(first);
 						first = draw(-1, 0, 0);
 					}
 					at_start = true;
 				} else if (p > 0) {
 					for (size_t k = 0; k + 1 < simplified_arcs[p].size(); k++) {
 						if (at_start) {
-							partials[i].geometry.push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
+							serial_features[i].geometry.push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
 							first = draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y);
 						} else {
-							partials[i].geometry.push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
+							serial_features[i].geometry.push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
 						}
 						at_start = 0;
 					}
 				} else { /* p < 0 */
 					for (ssize_t k = simplified_arcs[-p].size() - 1; k > 0; k--) {
 						if (at_start) {
-							partials[i].geometry.push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
+							serial_features[i].geometry.push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
 							first = draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y);
 						} else {
-							partials[i].geometry.push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
+							serial_features[i].geometry.push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
 						}
 						at_start = 0;
 					}
@@ -1838,7 +1804,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 	add_to_tilestats(ts->second.tilestats, key, val);
 }
 
-void promote_attribute(std::string const &key, partial &p, char *stringpool, long long *pool_off) {
+void promote_attribute(std::string const &key, serial_feature &p, char *stringpool, long long *pool_off) {
 	if (p.need_tilestats.count(key) == 0) {
 		p.need_tilestats.insert(key);
 	}
@@ -1863,7 +1829,7 @@ void promote_attribute(std::string const &key, partial &p, char *stringpool, lon
 	}
 }
 
-void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, partial &p) {
+void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, serial_feature &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
 		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
 
@@ -1889,7 +1855,7 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 	}
 }
 
-// This function finds the feature in `partials` onto which the attributes or geometry
+// This function finds the feature in `serial_features` onto which the attributes or geometry
 // of a feature that is being dropped (`sf`) will be accumulated or coalesced. It
 // ordinarily returns the most recently-added feature from the same layer as the feature
 // that is being dropped, but if there is an active multiplier, will walk multiple
@@ -1897,13 +1863,13 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 // onto the N features that are being kept. The caller increments the `multiplier_seq`
 // mod N with each dropped feature to drive the round-robin decision.
 //
-bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
-	for (size_t i = partials.size(); i > 0; i--) {
-		if (partials[i - 1].t == sf.t) {
-			std::string &layername1 = (*layer_unmaps)[partials[i - 1].segment][partials[i - 1].layer];
+bool find_serial_feature(std::vector<serial_feature> &serial_features, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
+	for (size_t i = serial_features.size(); i > 0; i--) {
+		if (serial_features[i - 1].t == sf.t) {
+			std::string &layername1 = (*layer_unmaps)[serial_features[i - 1].segment][serial_features[i - 1].layer];
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
-			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
+			if (layername1 == layername2 && serial_features[i - 1].extent <= maxextent) {
 				if (multiplier_seq <= 0) {
 					out = i - 1;
 					return true;
@@ -1958,7 +1924,7 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
-void coalesce_geometry(partial &p, serial_feature &sf) {
+void coalesce_geometry(serial_feature &p, serial_feature &sf) {
 	// XXX need another way to deduplicate here
 #if 0
 	// if the geometry being coalesced on is an exact duplicate
@@ -2039,8 +2005,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long original_features = 0;
 		long long unclipped_features = 0;
 
-		std::vector<struct partial> partials;
-		std::map<std::string, std::vector<partial>> layers;
+		std::vector<struct serial_feature> serial_features;
+		std::map<std::string, std::vector<serial_feature>> layers;
 
 		std::vector<unsigned long long> indices;
 		std::vector<long long> extents;
@@ -2156,7 +2122,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t multiplier_seq = retain_points_multiplier - 1;
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
-			ssize_t which_partial = -1;
+			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool);
@@ -2185,8 +2151,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.dropped) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
-				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->dropped_by_rate++;
 					continue;
 				}
@@ -2195,8 +2161,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (gamma > 0) {
-				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->dropped_by_gamma++;
 					continue;
 				}
@@ -2214,21 +2180,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					partials[which_partial].clustered++;
+				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					serial_features[which_serial_feature].clustered++;
 
-					if (partials[which_partial].t == VT_POINT &&
-					    partials[which_partial].geometry.size() == 1 &&
+					if (serial_features[which_serial_feature].t == VT_POINT &&
+					    serial_features[which_serial_feature].geometry.size() == 1 &&
 					    sf.geometry.size() == 1) {
-						double x = (double) partials[which_partial].geometry[0].x * partials[which_partial].clustered;
-						double y = (double) partials[which_partial].geometry[0].y * partials[which_partial].clustered;
+						double x = (double) serial_features[which_serial_feature].geometry[0].x * serial_features[which_serial_feature].clustered;
+						double y = (double) serial_features[which_serial_feature].geometry[0].y * serial_features[which_serial_feature].clustered;
 						x += sf.geometry[0].x;
 						y += sf.geometry[0].y;
-						partials[which_partial].geometry[0].x = x / (partials[which_partial].clustered + 1);
-						partials[which_partial].geometry[0].y = y / (partials[which_partial].clustered + 1);
+						serial_features[which_serial_feature].geometry[0].x = x / (serial_features[which_serial_feature].clustered + 1);
+						serial_features[which_serial_feature].geometry[0].y = y / (serial_features[which_serial_feature].clustered + 1);
 					}
 
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2236,8 +2202,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (sf.index - merge_previndex < mingap && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
@@ -2245,11 +2211,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					coalesce_geometry(partials[which_partial], sf);
-					partials[which_partial].coalesced = true;
+				if (sf.index - merge_previndex < mingap && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					coalesce_geometry(serial_features[which_serial_feature], sf);
+					serial_features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2257,18 +2223,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 				// so we shouldn't expect to find anything small that we can related this feature to.
-				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
-				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent, multiplier_seq)) {
-					coalesce_geometry(partials[which_partial], sf);
-					partials[which_partial].coalesced = true;
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, minextent, multiplier_seq)) {
+					coalesce_geometry(serial_features[which_serial_feature], sf);
+					serial_features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2287,16 +2253,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			fraction_accum += fraction;
-			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+			if (fraction_accum < 1 && find_serial_feature(serial_features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					coalesce_geometry(partials[which_partial], sf);
-					partials[which_partial].coalesced = true;
+					coalesce_geometry(serial_features[which_serial_feature], sf);
+					serial_features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
 				} else {
 					strategy->dropped_as_needed++;
 				}
-				preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, serial_features[which_serial_feature]);
 				continue;
 			}
 			fraction_accum -= 1;
@@ -2329,7 +2295,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (sf.geometry.size() > 0) {
-				if (partials.size() > scaled_max_tile_size) {
+				if (serial_features.size() > scaled_max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
@@ -2340,7 +2306,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						shared_nodes.push_back(p);
 					}
 
-					partial p;
+					serial_feature p;
 					p.geometry = sf.geometry;
 					p.layer = sf.layer;
 					p.t = sf.t;
@@ -2380,7 +2346,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						tile_detail = p.extra_detail;
 					}
 
-					partials.push_back(p);
+					serial_features.push_back(p);
 
 					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
 					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
@@ -2390,19 +2356,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 						drawvec dv;
 
-						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
-							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
+						for (; simplified_geometry_through < serial_features.size(); simplified_geometry_through++) {
+							simplify_serial_feature(&serial_features[simplified_geometry_through], dv, shared_nodes_map, nodepos);
 
-							if (partials[simplified_geometry_through].t == VT_POLYGON) {
+							if (serial_features[simplified_geometry_through].t == VT_POLYGON) {
 								drawvec to_clean;
 
-								for (auto &g : partials[simplified_geometry_through].geometry) {
+								for (auto &g : serial_features[simplified_geometry_through].geometry) {
 									to_clean.push_back(g);
 								}
 
 								// don't scale up because this is still world coordinates
 								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
-								partials[simplified_geometry_through].geometry = to_clean;
+								serial_features[simplified_geometry_through].geometry = to_clean;
 							}
 						}
 
@@ -2419,8 +2385,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// mapping from input sequence to current sequence within this tile
 			std::vector<std::pair<size_t, size_t>> feature_sequences;
 
-			for (size_t i = 0; i < partials.size(); i++) {
-				feature_sequences.emplace_back(partials[i].seq, i);
+			for (size_t i = 0; i < serial_features.size(); i++) {
+				feature_sequences.emplace_back(serial_features[i].seq, i);
 			}
 
 			// tag each feature with its sequence number within the tile
@@ -2437,15 +2403,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				val.type = mvt_double;
 				val.s = std::to_string(i);
 
-				partials[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
-				partials[j].full_values.push_back(val);
+				serial_features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+				serial_features[j].full_values.push_back(val);
 			}
 		}
 
 		std::sort(shared_nodes.begin(), shared_nodes.end());
 
-		for (size_t i = 0; i < partials.size(); i++) {
-			partial &p = partials[i];
+		for (size_t i = 0; i < serial_features.size(); i++) {
+			serial_feature &p = serial_features[i];
 
 			if (p.clustered > 0) {
 				std::string layername = (*layer_unmaps)[p.segment][p.layer];
@@ -2526,7 +2492,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		first_time = false;
 
 		if (additional[A_DETECT_SHARED_BORDERS]) {
-			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
+			find_common_edges(serial_features, z, line_detail, simplification, maxzoom, merge_fraction);
 		}
 
 		int tasks = ceil((double) CPUS / *running);
@@ -2535,23 +2501,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		pthread_t pthreads[tasks];
-		std::vector<partial_arg> args;
+		std::vector<serial_feature_arg> args;
 		args.resize(tasks);
 		for (int i = 0; i < tasks; i++) {
 			args[i].task = i;
 			args[i].tasks = tasks;
-			args[i].partials = &partials;
+			args[i].serial_features = &serial_features;
 			args[i].shared_nodes = &shared_nodes;
 			args[i].shared_nodes_map = shared_nodes_map;
 			args[i].nodepos = nodepos;
 
 			if (tasks > 1) {
-				if (thread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
+				if (thread_create(&pthreads[i], NULL, serial_feature_feature_worker, &args[i]) != 0) {
 					perror("pthread_create");
 					exit(EXIT_PTHREAD);
 				}
 			} else {
-				partial_feature_worker(&args[i]);
+				serial_feature_feature_worker(&args[i]);
 			}
 		}
 
@@ -2565,33 +2531,33 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		std::reverse(partials.begin(), partials.end());
-		for (ssize_t i = partials.size() - 1; i >= 0; i--) {
-			signed char t = partials[i].t;
+		std::reverse(serial_features.begin(), serial_features.end());
+		for (ssize_t i = serial_features.size() - 1; i >= 0; i--) {
+			signed char t = serial_features[i].t;
 
 			{
-				if (t == VT_POINT || draws_something(partials[i].geometry)) {
-					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
+				if (t == VT_POINT || draws_something(serial_features[i].geometry)) {
+					// printf("segment %d layer %lld is %s\n", serial_features[i].segment, serial_features[i].layer, (*layer_unmaps)[serial_features[i].segment][serial_features[i].layer].c_str());
 
-					std::string layername = (*layer_unmaps)[partials[i].segment][partials[i].layer];
+					std::string layername = (*layer_unmaps)[serial_features[i].segment][serial_features[i].layer];
 					if (layers.count(layername) == 0) {
-						layers.insert(std::pair<std::string, std::vector<partial>>(layername, std::vector<partial>()));
+						layers.insert(std::pair<std::string, std::vector<serial_feature>>(layername, std::vector<serial_feature>()));
 					}
 
 					auto l = layers.find(layername);
 					if (l == layers.end()) {
 						fprintf(stderr, "Internal error: couldn't find layer %s\n", layername.c_str());
-						fprintf(stderr, "segment %d\n", partials[i].segment);
-						fprintf(stderr, "layer %lld\n", partials[i].layer);
+						fprintf(stderr, "segment %d\n", serial_features[i].segment);
+						fprintf(stderr, "layer %lld\n", serial_features[i].layer);
 						exit(EXIT_IMPOSSIBLE);
 					}
-					partials[i].coalesced = false;
-					l->second.push_back(std::move(partials[i]));
+					serial_features[i].coalesced = false;
+					l->second.push_back(std::move(serial_features[i]));
 				}
 			}
 		}
 
-		partials.clear();
+		serial_features.clear();
 
 		int j;
 		for (j = 0; j < child_shards; j++) {
@@ -2603,10 +2569,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<partial> &layer_features = layer_iterator->second;
+			std::vector<serial_feature> &layer_features = layer_iterator->second;
 
 			if (additional[A_REORDER]) {
-				std::sort(layer_features.begin(), layer_features.end());
+				std::sort(layer_features.begin(), layer_features.end(), coalindexcmp_comparator());
 			}
 
 			if (additional[A_COALESCE]) {
@@ -2695,7 +2661,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t totalsize = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<partial> &layer_features = layer_iterator->second;
+			std::vector<serial_feature> &layer_features = layer_iterator->second;
 			totalsize += layer_features.size();
 
 			mvt_layer layer;
