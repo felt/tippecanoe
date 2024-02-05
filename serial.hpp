@@ -103,6 +103,7 @@ struct serial_feature {
 	int maxzoom;
 	double spacing;				       // feature spacing for --calculate-feature-density
 	double simplification;			       // simplification level at this zoom level
+	std::vector<ssize_t> arc_polygon;	       // used in --detect-shared-borders
 	ssize_t renamed;			       // used in --detect-shared-borders logic
 	long long clustered;			       // does this feature need the clustered/point_count attributes?
 	char *stringpool;			       // string pool for keys/values lookup
