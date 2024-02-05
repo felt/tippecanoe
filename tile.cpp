@@ -424,8 +424,8 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 	return out;
 }
 
-void rewrite(serial_feature const &osf, drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
-	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
+void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
 
@@ -435,7 +435,7 @@ void rewrite(serial_feature const &osf, drawvec &geom, int z, int nextzoom, int 
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = bbox[k] / (1 << (32 - nextzoom - 8));
+			bbox2[k] = osf.bbox[k] / (1 << (32 - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.
@@ -463,8 +463,8 @@ void rewrite(serial_feature const &osf, drawvec &geom, int z, int nextzoom, int 
 		}
 
 		drawvec geom2;
-		for (size_t i = 0; i < geom.size(); i++) {
-			geom2.push_back(draw(geom[i].op, SHIFT_RIGHT(geom[i].x + sx), SHIFT_RIGHT(geom[i].y + sy)));
+		for (auto const &g : osf.geometry) {
+			geom2.emplace_back(g.op, SHIFT_RIGHT(g.x + sx), SHIFT_RIGHT(g.y + sy));
 		}
 
 		for (xo = bbox2[0]; xo <= bbox2[2]; xo++) {
@@ -1576,7 +1576,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf, sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
+				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
 			}
 		}
 
