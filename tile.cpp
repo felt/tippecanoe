@@ -424,7 +424,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 	return out;
 }
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
+void rewrite(serial_feature const &osf, drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
 	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -502,26 +502,24 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 					}
 
 					serial_feature sf;
-					sf.layer = layer;
-					sf.segment = segment;
-					sf.seq = seq;
-					sf.t = t;
-					sf.has_id = has_id;
-					sf.id = id;
-					sf.has_tippecanoe_minzoom = tippecanoe_minzoom != -1;
-					sf.tippecanoe_minzoom = tippecanoe_minzoom;
-					sf.has_tippecanoe_maxzoom = tippecanoe_maxzoom != -1;
-					sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
+					sf.layer = osf.layer;
+					sf.segment = osf.segment;
+					sf.seq = osf.seq;
+					sf.t = osf.t;
+					sf.has_id = osf.has_id;
+					sf.id = osf.id;
+					sf.has_tippecanoe_minzoom = osf.has_tippecanoe_minzoom;
+					sf.tippecanoe_minzoom = osf.tippecanoe_minzoom;
+					sf.has_tippecanoe_maxzoom = osf.has_tippecanoe_maxzoom;
+					sf.tippecanoe_maxzoom = osf.tippecanoe_maxzoom;
 					sf.geometry = geom2;
-					sf.index = index;
-					sf.label_point = label_point;
-					sf.extent = extent;
-					sf.feature_minzoom = feature_minzoom;
+					sf.index = osf.index;
+					sf.label_point = osf.label_point;
+					sf.extent = osf.extent;
+					sf.feature_minzoom = osf.feature_minzoom;
 
-					for (size_t i = 0; i < metakeys.size(); i++) {
-						sf.keys.push_back(metakeys[i]);
-						sf.values.push_back(metavals[i]);
-					}
+					sf.keys = osf.keys;
+					sf.values = osf.values;
 
 					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
 					geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
@@ -1595,7 +1593,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
+				rewrite(sf, sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
 			}
 		}
 
