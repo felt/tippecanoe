@@ -2058,7 +2058,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		FILE *prefilter_read_fp = NULL;
 		json_pull *prefilter_jp = NULL;
 
-		serial_feature tiny_feature;
+		serial_feature tiny_feature;  // used to track which feature currently represents the dust
 
 		if (z < minzoom) {
 			prefilter = NULL;
@@ -2306,12 +2306,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						shared_nodes.push_back(p);
 					}
 
-					serial_feature p;
-					p.geometry = sf.geometry;
-					p.layer = sf.layer;
-					p.t = sf.t;
-					p.segment = sf.segment;
-					p.seq = sf.seq;
+					serial_feature p = std::move(sf);
 					p.reduced = !still_need_simplification_after_reduction;
 					p.coalesced = false;
 					p.z = z;
@@ -2320,18 +2315,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.line_detail = line_detail;
 					p.extra_detail = line_detail;
 					p.maxzoom = maxzoom;
-					p.keys = sf.keys;
-					p.values = sf.values;
-					p.full_keys = sf.full_keys;
-					p.full_values = sf.full_values;
 					p.spacing = spacing;
 					p.simplification = simplification;
-					p.id = sf.id;
-					p.has_id = sf.has_id;
-					p.index = sf.index;
-					p.label_point = sf.label_point;
 					p.renamed = -1;
-					p.extent = sf.extent;
 					p.clustered = 0;
 					p.stringpool = stringpool + pool_off[sf.segment];
 					p.tile_stringpool = tile_stringpool;
