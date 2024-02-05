@@ -640,7 +640,7 @@ static double simplify_serial_feature(serial_feature *p, drawvec const &shared_n
 
 // This is the worker function that is called from multiple threads to
 // simplify and clean the geometry of batches of features.
-void *simplification_worker(void *v) {
+static void *simplification_worker(void *v) {
 	simplification_worker_arg *a = (simplification_worker_arg *) v;
 	std::vector<serial_feature> *features = a->features;
 
@@ -730,7 +730,7 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 // of features that survived the previous gap-choosing, so it first needs to calculate
 // and sort the gaps between them before deciding which new gap threshold will satisfy
 // the need to keep only the requested fraction of features.
-unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
+static unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
 	unsigned long long bot = ULLONG_MAX;
 	unsigned long long top = 0;
 
@@ -799,8 +799,7 @@ unsigned long long choose_mingap(std::vector<unsigned long long> const &indices,
 // of the list, until the possibilities run out or something higher than the old extent is found.
 // If there are no higher extents available, the tile has already been reduced as much as possible
 // and tippecanoe will exit with an error.
-
-long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
+static long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
 	std::sort(extents.begin(), extents.end());
 
 	size_t ix = (extents.size() - 1) * (1 - f);
@@ -875,7 +874,10 @@ struct write_tile_args {
 	size_t nodepos;
 };
 
-bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
+// Clips a feature's geometry to the tile bounds at the specified zoom level
+// with the specified buffer. Returns true if the feature was entirely clipped away
+// by bounding box alone; otherwise returns false.
+static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	int quick = quick_check(sf.bbox, z, buffer);
 
 	if (z == 0) {
@@ -960,7 +962,8 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	return false;
 }
 
-void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes, const char *stringpool, long long *pool_off) {
+// Removes the attributes named in --exclude, if any, from the feature
+static void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes, const char *stringpool, long long *pool_off) {
 	for (ssize_t i = sf.keys.size() - 1; i >= 0; i--) {
 		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
 		if (exclude_attributes.count(key) > 0) {
@@ -978,11 +981,17 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
+// This map maintains the count for attributes that resulted from the "mean"
+// --accumulate-attribute option so that features' attributes can be averaged in
+// without knowing their total count in advance.
 struct multiplier_state {
 	std::map<std::string, size_t> count;
 };
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
+// This function is called repeatedly from write_tile() to retrieve the next feature
+// from the input stream. If the stream is at an end, it returns a feature with the
+// geometry type set to -2.
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
 	while (1) {
 		serial_feature sf;
 		std::string s;
