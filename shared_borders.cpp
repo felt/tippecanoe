@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <algorithm>
 #include "geometry.hpp"
 #include "serial.hpp"
 #include "options.hpp"
