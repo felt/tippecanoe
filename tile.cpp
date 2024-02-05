@@ -66,6 +66,51 @@ extern "C" {
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 
+int coalindexcmp(const struct partial *c1, const struct partial *c2, std::shared_ptr<std::string> const &tile_stringpool);
+
+struct partial {
+	drawvec geom;
+	std::vector<long long> keys = std::vector<long long>();
+	std::vector<long long> values = std::vector<long long>();
+	std::vector<std::string> full_keys = std::vector<std::string>();
+	std::vector<serial_val> full_values = std::vector<serial_val>();
+	std::vector<ssize_t> arc_polygon = std::vector<ssize_t>();
+	long long layer = 0;
+	long long original_seq = 0;
+	unsigned long long index = 0;
+	unsigned long long label_point = 0;
+	int segment = 0;
+	bool reduced = 0;
+	bool coalesced = 0;
+	int z = 0;
+	int tx = 0;
+	int ty = 0;
+	int line_detail = 0;
+	int extra_detail = 0;
+	int maxzoom = 0;
+	double spacing = 0;
+	double simplification = 0;
+	signed char t = 0;
+	unsigned long long id = 0;
+	bool has_id = 0;
+	ssize_t renamed = 0;
+	long long extent = 0;
+	long long clustered = 0;
+	std::set<std::string> need_tilestats;
+	std::unordered_map<std::string, accum_state> attribute_accum_state;
+	char *stringpool = NULL;
+	std::shared_ptr<std::string> tile_stringpool;
+
+	bool operator<(const partial &o) const {
+		int cmp = coalindexcmp(this, &o, tile_stringpool);
+		if (cmp < 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
+
 std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	std::vector<mvt_geometry> out;
 
@@ -87,50 +132,22 @@ bool draws_something(drawvec &geom) {
 }
 
 static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool);
-int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2, std::shared_ptr<std::string> const &tile_stringpool);
-
-struct coalesce {
-	char *stringpool = NULL;
-	std::vector<long long> keys = std::vector<long long>();
-	std::vector<long long> values = std::vector<long long>();
-	std::vector<std::string> full_keys = std::vector<std::string>();
-	std::vector<serial_val> full_values = std::vector<serial_val>();
-	drawvec geom = drawvec();
-	unsigned long long index = 0;
-	long long original_seq = 0;
-	int type = 0;
-	bool coalesced = false;
-	double spacing = 0;
-	bool has_id = false;
-	unsigned long long id = 0;
-	long long extent = 0;
-	std::shared_ptr<std::string> tile_stringpool;
-
-	bool operator<(const coalesce &o) const {
-		int cmp = coalindexcmp(this, &o, tile_stringpool);
-		if (cmp < 0) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-};
 
 static struct preservecmp {
-	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+	bool operator()(const std::vector<struct partial> &a, const std::vector<struct partial> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct coalesce &a, const struct coalesce &b) {
+	bool operator()(const struct partial &a, const struct partial &b) {
 		return a.original_seq < b.original_seq;
 	}
 } preservecmp;
 
 int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
-	const struct coalesce *c1 = (const struct coalesce *) v1;
-	const struct coalesce *c2 = (const struct coalesce *) v2;
+	const struct partial *c1 = (const struct partial *) v1;
+	const struct partial *c2 = (const struct partial *) v2;
 
-	int cmp = c1->type - c2->type;
+	int cmp = c1->t - c2->t;
 	if (cmp != 0) {
 		return cmp;
 	}
@@ -182,7 +199,7 @@ int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &
 	return 0;
 }
 
-int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2, std::shared_ptr<std::string> const &tile_stringpool) {
+int coalindexcmp(const struct partial *c1, const struct partial *c2, std::shared_ptr<std::string> const &tile_stringpool) {
 	int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
 
 	if (cmp == 0) {
@@ -261,7 +278,7 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 	}
 }
 
-static mvt_value find_attribute_value(const struct coalesce *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
+static mvt_value find_attribute_value(const struct partial *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -313,11 +330,11 @@ static mvt_value coerce_double(mvt_value v) {
 struct ordercmp {
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
-	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+	bool operator()(const std::vector<struct partial> &a, const std::vector<struct partial> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct coalesce &a, const struct coalesce &b) {
+	bool operator()(const struct partial &a, const struct partial &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
 			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, tile_stringpool));
 			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, tile_stringpool));
@@ -345,12 +362,12 @@ struct ordercmp {
 	}
 };
 
-std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> &features) {
-	std::vector<std::vector<coalesce>> clusters;
+std::vector<std::vector<partial>> assemble_multiplier_clusters(std::vector<partial> &features) {
+	std::vector<std::vector<partial>> clusters;
 
 	if (retain_points_multiplier == 1) {
 		for (auto const &feature : features) {
-			std::vector<coalesce> cluster;
+			std::vector<partial> cluster;
 			cluster.push_back(feature);
 			clusters.push_back(cluster);
 		}
@@ -366,7 +383,7 @@ std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coal
 			}
 
 			if (is_cluster_start || clusters.size() == 0) {
-				clusters.push_back(std::vector<coalesce>());
+				clusters.push_back(std::vector<partial>());
 			}
 
 			clusters.back().push_back(feature);
@@ -376,8 +393,8 @@ std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coal
 	return clusters;
 }
 
-std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<coalesce>> &clusters) {
-	std::vector<coalesce> out;
+std::vector<partial> disassemble_multiplier_clusters(std::vector<std::vector<partial>> &clusters) {
+	std::vector<partial> out;
 
 	for (auto &cluster : clusters) {
 		// fix up the attributes so the first feature of the multiplier cluster
@@ -512,38 +529,6 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 		}
 	}
 }
-
-struct partial {
-	drawvec geom;
-	std::vector<long long> keys = std::vector<long long>();
-	std::vector<long long> values = std::vector<long long>();
-	std::vector<std::string> full_keys = std::vector<std::string>();
-	std::vector<serial_val> full_values = std::vector<serial_val>();
-	std::vector<ssize_t> arc_polygon = std::vector<ssize_t>();
-	long long layer = 0;
-	long long original_seq = 0;
-	unsigned long long index = 0;
-	unsigned long long label_point = 0;
-	int segment = 0;
-	bool reduced = 0;
-	bool coalesced = 0;
-	int z = 0;
-	int tx = 0;
-	int ty = 0;
-	int line_detail = 0;
-	int extra_detail = 0;
-	int maxzoom = 0;
-	double spacing = 0;
-	double simplification = 0;
-	signed char t = 0;
-	unsigned long long id = 0;
-	bool has_id = 0;
-	ssize_t renamed = 0;
-	long long extent = 0;
-	long long clustered = 0;
-	std::set<std::string> need_tilestats;
-	std::unordered_map<std::string, accum_state> attribute_accum_state;
-};
 
 struct partial_arg {
 	std::vector<struct partial> *partials = NULL;
@@ -2057,7 +2042,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long unclipped_features = 0;
 
 		std::vector<struct partial> partials;
-		std::map<std::string, std::vector<coalesce>> layers;
+		std::map<std::string, std::vector<partial>> layers;
 
 		std::vector<unsigned long long> indices;
 		std::vector<long long> extents;
@@ -2384,6 +2369,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					p.renamed = -1;
 					p.extent = sf.extent;
 					p.clustered = 0;
+					p.stringpool = stringpool + pool_off[sf.segment];
+					p.tile_stringpool = tile_stringpool;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						p.extra_detail = extra_detail;
@@ -2583,33 +2570,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		std::reverse(partials.begin(), partials.end());
 		for (ssize_t i = partials.size() - 1; i >= 0; i--) {
 			signed char t = partials[i].t;
-			long long original_seq = partials[i].original_seq;
 
 			{
 				if (t == VT_POINT || draws_something(partials[i].geom)) {
-					struct coalesce c;
-
-					c.type = t;
-					c.index = partials[i].index;
-					c.geom = partials[i].geom;
-					c.coalesced = false;
-					c.original_seq = original_seq;
-					c.stringpool = stringpool + pool_off[partials[i].segment];
-					c.keys = partials[i].keys;
-					c.values = partials[i].values;
-					c.full_keys = partials[i].full_keys;
-					c.full_values = partials[i].full_values;
-					c.spacing = partials[i].spacing;
-					c.id = partials[i].id;
-					c.has_id = partials[i].has_id;
-					c.extent = partials[i].extent;
-					c.tile_stringpool = tile_stringpool;
-
 					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
 
 					std::string layername = (*layer_unmaps)[partials[i].segment][partials[i].layer];
 					if (layers.count(layername) == 0) {
-						layers.insert(std::pair<std::string, std::vector<coalesce>>(layername, std::vector<coalesce>()));
+						layers.insert(std::pair<std::string, std::vector<partial>>(layername, std::vector<partial>()));
 					}
 
 					auto l = layers.find(layername);
@@ -2619,11 +2587,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						fprintf(stderr, "layer %lld\n", partials[i].layer);
 						exit(EXIT_IMPOSSIBLE);
 					}
-					l->second.push_back(c);
+					partials[i].coalesced = false;
+					l->second.push_back(std::move(partials[i]));
 				}
 			}
-
-			partials.erase(partials.begin() + i);
 		}
 
 		partials.clear();
@@ -2638,7 +2605,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<coalesce> &layer_features = layer_iterator->second;
+			std::vector<partial> &layer_features = layer_iterator->second;
 
 			if (additional[A_REORDER]) {
 				std::sort(layer_features.begin(), layer_features.end());
@@ -2677,16 +2644,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				size_t out = 0;
 
 				for (size_t x = 0; x < layer_features.size(); x++) {
-					if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
-						layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+					if (layer_features[x].coalesced && layer_features[x].t == VT_LINE) {
+						layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].t, 0);
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
 							// XXX revisit: why does this not take zoom into account?
 							layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
-												!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+												!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
 						}
 					}
 
-					if (layer_features[x].type == VT_POLYGON) {
+					if (layer_features[x].t == VT_POLYGON) {
 						if (layer_features[x].coalesced) {
 							// we can try scaling up because this is tile coordinates
 							layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
@@ -2730,7 +2697,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t totalsize = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<coalesce> &layer_features = layer_iterator->second;
+			std::vector<partial> &layer_features = layer_iterator->second;
 			totalsize += layer_features.size();
 
 			mvt_layer layer;
@@ -2742,15 +2709,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			for (ssize_t x = layer_features.size() - 1; x >= 0; x--) {
 				mvt_feature feature;
 
-				if (layer_features[x].type == VT_LINE || layer_features[x].type == VT_POLYGON) {
-					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+				if (layer_features[x].t == VT_LINE || layer_features[x].t == VT_POLYGON) {
+					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].t, 0);
 				}
 
 				if (layer_features[x].geom.size() == 0) {
 					continue;
 				}
 
-				feature.type = layer_features[x].type;
+				feature.type = layer_features[x].t;
 				feature.geometry = to_feature(layer_features[x].geom);
 				count += layer_features[x].geom.size();
 				layer_features[x].geom.clear();
