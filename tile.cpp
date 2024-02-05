@@ -1589,8 +1589,6 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
-		} else {
-			continue;
 		}
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
