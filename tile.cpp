@@ -501,25 +501,8 @@ void rewrite(serial_feature const &osf, drawvec &geom, int z, int nextzoom, int 
 						within[j] = 1;
 					}
 
-					serial_feature sf;
-					sf.layer = osf.layer;
-					sf.segment = osf.segment;
-					sf.seq = osf.seq;
-					sf.t = osf.t;
-					sf.has_id = osf.has_id;
-					sf.id = osf.id;
-					sf.has_tippecanoe_minzoom = osf.has_tippecanoe_minzoom;
-					sf.tippecanoe_minzoom = osf.tippecanoe_minzoom;
-					sf.has_tippecanoe_maxzoom = osf.has_tippecanoe_maxzoom;
-					sf.tippecanoe_maxzoom = osf.tippecanoe_maxzoom;
+					serial_feature sf = osf;
 					sf.geometry = geom2;
-					sf.index = osf.index;
-					sf.label_point = osf.label_point;
-					sf.extent = osf.extent;
-					sf.feature_minzoom = osf.feature_minzoom;
-
-					sf.keys = osf.keys;
-					sf.values = osf.values;
 
 					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
 					geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
