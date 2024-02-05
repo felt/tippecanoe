@@ -73,16 +73,40 @@ struct serial_feature {
 	unsigned long long label_point = 0;
 	long long extent = 0;
 
+	// These fields are not directly serialized, but are used
+	// to create the keys and values references into the string pool
+	// during initial serialization
+
+	std::vector<std::string> full_keys{};
+	std::vector<serial_val> full_values{};
+
+	// These fields are generated from full_keys and full_values
+	// during initial serialization and then replace the string
+	// representations:
+
 	std::vector<long long> keys{};
 	std::vector<long long> values{};
 
-	// XXX This isn't serialized. Should it be here?
+	// These fields are used during tiling,
+	// but are not serialized and are not expected
+	// to be provided by frontends:
+
 	long long bbox[4] = {0, 0, 0, 0};
-	std::vector<std::string> full_keys{};
-	std::vector<serial_val> full_values{};
 	std::string layername = "";
-	bool dropped = false;
-	drawvec edge_nodes;
+	bool dropped = false;  // was this feature dropped by rate?
+	drawvec edge_nodes;    // what nodes at the tile edge were added during clipping?
+
+	bool reduced;	   // is polygon dust
+	bool coalesced;	   // was coalesced from multiple features
+	int line_detail;   // current tile resolution being used for simplification
+	int extra_detail;  // extra tile resolution to retain in output
+	int maxzoom;
+	double spacing;				       // feature spacing for --calculate-feature-density
+	double simplification;			       // simplification level at this zoom level
+	ssize_t renamed;			       // used in --detect-shared-borders logic
+	long long clustered;			       // does this feature need the clustered/point_count attributes?
+	char *stringpool;			       // string pool for keys/values lookup
+	std::shared_ptr<std::string> tile_stringpool;  // string pool for mvt_value construction
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
