@@ -126,43 +126,43 @@ void serialize_uint(std::string &out, unsigned n) {
 
 // read from memory
 
-void deserialize_int(char **f, int *n) {
+void deserialize_int(const char **f, int *n) {
 	long long ll;
 	deserialize_long_long(f, &ll);
 	*n = ll;
 }
 
-void deserialize_long_long(char **f, long long *n) {
+void deserialize_long_long(const char **f, long long *n) {
 	unsigned long long zigzag = 0;
 	deserialize_ulong_long(f, &zigzag);
 	*n = protozero::decode_zigzag64(zigzag);
 }
 
-void deserialize_ulong_long(char **f, unsigned long long *zigzag) {
+void deserialize_ulong_long(const char **f, unsigned long long *zigzag) {
 	*zigzag = 0;
 	int shift = 0;
 
 	while (1) {
 		if ((**f & 0x80) == 0) {
-			*zigzag |= ((unsigned long long) **f) << shift;
+			*zigzag |= ((const unsigned long long) **f) << shift;
 			*f += 1;
 			shift += 7;
 			break;
 		} else {
-			*zigzag |= ((unsigned long long) (**f & 0x7F)) << shift;
+			*zigzag |= ((const unsigned long long) (**f & 0x7F)) << shift;
 			*f += 1;
 			shift += 7;
 		}
 	}
 }
 
-void deserialize_uint(char **f, unsigned *n) {
+void deserialize_uint(const char **f, unsigned *n) {
 	unsigned long long v;
 	deserialize_ulong_long(f, &v);
 	*n = v;
 }
 
-void deserialize_byte(char **f, signed char *n) {
+void deserialize_byte(const char **f, signed char *n) {
 	memcpy(n, *f, sizeof(signed char));
 	*f += sizeof(signed char);
 }
@@ -244,9 +244,9 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	return s;
 }
 
-serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
 	serial_feature sf;
-	char *cp = (char *) geoms.c_str();
+	const char *cp = geoms.c_str();
 
 	deserialize_byte(&cp, &sf.t);
 	deserialize_long_long(&cp, &sf.layer);

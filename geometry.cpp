@@ -21,7 +21,7 @@
 #include "errors.hpp"
 #include "projection.hpp"
 
-drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
+drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
 	drawvec out;
 
 	bbox[0] = LLONG_MAX;
@@ -56,18 +56,10 @@ drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long 
 				wwy -= ty << (32 - z);
 			}
 
-			if (wwx < bbox[0]) {
-				bbox[0] = wwx;
-			}
-			if (wwy < bbox[1]) {
-				bbox[1] = wwy;
-			}
-			if (wwx > bbox[2]) {
-				bbox[2] = wwx;
-			}
-			if (wwy > bbox[3]) {
-				bbox[3] = wwy;
-			}
+			bbox[0] = std::min(wwx, bbox[0]);
+			bbox[1] = std::min(wwy, bbox[1]);
+			bbox[2] = std::max(wwx, bbox[2]);
+			bbox[3] = std::max(wwy, bbox[3]);
 
 			d.x = wwx;
 			d.y = wwy;

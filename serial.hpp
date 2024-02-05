@@ -25,11 +25,11 @@ void serialize_ulong_long(std::string &out, unsigned long long n);
 void serialize_byte(std::string &out, signed char n);
 void serialize_uint(std::string &out, unsigned n);
 
-void deserialize_int(char **f, int *n);
-void deserialize_long_long(char **f, long long *n);
-void deserialize_ulong_long(char **f, unsigned long long *n);
-void deserialize_uint(char **f, unsigned *n);
-void deserialize_byte(char **f, signed char *n);
+void deserialize_int(const char **f, int *n);
+void deserialize_long_long(const char **f, long long *n);
+void deserialize_ulong_long(const char **f, unsigned long long *n);
+void deserialize_uint(const char **f, unsigned *n);
+void deserialize_byte(const char **f, signed char *n);
 
 // This is the main representation of attribute values in memory and
 // in the string pool. The type is one of the mvt_value type (mvt_string,
@@ -117,7 +117,7 @@ struct serial_feature {
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
-serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
 
 struct reader {
 	int poolfd = -1;

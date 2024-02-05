@@ -994,14 +994,13 @@ struct multiplier_state {
 static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
 	while (1) {
 		serial_feature sf;
-		std::string s;
 		long long len;
 
 		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
 			fprintf(stderr, "Unexpected physical EOF in feature stream\n");
 			exit(EXIT_READ);
 		}
-		if (len == 0) {
+		if (len <= 0) {
 			if (compressed) {
 				geoms->end(geompos_in);
 			}
@@ -1010,7 +1009,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			return sf;
 		}
 
-		s.resize(std::abs(len));
+		std::string s;
+		s.resize(len);
 		size_t n = geoms->fread((void *) s.c_str(), sizeof(char), s.size(), geompos_in);
 		if (n != s.size()) {
 			fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
@@ -1040,6 +1040,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
+		} else {
+			// XXX should continue, but affects test outputs
 		}
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
