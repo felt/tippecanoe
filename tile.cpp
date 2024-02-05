@@ -66,17 +66,19 @@ extern "C" {
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 
-std::vector<mvt_geometry> to_feature(drawvec &geom) {
+// convert serial feature geometry (drawvec) to output tile geometry (mvt_geometry)
+static std::vector<mvt_geometry> to_feature(drawvec const &geom) {
 	std::vector<mvt_geometry> out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		out.push_back(mvt_geometry(geom[i].op, geom[i].x, geom[i].y));
+		out.emplace_back(geom[i].op, geom[i].x, geom[i].y);
 	}
 
 	return out;
 }
 
-bool draws_something(drawvec &geom) {
+// does this geometry have any non-zero-length linetos?
+static bool draws_something(drawvec const &geom) {
 	for (size_t i = 1; i < geom.size(); i++) {
 		if (geom[i].op == VT_LINETO && (geom[i].x != geom[i - 1].x || geom[i].y != geom[i - 1].y)) {
 			return true;
@@ -88,6 +90,7 @@ bool draws_something(drawvec &geom) {
 
 static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool);
 
+// comparator for --preserve-input-order, to reorder features back to their original input sequence
 static struct preservecmp {
 	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
 		return operator()(a[0], b[0]);
@@ -98,7 +101,15 @@ static struct preservecmp {
 	}
 } preservecmp;
 
-int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
+// comparator for --coalesce and --reorder:
+// two features can be coalesced if they have
+// * the same type
+// * the same id, if any
+// * the same attributes, according to metacmp
+// * the same full_keys and full_values attributes
+//
+// The tile_stringpool is used to construct temporary mvt_values for comparison.
+static int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
 	const serial_feature *c1 = (const serial_feature *) v1;
 	const serial_feature *c2 = (const serial_feature *) v2;
 
@@ -154,27 +165,31 @@ int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &
 	return 0;
 }
 
-int coalindexcmp(const serial_feature *c1, const serial_feature *c2, std::shared_ptr<std::string> const &tile_stringpool) {
-	int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
+// comparator for --reorder:
+// features are ordered first by their attributes (according to coalcmp above)
+// and then, if they are identical from that perspective, by their index (centroid)
+// and geometry
+struct coalindexcmp_comparator {
+	int coalindexcmp(const serial_feature *c1, const serial_feature *c2, std::shared_ptr<std::string> const &tile_stringpool) const {
+		int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
 
-	if (cmp == 0) {
-		if (c1->index < c2->index) {
-			return -1;
-		} else if (c1->index > c2->index) {
-			return 1;
+		if (cmp == 0) {
+			if (c1->index < c2->index) {
+				return -1;
+			} else if (c1->index > c2->index) {
+				return 1;
+			}
+
+			if (c1->geometry < c2->geometry) {
+				return -1;
+			} else if (c1->geometry > c2->geometry) {
+				return 1;
+			}
 		}
 
-		if (c1->geometry < c2->geometry) {
-			return -1;
-		} else if (c1->geometry > c2->geometry) {
-			return 1;
-		}
+		return cmp;
 	}
 
-	return cmp;
-}
-
-struct coalindexcmp_comparator {
 	bool operator()(const serial_feature &a, const serial_feature &o) const {
 		int cmp = coalindexcmp(&a, &o, a.tile_stringpool);
 		if (cmp < 0) {
@@ -185,18 +200,22 @@ struct coalindexcmp_comparator {
 	}
 };
 
-mvt_value retrieve_string(long long off, const char *stringpool, std::shared_ptr<std::string> const &tile_stringpool) {
+// retrieve an attribute key or value from the string pool and return it as mvt_value
+static mvt_value retrieve_string(long long off, const char *stringpool, std::shared_ptr<std::string> const &tile_stringpool) {
 	int type = stringpool[off];
 	const char *s = stringpool + off + 1;
 
 	return stringified_to_mvt_value(type, s, tile_stringpool);
 }
 
-std::string retrieve_std_string(long long off, const char *stringpool) {
+// retrieve an attribute key from the string pool and return it as std::string
+static std::string retrieve_std_string(long long off, const char *stringpool) {
 	return std::string(stringpool + off + 1);
 }
 
-void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature, std::shared_ptr<std::string> const &tile_stringpool) {
+// retrieve the keys and values of a feature from the string pool
+// and tag them onto an mvt_feature and mvt_layer
+static void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature, std::shared_ptr<std::string> const &tile_stringpool) {
 	size_t i;
 	for (i = 0; i < metakeys.size(); i++) {
 		std::string key = retrieve_std_string(metakeys[i], stringpool);
@@ -206,7 +225,19 @@ void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> 
 	}
 }
 
+// comparator used to check whether two features have identical keys and values,
+// as determined by retrieving them from the string pool. The order of keys,
+// not just the content of their values, must also be identical for them to compare equal.
+//
+// The tile_string_pool is used to construct temporary mvt_values for comparison.
+// This should probably actually do direct lookups into the string pool instead of constructing.
 static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool) {
+	if (keys1.size() < keys2.size()) {
+		return -1;
+	} else if (keys1.size() > keys2.size()) {
+		return 1;
+	}
+
 	size_t i;
 	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
 		mvt_value key1 = retrieve_string(keys1[i], stringpool1, tile_stringpool);
@@ -235,15 +266,11 @@ static int metacmp(const std::vector<long long> &keys1, const std::vector<long l
 		}
 	}
 
-	if (keys1.size() < keys2.size()) {
-		return -1;
-	} else if (keys1.size() > keys2.size()) {
-		return 1;
-	} else {
-		return 0;
-	}
+	return 0;
 }
 
+// Retrieve the value of an attribute or pseudo-attribute (ORDER_BY_SIZE) for --order purposes.
+// The tile_stringpool argument is used to construct the mvt_values.
 static mvt_value find_attribute_value(const serial_feature *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
@@ -275,6 +302,7 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string cons
 	return v;
 }
 
+// Ensure that two mvt_values can be compared numerically by converting other numeric types to mvt_double
 static mvt_value coerce_double(mvt_value v) {
 	if (v.type == mvt_int) {
 		v.type = mvt_double;
@@ -293,6 +321,9 @@ static mvt_value coerce_double(mvt_value v) {
 	return v;
 }
 
+// comparator for ordering features for --order: for each sort key that the user has specified,
+// compare features numerically according to that sort key until the keys are exhausted.
+// If there is a tie, the feature with the earlier index (centroid) comes first.
 struct ordercmp {
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -328,7 +359,9 @@ struct ordercmp {
 	}
 };
 
-std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std::vector<serial_feature> &features) {
+// For --retain-points-multiplier: Go through a list of features and return a list of clusters of features,
+// creating a new cluster whenever the tippecanoe:retain_points_multiplier_first attribute is seen.
+static std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std::vector<serial_feature> const &features) {
 	std::vector<std::vector<serial_feature>> clusters;
 
 	if (retain_points_multiplier == 1) {
@@ -359,7 +392,10 @@ std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std::vecto
 	return clusters;
 }
 
-std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<std::vector<serial_feature>> &clusters) {
+// For --retain-points-multiplier: Flatten a list of clusters of features back into a list of features,
+// moving the "tippecanoe:retain_points_multiplier_first" attribute onto the first feature of each cluster
+// if it is not already there.
+static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<std::vector<serial_feature>> &clusters) {
 	std::vector<serial_feature> out;
 
 	for (auto &cluster : clusters) {
