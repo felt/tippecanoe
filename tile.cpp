@@ -500,7 +500,7 @@ void rewrite(serial_feature const &osf,
 }
 
 struct partial {
-	std::vector<drawvec> geoms = std::vector<drawvec>();
+	drawvec geom;
 	std::vector<long long> keys = std::vector<long long>();
 	std::vector<long long> values = std::vector<long long>();
 	std::vector<std::string> full_keys = std::vector<std::string>();
@@ -583,15 +583,7 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 }
 
 double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
-	drawvec geom;
-
-	for (size_t j = 0; j < p->geoms.size(); j++) {
-		for (size_t k = 0; k < p->geoms[j].size(); k++) {
-			geom.push_back(p->geoms[j][k]);
-		}
-	}
-
-	p->geoms.clear();  // avoid keeping two copies in memory
+	drawvec geom = p->geom;
 	signed char t = p->t;
 	int z = p->z;
 	int line_detail = p->line_detail;
@@ -651,7 +643,7 @@ double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_no
 		geom = reorder_lines(geom);
 	}
 
-	p->geoms.push_back(geom);
+	p->geom = std::move(geom);
 	return area;
 }
 
@@ -666,7 +658,7 @@ void *partial_feature_worker(void *v) {
 		int z = (*partials)[i].z;
 		int out_detail = (*partials)[i].extra_detail;
 
-		drawvec geom = (*partials)[i].geoms[0];
+		drawvec geom = (*partials)[i].geom;
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -698,10 +690,7 @@ void *partial_feature_worker(void *v) {
 		}
 
 		(*partials)[i].index = i;
-
-		std::vector<drawvec> geoms;  // artifact of former polygon-splitting to reduce geometric complexity
-		geoms.push_back(geom);
-		(*partials)[i].geoms = geoms;
+		(*partials)[i].geom = std::move(geom);
 	}
 
 	return NULL;
@@ -821,8 +810,8 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	for (size_t i = 0; i < partials.size(); i++) {
 		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				drawvec &g = partials[i].geoms[j];
+			{
+				drawvec &g = partials[i].geom;
 				drawvec out;
 
 				for (size_t k = 0; k < g.size(); k++) {
@@ -833,7 +822,7 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 					}
 				}
 
-				partials[i].geoms[j] = out;
+				partials[i].geom = out;
 			}
 		}
 	}
@@ -846,20 +835,20 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 	size_t ring = 0;
 	for (size_t i = 0; i < partials.size(); i++) {
 		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				for (size_t k = 0; k + 1 < partials[i].geoms[j].size(); k++) {
-					if (partials[i].geoms[j][k].op == VT_MOVETO) {
+			{
+				for (size_t k = 0; k + 1 < partials[i].geom.size(); k++) {
+					if (partials[i].geom[k].op == VT_MOVETO) {
 						ring++;
 					}
 
-					if (partials[i].geoms[j][k + 1].op == VT_LINETO) {
+					if (partials[i].geom[k + 1].op == VT_LINETO) {
 						drawvec dv;
-						if (partials[i].geoms[j][k] < partials[i].geoms[j][k + 1]) {
-							dv.push_back(partials[i].geoms[j][k]);
-							dv.push_back(partials[i].geoms[j][k + 1]);
+						if (partials[i].geom[k] < partials[i].geom[k + 1]) {
+							dv.push_back(partials[i].geom[k]);
+							dv.push_back(partials[i].geom[k + 1]);
 						} else {
-							dv.push_back(partials[i].geoms[j][k + 1]);
-							dv.push_back(partials[i].geoms[j][k]);
+							dv.push_back(partials[i].geom[k + 1]);
+							dv.push_back(partials[i].geom[k]);
 						}
 
 						edges.push_back(edge(dv[0].x, dv[0].y, dv[1].x, dv[1].y, ring));
@@ -877,8 +866,8 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	for (size_t i = 0; i < partials.size(); i++) {
 		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				drawvec &g = partials[i].geoms[j];
+			{
+				drawvec &g = partials[i].geom;
 
 				for (size_t k = 0; k < g.size(); k++) {
 					g[k].necessary = 0;
@@ -957,8 +946,8 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	for (size_t i = 0; i < partials.size(); i++) {
 		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				drawvec &g = partials[i].geoms[j];
+			{
+				drawvec &g = partials[i].geom;
 
 				for (size_t k = 0; k < g.size(); k++) {
 					if (necessaries.count(g[k]) != 0) {
@@ -1262,8 +1251,7 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 	for (size_t i = 0; i < partials.size(); i++) {
 		if (partials[i].t == VT_POLYGON) {
-			partials[i].geoms.resize(0);
-			partials[i].geoms.push_back(drawvec());
+			partials[i].geom.clear();
 			bool at_start = true;
 			draw first(-1, 0, 0);
 
@@ -1272,27 +1260,27 @@ bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, d
 
 				if (p == 0) {
 					if (first.op >= 0) {
-						partials[i].geoms[0].push_back(first);
+						partials[i].geom.push_back(first);
 						first = draw(-1, 0, 0);
 					}
 					at_start = true;
 				} else if (p > 0) {
 					for (size_t k = 0; k + 1 < simplified_arcs[p].size(); k++) {
 						if (at_start) {
-							partials[i].geoms[0].push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
+							partials[i].geom.push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
 							first = draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y);
 						} else {
-							partials[i].geoms[0].push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
+							partials[i].geom.push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
 						}
 						at_start = 0;
 					}
 				} else { /* p < 0 */
 					for (ssize_t k = simplified_arcs[-p].size() - 1; k > 0; k--) {
 						if (at_start) {
-							partials[i].geoms[0].push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
+							partials[i].geom.push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
 							first = draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y);
 						} else {
-							partials[i].geoms[0].push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
+							partials[i].geom.push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
 						}
 						at_start = 0;
 					}
@@ -1979,6 +1967,8 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 }
 
 void coalesce_geometry(partial &p, serial_feature &sf) {
+	// XXX need another way to deduplicate here
+#if 0
 	// if the geometry being coalesced on is an exact duplicate
 	// of an existing geometry, just drop it
 
@@ -1987,8 +1977,13 @@ void coalesce_geometry(partial &p, serial_feature &sf) {
 			return;
 		}
 	}
+#endif
 
-	p.geoms.push_back(sf.geometry);
+	size_t s = p.geom.size();
+	p.geom.resize(s + sf.geometry.size());
+	for (size_t i = 0; i < sf.geometry.size(); i++) {
+		p.geom[s + i] = sf.geometry[i];
+	}
 }
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, struct node *shared_nodes_map, size_t nodepos) {
@@ -2231,15 +2226,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					partials[which_partial].clustered++;
 
 					if (partials[which_partial].t == VT_POINT &&
-					    partials[which_partial].geoms.size() == 1 &&
-					    partials[which_partial].geoms[0].size() == 1 &&
+					    partials[which_partial].geom.size() == 1 &&
 					    sf.geometry.size() == 1) {
-						double x = (double) partials[which_partial].geoms[0][0].x * partials[which_partial].clustered;
-						double y = (double) partials[which_partial].geoms[0][0].y * partials[which_partial].clustered;
+						double x = (double) partials[which_partial].geom[0].x * partials[which_partial].clustered;
+						double y = (double) partials[which_partial].geom[0].y * partials[which_partial].clustered;
 						x += sf.geometry[0].x;
 						y += sf.geometry[0].y;
-						partials[which_partial].geoms[0][0].x = x / (partials[which_partial].clustered + 1);
-						partials[which_partial].geoms[0][0].y = y / (partials[which_partial].clustered + 1);
+						partials[which_partial].geom[0].x = x / (partials[which_partial].clustered + 1);
+						partials[which_partial].geom[0].y = y / (partials[which_partial].clustered + 1);
 					}
 
 					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
@@ -2355,7 +2349,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 
 					partial p;
-					p.geoms.push_back(sf.geometry);
+					p.geom = sf.geometry;
 					p.layer = sf.layer;
 					p.t = sf.t;
 					p.segment = sf.segment;
@@ -2408,16 +2402,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							if (partials[simplified_geometry_through].t == VT_POLYGON) {
 								drawvec to_clean;
 
-								for (auto &g : partials[simplified_geometry_through].geoms) {
-									for (auto &d : g) {
-										to_clean.push_back(d);
-									}
+								for (auto &g : partials[simplified_geometry_through].geom) {
+									to_clean.push_back(g);
 								}
 
 								// don't scale up because this is still world coordinates
 								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
-								partials[simplified_geometry_through].geoms.clear();
-								partials[simplified_geometry_through].geoms.push_back(to_clean);
+								partials[simplified_geometry_through].geom = to_clean;
 							}
 						}
 
@@ -2582,20 +2573,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		std::reverse(partials.begin(), partials.end());
 		for (ssize_t i = partials.size() - 1; i >= 0; i--) {
-			std::vector<drawvec> &pgeoms = partials[i].geoms;
 			signed char t = partials[i].t;
 			long long original_seq = partials[i].original_seq;
 
-			// A complex polygon may have been split up into multiple geometries.
-			// Break them out into multiple features if necessary.
-			for (size_t j = 0; j < pgeoms.size(); j++) {
-				if (t == VT_POINT || draws_something(pgeoms[j])) {
+			{
+				if (t == VT_POINT || draws_something(partials[i].geom)) {
 					struct coalesce c;
 
 					c.type = t;
 					c.index = partials[i].index;
-					c.geom = pgeoms[j];
-					pgeoms[j].clear();
+					c.geom = partials[i].geom;
 					c.coalesced = false;
 					c.original_seq = original_seq;
 					c.stringpool = stringpool + pool_off[partials[i].segment];
