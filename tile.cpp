@@ -368,8 +368,8 @@ static std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std
 	if (retain_points_multiplier == 1) {
 		for (auto const &feature : features) {
 			std::vector<serial_feature> cluster;
-			cluster.push_back(feature);
-			clusters.push_back(cluster);
+			cluster.push_back(std::move(feature));
+			clusters.push_back(std::move(cluster));
 		}
 	} else {
 		for (auto const &feature : features) {
@@ -383,10 +383,10 @@ static std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std
 			}
 
 			if (is_cluster_start || clusters.size() == 0) {
-				clusters.push_back(std::vector<serial_feature>());
+				clusters.emplace_back();
 			}
 
-			clusters.back().push_back(feature);
+			clusters.back().push_back(std::move(feature));
 		}
 	}
 
@@ -405,8 +405,8 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 		for (size_t i = 0; i < cluster.size(); i++) {
 			for (size_t j = 0; j < cluster[i].full_keys.size(); j++) {
 				if (cluster[i].full_keys[j] == "tippecanoe:retain_points_multiplier_first") {
-					cluster[0].full_keys.push_back(cluster[i].full_keys[j]);
-					cluster[0].full_values.push_back(cluster[i].full_values[j]);
+					cluster[0].full_keys.push_back(std::move(cluster[i].full_keys[j]));
+					cluster[0].full_values.push_back(std::move(cluster[i].full_values[j]));
 
 					cluster[i].full_keys.erase(cluster[i].full_keys.begin() + j);
 					cluster[i].full_values.erase(cluster[i].full_values.begin() + j);
@@ -418,7 +418,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 		}
 
 		for (auto const &feature : cluster) {
-			out.push_back(feature);
+			out.push_back(std::move(feature));
 		}
 	}
 
@@ -558,11 +558,11 @@ static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 		sy /= n;
 
 		drawvec out;
-		out.push_back(draw(VT_MOVETO, sx - (width / 2), sy - (height / 2)));
-		out.push_back(draw(VT_LINETO, sx - (width / 2) + width, sy - (height / 2)));
-		out.push_back(draw(VT_LINETO, sx - (width / 2) + width, sy - (height / 2) + height));
-		out.push_back(draw(VT_LINETO, sx - (width / 2), sy - (height / 2) + height));
-		out.push_back(draw(VT_LINETO, sx - (width / 2), sy - (height / 2)));
+		out.emplace_back(VT_MOVETO, sx - (width / 2), sy - (height / 2));
+		out.emplace_back(VT_LINETO, sx - (width / 2) + width, sy - (height / 2));
+		out.emplace_back(VT_LINETO, sx - (width / 2) + width, sy - (height / 2) + height);
+		out.emplace_back(VT_LINETO, sx - (width / 2), sy - (height / 2) + height);
+		out.emplace_back(VT_LINETO, sx - (width / 2), sy - (height / 2));
 
 		return out;
 	} else {
@@ -573,7 +573,7 @@ static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 // This simplifies the geometry of one feature. It is generally called from the feature_simplification_worker
 // but is broken out here so that it can be called from earlier in write_tile if coalesced geometries build up
 // too much in memory.
-static double simplify_serial_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
+static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
 	drawvec geom = p->geometry;
 	signed char t = p->t;
 	int z = p->z;
@@ -645,7 +645,7 @@ static void *simplification_worker(void *v) {
 	std::vector<serial_feature> *features = a->features;
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
-		double area = simplify_serial_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
 
 		signed char t = (*features)[i].t;
 		int z = (*features)[i].z;
@@ -1137,12 +1137,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				count->second = retain_points_multiplier;
 
 				if (retain_points_multiplier > 1) {
-					serial_val val;
-					val.type = mvt_bool;
-					val.s = "true";
-
 					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
-					sf.full_values.push_back(val);
+					sf.full_values.emplace_back(mvt_bool, "true");
 				}
 			}
 
@@ -1306,7 +1302,7 @@ void promote_attribute(std::string const &key, serial_feature &p, char *stringpo
 			sv.type = (stringpool + pool_off[p.segment])[p.values[i]];
 
 			p.full_keys.push_back(key);
-			p.full_values.push_back(sv);
+			p.full_values.push_back(std::move(sv));
 
 			p.keys.erase(p.keys.begin() + i);
 			p.values.erase(p.values.begin() + i);
@@ -1790,7 +1786,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					kept++;
 
 					for (auto &p : sf.edge_nodes) {
-						shared_nodes.push_back(p);
+						shared_nodes.push_back(std::move(p));
 					}
 
 					serial_feature p = std::move(sf);
@@ -1819,7 +1815,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						tile_detail = p.extra_detail;
 					}
 
-					features.push_back(p);
+					features.push_back(std::move(p));
 
 					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
 					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
@@ -1827,21 +1823,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// have been assembled globally, although that also means that simplification
 						// may not be very effective for reducing memory usage.
 
-						drawvec dv;
-
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
-							simplify_serial_feature(&features[simplified_geometry_through], dv, shared_nodes_map, nodepos);
+							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos);
 
 							if (features[simplified_geometry_through].t == VT_POLYGON) {
-								drawvec to_clean;
-
-								for (auto &g : features[simplified_geometry_through].geometry) {
-									to_clean.push_back(g);
-								}
+								drawvec to_clean = features[simplified_geometry_through].geometry;
 
 								// don't scale up because this is still world coordinates
 								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
-								features[simplified_geometry_through].geometry = to_clean;
+								features[simplified_geometry_through].geometry = std::move(to_clean);
 							}
 						}
 
@@ -1872,12 +1862,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			for (size_t i = 0; i < feature_sequences.size(); i++) {
 				size_t j = feature_sequences[i].second;
 
-				serial_val val;
-				val.type = mvt_double;
-				val.s = std::to_string(i);
-
 				features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
-				features[j].full_values.push_back(val);
+				features[j].full_values.emplace_back(mvt_double, std::to_string(i));
+
+				// XXX Add to tilestats?
 			}
 		}
 
@@ -2061,7 +2049,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y], tile_stringpool) == 0) {
 						for (size_t g = 0; g < layer_features[x].geometry.size(); g++) {
-							layer_features[y].geometry.push_back(layer_features[x].geometry[g]);
+							layer_features[y].geometry.push_back(std::move(layer_features[x].geometry[g]));
 						}
 						layer_features[y].coalesced = true;
 					} else {
@@ -2190,12 +2178,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_tilestats(layer.name, z, layermaps, tiling_seg, layer_unmaps, "tippecanoe_feature_density", sv);
 				}
 
-				layer.features.push_back(feature);
+				layer.features.push_back(std::move(feature));
 				layer_features.erase(layer_features.begin() + x);
 			}
 
 			if (layer.features.size() > 0) {
-				tile.layers.push_back(layer);
+				tile.layers.push_back(std::move(layer));
 			}
 		}
 
@@ -2580,13 +2568,13 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 	// safely changed during tiling.
 	size_t layermaps_off = layermaps.size();
 	for (size_t i = 0; i < CPUS; i++) {
-		layermaps.push_back(std::map<std::string, layermap_entry>());
+		layermaps.emplace_back();
 	}
 
 	// Table to map segment and layer number back to layer name
 	std::vector<std::vector<std::string>> layer_unmaps;
 	for (size_t seg = 0; seg < layermaps.size(); seg++) {
-		layer_unmaps.push_back(std::vector<std::string>());
+		layer_unmaps.emplace_back();
 
 		for (auto a = layermaps[seg].begin(); a != layermaps[seg].end(); ++a) {
 			if (a->second.id >= layer_unmaps[seg].size()) {
