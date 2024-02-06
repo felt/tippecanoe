@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "milo/dtoa_milo.h"
 #include "milo/milo.h"
 #include "errors.hpp"
@@ -215,6 +216,9 @@ std::vector<std::string> read_unidecode(const char *fname) {
 	for (size_t i = 0; i < data.size(); i++) {
 		if (data[i] == '\0') {
 			out.emplace_back();
+		}
+		if (data[i] >= '\0' && data[i] <= '~') {
+			data[i] = tolower(data[i]);
 		}
 		out.back().push_back(data[i]);
 	}

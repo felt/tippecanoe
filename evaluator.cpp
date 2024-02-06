@@ -619,7 +619,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	exit(EXIT_FILTER);
 }
 
-bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
+bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	if (filter == NULL || filter->type != JSON_HASH) {
 		fprintf(stderr, "Error: filter is not a hash: %s\n", json_stringify(filter));
 		exit(EXIT_JSON);
@@ -673,7 +673,7 @@ json_object *parse_filter(const char *s) {
 	return filter;
 }
 
-bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes) {
+bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
 		auto f = feature.find(key);
 		if (f != feature.end()) {
@@ -686,10 +686,10 @@ bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::st
 		}
 	};
 
-	return evaluate(getter, layer, filter, exclude_attributes);
+	return evaluate(getter, layer, filter, exclude_attributes, unidecode_data);
 }
 
-bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z) {
+bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z, std::vector<std::string> const &unidecode_data) {
 	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
 		const static std::string dollar_id = "$id";
 		if (key == dollar_id && feat.has_id) {
@@ -737,5 +737,5 @@ bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filt
 		return v;
 	};
 
-	return evaluate(getter, layer.name, filter, exclude_attributes);
+	return evaluate(getter, layer.name, filter, exclude_attributes, unidecode_data);
 }
