@@ -1777,6 +1777,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
+			unsigned long long sfindex = sf.index;
+
 			if (sf.geometry.size() > 0) {
 				if (features.size() > scaled_max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
@@ -1789,35 +1791,34 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						shared_nodes.push_back(std::move(p));
 					}
 
-					serial_feature p = std::move(sf);
-					p.reduced = !still_need_simplification_after_reduction;
-					p.coalesced = false;
-					p.z = z;
-					p.tx = tx;
-					p.ty = ty;
-					p.line_detail = line_detail;
-					p.extra_detail = line_detail;
-					p.maxzoom = maxzoom;
-					p.spacing = spacing;
-					p.simplification = simplification;
-					p.renamed = -1;
-					p.clustered = 0;
-					p.stringpool = stringpool + pool_off[sf.segment];
-					p.tile_stringpool = tile_stringpool;
+					sf.reduced = !still_need_simplification_after_reduction;
+					sf.coalesced = false;
+					sf.z = z;
+					sf.tx = tx;
+					sf.ty = ty;
+					sf.line_detail = line_detail;
+					sf.extra_detail = line_detail;
+					sf.maxzoom = maxzoom;
+					sf.spacing = spacing;
+					sf.simplification = simplification;
+					sf.renamed = -1;
+					sf.clustered = 0;
+					sf.stringpool = stringpool + pool_off[sf.segment];
+					sf.tile_stringpool = tile_stringpool;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
-						p.extra_detail = extra_detail;
+						sf.extra_detail = extra_detail;
 						// maximum allowed coordinate delta in geometries is 2^31 - 1
 						// so we need to stay under that, including the buffer
-						if (p.extra_detail >= 30 - z) {
-							p.extra_detail = 30 - z;
+						if (sf.extra_detail >= 30 - z) {
+							sf.extra_detail = 30 - z;
 						}
-						tile_detail = p.extra_detail;
+						tile_detail = sf.extra_detail;
 					}
 
-					features.push_back(std::move(p));
+					features.push_back(std::move(sf));
 
-					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
+					unsimplified_geometry_size += features.back().geometry.size() * sizeof(draw);
 					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
 						// we should be safe to simplify here with P_SIMPLIFY_SHARED_NODES, since they will
 						// have been assembled globally, although that also means that simplification
@@ -1840,7 +1841,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			merge_previndex = sf.index;
+			merge_previndex = sfindex;
 			coalesced_area = 0;
 		}
 
