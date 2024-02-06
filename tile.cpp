@@ -1309,22 +1309,23 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 	for (size_t i = 0; i < sf.keys.size(); i++) {
 		std::string key = sf.stringpool + sf.keys[i] + 1;
 
-		serial_val sv;
-		sv.type = sf.stringpool[sf.values[i]];
-		sv.s = sf.stringpool + sf.values[i] + 1;
-
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
+			serial_val sv;
+			sv.type = sf.stringpool[sf.values[i]];
+			sv.s = sf.stringpool + sf.values[i] + 1;
+
 			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
-		std::string key = sf.full_keys[i];
-		serial_val sv = sf.full_values[i];
+		const std::string &key = sf.full_keys[i];
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
+			const serial_val &sv = sf.full_values[i];
+
 			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
