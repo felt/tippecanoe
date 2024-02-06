@@ -1055,7 +1055,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (filter != NULL) {
 			std::unordered_map<std::string, mvt_value> attributes;
-			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
+			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			std::set<std::string> exclude_attributes;
 
 			for (size_t i = 0; i < sf.keys.size(); i++) {
@@ -1115,7 +1115,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		if (sf.tippecanoe_minzoom == -1) {
 			bool keep = false;
 
-			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
+			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
 			if (count == multiplier_state->count.end()) {
 				multiplier_state->count.emplace(layername, 0);
@@ -1867,7 +1867,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			serial_feature &p = features[i];
 
 			if (p.clustered > 0) {
-				std::string layername = (*layer_unmaps)[p.segment][p.layer];
+				std::string &layername = (*layer_unmaps)[p.segment][p.layer];
 				serial_val sv, sv2, sv3, sv4;
 				long long point_count = p.clustered + 1;
 				char abbrev[17];  // to_string(LLONG_MAX).length() / 1000 + 1;
@@ -1909,7 +1909,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (p.need_tilestats.size() > 0) {
-				std::string layername = (*layer_unmaps)[p.segment][p.layer];
+				std::string &layername = (*layer_unmaps)[p.segment][p.layer];
 
 				for (size_t j = 0; j < p.full_keys.size(); j++) {
 					if (p.need_tilestats.count(p.full_keys[j]) > 0) {
@@ -1991,7 +1991,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (t == VT_POINT || draws_something(features[i].geometry)) {
 					// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
 
-					std::string layername = (*layer_unmaps)[features[i].segment][features[i].layer];
+					std::string &layername = (*layer_unmaps)[features[i].segment][features[i].layer];
 					if (layers.count(layername) == 0) {
 						layers.insert(std::pair<std::string, std::vector<serial_feature>>(layername, std::vector<serial_feature>()));
 					}
