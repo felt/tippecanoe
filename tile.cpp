@@ -1304,13 +1304,14 @@ void promote_attribute(std::string const &key, serial_feature &p) {
 	}
 }
 
-void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, serial_feature &p) {
+// accumulate attribute values from sf onto p
+void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
-		std::string key = p.stringpool + sf.keys[i] + 1;
+		std::string key = sf.stringpool + sf.keys[i] + 1;
 
 		serial_val sv;
-		sv.type = p.stringpool[sf.values[i]];
-		sv.s = p.stringpool + sf.values[i] + 1;
+		sv.type = sf.stringpool[sf.values[i]];
+		sv.s = sf.stringpool + sf.values[i] + 1;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
