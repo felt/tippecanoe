@@ -1,10 +1,10 @@
-#include "text.hpp"
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <vector>
+#include "text.hpp"
 #include "milo/dtoa_milo.h"
 #include "milo/milo.h"
 #include "errors.hpp"
