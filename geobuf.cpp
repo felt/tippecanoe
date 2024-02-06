@@ -380,7 +380,6 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 		serial_feature sf;
 
 		sf.layer = layer;
-		sf.layername = layername;
 		sf.segment = sst->segment;
 		sf.has_id = has_id;
 		sf.id = id;
@@ -413,7 +412,7 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 
 				json_object *tlayer = json_hash_get(o, "layer");
 				if (tlayer != NULL && (tlayer->type == JSON_STRING)) {
-					sf.layername = tlayer->value.string.string;
+					layername = tlayer->value.string.string;
 				}
 			}
 
@@ -421,7 +420,7 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 			json_end(jp);
 		}
 
-		serialize_feature(sst, sf);
+		serialize_feature(sst, sf, layername);
 	}
 }
 
@@ -507,7 +506,6 @@ void outBareGeometry(drawvec const &dv, int type, struct serialization_state *ss
 	serial_feature sf;
 
 	sf.layer = layer;
-	sf.layername = layername;
 	sf.segment = sst->segment;
 	sf.has_id = false;
 	sf.has_tippecanoe_minzoom = false;
@@ -517,7 +515,7 @@ void outBareGeometry(drawvec const &dv, int type, struct serialization_state *ss
 	sf.geometry = dv;
 	sf.t = type;
 
-	serialize_feature(sst, sf);
+	serialize_feature(sst, sf, layername);
 }
 
 void readFeatureCollection(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<std::string> &keys, std::vector<struct serialization_state> *sst, int layer, std::string layername) {

@@ -425,7 +425,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 }
 
 // called from frontends
-int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
+int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername) {
 	struct reader *r = &(*sst->readers)[sst->segment];
 
 	sf.bbox[0] = LLONG_MAX;
@@ -731,11 +731,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 		sf.index = 0;
 	}
 
-	if (sst->layermap->count(sf.layername) == 0) {
-		sst->layermap->emplace(sf.layername, layermap_entry(sst->layermap->size()));
+	if (sst->layermap->count(layername) == 0) {
+		sst->layermap->emplace(layername, layermap_entry(sst->layermap->size()));
 	}
 
-	auto ai = sst->layermap->find(sf.layername);
+	auto ai = sst->layermap->find(layername);
 	if (ai != sst->layermap->end()) {
 		sf.layer = ai->second.id;
 
@@ -749,7 +749,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 			}
 		}
 	} else {
-		fprintf(stderr, "Internal error: can't find layer name %s\n", sf.layername.c_str());
+		fprintf(stderr, "Internal error: can't find layer name %s\n", layername.c_str());
 		exit(EXIT_IMPOSSIBLE);
 	}
 
@@ -833,7 +833,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf) {
 
 	if (!sst->filters) {
 		for (size_t i = 0; i < sf.full_keys.size(); i++) {
-			auto ts = sst->layermap->find(sf.layername);
+			auto ts = sst->layermap->find(layername);
 			add_to_tilestats(ts->second.tilestats, sf.full_keys[i], sf.full_values[i]);
 		}
 	}

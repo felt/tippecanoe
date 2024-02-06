@@ -115,7 +115,6 @@ void parse_geocsv(std::vector<struct serialization_state> &sst, std::string fnam
 		serial_feature sf;
 
 		sf.layer = layer;
-		sf.layername = layername;
 		sf.segment = sst[0].segment;
 		sf.has_id = false;
 		sf.id = 0;
@@ -128,7 +127,7 @@ void parse_geocsv(std::vector<struct serialization_state> &sst, std::string fnam
 		sf.full_keys = full_keys;
 		sf.full_values = full_values;
 
-		serialize_feature(&sst[0], sf);
+		serialize_feature(&sst[0], sf, layername);
 	}
 
 	if (fname.size() != 0) {

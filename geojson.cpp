@@ -80,7 +80,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	int tippecanoe_minzoom = -1;
 	int tippecanoe_maxzoom = -1;
-	std::string tippecanoe_layername;
+	std::string tippecanoe_layername = layername;
 
 	if (tippecanoe != NULL) {
 		json_object *min = json_hash_get(tippecanoe, "minzoom");
@@ -212,17 +212,10 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.geometry = dv;
 	sf.feature_minzoom = 0;	 // Will be filled in during index merging
 	sf.seq = *(sst->layer_seq);
-
-	if (tippecanoe_layername.size() != 0) {
-		sf.layername = tippecanoe_layername;
-	} else {
-		sf.layername = layername;
-	}
-
 	sf.full_keys = std::move(keys);
 	sf.full_values = std::move(values);
 
-	return serialize_feature(sst, sf);
+	return serialize_feature(sst, sf, tippecanoe_layername);
 }
 
 void check_crs(json_object *j, const char *reading) {

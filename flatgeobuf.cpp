@@ -132,7 +132,6 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 	serial_feature sf;
 
 	sf.layer = layer;
-	sf.layername = layername;
 	sf.segment = sst->segment;
 	if (feature_sequence_id >= 0) {
 		sf.has_id = true;
@@ -247,7 +246,7 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 	sf.full_keys = full_keys;
 	sf.full_values = full_values;
 
-	serialize_feature(sst, sf);
+	serialize_feature(sst, sf, layername);
 }
 
 struct fgb_queued_feature {

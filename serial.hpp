@@ -92,7 +92,6 @@ struct serial_feature {
 	// to be provided by frontends:
 
 	long long bbox[4] = {0, 0, 0, 0};
-	std::string layername = "";
 	bool dropped = false;  // was this feature dropped by rate?
 	drawvec edge_nodes;    // what nodes at the tile edge were added during clipping?
 
@@ -267,7 +266,7 @@ struct node {
 
 int nodecmp(const void *void1, const void *void2);
 
-int serialize_feature(struct serialization_state *sst, serial_feature &sf);
+int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername);
 void coerce_value(std::string const &key, int &vt, std::string &val, std::unordered_map<std::string, int> const *attribute_types);
 
 #endif
