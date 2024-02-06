@@ -53,6 +53,7 @@ int maxzoom = 32;
 int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
+std::vector<std::string> unidecode_data;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -699,7 +700,7 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>());
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data);
 			return ret;
 		}
 
@@ -1231,6 +1232,7 @@ int main(int argc, char **argv) {
 		{"tile-stats-attributes-limit", required_argument, 0, '~'},
 		{"tile-stats-sample-values-limit", required_argument, 0, '~'},
 		{"tile-stats-values-limit", required_argument, 0, '~'},
+		{"unidecode-data", required_argument, 0, '~'},
 
 		{0, 0, 0, 0},
 	};
@@ -1405,6 +1407,8 @@ int main(int argc, char **argv) {
 				max_tilestats_sample_values = atoi(optarg);
 			} else if (strcmp(opt, "tile-stats-values-limit") == 0) {
 				max_tilestats_values = atoi(optarg);
+			} else if (strcmp(opt, "unidecode-data") == 0) {
+				unidecode_data = read_unidecode(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);

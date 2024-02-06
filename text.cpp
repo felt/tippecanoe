@@ -184,3 +184,40 @@ char *dtoa_milo(double val) {
 	}
 	return dup;
 }
+
+// to work with data from https://github.com/kmike/text-unidecode
+std::vector<std::string> read_unidecode(const char *fname) {
+	std::string data;
+
+	FILE *f = fopen(fname, "rb");
+	if (f == NULL) {
+		perror(fname);
+		exit(EXIT_OPEN);
+	}
+
+	std::string buf;
+	buf.resize(2000);
+
+	while (true) {
+		size_t nread = fread((void *) buf.c_str(), sizeof(char), buf.size(), f);
+		if (nread == 0) {
+			break;
+		}
+		data.append(buf.c_str(), nread);
+	}
+
+	fclose(f);
+
+	std::vector<std::string> out;
+	out.emplace_back();  // because the data file is 1-indexed
+	out.emplace_back();  // ascii 001
+
+	for (size_t i = 0; i < data.size(); i++) {
+		if (data[i] == '\0') {
+			out.emplace_back();
+		}
+		out.back().push_back(data[i]);
+	}
+
+	return out;
+}
