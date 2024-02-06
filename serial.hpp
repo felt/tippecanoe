@@ -106,7 +106,7 @@ struct serial_feature {
 	std::vector<ssize_t> arc_polygon;	       // used in --detect-shared-borders
 	ssize_t renamed;			       // used in --detect-shared-borders logic
 	long long clustered;			       // does this feature need the clustered/point_count attributes?
-	char *stringpool;			       // string pool for keys/values lookup
+	const char *stringpool;			       // string pool for keys/values lookup
 	std::shared_ptr<std::string> tile_stringpool;  // string pool for mvt_value construction
 	std::set<std::string> need_tilestats;
 	std::unordered_map<std::string, accum_state> attribute_accum_state;

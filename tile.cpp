@@ -108,8 +108,6 @@ static int metacmp(const serial_feature &one, const serial_feature &two);
 // * the same id, if any
 // * the same attributes, according to metacmp
 // * the same full_keys and full_values attributes
-//
-// The tile_stringpool is used to construct temporary mvt_values for comparison.
 static int coalcmp(const void *v1, const void *v2) {
 	const serial_feature *c1 = (const serial_feature *) v1;
 	const serial_feature *c2 = (const serial_feature *) v2;
@@ -216,11 +214,11 @@ static std::string retrieve_std_string(long long off, const char *stringpool) {
 
 // retrieve the keys and values of a feature from the string pool
 // and tag them onto an mvt_feature and mvt_layer
-static void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature, std::shared_ptr<std::string> const &tile_stringpool) {
+static void decode_meta(serial_feature const &sf, mvt_layer &layer, mvt_feature &feature, std::shared_ptr<std::string> const &tile_stringpool) {
 	size_t i;
-	for (i = 0; i < metakeys.size(); i++) {
-		std::string key = retrieve_std_string(metakeys[i], stringpool);
-		mvt_value value = retrieve_string(metavals[i], stringpool, tile_stringpool);
+	for (i = 0; i < sf.keys.size(); i++) {
+		std::string key = retrieve_std_string(sf.keys[i], sf.stringpool);
+		mvt_value value = retrieve_string(sf.values[i], sf.stringpool, tile_stringpool);
 
 		layer.tag(feature, key, value);
 	}
@@ -248,11 +246,11 @@ static int metacmp(const serial_feature &one, const serial_feature &two) {
 
 		long long off1 = one.values[i];
 		int type1 = one.stringpool[off1];
-		char *s1 = one.stringpool + off1 + 1;
+		const char *s1 = one.stringpool + off1 + 1;
 
 		long long off2 = two.values[i];
 		int type2 = two.stringpool[off2];
-		char *s2 = two.stringpool + off2 + 1;
+		const char *s2 = two.stringpool + off2 + 1;
 
 		if (type1 != type2) {
 			return type1 - type2;
@@ -815,7 +813,7 @@ static long long choose_minextent(std::vector<long long> &extents, double f, lon
 // new thresholds.
 struct write_tile_args {
 	struct task *tasks = NULL;
-	char *stringpool = NULL;
+	char *global_stringpool = NULL;
 	int min_detail = 0;
 	sqlite3 *outdb = NULL;
 	const char *outdir = NULL;
@@ -959,9 +957,9 @@ static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 }
 
 // Removes the attributes named in --exclude, if any, from the feature
-static void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes, const char *stringpool, long long *pool_off) {
+static void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes) {
 	for (ssize_t i = sf.keys.size() - 1; i >= 0; i--) {
-		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+		std::string key = sf.stringpool + sf.keys[i] + 1;
 		if (exclude_attributes.count(key) > 0) {
 			sf.keys.erase(sf.keys.begin() + i);
 			sf.values.erase(sf.values.begin() + i);
@@ -987,7 +985,7 @@ struct multiplier_state {
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
 	while (1) {
 		serial_feature sf;
 		long long len;
@@ -1014,6 +1012,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
+		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;
@@ -1063,11 +1062,11 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			std::set<std::string> exclude_attributes;
 
 			for (size_t i = 0; i < sf.keys.size(); i++) {
-				std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+				std::string key = sf.stringpool + sf.keys[i] + 1;
 
 				serial_val sv;
-				sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
-				sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
+				sv.type = sf.stringpool[sf.values[i]];
+				sv.s = sf.stringpool + sf.values[i] + 1;
 
 				mvt_value val = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
@@ -1112,7 +1111,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			if (exclude_attributes.size() > 0) {
-				remove_attributes(sf, exclude_attributes, stringpool, pool_off);
+				remove_attributes(sf, exclude_attributes);
 			}
 		}
 
@@ -1147,7 +1146,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		// Remove nulls, now that the expression evaluation filter has run
 
 		for (ssize_t i = (ssize_t) sf.keys.size() - 1; i >= 0; i--) {
-			int type = (stringpool + pool_off[sf.segment])[sf.values[i]];
+			int type = sf.stringpool[sf.values[i]];
 
 			if (type == mvt_null) {
 				sf.keys.erase(sf.keys.begin() + i);
@@ -1192,7 +1191,7 @@ struct run_prefilter_args {
 	const char *fname = 0;
 	int child_shards = 0;
 	std::vector<std::vector<std::string>> *layer_unmaps = NULL;
-	char *stringpool = NULL;
+	char *global_stringpool = NULL;
 	long long *pool_off = NULL;
 	FILE *prefilter_fp = NULL;
 	json_object *filter = NULL;
@@ -1207,7 +1206,7 @@ void *run_prefilter(void *v) {
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1238,7 +1237,7 @@ void *run_prefilter(void *v) {
 			tmp_feature.geometry[i].y += sy;
 		}
 
-		decode_meta(sf.keys, sf.values, rpa->stringpool + rpa->pool_off[sf.segment], tmp_layer, tmp_feature, tile_stringpool);
+		decode_meta(sf, tmp_layer, tmp_feature, tile_stringpool);
 		tmp_layer.features.push_back(tmp_feature);
 
 		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0);
@@ -1283,7 +1282,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 	add_to_tilestats(ts->second.tilestats, key, val);
 }
 
-void promote_attribute(std::string const &key, serial_feature &p, char *stringpool, long long *pool_off) {
+void promote_attribute(std::string const &key, serial_feature &p) {
 	if (p.need_tilestats.count(key) == 0) {
 		p.need_tilestats.insert(key);
 	}
@@ -1292,10 +1291,10 @@ void promote_attribute(std::string const &key, serial_feature &p, char *stringpo
 	// promote it to a full_key so it can be modified
 
 	for (size_t i = 0; i < p.keys.size(); i++) {
-		if (strcmp(key.c_str(), stringpool + pool_off[p.segment] + p.keys[i] + 1) == 0) {
+		if (strcmp(key.c_str(), p.stringpool + p.keys[i] + 1) == 0) {
 			serial_val sv;
-			sv.s = stringpool + pool_off[p.segment] + p.values[i] + 1;
-			sv.type = (stringpool + pool_off[p.segment])[p.values[i]];
+			sv.s = p.stringpool + p.values[i] + 1;
+			sv.type = p.stringpool[p.values[i]];
 
 			p.full_keys.push_back(key);
 			p.full_values.push_back(std::move(sv));
@@ -1308,17 +1307,17 @@ void promote_attribute(std::string const &key, serial_feature &p, char *stringpo
 	}
 }
 
-void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, serial_feature &p) {
+void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, serial_feature &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
-		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+		std::string key = p.stringpool + sf.keys[i] + 1;
 
 		serial_val sv;
-		sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
-		sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
+		sv.type = p.stringpool[sf.values[i]];
+		sv.s = p.stringpool + sf.values[i] + 1;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			promote_attribute(key, p, stringpool, pool_off);
+			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
@@ -1328,7 +1327,7 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			promote_attribute(key, p, stringpool, pool_off);
+			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
@@ -1423,7 +1422,7 @@ void coalesce_geometry(serial_feature &p, serial_feature &sf) {
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1578,7 +1577,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.child_shards = child_shards;
 			rpa.prefilter_fp = prefilter_fp;
 			rpa.layer_unmaps = layer_unmaps;
-			rpa.stringpool = stringpool;
+			rpa.global_stringpool = global_stringpool;
 			rpa.pool_off = pool_off;
 			rpa.filter = filter;
 			rpa.first_time = first_time;
@@ -1604,7 +1603,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -1631,7 +1630,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_by_rate++;
 					continue;
 				}
@@ -1641,7 +1640,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (gamma > 0) {
 				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_by_gamma++;
 					continue;
 				}
@@ -1673,7 +1672,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						features[which_serial_feature].geometry[0].y = y / (features[which_serial_feature].clustered + 1);
 					}
 
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -1682,7 +1681,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					indices.push_back(sf.index);
 				}
 				if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
@@ -1694,7 +1693,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					coalesce_geometry(features[which_serial_feature], sf);
 					features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -1703,7 +1702,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 				// so we shouldn't expect to find anything small that we can related this feature to.
 				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
@@ -1713,7 +1712,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					coalesce_geometry(features[which_serial_feature], sf);
 					features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -1741,7 +1740,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else {
 					strategy->dropped_as_needed++;
 				}
-				preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, features[which_serial_feature]);
+				preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 				continue;
 			}
 			fraction_accum -= 1;
@@ -1799,7 +1798,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					sf.simplification = simplification;
 					sf.renamed = -1;
 					sf.clustered = 0;
-					sf.stringpool = stringpool + pool_off[sf.segment];
 					sf.tile_stringpool = tile_stringpool;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
@@ -2147,7 +2145,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				feature.id = layer_features[x].id;
 				feature.has_id = layer_features[x].has_id;
 
-				decode_meta(layer_features[x].keys, layer_features[x].values, layer_features[x].stringpool, layer, feature, tile_stringpool);
+				decode_meta(layer_features[x], layer, feature, tile_stringpool);
 				for (size_t a = 0; a < layer_features[x].full_keys.size(); a++) {
 					serial_val sv = layer_features[x].full_values[a];
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
@@ -2492,7 +2490,7 @@ void *run_thread(void *vargs) {
 
 			// fprintf(stderr, "%d/%u/%u\n", z, x, y);
 
-			long long len = write_tile(&dc, &geompos, arg->stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
+			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
 				perror("pthread_mutex_lock");
@@ -2557,7 +2555,7 @@ void *run_thread(void *vargs) {
 	return err_or_null;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -2707,7 +2705,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			atomic_strategy strategy;
 
 			for (size_t thread = 0; thread < threads; thread++) {
-				args[thread].stringpool = stringpool;
+				args[thread].global_stringpool = global_stringpool;
 				args[thread].min_detail = min_detail;
 				args[thread].outdb = outdb;  // locked with db_lock
 				args[thread].outdir = outdir;
