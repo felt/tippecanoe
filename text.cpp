@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <vector>
 #include "milo/dtoa_milo.h"
 #include "milo/milo.h"
 #include "errors.hpp"
