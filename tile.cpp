@@ -214,11 +214,11 @@ static std::string retrieve_std_string(long long off, const char *stringpool) {
 
 // retrieve the keys and values of a feature from the string pool
 // and tag them onto an mvt_feature and mvt_layer
-static void decode_meta(serial_feature const &sf, mvt_layer &layer, mvt_feature &feature, std::shared_ptr<std::string> const &tile_stringpool) {
+static void decode_meta(serial_feature const &sf, mvt_layer &layer, mvt_feature &feature) {
 	size_t i;
 	for (i = 0; i < sf.keys.size(); i++) {
 		std::string key = retrieve_std_string(sf.keys[i], sf.stringpool);
-		mvt_value value = retrieve_string(sf.values[i], sf.stringpool, tile_stringpool);
+		mvt_value value = retrieve_string(sf.values[i], sf.stringpool, sf.tile_stringpool);
 
 		layer.tag(feature, key, value);
 	}
@@ -265,8 +265,7 @@ static int metacmp(const serial_feature &one, const serial_feature &two) {
 }
 
 // Retrieve the value of an attribute or pseudo-attribute (ORDER_BY_SIZE) for --order purposes.
-// The tile_stringpool argument is used to construct the mvt_values.
-static mvt_value find_attribute_value(const serial_feature *c1, std::string const &key, std::shared_ptr<std::string> &tile_stringpool) {
+static mvt_value find_attribute_value(const serial_feature *c1, std::string const &key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -281,13 +280,13 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string cons
 	for (size_t i = 0; i < keys1.size(); i++) {
 		const char *key1 = stringpool1 + keys1[i] + 1;
 		if (strcmp(key1, key.c_str()) == 0) {
-			return retrieve_string(values1[i], stringpool1, tile_stringpool);
+			return retrieve_string(values1[i], stringpool1, c1->tile_stringpool);
 		}
 	}
 
 	for (size_t i = 0; i < c1->full_keys.size(); i++) {
 		if (c1->full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str(), tile_stringpool);
+			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str(), c1->tile_stringpool);
 		}
 	}
 
@@ -320,16 +319,14 @@ static mvt_value coerce_double(mvt_value v) {
 // compare features numerically according to that sort key until the keys are exhausted.
 // If there is a tie, the feature with the earlier index (centroid) comes first.
 struct ordercmp {
-	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
-
 	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
 	bool operator()(const serial_feature &a, const serial_feature &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
-			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name, tile_stringpool));
-			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name, tile_stringpool));
+			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
+			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
 
 			if (order_by[i].descending) {
 				if (v2 < v1) {
@@ -1237,7 +1234,7 @@ void *run_prefilter(void *v) {
 			tmp_feature.geometry[i].y += sy;
 		}
 
-		decode_meta(sf, tmp_layer, tmp_feature, tile_stringpool);
+		decode_meta(sf, tmp_layer, tmp_feature);
 		tmp_layer.features.push_back(tmp_feature);
 
 		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0);
@@ -2145,7 +2142,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				feature.id = layer_features[x].id;
 				feature.has_id = layer_features[x].has_id;
 
-				decode_meta(layer_features[x], layer, feature, tile_stringpool);
+				decode_meta(layer_features[x], layer, feature);
 				for (size_t a = 0; a < layer_features[x].full_keys.size(); a++) {
 					serial_val sv = layer_features[x].full_values[a];
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
