@@ -216,11 +216,12 @@ std::vector<std::string> read_unidecode(const char *fname) {
 	for (size_t i = 0; i < data.size(); i++) {
 		if (data[i] == '\0') {
 			out.emplace_back();
+		} else {
+			if (data[i] >= '\0' && data[i] <= '~') {
+				data[i] = tolower(data[i]);
+			}
+			out.back().push_back(data[i]);
 		}
-		if (data[i] >= '\0' && data[i] <= '~') {
-			data[i] = tolower(data[i]);
-		}
-		out.back().push_back(data[i]);
 	}
 
 	return out;
@@ -248,6 +249,5 @@ std::string unidecode_smash(std::vector<std::string> const &unidecode_data, cons
 		}
 	}
 
-	printf("%s\n", out.c_str());
 	return out;
 }
