@@ -1984,8 +1984,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		std::reverse(features.begin(), features.end());
-		for (ssize_t i = features.size() - 1; i >= 0; i--) {
+		for (size_t i = 0; i < features.size(); i++) {
 			signed char t = features[i].t;
 
 			{
@@ -2122,8 +2121,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			layer.version = 2;
 			layer.extent = 1 << tile_detail;
 
-			std::reverse(layer_features.begin(), layer_features.end());
-			for (ssize_t x = layer_features.size() - 1; x >= 0; x--) {
+			for (size_t x = 0; x < layer_features.size(); x++) {
 				mvt_feature feature;
 
 				if (layer_features[x].t == VT_LINE || layer_features[x].t == VT_POLYGON) {
@@ -2171,7 +2169,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(std::move(feature));
-				layer_features.erase(layer_features.begin() + x);
 			}
 
 			if (layer.features.size() > 0) {
