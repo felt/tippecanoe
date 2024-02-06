@@ -7,11 +7,12 @@
 #include "evaluator.hpp"
 #include "errors.hpp"
 #include "milo/dtoa_milo.h"
+#include "text.hpp"
 
-static std::string mvt_value_to_string(mvt_value const &one, bool &fail) {
+static std::string mvt_value_to_string(mvt_value const &one, bool &fail, std::vector<std::string> const &unidecode_data) {
 	switch (one.type) {
 	case mvt_string:
-		return one.get_string_value();
+		return unidecode_smash(unidecode_data, one.c_str());
 	case mvt_float:
 		return milo::dtoa_milo(one.numeric_value.float_value);
 	case mvt_double:
@@ -34,7 +35,7 @@ static std::string mvt_value_to_string(mvt_value const &one, bool &fail) {
 	}
 }
 
-int compare_fsl(mvt_value const &one, json_object *two, bool &fail) {
+int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<std::string> const &unidecode_data) {
 	// In FSL expressions, the attribute value is coerced to the type
 	// of the JSON literal value it is being compared to.
 	//
@@ -96,9 +97,9 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail) {
 	}
 
 	if (two->type == JSON_STRING) {
-		std::string lhs = mvt_value_to_string(one, fail);
+		std::string lhs = mvt_value_to_string(one, fail, unidecode_data);
 
-		return strcmp(lhs.c_str(), two->value.string.string);
+		return strcmp(lhs.c_str(), unidecode_smash(unidecode_data, two->value.string.string).c_str());
 	}
 
 	if (two->type == JSON_TRUE || two->type == JSON_FALSE) {
@@ -226,7 +227,7 @@ int compare(mvt_value const &one, json_object *two, bool &fail) {
 // 0: false
 // 1: true
 // -1: incomparable (sql null), treated as false in final output
-static int eval(std::function<mvt_value(std::string const &)> feature, json_object *f, std::set<std::string> &exclude_attributes) {
+static int eval(std::function<mvt_value(std::string const &)> feature, json_object *f, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	if (f != NULL) {
 		if (f->type == JSON_TRUE) {
 			return 1;
@@ -283,10 +284,10 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 				lhs = -1;  // not found: null
 			}
 		} else {
-			lhs = eval(feature, f->value.array.array[0], exclude_attributes);
+			lhs = eval(feature, f->value.array.array[0], exclude_attributes, unidecode_data);
 		}
 
-		int rhs = eval(feature, f->value.array.array[2], exclude_attributes);
+		int rhs = eval(feature, f->value.array.array[2], exclude_attributes, unidecode_data);
 		if (lhs < 0 && rhs < 0) {
 			return -1;  // null op null => null
 		}
@@ -337,12 +338,12 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		if (f->value.array.array[2]->type == JSON_STRING &&
 		    (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
 		     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0)) {
-			std::string s = mvt_value_to_string(lhs, fail);
+			std::string s = mvt_value_to_string(lhs, fail, unidecode_data);
 			if (fail) {
 				return -1;  // null cn anything => false
 			}
 
-			bool contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
+			bool contains = strstr(s.c_str(), unidecode_smash(unidecode_data, f->value.array.array[2]->value.string.string).c_str());
 			if (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0) {
 				return contains;
 			} else {
@@ -353,7 +354,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		if (f->value.array.array[2]->type == JSON_ARRAY &&
 		    (strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
 		     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0)) {
-			std::string s = mvt_value_to_string(lhs, fail);
+			std::string s = mvt_value_to_string(lhs, fail, unidecode_data);
 			if (fail) {
 				return -1;  // null in anything => false
 			}
@@ -364,7 +365,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 					return -1;  // anything in [not-a-string] => null
 				}
 
-				if (s == f->value.array.array[2]->value.array.array[i]->value.string.string) {
+				if (s == unidecode_smash(unidecode_data, f->value.array.array[2]->value.array.array[i]->value.string.string)) {
 					contains = true;
 					break;
 				}
@@ -377,7 +378,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			}
 		}
 
-		int cmp = compare_fsl(ff, f->value.array.array[2], fail);
+		int cmp = compare_fsl(ff, f->value.array.array[2], fail, unidecode_data);
 		if (fail) {
 			return -1;  // null
 		}
@@ -516,7 +517,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		for (size_t i = 1; i < f->value.array.length; i++) {
-			int out = eval(feature, f->value.array.array[i], exclude_attributes);
+			int out = eval(feature, f->value.array.array[i], exclude_attributes, unidecode_data);
 
 			if (out >= 0) {	 // nulls are ignored in boolean and/or expressions
 				if (strcmp(f->value.array.array[0]->value.string.string, "all") == 0) {
@@ -607,7 +608,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			exit(EXIT_FILTER);
 		}
 
-		bool ok = eval(feature, f->value.array.array[2], exclude_attributes) > 0;
+		bool ok = eval(feature, f->value.array.array[2], exclude_attributes, unidecode_data) > 0;
 		if (!ok) {
 			exclude_attributes.insert(f->value.array.array[1]->value.string.string);
 		}
@@ -630,12 +631,12 @@ bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string
 
 	f = json_hash_get(filter, layer.c_str());
 	if (ok && f != NULL) {
-		ok = eval(feature, f, exclude_attributes) > 0;
+		ok = eval(feature, f, exclude_attributes, unidecode_data) > 0;
 	}
 
 	f = json_hash_get(filter, "*");
 	if (ok && f != NULL) {
-		ok = eval(feature, f, exclude_attributes) > 0;
+		ok = eval(feature, f, exclude_attributes, unidecode_data) > 0;
 	}
 
 	return ok;

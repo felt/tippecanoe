@@ -225,3 +225,29 @@ std::vector<std::string> read_unidecode(const char *fname) {
 
 	return out;
 }
+
+std::string unidecode_smash(std::vector<std::string> const &unidecode_data, const char *s) {
+	std::string out;
+	out.reserve(strlen(s));
+
+	long c;
+	while (true) {
+		const char *os = s;
+		s = utf8_next(s, &c);
+		if (s == NULL) {
+			break;
+		}
+
+		if (c >= 0 && c < (long) unidecode_data.size()) {
+			out.append(unidecode_data[c]);
+		} else {
+			// pass through anything that is out of unidecode range literally
+			for (; os != s; os++) {
+				out.push_back(*os);
+			}
+		}
+	}
+
+	printf("%s\n", out.c_str());
+	return out;
+}
