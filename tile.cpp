@@ -89,8 +89,6 @@ static bool draws_something(drawvec const &geom) {
 	return false;
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool);
-
 // comparator for --preserve-input-order, to reorder features back to their original input sequence
 static struct preservecmp {
 	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
@@ -102,6 +100,8 @@ static struct preservecmp {
 	}
 } preservecmp;
 
+static int metacmp(const serial_feature &one, const serial_feature &two);
+
 // comparator for --coalesce and --reorder:
 // two features can be coalesced if they have
 // * the same type
@@ -110,7 +110,7 @@ static struct preservecmp {
 // * the same full_keys and full_values attributes
 //
 // The tile_stringpool is used to construct temporary mvt_values for comparison.
-static int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> const &tile_stringpool) {
+static int coalcmp(const void *v1, const void *v2) {
 	const serial_feature *c1 = (const serial_feature *) v1;
 	const serial_feature *c2 = (const serial_feature *) v2;
 
@@ -132,7 +132,7 @@ static int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> 
 		}
 	}
 
-	cmp = metacmp(c1->keys, c1->values, c1->stringpool, c2->keys, c2->values, c2->stringpool, tile_stringpool);
+	cmp = metacmp(*c1, *c2);
 	if (cmp != 0) {
 		return cmp;
 	}
@@ -171,8 +171,8 @@ static int coalcmp(const void *v1, const void *v2, std::shared_ptr<std::string> 
 // and then, if they are identical from that perspective, by their index (centroid)
 // and geometry
 struct coalindexcmp_comparator {
-	int coalindexcmp(const serial_feature *c1, const serial_feature *c2, std::shared_ptr<std::string> const &tile_stringpool) const {
-		int cmp = coalcmp((const void *) c1, (const void *) c2, tile_stringpool);
+	int coalindexcmp(const serial_feature *c1, const serial_feature *c2) const {
+		int cmp = coalcmp((const void *) c1, (const void *) c2);
 
 		if (cmp == 0) {
 			if (c1->index < c2->index) {
@@ -192,7 +192,7 @@ struct coalindexcmp_comparator {
 	}
 
 	bool operator()(const serial_feature &a, const serial_feature &o) const {
-		int cmp = coalindexcmp(&a, &o, a.tile_stringpool);
+		int cmp = coalindexcmp(&a, &o);
 		if (cmp < 0) {
 			return true;
 		} else {
@@ -229,39 +229,35 @@ static void decode_meta(std::vector<long long> const &metakeys, std::vector<long
 // comparator used to check whether two features have identical keys and values,
 // as determined by retrieving them from the string pool. The order of keys,
 // not just the content of their values, must also be identical for them to compare equal.
-//
-// The tile_string_pool is used to construct temporary mvt_values for comparison.
-// This should probably actually do direct lookups into the string pool instead of constructing.
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2, std::shared_ptr<std::string> const &tile_stringpool) {
-	if (keys1.size() < keys2.size()) {
+static int metacmp(const serial_feature &one, const serial_feature &two) {
+	if (one.keys.size() < two.keys.size()) {
 		return -1;
-	} else if (keys1.size() > keys2.size()) {
+	} else if (one.keys.size() > two.keys.size()) {
 		return 1;
 	}
 
 	size_t i;
-	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, tile_stringpool);
-		mvt_value key2 = retrieve_string(keys2[i], stringpool2, tile_stringpool);
+	for (i = 0; i < one.keys.size() && i < two.keys.size(); i++) {
+		const char *key1 = one.stringpool + one.keys[i] + 1;
+		const char *key2 = two.stringpool + two.keys[i] + 1;
 
-		if (key1.get_string_view() < key2.get_string_view()) {
-			return -1;
-		} else if (key1.get_string_view() > key2.get_string_view()) {
-			return 1;
+		int cmp = strcmp(key1, key2);
+		if (cmp != 0) {
+			return cmp;
 		}
 
-		long long off1 = values1[i];
-		int type1 = stringpool1[off1];
-		char *s1 = stringpool1 + off1 + 1;
+		long long off1 = one.values[i];
+		int type1 = one.stringpool[off1];
+		char *s1 = one.stringpool + off1 + 1;
 
-		long long off2 = values2[i];
-		int type2 = stringpool2[off2];
-		char *s2 = stringpool2 + off2 + 1;
+		long long off2 = two.values[i];
+		int type2 = two.stringpool[off2];
+		char *s2 = two.stringpool + off2 + 1;
 
 		if (type1 != type2) {
 			return type1 - type2;
 		}
-		int cmp = strcmp(s1, s2);
+		cmp = strcmp(s1, s2);
 		if (cmp != 0) {
 			return cmp;
 		}
@@ -2048,7 +2044,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				for (size_t x = 1; x < layer_features.size(); x++) {
 					size_t y = out - 1;
 
-					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y], tile_stringpool) == 0) {
+					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
 						for (size_t g = 0; g < layer_features[x].geometry.size(); g++) {
 							layer_features[y].geometry.push_back(std::move(layer_features[x].geometry[g]));
 						}
