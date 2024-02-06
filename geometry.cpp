@@ -110,13 +110,13 @@ void check_polygon(drawvec &geom) {
 				mapbox::geometry::linear_ring<long long> lr;
 
 				for (size_t k = i; k < j; k++) {
-					lr.push_back(mapbox::geometry::point<long long>(geom[k].x, geom[k].y));
+					lr.push_back({geom[k].x, geom[k].y});
 				}
 
 				if (lr.size() >= 3) {
 					mapbox::geometry::polygon<long long> p;
-					p.push_back(lr);
-					mp.push_back(p);
+					p.push_back(std::move(lr));
+					mp.push_back(std::move(p));
 				}
 			}
 
@@ -168,7 +168,7 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
+drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
 	bool includes_real = false;
@@ -212,11 +212,11 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 					if (area > 0 && *accum_area > pixel * pixel) {
 						// XXX use centroid;
 
-						out.push_back(draw(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel));
-						out.push_back(draw(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2));
+						out.emplace_back(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
 						includes_dust = true;
 
 						*accum_area -= pixel * pixel;
@@ -288,7 +288,7 @@ drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_sim
 	return out;
 }
 
-int quick_check(long long *bbox, int z, long long buffer) {
+int quick_check(const long long *bbox, int z, long long buffer) {
 	long long min = 0;
 	long long area = 1LL << (32 - z);
 
@@ -446,7 +446,7 @@ static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t ke
 // If any line segment crosses a tile boundary, add a node there
 // that cannot be simplified away, to prevent the edge of any
 // feature from jumping abruptly at the tile boundary.
-drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
+drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
@@ -461,11 +461,11 @@ drawvec impose_tile_boundaries(drawvec &geom, long long extent) {
 
 			if (c > 1) {  // clipped
 				if (x1 != geom[i - 1].x || y1 != geom[i - 1].y) {
-					out.push_back(draw(VT_LINETO, x1, y1));
+					out.emplace_back(VT_LINETO, x1, y1);
 					out[out.size() - 1].necessary = 1;
 				}
 				if (x2 != geom[i - 0].x || y2 != geom[i - 0].y) {
-					out.push_back(draw(VT_LINETO, x2, y2));
+					out.emplace_back(VT_LINETO, x2, y2);
 					out[out.size() - 1].necessary = 1;
 				}
 			}
@@ -559,17 +559,17 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 		}
 	}
 
-	drawvec out;
+	size_t out = 0;
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].necessary) {
-			out.push_back(geom[i]);
+			geom[out++] = geom[i];
 		}
 	}
-
-	return out;
+	geom.resize(out);
+	return geom;
 }
 
-drawvec reorder_lines(drawvec &geom) {
+drawvec reorder_lines(const drawvec &geom) {
 	// Only reorder simple linestrings with a single moveto
 
 	if (geom.size() == 0) {
@@ -615,7 +615,7 @@ drawvec reorder_lines(drawvec &geom) {
 	return geom;
 }
 
-drawvec fix_polygon(drawvec &geom) {
+drawvec fix_polygon(const drawvec &geom) {
 	int outer = 1;
 	drawvec out;
 
