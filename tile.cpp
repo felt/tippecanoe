@@ -279,8 +279,8 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string cons
 	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, tile_stringpool);
-		if (key == key1.get_string_value()) {
+		const char *key1 = stringpool1 + keys1[i] + 1;
+		if (strcmp(key1, key.c_str()) == 0) {
 			return retrieve_string(values1[i], stringpool1, tile_stringpool);
 		}
 	}
