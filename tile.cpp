@@ -1899,6 +1899,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::vector<serial_feature> &features = kv.second;
 
 			if (retain_points_multiplier > 1) {
+				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "tippecanoe:retain_points_multiplier_first", serial_val(mvt_bool, "true"));
+
 				// mapping from input sequence to current sequence within this tile
 				std::vector<std::pair<size_t, size_t>> feature_sequences;
 
