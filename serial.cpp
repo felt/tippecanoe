@@ -52,29 +52,16 @@ void serialize_long_long(FILE *out, long long n, std::atomic<long long> *fpos, c
 }
 
 void serialize_ulong_long(FILE *out, unsigned long long zigzag, std::atomic<long long> *fpos, const char *fname) {
-	int inc = 0;
+	char buf[10];  // ceil(64 / 7)
+	char *s = buf;
 
-	while (1) {
-		unsigned char b = zigzag & 0x7F;
-		if ((zigzag >> 7) != 0) {
-			b |= 0x80;
-			if (putc(b, out) == EOF) {
-				fprintf(stderr, "%s: Write to temporary file failed: %s\n", fname, strerror(errno));
-				exit(EXIT_WRITE);
-			}
-			inc++;
-			zigzag >>= 7;
-		} else {
-			if (putc(b, out) == EOF) {
-				fprintf(stderr, "%s: Write to temporary file failed: %s\n", fname, strerror(errno));
-				exit(EXIT_WRITE);
-			}
-			inc++;
-			break;
-		}
+	while (zigzag >= 0x80) {
+		*s++ = (zigzag & 0x7F) | 0x80;
+		zigzag >>= 7;
 	}
 
-	*fpos += inc;
+	*s++ = zigzag;
+	fwrite_check(buf, sizeof(char), s - buf, out, fpos, fname);
 }
 
 void serialize_byte(FILE *out, signed char n, std::atomic<long long> *fpos, const char *fname) {
@@ -93,17 +80,16 @@ size_t fwrite_check(const void *ptr, size_t size, size_t nitems, std::string &st
 }
 
 void serialize_ulong_long(std::string &out, unsigned long long zigzag) {
-	while (1) {
-		unsigned char b = zigzag & 0x7F;
-		if ((zigzag >> 7) != 0) {
-			b |= 0x80;
-			out += b;
-			zigzag >>= 7;
-		} else {
-			out += b;
-			break;
-		}
+	char buf[10];  // ceil(64 / 7)
+	char *s = buf;
+
+	while (zigzag >= 0x80) {
+		*s++ = (zigzag & 0x7F) | 0x80;
+		zigzag >>= 7;
 	}
+
+	*s++ = zigzag;
+	out.append(buf, s - buf);
 }
 
 void serialize_long_long(std::string &out, long long n) {
