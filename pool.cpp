@@ -26,7 +26,6 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	size_t hash_off = hash % dedup.size();
 
 	if (dedup[hash_off] >= 0 &&
-	    dedup[hash_off] + 1 < (ssize_t) poolfile->map.size() &&
 	    poolfile->map[dedup[hash_off]] == type &&
 	    strcmp(poolfile->map.c_str() + dedup[hash_off] + 1, s) == 0) {
 		// printf("hit for %s\n", s);
