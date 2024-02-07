@@ -1,3 +1,8 @@
+# 2.42.0
+
+* Improve tiling speed
+* Generate tilestats for the --retain-points-multiplier attributes
+
 # 2.41.3
 
 * Performance optimizations to tile reading, writing, and overzooming
