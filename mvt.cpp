@@ -599,7 +599,6 @@ std::string mvt_value::toString() const {
 void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
 	size_t key_hash = fnv1a(key) % key_dedup.size();
 	if (key_dedup[key_hash] >= 0 &&
-	    key_dedup[key_hash] < (ssize_t) keys.size() &&
 	    keys[key_dedup[key_hash]] == key) {
 	} else {
 		key_dedup[key_hash] = keys.size();
@@ -609,7 +608,6 @@ void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value cons
 
 	size_t value_hash = std::hash<mvt_value>()(value) % value_dedup.size();
 	if (value_dedup[value_hash] >= 0 &&
-	    value_dedup[value_hash] < (ssize_t) values.size() &&
 	    values[value_dedup[value_hash]] == value) {
 	} else {
 		value_dedup[value_hash] = values.size();
