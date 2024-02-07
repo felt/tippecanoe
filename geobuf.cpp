@@ -383,8 +383,8 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 		sf.segment = sst->segment;
 		sf.has_id = has_id;
 		sf.id = id;
-		sf.has_tippecanoe_minzoom = false;
-		sf.has_tippecanoe_maxzoom = false;
+		sf.tippecanoe_minzoom = -1;
+		sf.tippecanoe_maxzoom = -1;
 		sf.feature_minzoom = false;
 		sf.seq = *(sst->layer_seq);
 		sf.geometry = dv[i].dv;
@@ -400,13 +400,11 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 			if (o != NULL) {
 				json_object *min = json_hash_get(o, "minzoom");
 				if (min != NULL && (min->type == JSON_NUMBER)) {
-					sf.has_tippecanoe_minzoom = true;
 					sf.tippecanoe_minzoom = integer_zoom(sst->fname, milo::dtoa_milo(min->value.number.number));
 				}
 
 				json_object *max = json_hash_get(o, "maxzoom");
 				if (max != NULL && (max->type == JSON_NUMBER)) {
-					sf.has_tippecanoe_maxzoom = true;
 					sf.tippecanoe_maxzoom = integer_zoom(sst->fname, milo::dtoa_milo(max->value.number.number));
 				}
 
@@ -508,8 +506,8 @@ void outBareGeometry(drawvec const &dv, int type, struct serialization_state *ss
 	sf.layer = layer;
 	sf.segment = sst->segment;
 	sf.has_id = false;
-	sf.has_tippecanoe_minzoom = false;
-	sf.has_tippecanoe_maxzoom = false;
+	sf.tippecanoe_minzoom = -1;
+	sf.tippecanoe_maxzoom = -1;
 	sf.feature_minzoom = false;
 	sf.seq = (*sst->layer_seq);
 	sf.geometry = dv;

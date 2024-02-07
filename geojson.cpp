@@ -205,9 +205,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.t = mb_geometry[t];
 	sf.has_id = has_id;
 	sf.id = id_value;
-	sf.has_tippecanoe_minzoom = (tippecanoe_minzoom != -1);
 	sf.tippecanoe_minzoom = tippecanoe_minzoom;
-	sf.has_tippecanoe_maxzoom = (tippecanoe_maxzoom != -1);
 	sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
 	sf.geometry = dv;
 	sf.feature_minzoom = 0;	 // Will be filled in during index merging

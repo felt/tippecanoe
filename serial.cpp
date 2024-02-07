@@ -189,15 +189,15 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	layer |= (sf->index != 0) << FLAG_INDEX;
 	layer |= (sf->extent != 0) << FLAG_EXTENT;
 	layer |= sf->has_id << FLAG_ID;
-	layer |= sf->has_tippecanoe_minzoom << FLAG_MINZOOM;
-	layer |= sf->has_tippecanoe_maxzoom << FLAG_MAXZOOM;
+	layer |= (sf->tippecanoe_minzoom != -1) << FLAG_MINZOOM;
+	layer |= (sf->tippecanoe_maxzoom != -1) << FLAG_MAXZOOM;
 
 	serialize_long_long(s, layer);
 	serialize_long_long(s, sf->seq);
-	if (sf->has_tippecanoe_minzoom) {
+	if (sf->tippecanoe_minzoom != -1) {
 		serialize_int(s, sf->tippecanoe_minzoom);
 	}
-	if (sf->has_tippecanoe_maxzoom) {
+	if (sf->tippecanoe_maxzoom != -1) {
 		serialize_int(s, sf->tippecanoe_maxzoom);
 	}
 	if (sf->has_id) {
@@ -246,11 +246,9 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	sf.has_id = false;
 	if (sf.layer & (1 << FLAG_MINZOOM)) {
 		deserialize_int(&cp, &sf.tippecanoe_minzoom);
-		sf.has_tippecanoe_minzoom = sf.tippecanoe_minzoom != -1;
 	}
 	if (sf.layer & (1 << FLAG_MAXZOOM)) {
 		deserialize_int(&cp, &sf.tippecanoe_maxzoom);
-		sf.has_tippecanoe_maxzoom = sf.tippecanoe_maxzoom != -1;
 	}
 	if (sf.layer & (1 << FLAG_ID)) {
 		sf.has_id = true;

@@ -139,8 +139,8 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 		sf.has_id = false;
 	}
 	sf.id = feature_sequence_id;
-	sf.has_tippecanoe_minzoom = false;
-	sf.has_tippecanoe_maxzoom = false;
+	sf.tippecanoe_minzoom = -1;
+	sf.tippecanoe_maxzoom = -1;
 	sf.feature_minzoom = false;
 	sf.seq = (*sst->layer_seq);
 	sf.geometry = dv;

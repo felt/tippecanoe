@@ -62,11 +62,8 @@ struct serial_feature {
 	bool has_id = false;
 	unsigned long long id = 0;
 
-	bool has_tippecanoe_minzoom = false;
-	int tippecanoe_minzoom = 0;
-
-	bool has_tippecanoe_maxzoom = false;
-	int tippecanoe_maxzoom = 0;
+	int tippecanoe_minzoom = -1;
+	int tippecanoe_maxzoom = -1;
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;

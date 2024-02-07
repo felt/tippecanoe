@@ -118,8 +118,8 @@ void parse_geocsv(std::vector<struct serialization_state> &sst, std::string fnam
 		sf.segment = sst[0].segment;
 		sf.has_id = false;
 		sf.id = 0;
-		sf.has_tippecanoe_minzoom = false;
-		sf.has_tippecanoe_maxzoom = false;
+		sf.tippecanoe_minzoom = -1;
+		sf.tippecanoe_maxzoom = -1;
 		sf.feature_minzoom = false;
 		sf.seq = *(sst[0].layer_seq);
 		sf.geometry = dv;
