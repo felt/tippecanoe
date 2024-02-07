@@ -1581,7 +1581,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.first_time = first_time;
 			rpa.compressed = compressed_input;
 
-			if (thread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
+			// this does need to be a real thread, so we can pipe both to and from it
+			if (pthread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
 				perror("pthread_create (prefilter writer)");
 				exit(EXIT_PTHREAD);
 			}

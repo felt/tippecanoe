@@ -631,7 +631,8 @@ std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> 
 	wa.extent = extent;
 
 	pthread_t writer;
-	if (thread_create(&writer, NULL, run_writer, &wa) != 0) {
+	// this does need to be a real thread, so we can pipe both to and from it
+	if (pthread_create(&writer, NULL, run_writer, &wa) != 0) {
 		perror("pthread_create (filter writer)");
 		exit(EXIT_PTHREAD);
 	}
