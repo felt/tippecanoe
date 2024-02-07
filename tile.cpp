@@ -1482,7 +1482,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long original_features = 0;
 		long long unclipped_features = 0;
 
-		std::vector<serial_feature> features;
 		std::map<std::string, std::vector<serial_feature>> layers;
 
 		std::vector<unsigned long long> indices;
@@ -1595,6 +1594,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
+		// Read features, filter them, assign them to layers
+
 		struct multiplier_state multiplier_state;
 		size_t multiplier_seq = retain_points_multiplier - 1;
 		for (size_t seq = 0;; seq++) {
@@ -1610,6 +1611,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.t < 0) {
 				break;
 			}
+
+			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
+			if (layers.count(layername) == 0) {
+				layers.emplace(layername, std::vector<serial_feature>());
+			}
+			std::vector<serial_feature> &features = layers.find(layername)->second;
 
 			if (sf.t == VT_POINT) {
 				if (extent_previndex >= sf.index) {
@@ -1838,88 +1845,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			coalesced_area = 0;
 		}
 
-		if (retain_points_multiplier > 1) {
-			// mapping from input sequence to current sequence within this tile
-			std::vector<std::pair<size_t, size_t>> feature_sequences;
-
-			for (size_t i = 0; i < features.size(); i++) {
-				feature_sequences.emplace_back(features[i].seq, i);
-			}
-
-			// tag each feature with its sequence number within the tile
-			// if the tile were sorted by input order
-			//
-			// these will be smaller numbers, and avoid the problem of the
-			// original sequence number varying based on how many reader threads
-			// there were reading the input
-			std::sort(feature_sequences.begin(), feature_sequences.end());
-			for (size_t i = 0; i < feature_sequences.size(); i++) {
-				size_t j = feature_sequences[i].second;
-
-				features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
-				features[j].full_values.emplace_back(mvt_double, std::to_string(i));
-
-				// XXX Add to tilestats?
-			}
-		}
-
-		std::sort(shared_nodes.begin(), shared_nodes.end());
-
-		for (size_t i = 0; i < features.size(); i++) {
-			serial_feature &p = features[i];
-
-			if (p.clustered > 0) {
-				std::string &layername = (*layer_unmaps)[p.segment][p.layer];
-				serial_val sv, sv2, sv3, sv4;
-				long long point_count = p.clustered + 1;
-				char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
-
-				p.full_keys.push_back("clustered");
-				sv.type = mvt_bool;
-				sv.s = "true";
-				p.full_values.push_back(sv);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "clustered", sv);
-
-				p.full_keys.push_back("point_count");
-				sv2.type = mvt_double;
-				sv2.s = std::to_string(point_count);
-				p.full_values.push_back(sv2);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count", sv2);
-
-				p.full_keys.push_back("sqrt_point_count");
-				sv3.type = mvt_double;
-				sv3.s = std::to_string(round(100 * sqrt(point_count)) / 100.0);
-				p.full_values.push_back(sv3);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "sqrt_point_count", sv3);
-
-				p.full_keys.push_back("point_count_abbreviated");
-				sv4.type = mvt_string;
-				if (point_count >= 10000) {
-					snprintf(abbrev, sizeof(abbrev), "%.0fk", point_count / 1000.0);
-				} else if (point_count >= 1000) {
-					snprintf(abbrev, sizeof(abbrev), "%.1fk", point_count / 1000.0);
-				} else {
-					snprintf(abbrev, sizeof(abbrev), "%lld", point_count);
-				}
-				sv4.s = abbrev;
-				p.full_values.push_back(sv4);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count_abbreviated", sv4);
-			}
-
-			if (p.need_tilestats.size() > 0) {
-				std::string &layername = (*layer_unmaps)[p.segment][p.layer];
-
-				for (size_t j = 0; j < p.full_keys.size(); j++) {
-					if (p.need_tilestats.count(p.full_keys[j]) > 0) {
-						add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, p.full_keys[j], p.full_values[j]);
-					}
-				}
-			}
-		}
+		// We are done reading the features.
+		// Close the prefilter if it was opened.
+		// Close the output files for the next zoom level.
 
 		if (prefilter != NULL) {
 			json_end(prefilter_jp);
@@ -1944,77 +1872,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		first_time = false;
-
-		if (additional[A_DETECT_SHARED_BORDERS]) {
-			find_common_edges(features, z, line_detail, simplification, maxzoom, merge_fraction);
-		}
-
-		int tasks = ceil((double) CPUS / *running);
-		if (tasks < 1) {
-			tasks = 1;
-		}
-
-		pthread_t pthreads[tasks];
-		std::vector<simplification_worker_arg> args;
-		args.resize(tasks);
-		for (int i = 0; i < tasks; i++) {
-			args[i].task = i;
-			args[i].tasks = tasks;
-			args[i].features = &features;
-			args[i].shared_nodes = &shared_nodes;
-			args[i].shared_nodes_map = shared_nodes_map;
-			args[i].nodepos = nodepos;
-
-			if (tasks > 1) {
-				if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
-					perror("pthread_create");
-					exit(EXIT_PTHREAD);
-				}
-			} else {
-				simplification_worker(&args[i]);
-			}
-		}
-
-		if (tasks > 1) {
-			for (int i = 0; i < tasks; i++) {
-				void *retval;
-
-				if (pthread_join(pthreads[i], &retval) != 0) {
-					perror("pthread_join");
-				}
-			}
-		}
-
-		for (size_t i = 0; i < features.size(); i++) {
-			signed char t = features[i].t;
-
-			{
-				if (t == VT_POINT || draws_something(features[i].geometry)) {
-					// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
-
-					std::string &layername = (*layer_unmaps)[features[i].segment][features[i].layer];
-					if (layers.count(layername) == 0) {
-						layers.insert(std::pair<std::string, std::vector<serial_feature>>(layername, std::vector<serial_feature>()));
-					}
-
-					auto l = layers.find(layername);
-					if (l == layers.end()) {
-						fprintf(stderr, "Internal error: couldn't find layer %s\n", layername.c_str());
-						fprintf(stderr, "segment %d\n", features[i].segment);
-						fprintf(stderr, "layer %lld\n", features[i].layer);
-						exit(EXIT_IMPOSSIBLE);
-					}
-					features[i].coalesced = false;
-					l->second.push_back(std::move(features[i]));
-				}
-			}
-		}
-
-		features.clear();
-
-		int j;
-		for (j = 0; j < child_shards; j++) {
+		for (int j = 0; j < child_shards; j++) {
 			if (within[j]) {
 				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
@@ -2022,8 +1880,159 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<serial_feature> &layer_features = layer_iterator->second;
+		first_time = false;
+
+		// Tag features with their sequence within the layer,
+		// if required for --retain-points-multiplier
+
+		if (retain_points_multiplier > 1) {
+			for (auto &kv : layers) {
+				std::vector<serial_feature> &features = kv.second;
+
+				// mapping from input sequence to current sequence within this tile
+				std::vector<std::pair<size_t, size_t>> feature_sequences;
+
+				for (size_t i = 0; i < features.size(); i++) {
+					feature_sequences.emplace_back(features[i].seq, i);
+				}
+
+				// tag each feature with its sequence number within the layer
+				// if the tile were sorted by input order
+				//
+				// these will be smaller numbers, and avoid the problem of the
+				// original sequence number varying based on how many reader threads
+				// there were reading the input
+				std::sort(feature_sequences.begin(), feature_sequences.end());
+				for (size_t i = 0; i < feature_sequences.size(); i++) {
+					size_t j = feature_sequences[i].second;
+
+					features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+					features[j].full_values.emplace_back(mvt_double, std::to_string(i));
+
+					// XXX Add to tilestats?
+				}
+			}
+		}
+
+		// Add cluster size attributes to clustered features.
+		// Update tilestats if attribute accumulation earlier introduced new values.
+		// Detect shared borders.
+		// Simplify geometries.
+
+		std::sort(shared_nodes.begin(), shared_nodes.end());
+
+		for (auto &kv : layers) {
+			std::vector<serial_feature> &features = kv.second;
+
+			for (size_t i = 0; i < features.size(); i++) {
+				serial_feature &p = features[i];
+
+				if (p.clustered > 0) {
+					std::string &layername = (*layer_unmaps)[p.segment][p.layer];
+					serial_val sv, sv2, sv3, sv4;
+					long long point_count = p.clustered + 1;
+					char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
+
+					p.full_keys.push_back("clustered");
+					sv.type = mvt_bool;
+					sv.s = "true";
+					p.full_values.push_back(sv);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "clustered", sv);
+
+					p.full_keys.push_back("point_count");
+					sv2.type = mvt_double;
+					sv2.s = std::to_string(point_count);
+					p.full_values.push_back(sv2);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count", sv2);
+
+					p.full_keys.push_back("sqrt_point_count");
+					sv3.type = mvt_double;
+					sv3.s = std::to_string(round(100 * sqrt(point_count)) / 100.0);
+					p.full_values.push_back(sv3);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "sqrt_point_count", sv3);
+
+					p.full_keys.push_back("point_count_abbreviated");
+					sv4.type = mvt_string;
+					if (point_count >= 10000) {
+						snprintf(abbrev, sizeof(abbrev), "%.0fk", point_count / 1000.0);
+					} else if (point_count >= 1000) {
+						snprintf(abbrev, sizeof(abbrev), "%.1fk", point_count / 1000.0);
+					} else {
+						snprintf(abbrev, sizeof(abbrev), "%lld", point_count);
+					}
+					sv4.s = abbrev;
+					p.full_values.push_back(sv4);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count_abbreviated", sv4);
+				}
+
+				if (p.need_tilestats.size() > 0) {
+					std::string &layername = (*layer_unmaps)[p.segment][p.layer];
+
+					for (size_t j = 0; j < p.full_keys.size(); j++) {
+						if (p.need_tilestats.count(p.full_keys[j]) > 0) {
+							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, p.full_keys[j], p.full_values[j]);
+						}
+					}
+				}
+			}
+
+			if (additional[A_DETECT_SHARED_BORDERS]) {
+				find_common_edges(features, z, line_detail, simplification, maxzoom, merge_fraction);
+			}
+
+			int tasks = ceil((double) CPUS / *running);
+			if (tasks < 1) {
+				tasks = 1;
+			}
+
+			pthread_t pthreads[tasks];
+			std::vector<simplification_worker_arg> args;
+			args.resize(tasks);
+			for (int i = 0; i < tasks; i++) {
+				args[i].task = i;
+				args[i].tasks = tasks;
+				args[i].features = &features;
+				args[i].shared_nodes = &shared_nodes;
+				args[i].shared_nodes_map = shared_nodes_map;
+				args[i].nodepos = nodepos;
+
+				if (tasks > 1) {
+					if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
+						perror("pthread_create");
+						exit(EXIT_PTHREAD);
+					}
+				} else {
+					simplification_worker(&args[i]);
+				}
+			}
+
+			if (tasks > 1) {
+				for (int i = 0; i < tasks; i++) {
+					void *retval;
+
+					if (pthread_join(pthreads[i], &retval) != 0) {
+						perror("pthread_join");
+					}
+				}
+			}
+
+			for (size_t i = 0; i < features.size(); i++) {
+				signed char t = features[i].t;
+
+				{
+					if (t == VT_POINT || draws_something(features[i].geometry)) {
+						// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
+
+						features[i].coalesced = false;
+					}
+				}
+			}
+
+			std::vector<serial_feature> &layer_features = features;
 
 			if (additional[A_REORDER]) {
 				std::sort(layer_features.begin(), layer_features.end(), coalindexcmp_comparator());
