@@ -5,7 +5,7 @@
 "description": "tests/ne_110m_admin_0_countries/out/-B10_-z0_--retain-points-multiplier_10_-d8_-yNAME.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/ne_110m_admin_0_countries/out/-B10_-z0_--retain-points-multiplier_10_-d8_-yNAME.json.check.mbtiles -B10 -z0 --retain-points-multiplier 10 -d8 -yNAME tests/ne_110m_admin_0_countries/in.json.gz",
-"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":177,\"geometry\":\"Polygon\",\"attributeCount\":0,\"attributes\":[]}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{\"tippecanoe:retain_points_multiplier_sequence\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":177,\"geometry\":\"Polygon\",\"attributeCount\":1,\"attributes\":[{\"attribute\":\"tippecanoe:retain_points_multiplier_sequence\",\"count\":144,\"type\":\"number\",\"values\":[0,1,10,100,101,102,103,104,105,106,107,108,109,11,110,111,112,113,114,115,116,117,118,119,12,120,121,122,123,124,125,126,127,128,129,13,130,131,132,133,134,135,136,137,138,139,14,140,141,142,143,15,16,17,18,19,2,20,21,22,23,24,25,26,27,28,29,3,30,31,32,33,34,35,36,37,38,39,4,40,41,42,43,44,45,46,47,48,49,5,50,51,52,53,54,55,56,57,58,59],\"min\":0,\"max\":143}]}]}}",
 "maxzoom": "0",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-B10_-z0_--retain-points-multiplier_10_-d8_-yNAME.json.check.mbtiles",

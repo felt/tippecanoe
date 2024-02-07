@@ -1882,13 +1882,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		first_time = false;
 
-		// Tag features with their sequence within the layer,
-		// if required for --retain-points-multiplier
+		// Operations on the features within each layer:
+		//
+		// Tag features with their sequence within the layer, if required for --retain-points-multiplier
+		// Add cluster size attributes to clustered features.
+		// Update tilestats if attribute accumulation earlier introduced new values.
+		// Detect shared borders.
+		// Simplify geometries.
+		// Reorder and coalesce.
+		// Sort back into input order or by attribute value
 
-		if (retain_points_multiplier > 1) {
-			for (auto &kv : layers) {
-				std::vector<serial_feature> &features = kv.second;
+		std::sort(shared_nodes.begin(), shared_nodes.end());
 
+		for (auto &kv : layers) {
+			std::string const &layername = kv.first;
+			std::vector<serial_feature> &features = kv.second;
+
+			if (retain_points_multiplier > 1) {
 				// mapping from input sequence to current sequence within this tile
 				std::vector<std::pair<size_t, size_t>> feature_sequences;
 
@@ -1905,30 +1915,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				std::sort(feature_sequences.begin(), feature_sequences.end());
 				for (size_t i = 0; i < feature_sequences.size(); i++) {
 					size_t j = feature_sequences[i].second;
+					serial_val sv(mvt_double, std::to_string(i));
 
 					features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
-					features[j].full_values.emplace_back(mvt_double, std::to_string(i));
+					features[j].full_values.push_back(sv);
 
-					// XXX Add to tilestats?
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, features[j].full_keys.back(), sv);
 				}
 			}
-		}
-
-		// Add cluster size attributes to clustered features.
-		// Update tilestats if attribute accumulation earlier introduced new values.
-		// Detect shared borders.
-		// Simplify geometries.
-
-		std::sort(shared_nodes.begin(), shared_nodes.end());
-
-		for (auto &kv : layers) {
-			std::vector<serial_feature> &features = kv.second;
 
 			for (size_t i = 0; i < features.size(); i++) {
 				serial_feature &p = features[i];
 
 				if (p.clustered > 0) {
-					std::string &layername = (*layer_unmaps)[p.segment][p.layer];
 					serial_val sv, sv2, sv3, sv4;
 					long long point_count = p.clustered + 1;
 					char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
@@ -1970,8 +1969,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (p.need_tilestats.size() > 0) {
-					std::string &layername = (*layer_unmaps)[p.segment][p.layer];
-
 					for (size_t j = 0; j < p.full_keys.size(); j++) {
 						if (p.need_tilestats.count(p.full_keys[j]) > 0) {
 							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, p.full_keys[j], p.full_values[j]);
