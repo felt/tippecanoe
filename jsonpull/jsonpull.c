@@ -10,6 +10,15 @@
 
 #define BUFFER 10000
 
+struct string {
+	char *buf;
+	size_t n;
+	size_t nalloc;
+};
+
+static void string_init(struct string *s);
+static void string_free(struct string *s);
+
 json_pull *json_begin(ssize_t (*read)(struct json_pull *, char *buffer, size_t n), void *source) {
 	json_pull *j = malloc(sizeof(json_pull));
 	if (j == NULL) {
@@ -32,6 +41,13 @@ json_pull *json_begin(ssize_t (*read)(struct json_pull *, char *buffer, size_t n
 		perror("Out of memory");
 		exit(EXIT_FAILURE);
 	}
+
+	j->number_buffer = malloc(sizeof(struct string));
+	if (j->number_buffer == NULL) {
+		perror("Out of memory");
+		exit(EXIT_FAILURE);
+	}
+	string_init(j->number_buffer);
 
 	return j;
 }
@@ -88,6 +104,9 @@ json_pull *json_begin_string(const char *s) {
 }
 
 void json_end(json_pull *p) {
+	string_free(p->number_buffer);
+	free(p->number_buffer);
+
 	json_free(p->root);
 	free(p->buffer);
 	free(p);
@@ -214,12 +233,6 @@ json_object *json_hash_get(json_object *o, const char *s) {
 
 	return NULL;
 }
-
-struct string {
-	char *buf;
-	size_t n;
-	size_t nalloc;
-};
 
 static void string_init(struct string *s) {
 	s->nalloc = 500;
@@ -525,68 +538,67 @@ again:
 	case '7':
 	case '8':
 	case '9': {
-		struct string val;
-		string_init(&val);
+		j->number_buffer->n = 0;
 		int decimal = 0;
 
 		if (c == '-') {
-			string_append(&val, c);
+			string_append(j->number_buffer, c);
 			c = read_wrap(j);
 		}
 
 		if (c == '0') {
-			string_append(&val, c);
+			string_append(j->number_buffer, c);
 		} else if (c >= '1' && c <= '9') {
-			string_append(&val, c);
+			string_append(j->number_buffer, c);
 			c = peek(j);
 
 			while (c >= '0' && c <= '9') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 				c = peek(j);
 			}
 		}
 
 		if (peek(j) == '.') {
-			string_append(&val, read_wrap(j));
+			string_append(j->number_buffer, read_wrap(j));
 			decimal = 1;
 
 			c = peek(j);
 			if (c < '0' || c > '9') {
 				j->error = "Decimal point without digits";
-				string_free(&val);
+				string_free(j->number_buffer);
 				return NULL;
 			}
 			while (c >= '0' && c <= '9') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 				c = peek(j);
 			}
 		}
 
 		c = peek(j);
 		if (c == 'e' || c == 'E') {
-			string_append(&val, read_wrap(j));
+			string_append(j->number_buffer, read_wrap(j));
 			decimal = 1;
 
 			c = peek(j);
 			if (c == '+' || c == '-') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 			}
 
 			c = peek(j);
 			if (c < '0' || c > '9') {
 				j->error = "Exponent without digits";
-				string_free(&val);
+				string_free(j->number_buffer);
 				return NULL;
 			}
 			while (c >= '0' && c <= '9') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 				c = peek(j);
 			}
 		}
 
 		json_object *n = add_object(j, JSON_NUMBER);
 		if (n != NULL) {
-			n->value.number.number = atof(val.buf);
+			n->value.number.number = atof(j->number_buffer->buf);
 			n->value.number.large_signed = 0;
 			n->value.number.large_unsigned = 0;
 
@@ -596,7 +608,7 @@ again:
 			if (!decimal && n->value.number.number > MAX_SAFE_INTEGER) {
 				errno = 0;
 				char *err = NULL;
-				unsigned long long ull = strtoull(val.buf, &err, 10);
+				unsigned long long ull = strtoull(j->number_buffer->buf, &err, 10);
 				if (errno == 0 && (err == NULL || *err == '\0')) {
 					n->value.number.large_unsigned = ull;
 				}
@@ -604,15 +616,11 @@ again:
 			if (!decimal && n->value.number.number < MIN_SAFE_INTEGER) {
 				errno = 0;
 				char *err = NULL;
-				long long ll = strtoll(val.buf, &err, 10);
+				long long ll = strtoll(j->number_buffer->buf, &err, 10);
 				if (errno == 0 && (err == NULL || *err == '\0')) {
 					n->value.number.large_signed = ll;
 				}
 			}
-
-			string_free(&val);
-		} else {
-			string_free(&val);
 		}
 		return n;
 	}

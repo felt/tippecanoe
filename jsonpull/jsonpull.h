@@ -68,6 +68,8 @@ typedef struct json_pull {
 
 	json_object *container;
 	json_object *root;
+
+	struct string *number_buffer;
 } json_pull;
 
 json_pull *json_begin_file(FILE *f);
