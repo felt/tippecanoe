@@ -1123,7 +1123,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				keep = true;  // the first feature in each layer in each tile is always kept
 			}
 
-			sf.dropped = true;
+			sf.dropped = -1;
 
 			if (z >= sf.feature_minzoom || keep) {
 				count->second = retain_points_multiplier;
@@ -1135,7 +1135,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			if (count->second > 0) {
-				sf.dropped = false;
+				sf.dropped = 0;
 				count->second -= 1;
 			}
 		}
@@ -1633,7 +1633,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
-			if (sf.dropped) {
+			if (sf.dropped < 0) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
