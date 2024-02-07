@@ -976,7 +976,7 @@ static void remove_attributes(serial_feature &sf, std::set<std::string> const &e
 // --accumulate-attribute option so that features' attributes can be averaged in
 // without knowing their total count in advance.
 struct multiplier_state {
-	std::map<std::string, size_t> count;
+	std::map<std::string, int> count;
 };
 
 // This function is called repeatedly from write_tile() to retrieve the next feature
@@ -1113,30 +1113,29 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 
 		if (sf.tippecanoe_minzoom == -1) {
-			bool keep = false;
+			sf.dropped = -1;  // dropped
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
 			if (count == multiplier_state->count.end()) {
 				multiplier_state->count.emplace(layername, 0);
 				count = multiplier_state->count.find(layername);
-				keep = true;  // the first feature in each layer in each tile is always kept
+				sf.dropped = 0;	 // the first feature in each tile is always kept
 			}
 
-			sf.dropped = -1;
-
-			if (z >= sf.feature_minzoom || keep) {
-				count->second = retain_points_multiplier;
+			if (z >= sf.feature_minzoom || sf.dropped == 0) {
+				count->second = 0;
+				sf.dropped = 0;	 // feature is kept
 
 				if (retain_points_multiplier > 1) {
 					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
 					sf.full_values.emplace_back(mvt_bool, "true");
 				}
-			}
-
-			if (count->second > 0) {
-				sf.dropped = 0;
-				count->second -= 1;
+			} else if (count->second + 1 < retain_points_multiplier) {
+				count->second++;
+				sf.dropped = count->second;
+			} else {
+				sf.dropped = -1;
 			}
 		}
 

@@ -89,11 +89,11 @@ struct serial_feature {
 	// to be provided by frontends:
 
 	long long bbox[4] = {0, 0, 0, 0};
-	drawvec edge_nodes;    // what nodes at the tile edge were added during clipping?
+	drawvec edge_nodes;  // what nodes at the tile edge were added during clipping?
 
-    // <0: dropped
-    //  0: kept
-    // >0: sequence number of additional feature kept by retain-points-multiplier
+	// <0: dropped
+	//  0: kept
+	// >0: sequence number of additional feature kept by retain-points-multiplier
 	int dropped = -1;  // was this feature dropped by rate?
 
 	bool reduced;	   // is polygon dust
