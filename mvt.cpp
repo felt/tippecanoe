@@ -381,9 +381,18 @@ std::string mvt_tile::encode() {
 		std::vector<size_t> mapping;
 		mapping.resize(sorted_values.size());
 
+		size_t value_index = 0;
 		for (size_t v = 0; v < sorted_values.size(); v++) {
-			mapping[sorted_values[v].orig] = v;
+			mapping[sorted_values[v].orig] = value_index;
 			layer_writer.add_message(4, sorted_values[v].val);
+
+			// crunch out duplicates that were missed by the hashing
+			while (v + 1 < sorted_values.size() && sorted_values[v].val == sorted_values[v + 1].val) {
+				mapping[sorted_values[v + 1].orig] = value_index;
+				v++;
+			}
+
+			value_index++;
 		}
 
 		for (size_t f = 0; f < layers[i].features.size(); f++) {

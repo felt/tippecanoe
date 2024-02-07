@@ -9,7 +9,7 @@
 "maxzoom": "2",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-z0_-M10000_--drop-densest-as-needed_--extend-zooms-if-still-dropping-maximum_2.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":220,\"tile_size_desired\":75590},{\"dropped_as_needed\":207,\"tile_size_desired\":44910},{\"dropped_as_needed\":182,\"tile_size_desired\":35511}]",
+"strategies": "[{\"dropped_as_needed\":220,\"tile_size_desired\":75535},{\"dropped_as_needed\":207,\"tile_size_desired\":44899},{\"dropped_as_needed\":182,\"tile_size_desired\":35505}]",
 "tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
