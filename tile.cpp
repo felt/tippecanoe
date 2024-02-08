@@ -801,6 +801,13 @@ static long long choose_minextent(std::vector<long long> &extents, double f, lon
 	return extents[ix];
 }
 
+static unsigned long long calculate_drop_by(serial_feature const &sf) {
+	unsigned long long zoom = std::max(std::min((unsigned long long) sf.feature_minzoom, 0ULL), 31ULL);
+	unsigned long long out = zoom << (64 - 5);  // top bits are the zoom level: top-priority features are those that appear in the low zooms
+	out |= bit_reverse(sf.index) >> 5;	    // remaining bits are the inverted indes, which should incrementally fill in spatially
+	return ULLONG_MAX - out;		    // lowest numbered feature gets dropped first
+}
+
 // This is the block of parameters that are passed to write_tile() to read a tile
 // from the serialized form, do whatever needs to be done to it, and to write the
 // MVT-format output to the output tileset.
@@ -1632,6 +1639,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				extent_previndex = sf.index;
+			}
+
+			unsigned long long drop_by = 0;
+			if (additional[A_COALESCE_SMALLEST_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED]) {
+				drop_by = calculate_drop_by(sf);
 			}
 
 			if (sf.dropped == 0) {

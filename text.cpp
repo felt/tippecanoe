@@ -225,3 +225,13 @@ unsigned long long fnv1a(size_t size, void *p) {
 	}
 	return h;
 }
+
+unsigned long long bit_reverse(unsigned long long v) {
+	v = ((v & 0x00000000FFFFFFFF) << 32) | ((v & 0xFFFFFFFF00000000) >> 32);
+	v = ((v & 0x0000FFFF0000FFFF) << 16) | ((v & 0xFFFF0000FFFF0000) >> 16);
+	v = ((v & 0x00FF00FF00FF00FF) << 8) | ((v & 0xFF00FF00FF00FF00) >> 8);
+	v = ((v & 0x0F0F0F0F0F0F0F0F) << 4) | ((v & 0xF0F0F0F0F0F0F0F0) >> 4);
+	v = ((v & 0x3333333333333333) << 2) | ((v & 0xCCCCCCCCCCCCCCCC) >> 2);
+	v = ((v & 0x5555555555555555) << 1) | ((v & 0xAAAAAAAAAAAAAAAA) >> 1);
+	return v;
+}

@@ -96,6 +96,7 @@ struct serial_feature {
 	// >0: sequence number of additional feature kept by retain-points-multiplier
 	int dropped = -1;  // was this feature dropped by rate?
 
+	// unsigned long long drop_by;  // dot-dropping priority
 	bool reduced;	   // is polygon dust
 	bool coalesced;	   // was coalesced from multiple features
 	int line_detail;   // current tile resolution being used for simplification
