@@ -12,7 +12,11 @@
 static std::string mvt_value_to_string(mvt_value const &one, bool &fail, std::vector<std::string> const &unidecode_data) {
 	switch (one.type) {
 	case mvt_string:
-		return unidecode_smash(unidecode_data, one.c_str());
+		if (unidecode_data.size() > 0) {
+			return unidecode_smash(unidecode_data, one.c_str());
+		} else {
+			return one.get_string_value();
+		}
 	case mvt_float:
 		return milo::dtoa_milo(one.numeric_value.float_value);
 	case mvt_double:
@@ -99,7 +103,11 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<
 	if (two->type == JSON_STRING) {
 		std::string lhs = mvt_value_to_string(one, fail, unidecode_data);
 
-		return strcmp(lhs.c_str(), unidecode_smash(unidecode_data, two->value.string.string).c_str());
+		if (unidecode_data.size() > 0) {
+			return strcmp(lhs.c_str(), unidecode_smash(unidecode_data, two->value.string.string).c_str());
+		} else {
+			return strcmp(lhs.c_str(), two->value.string.string);
+		}
 	}
 
 	if (two->type == JSON_TRUE || two->type == JSON_FALSE) {
@@ -343,7 +351,13 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 				return -1;  // null cn anything => false
 			}
 
-			bool contains = strstr(s.c_str(), unidecode_smash(unidecode_data, f->value.array.array[2]->value.string.string).c_str());
+			bool contains;
+			if (unidecode_data.size() > 0) {
+				contains = strstr(s.c_str(), unidecode_smash(unidecode_data, f->value.array.array[2]->value.string.string).c_str());
+			} else {
+				contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
+			}
+
 			if (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0) {
 				return contains;
 			} else {
@@ -365,9 +379,16 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 					return -1;  // anything in [not-a-string] => null
 				}
 
-				if (s == unidecode_smash(unidecode_data, f->value.array.array[2]->value.array.array[i]->value.string.string)) {
-					contains = true;
-					break;
+				if (unidecode_data.size() > 0) {
+					if (s == unidecode_smash(unidecode_data, f->value.array.array[2]->value.array.array[i]->value.string.string)) {
+						contains = true;
+						break;
+					}
+				} else {
+					if (strcmp(s.c_str(), f->value.array.array[2]->value.array.array[i]->value.string.string) == 0) {
+						contains = true;
+						break;
+					}
 				}
 			}
 

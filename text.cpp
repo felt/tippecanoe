@@ -229,6 +229,10 @@ std::vector<std::string> read_unidecode(const char *fname) {
 }
 
 std::string unidecode_smash(std::vector<std::string> const &unidecode_data, const char *s) {
+	if (unidecode_data.size() == 0) {
+		return s;
+	}
+
 	std::string out;
 	out.reserve(strlen(s));
 
