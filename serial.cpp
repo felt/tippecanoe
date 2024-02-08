@@ -717,6 +717,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	    additional[A_COALESCE_SMALLEST_AS_NEEDED] ||
 	    additional[A_DROP_FRACTION_AS_NEEDED] ||
 	    additional[A_COALESCE_FRACTION_AS_NEEDED] ||
+	    prevent[P_DYNAMIC_DROP] ||
 	    additional[A_INCREASE_GAMMA_AS_NEEDED] ||
 	    additional[A_GENERATE_POLYGON_LABEL_POINTS] ||
 	    sst->uses_gamma ||
