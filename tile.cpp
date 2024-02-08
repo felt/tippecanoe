@@ -10,6 +10,7 @@
 #include <map>
 #include <unordered_map>
 #include <set>
+#include <memory>
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,6 +46,8 @@
 #include "compression.hpp"
 #include "protozero/varint.hpp"
 #include "attribute.hpp"
+#include "thread.hpp"
+#include "shared_borders.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -64,17 +67,19 @@ extern "C" {
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 
-std::vector<mvt_geometry> to_feature(drawvec &geom) {
+// convert serial feature geometry (drawvec) to output tile geometry (mvt_geometry)
+static std::vector<mvt_geometry> to_feature(drawvec const &geom) {
 	std::vector<mvt_geometry> out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		out.push_back(mvt_geometry(geom[i].op, geom[i].x, geom[i].y));
+		out.emplace_back(geom[i].op, geom[i].x, geom[i].y);
 	}
 
 	return out;
 }
 
-bool draws_something(drawvec &geom) {
+// does this geometry have any non-zero-length linetos?
+static bool draws_something(drawvec const &geom) {
 	for (size_t i = 1; i < geom.size(); i++) {
 		if (geom[i].op == VT_LINETO && (geom[i].x != geom[i - 1].x || geom[i].y != geom[i - 1].y)) {
 			return true;
@@ -84,50 +89,30 @@ bool draws_something(drawvec &geom) {
 	return false;
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2);
-int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2);
-
-struct coalesce {
-	char *stringpool = NULL;
-	std::vector<long long> keys = std::vector<long long>();
-	std::vector<long long> values = std::vector<long long>();
-	std::vector<std::string> full_keys = std::vector<std::string>();
-	std::vector<serial_val> full_values = std::vector<serial_val>();
-	drawvec geom = drawvec();
-	unsigned long long index = 0;
-	long long original_seq = 0;
-	int type = 0;
-	bool coalesced = false;
-	double spacing = 0;
-	bool has_id = false;
-	unsigned long long id = 0;
-	long long extent = 0;
-
-	bool operator<(const coalesce &o) const {
-		int cmp = coalindexcmp(this, &o);
-		if (cmp < 0) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-};
-
+// comparator for --preserve-input-order, to reorder features back to their original input sequence
 static struct preservecmp {
-	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct coalesce &a, const struct coalesce &b) {
-		return a.original_seq < b.original_seq;
+	bool operator()(const serial_feature &a, const serial_feature &b) {
+		return a.seq < b.seq;
 	}
 } preservecmp;
 
-int coalcmp(const void *v1, const void *v2) {
-	const struct coalesce *c1 = (const struct coalesce *) v1;
-	const struct coalesce *c2 = (const struct coalesce *) v2;
+static int metacmp(const serial_feature &one, const serial_feature &two);
 
-	int cmp = c1->type - c2->type;
+// comparator for --coalesce and --reorder:
+// two features can be coalesced if they have
+// * the same type
+// * the same id, if any
+// * the same attributes, according to metacmp
+// * the same full_keys and full_values attributes
+static int coalcmp(const void *v1, const void *v2) {
+	const serial_feature *c1 = (const serial_feature *) v1;
+	const serial_feature *c2 = (const serial_feature *) v2;
+
+	int cmp = c1->t - c2->t;
 	if (cmp != 0) {
 		return cmp;
 	}
@@ -145,7 +130,7 @@ int coalcmp(const void *v1, const void *v2) {
 		}
 	}
 
-	cmp = metacmp(c1->keys, c1->values, c1->stringpool, c2->keys, c2->values, c2->stringpool);
+	cmp = metacmp(*c1, *c2);
 	if (cmp != 0) {
 		return cmp;
 	}
@@ -179,87 +164,108 @@ int coalcmp(const void *v1, const void *v2) {
 	return 0;
 }
 
-int coalindexcmp(const struct coalesce *c1, const struct coalesce *c2) {
-	int cmp = coalcmp((const void *) c1, (const void *) c2);
+// comparator for --reorder:
+// features are ordered first by their attributes (according to coalcmp above)
+// and then, if they are identical from that perspective, by their index (centroid)
+// and geometry
+struct coalindexcmp_comparator {
+	int coalindexcmp(const serial_feature *c1, const serial_feature *c2) const {
+		int cmp = coalcmp((const void *) c1, (const void *) c2);
 
-	if (cmp == 0) {
-		if (c1->index < c2->index) {
-			return -1;
-		} else if (c1->index > c2->index) {
-			return 1;
+		if (cmp == 0) {
+			if (c1->index < c2->index) {
+				return -1;
+			} else if (c1->index > c2->index) {
+				return 1;
+			}
+
+			if (c1->geometry < c2->geometry) {
+				return -1;
+			} else if (c1->geometry > c2->geometry) {
+				return 1;
+			}
 		}
 
-		if (c1->geom < c2->geom) {
-			return -1;
-		} else if (c1->geom > c2->geom) {
-			return 1;
-		}
+		return cmp;
 	}
 
-	return cmp;
-}
+	bool operator()(const serial_feature &a, const serial_feature &o) const {
+		int cmp = coalindexcmp(&a, &o);
+		if (cmp < 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
 
-mvt_value retrieve_string(long long off, const char *stringpool, int *otype) {
+// retrieve an attribute key or value from the string pool and return it as mvt_value
+static mvt_value retrieve_string(long long off, const char *stringpool, std::shared_ptr<std::string> const &tile_stringpool) {
 	int type = stringpool[off];
 	const char *s = stringpool + off + 1;
 
-	if (otype != NULL) {
-		*otype = type;
-	}
-
-	return stringified_to_mvt_value(type, s);
+	return stringified_to_mvt_value(type, s, tile_stringpool);
 }
 
-void decode_meta(std::vector<long long> const &metakeys, std::vector<long long> const &metavals, char *stringpool, mvt_layer &layer, mvt_feature &feature) {
-	size_t i;
-	for (i = 0; i < metakeys.size(); i++) {
-		int otype;
-		mvt_value key = retrieve_string(metakeys[i], stringpool, NULL);
-		mvt_value value = retrieve_string(metavals[i], stringpool, &otype);
+// retrieve an attribute key from the string pool and return it as std::string
+static std::string retrieve_std_string(long long off, const char *stringpool) {
+	return std::string(stringpool + off + 1);
+}
 
-		layer.tag(feature, key.get_string_value(), value);
+// retrieve the keys and values of a feature from the string pool
+// and tag them onto an mvt_feature and mvt_layer
+static void decode_meta(serial_feature const &sf, mvt_layer &layer, mvt_feature &feature) {
+	size_t i;
+	for (i = 0; i < sf.keys.size(); i++) {
+		std::string key = retrieve_std_string(sf.keys[i], sf.stringpool);
+		mvt_value value = retrieve_string(sf.values[i], sf.stringpool, sf.tile_stringpool);
+
+		layer.tag(feature, key, value);
 	}
 }
 
-static int metacmp(const std::vector<long long> &keys1, const std::vector<long long> &values1, char *stringpool1, const std::vector<long long> &keys2, const std::vector<long long> &values2, char *stringpool2) {
-	size_t i;
-	for (i = 0; i < keys1.size() && i < keys2.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		mvt_value key2 = retrieve_string(keys2[i], stringpool2, NULL);
+// comparator used to check whether two features have identical keys and values,
+// as determined by retrieving them from the string pool. The order of keys,
+// not just the content of their values, must also be identical for them to compare equal.
+static int metacmp(const serial_feature &one, const serial_feature &two) {
+	if (one.keys.size() < two.keys.size()) {
+		return -1;
+	} else if (one.keys.size() > two.keys.size()) {
+		return 1;
+	}
 
-		if (key1.get_string_view() < key2.get_string_view()) {
-			return -1;
-		} else if (key1.get_string_view() > key2.get_string_view()) {
-			return 1;
+	size_t i;
+	for (i = 0; i < one.keys.size() && i < two.keys.size(); i++) {
+		const char *key1 = one.stringpool + one.keys[i] + 1;
+		const char *key2 = two.stringpool + two.keys[i] + 1;
+
+		int cmp = strcmp(key1, key2);
+		if (cmp != 0) {
+			return cmp;
 		}
 
-		long long off1 = values1[i];
-		int type1 = stringpool1[off1];
-		char *s1 = stringpool1 + off1 + 1;
+		long long off1 = one.values[i];
+		int type1 = one.stringpool[off1];
+		const char *s1 = one.stringpool + off1 + 1;
 
-		long long off2 = values2[i];
-		int type2 = stringpool2[off2];
-		char *s2 = stringpool2 + off2 + 1;
+		long long off2 = two.values[i];
+		int type2 = two.stringpool[off2];
+		const char *s2 = two.stringpool + off2 + 1;
 
 		if (type1 != type2) {
 			return type1 - type2;
 		}
-		int cmp = strcmp(s1, s2);
+		cmp = strcmp(s1, s2);
 		if (cmp != 0) {
 			return cmp;
 		}
 	}
 
-	if (keys1.size() < keys2.size()) {
-		return -1;
-	} else if (keys1.size() > keys2.size()) {
-		return 1;
-	} else {
-		return 0;
-	}
+	return 0;
 }
 
-static mvt_value find_attribute_value(const struct coalesce *c1, std::string const &key) {
+// Retrieve the value of an attribute or pseudo-attribute (ORDER_BY_SIZE) for --order purposes.
+static mvt_value find_attribute_value(const serial_feature *c1, std::string const &key) {
 	if (key == ORDER_BY_SIZE) {
 		mvt_value v;
 		v.type = mvt_double;
@@ -272,15 +278,15 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string con
 	const char *stringpool1 = c1->stringpool;
 
 	for (size_t i = 0; i < keys1.size(); i++) {
-		mvt_value key1 = retrieve_string(keys1[i], stringpool1, NULL);
-		if (key == key1.get_string_value()) {
-			return retrieve_string(values1[i], stringpool1, NULL);
+		const char *key1 = stringpool1 + keys1[i] + 1;
+		if (strcmp(key1, key.c_str()) == 0) {
+			return retrieve_string(values1[i], stringpool1, c1->tile_stringpool);
 		}
 	}
 
 	for (size_t i = 0; i < c1->full_keys.size(); i++) {
 		if (c1->full_keys[i] == key) {
-			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str());
+			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str(), c1->tile_stringpool);
 		}
 	}
 
@@ -290,6 +296,7 @@ static mvt_value find_attribute_value(const struct coalesce *c1, std::string con
 	return v;
 }
 
+// Ensure that two mvt_values can be compared numerically by converting other numeric types to mvt_double
 static mvt_value coerce_double(mvt_value v) {
 	if (v.type == mvt_int) {
 		v.type = mvt_double;
@@ -308,12 +315,15 @@ static mvt_value coerce_double(mvt_value v) {
 	return v;
 }
 
+// comparator for ordering features for --order: for each sort key that the user has specified,
+// compare features numerically according to that sort key until the keys are exhausted.
+// If there is a tie, the feature with the earlier index (centroid) comes first.
 struct ordercmp {
-	bool operator()(const std::vector<struct coalesce> &a, const std::vector<struct coalesce> &b) {
+	bool operator()(const std::vector<serial_feature> &a, const std::vector<serial_feature> &b) {
 		return operator()(a[0], b[0]);
 	}
 
-	bool operator()(const struct coalesce &a, const struct coalesce &b) {
+	bool operator()(const serial_feature &a, const serial_feature &b) {
 		for (size_t i = 0; i < order_by.size(); i++) {
 			mvt_value v1 = coerce_double(find_attribute_value(&a, order_by[i].name));
 			mvt_value v2 = coerce_double(find_attribute_value(&b, order_by[i].name));
@@ -339,16 +349,18 @@ struct ordercmp {
 
 		return false;  // greater than or equal
 	}
-} ordercmp;
+};
 
-std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coalesce> &features) {
-	std::vector<std::vector<coalesce>> clusters;
+// For --retain-points-multiplier: Go through a list of features and return a list of clusters of features,
+// creating a new cluster whenever the tippecanoe:retain_points_multiplier_first attribute is seen.
+static std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std::vector<serial_feature> const &features) {
+	std::vector<std::vector<serial_feature>> clusters;
 
 	if (retain_points_multiplier == 1) {
 		for (auto const &feature : features) {
-			std::vector<coalesce> cluster;
-			cluster.push_back(feature);
-			clusters.push_back(cluster);
+			std::vector<serial_feature> cluster;
+			cluster.push_back(std::move(feature));
+			clusters.push_back(std::move(cluster));
 		}
 	} else {
 		for (auto const &feature : features) {
@@ -362,18 +374,21 @@ std::vector<std::vector<coalesce>> assemble_multiplier_clusters(std::vector<coal
 			}
 
 			if (is_cluster_start || clusters.size() == 0) {
-				clusters.push_back(std::vector<coalesce>());
+				clusters.emplace_back();
 			}
 
-			clusters.back().push_back(feature);
+			clusters.back().push_back(std::move(feature));
 		}
 	}
 
 	return clusters;
 }
 
-std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<coalesce>> &clusters) {
-	std::vector<coalesce> out;
+// For --retain-points-multiplier: Flatten a list of clusters of features back into a list of features,
+// moving the "tippecanoe:retain_points_multiplier_first" attribute onto the first feature of each cluster
+// if it is not already there.
+static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<std::vector<serial_feature>> &clusters) {
+	std::vector<serial_feature> out;
 
 	for (auto &cluster : clusters) {
 		// fix up the attributes so the first feature of the multiplier cluster
@@ -381,8 +396,8 @@ std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<co
 		for (size_t i = 0; i < cluster.size(); i++) {
 			for (size_t j = 0; j < cluster[i].full_keys.size(); j++) {
 				if (cluster[i].full_keys[j] == "tippecanoe:retain_points_multiplier_first") {
-					cluster[0].full_keys.push_back(cluster[i].full_keys[j]);
-					cluster[0].full_values.push_back(cluster[i].full_values[j]);
+					cluster[0].full_keys.push_back(std::move(cluster[i].full_keys[j]));
+					cluster[0].full_values.push_back(std::move(cluster[i].full_values[j]));
 
 					cluster[i].full_keys.erase(cluster[i].full_keys.begin() + j);
 					cluster[i].full_values.erase(cluster[i].full_values.begin() + j);
@@ -394,15 +409,16 @@ std::vector<coalesce> disassemble_multiplier_clusters(std::vector<std::vector<co
 		}
 
 		for (auto const &feature : cluster) {
-			out.push_back(feature);
+			out.push_back(std::move(feature));
 		}
 	}
 
 	return out;
 }
 
-void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, unsigned tx, unsigned ty, int buffer, int *within, std::atomic<long long> *geompos, compressor **geomfile, const char *fname, signed char t, int layer, signed char feature_minzoom, int child_shards, int max_zoom_increment, long long seq, int tippecanoe_minzoom, int tippecanoe_maxzoom, int segment, unsigned *initial_x, unsigned *initial_y, std::vector<long long> &metakeys, std::vector<long long> &metavals, bool has_id, unsigned long long id, unsigned long long index, unsigned long long label_point, long long extent) {
-	if (geom.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
+// Write out copies of a feature into the temporary files for the next zoom level
+static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
 
@@ -412,7 +428,7 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = bbox[k] / (1 << (32 - nextzoom - 8));
+			bbox2[k] = osf.bbox[k] / (1 << (32 - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.
@@ -440,8 +456,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 		}
 
 		drawvec geom2;
-		for (size_t i = 0; i < geom.size(); i++) {
-			geom2.push_back(draw(geom[i].op, SHIFT_RIGHT(geom[i].x + sx), SHIFT_RIGHT(geom[i].y + sy)));
+		for (auto const &g : osf.geometry) {
+			geom2.emplace_back(g.op, SHIFT_RIGHT(g.x + sx), SHIFT_RIGHT(g.y + sy));
 		}
 
 		for (xo = bbox2[0]; xo <= bbox2[2]; xo++) {
@@ -478,27 +494,8 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 						within[j] = 1;
 					}
 
-					serial_feature sf;
-					sf.layer = layer;
-					sf.segment = segment;
-					sf.seq = seq;
-					sf.t = t;
-					sf.has_id = has_id;
-					sf.id = id;
-					sf.has_tippecanoe_minzoom = tippecanoe_minzoom != -1;
-					sf.tippecanoe_minzoom = tippecanoe_minzoom;
-					sf.has_tippecanoe_maxzoom = tippecanoe_maxzoom != -1;
-					sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
+					serial_feature sf = osf;
 					sf.geometry = geom2;
-					sf.index = index;
-					sf.label_point = label_point;
-					sf.extent = extent;
-					sf.feature_minzoom = feature_minzoom;
-
-					for (size_t i = 0; i < metakeys.size(); i++) {
-						sf.keys.push_back(metakeys[i]);
-						sf.values.push_back(metavals[i]);
-					}
 
 					std::string feature = serialize_feature(&sf, SHIFT_RIGHT(initial_x[segment]), SHIFT_RIGHT(initial_y[segment]));
 					geomfile[j]->serialize_long_long(feature.size(), &geompos[j], fname);
@@ -509,40 +506,9 @@ void rewrite(drawvec &geom, int z, int nextzoom, int maxzoom, long long *bbox, u
 	}
 }
 
-struct partial {
-	std::vector<drawvec> geoms = std::vector<drawvec>();
-	std::vector<long long> keys = std::vector<long long>();
-	std::vector<long long> values = std::vector<long long>();
-	std::vector<std::string> full_keys = std::vector<std::string>();
-	std::vector<serial_val> full_values = std::vector<serial_val>();
-	std::vector<ssize_t> arc_polygon = std::vector<ssize_t>();
-	long long layer = 0;
-	long long original_seq = 0;
-	unsigned long long index = 0;
-	unsigned long long label_point = 0;
-	int segment = 0;
-	bool reduced = 0;
-	bool coalesced = 0;
-	int z = 0;
-	int tx = 0;
-	int ty = 0;
-	int line_detail = 0;
-	int extra_detail = 0;
-	int maxzoom = 0;
-	double spacing = 0;
-	double simplification = 0;
-	signed char t = 0;
-	unsigned long long id = 0;
-	bool has_id = 0;
-	ssize_t renamed = 0;
-	long long extent = 0;
-	long long clustered = 0;
-	std::set<std::string> need_tilestats;
-	std::unordered_map<std::string, accum_state> attribute_accum_state;
-};
-
-struct partial_arg {
-	std::vector<struct partial> *partials = NULL;
+// This is the parameter block passed to each simplification worker thread
+struct simplification_worker_arg {
+	std::vector<serial_feature> *features = NULL;
 	int task = 0;
 	int tasks = 0;
 
@@ -551,7 +517,10 @@ struct partial_arg {
 	size_t nodepos;
 };
 
-drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
+// If a polygon has collapsed away to nothing during polygon cleaning,
+// this is the function that tries to replace it with a rectangular placeholder
+// so that the area of the feature is still somehow represented
+static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	// From area in world coordinates to area in tile coordinates
 	long long divisor = 1LL << (32 - detail - z);
 	area /= divisor * divisor;
@@ -580,11 +549,11 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 		sy /= n;
 
 		drawvec out;
-		out.push_back(draw(VT_MOVETO, sx - (width / 2), sy - (height / 2)));
-		out.push_back(draw(VT_LINETO, sx - (width / 2) + width, sy - (height / 2)));
-		out.push_back(draw(VT_LINETO, sx - (width / 2) + width, sy - (height / 2) + height));
-		out.push_back(draw(VT_LINETO, sx - (width / 2), sy - (height / 2) + height));
-		out.push_back(draw(VT_LINETO, sx - (width / 2), sy - (height / 2)));
+		out.emplace_back(VT_MOVETO, sx - (width / 2), sy - (height / 2));
+		out.emplace_back(VT_LINETO, sx - (width / 2) + width, sy - (height / 2));
+		out.emplace_back(VT_LINETO, sx - (width / 2) + width, sy - (height / 2) + height);
+		out.emplace_back(VT_LINETO, sx - (width / 2), sy - (height / 2) + height);
+		out.emplace_back(VT_LINETO, sx - (width / 2), sy - (height / 2));
 
 		return out;
 	} else {
@@ -592,16 +561,11 @@ drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	}
 }
 
-double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
-	drawvec geom;
-
-	for (size_t j = 0; j < p->geoms.size(); j++) {
-		for (size_t k = 0; k < p->geoms[j].size(); k++) {
-			geom.push_back(p->geoms[j][k]);
-		}
-	}
-
-	p->geoms.clear();  // avoid keeping two copies in memory
+// This simplifies the geometry of one feature. It is generally called from the feature_simplification_worker
+// but is broken out here so that it can be called from earlier in write_tile if coalesced geometries build up
+// too much in memory.
+static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
+	drawvec geom = p->geometry;
 	signed char t = p->t;
 	int z = p->z;
 	int line_detail = p->line_detail;
@@ -661,22 +625,24 @@ double simplify_partial(partial *p, drawvec const &shared_nodes, node *shared_no
 		geom = reorder_lines(geom);
 	}
 
-	p->geoms.push_back(geom);
+	p->geometry = std::move(geom);
 	return area;
 }
 
-void *partial_feature_worker(void *v) {
-	struct partial_arg *a = (struct partial_arg *) v;
-	std::vector<struct partial> *partials = a->partials;
+// This is the worker function that is called from multiple threads to
+// simplify and clean the geometry of batches of features.
+static void *simplification_worker(void *v) {
+	simplification_worker_arg *a = (simplification_worker_arg *) v;
+	std::vector<serial_feature> *features = a->features;
 
-	for (size_t i = a->task; i < (*partials).size(); i += a->tasks) {
-		double area = simplify_partial(&((*partials)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
+		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
 
-		signed char t = (*partials)[i].t;
-		int z = (*partials)[i].z;
-		int out_detail = (*partials)[i].extra_detail;
+		signed char t = (*features)[i].t;
+		int z = (*features)[i].z;
+		int out_detail = (*features)[i].extra_detail;
 
-		drawvec geom = (*partials)[i].geoms[0];
+		drawvec geom = (*features)[i].geometry;
 		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
@@ -702,21 +668,22 @@ void *partial_feature_worker(void *v) {
 		}
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-			t = (*partials)[i].t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*partials)[i].tx, (*partials)[i].ty, z, (*partials)[i].label_point);
+			t = (*features)[i].t = VT_POINT;
+			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i].tx, (*features)[i].ty, z, (*features)[i].label_point);
 			to_tile_scale(geom, z, out_detail);
 		}
 
-		(*partials)[i].index = i;
-
-		std::vector<drawvec> geoms;  // artifact of former polygon-splitting to reduce geometric complexity
-		geoms.push_back(geom);
-		(*partials)[i].geoms = geoms;
+		(*features)[i].index = i;
+		(*features)[i].geometry = std::move(geom);
 	}
 
 	return NULL;
 }
 
+// I really don't understand quite how this feature works any more, which is why I want to
+// get rid of the --gamma option. It does something with the feature spacing to calculate
+// whether each feature should be kept or is in a dense enough context that it should
+// be dropped
 int manage_gap(unsigned long long index, unsigned long long *previndex, double scale, double gamma, double *gap) {
 	if (gamma > 0) {
 		if (*gap > 0) {
@@ -749,576 +716,12 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 	return 0;
 }
 
-// Does not fix up moveto/lineto
-static drawvec reverse_subring(drawvec const &dv) {
-	drawvec out;
-
-	for (size_t i = dv.size(); i > 0; i--) {
-		out.push_back(dv[i - 1]);
-	}
-
-	return out;
-}
-
-struct edge {
-	unsigned x1 = 0;
-	unsigned y1 = 0;
-	unsigned x2 = 0;
-	unsigned y2 = 0;
-	unsigned ring = 0;
-
-	edge(unsigned _x1, unsigned _y1, unsigned _x2, unsigned _y2, unsigned _ring) {
-		x1 = _x1;
-		y1 = _y1;
-		x2 = _x2;
-		y2 = _y2;
-		ring = _ring;
-	}
-
-	bool operator<(const edge &s) const {
-		long long cmp = (long long) y1 - s.y1;
-		if (cmp == 0) {
-			cmp = (long long) x1 - s.x1;
-		}
-		if (cmp == 0) {
-			cmp = (long long) y2 - s.y2;
-		}
-		if (cmp == 0) {
-			cmp = (long long) x2 - s.x2;
-		}
-		return cmp < 0;
-	}
-};
-
-struct edgecmp_ring {
-	bool operator()(const edge &a, const edge &b) {
-		long long cmp = (long long) a.y1 - b.y1;
-		if (cmp == 0) {
-			cmp = (long long) a.x1 - b.x1;
-		}
-		if (cmp == 0) {
-			cmp = (long long) a.y2 - b.y2;
-		}
-		if (cmp == 0) {
-			cmp = (long long) a.x2 - b.x2;
-		}
-		if (cmp == 0) {
-			cmp = (long long) a.ring - b.ring;
-		}
-		return cmp < 0;
-	}
-} edgecmp_ring;
-
-bool edges_same(std::pair<std::vector<edge>::iterator, std::vector<edge>::iterator> e1, std::pair<std::vector<edge>::iterator, std::vector<edge>::iterator> e2) {
-	if ((e2.second - e2.first) != (e1.second - e1.first)) {
-		return false;
-	}
-
-	while (e1.first != e1.second) {
-		if (e1.first->ring != e2.first->ring) {
-			return false;
-		}
-
-		++e1.first;
-		++e2.first;
-	}
-
-	return true;
-}
-
-bool find_common_edges(std::vector<partial> &partials, int z, int line_detail, double simplification, int maxzoom, double merge_fraction) {
-	size_t merge_count = ceil((1 - merge_fraction) * partials.size());
-
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				drawvec &g = partials[i].geoms[j];
-				drawvec out;
-
-				for (size_t k = 0; k < g.size(); k++) {
-					if (g[k].op == VT_LINETO && k > 0 && g[k - 1] == g[k]) {
-						;
-					} else {
-						out.push_back(g[k]);
-					}
-				}
-
-				partials[i].geoms[j] = out;
-			}
-		}
-	}
-
-	// Construct a mapping from all polygon edges to the set of rings
-	// that each edge appears in. (The ring number is across all polygons;
-	// we don't need to look it back up, just to tell where it changes.)
-
-	std::vector<edge> edges;
-	size_t ring = 0;
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				for (size_t k = 0; k + 1 < partials[i].geoms[j].size(); k++) {
-					if (partials[i].geoms[j][k].op == VT_MOVETO) {
-						ring++;
-					}
-
-					if (partials[i].geoms[j][k + 1].op == VT_LINETO) {
-						drawvec dv;
-						if (partials[i].geoms[j][k] < partials[i].geoms[j][k + 1]) {
-							dv.push_back(partials[i].geoms[j][k]);
-							dv.push_back(partials[i].geoms[j][k + 1]);
-						} else {
-							dv.push_back(partials[i].geoms[j][k + 1]);
-							dv.push_back(partials[i].geoms[j][k]);
-						}
-
-						edges.push_back(edge(dv[0].x, dv[0].y, dv[1].x, dv[1].y, ring));
-					}
-				}
-			}
-		}
-	}
-
-	std::sort(edges.begin(), edges.end(), edgecmp_ring);
-	std::set<draw> necessaries;
-
-	// Now mark all the points where the set of rings using the edge on one side
-	// is not the same as the set of rings using the edge on the other side.
-
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				drawvec &g = partials[i].geoms[j];
-
-				for (size_t k = 0; k < g.size(); k++) {
-					g[k].necessary = 0;
-				}
-
-				for (size_t a = 0; a < g.size(); a++) {
-					if (g[a].op == VT_MOVETO) {
-						size_t b;
-
-						for (b = a + 1; b < g.size(); b++) {
-							if (g[b].op != VT_LINETO) {
-								break;
-							}
-						}
-
-						// -1 because of duplication at the end
-						size_t s = b - a - 1;
-
-						if (s > 0) {
-							drawvec left;
-							if (g[a + (s - 1) % s] < g[a]) {
-								left.push_back(g[a + (s - 1) % s]);
-								left.push_back(g[a]);
-							} else {
-								left.push_back(g[a]);
-								left.push_back(g[a + (s - 1) % s]);
-							}
-							if (left[1] < left[0]) {
-								fprintf(stderr, "left misordered\n");
-							}
-							std::pair<std::vector<edge>::iterator, std::vector<edge>::iterator> e1 = std::equal_range(edges.begin(), edges.end(), edge(left[0].x, left[0].y, left[1].x, left[1].y, 0));
-
-							for (size_t k = 0; k < s; k++) {
-								drawvec right;
-
-								if (g[a + k] < g[a + k + 1]) {
-									right.push_back(g[a + k]);
-									right.push_back(g[a + k + 1]);
-								} else {
-									right.push_back(g[a + k + 1]);
-									right.push_back(g[a + k]);
-								}
-
-								std::pair<std::vector<edge>::iterator, std::vector<edge>::iterator> e2 = std::equal_range(edges.begin(), edges.end(), edge(right[0].x, right[0].y, right[1].x, right[1].y, 0));
-
-								if (right[1] < right[0]) {
-									fprintf(stderr, "left misordered\n");
-								}
-
-								if (e1.first == e1.second || e2.first == e2.second) {
-									fprintf(stderr, "Internal error: polygon edge lookup failed for %lld,%lld to %lld,%lld or %lld,%lld to %lld,%lld\n", left[0].x, left[0].y, left[1].x, left[1].y, right[0].x, right[0].y, right[1].x, right[1].y);
-									exit(EXIT_IMPOSSIBLE);
-								}
-
-								if (!edges_same(e1, e2)) {
-									g[a + k].necessary = 1;
-									necessaries.insert(g[a + k]);
-								}
-
-								e1 = e2;
-							}
-						}
-
-						a = b - 1;
-					}
-				}
-			}
-		}
-	}
-
-	edges.clear();
-	std::map<drawvec, size_t> arcs;
-	std::multimap<ssize_t, size_t> merge_candidates;  // from arc to partial
-
-	// Roll rings that include a necessary point around so they start at one
-
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
-			for (size_t j = 0; j < partials[i].geoms.size(); j++) {
-				drawvec &g = partials[i].geoms[j];
-
-				for (size_t k = 0; k < g.size(); k++) {
-					if (necessaries.count(g[k]) != 0) {
-						g[k].necessary = 1;
-					}
-				}
-
-				for (size_t k = 0; k < g.size(); k++) {
-					if (g[k].op == VT_MOVETO) {
-						ssize_t necessary = -1;
-						ssize_t lowest = k;
-						size_t l;
-						for (l = k + 1; l < g.size(); l++) {
-							if (g[l].op != VT_LINETO) {
-								break;
-							}
-
-							if (g[l].necessary) {
-								necessary = l;
-							}
-							if (g[l] < g[lowest]) {
-								lowest = l;
-							}
-						}
-
-						if (necessary < 0) {
-							necessary = lowest;
-							// Add a necessary marker if there was none in the ring,
-							// so the arc code below can find it.
-							g[lowest].necessary = 1;
-						}
-
-						{
-							drawvec tmp;
-
-							// l - 1 because the endpoint is duplicated
-							for (size_t m = necessary; m < l - 1; m++) {
-								tmp.push_back(g[m]);
-							}
-							for (ssize_t m = k; m < necessary; m++) {
-								tmp.push_back(g[m]);
-							}
-
-							// replace the endpoint
-							tmp.push_back(g[necessary]);
-
-							if (tmp.size() != l - k) {
-								fprintf(stderr, "internal error shifting ring\n");
-								exit(EXIT_IMPOSSIBLE);
-							}
-
-							for (size_t m = 0; m < tmp.size(); m++) {
-								if (m == 0) {
-									tmp[m].op = VT_MOVETO;
-								} else {
-									tmp[m].op = VT_LINETO;
-								}
-
-								g[k + m] = tmp[m];
-							}
-						}
-
-						// Now peel off each set of segments from one necessary point to the next
-						// into an "arc" as in TopoJSON
-
-						for (size_t m = k; m < l; m++) {
-							if (!g[m].necessary) {
-								fprintf(stderr, "internal error in arc building\n");
-								exit(EXIT_IMPOSSIBLE);
-							}
-
-							drawvec arc;
-							size_t n;
-							for (n = m; n < l; n++) {
-								arc.push_back(g[n]);
-								if (n > m && g[n].necessary) {
-									break;
-								}
-							}
-
-							auto f = arcs.find(arc);
-							if (f == arcs.end()) {
-								drawvec arc2 = reverse_subring(arc);
-
-								auto f2 = arcs.find(arc2);
-								if (f2 == arcs.end()) {
-									// Add new arc
-									size_t added = arcs.size() + 1;
-									arcs.insert(std::pair<drawvec, size_t>(arc, added));
-									partials[i].arc_polygon.push_back(added);
-									merge_candidates.insert(std::pair<ssize_t, size_t>(added, i));
-								} else {
-									partials[i].arc_polygon.push_back(-(ssize_t) f2->second);
-									merge_candidates.insert(std::pair<ssize_t, size_t>(-(ssize_t) f2->second, i));
-								}
-							} else {
-								partials[i].arc_polygon.push_back(f->second);
-								merge_candidates.insert(std::pair<ssize_t, size_t>(f->second, i));
-							}
-
-							m = n - 1;
-						}
-
-						partials[i].arc_polygon.push_back(0);
-
-						k = l - 1;
-					}
-				}
-			}
-		}
-	}
-
-	// Simplify each arc
-
-	std::vector<drawvec> simplified_arcs;
-
-	for (auto ai = arcs.begin(); ai != arcs.end(); ++ai) {
-		if (simplified_arcs.size() < ai->second + 1) {
-			simplified_arcs.resize(ai->second + 1);
-		}
-
-		drawvec dv = ai->first;
-		for (size_t i = 0; i < dv.size(); i++) {
-			if (i == 0) {
-				dv[i].op = VT_MOVETO;
-			} else {
-				dv[i].op = VT_LINETO;
-			}
-		}
-		if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
-			// tx and ty are 0 here because we aren't trying to do anything with the shared_nodes_map
-			simplified_arcs[ai->second] = simplify_lines(dv, z, 0, 0, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec(), NULL, 0);
-		} else {
-			simplified_arcs[ai->second] = dv;
-		}
-	}
-
-	// If necessary, merge some adjacent polygons into some other polygons
-
-	struct merge_order {
-		ssize_t edge = 0;
-		unsigned long long gap = 0;
-		size_t p1 = 0;
-		size_t p2 = 0;
-
-		bool operator<(const merge_order &m) const {
-			return gap < m.gap;
-		}
-	};
-	std::vector<merge_order> order;
-
-	for (ssize_t i = 0; i < (ssize_t) simplified_arcs.size(); i++) {
-		auto r1 = merge_candidates.equal_range(i);
-		for (auto r1i = r1.first; r1i != r1.second; ++r1i) {
-			auto r2 = merge_candidates.equal_range(-i);
-			for (auto r2i = r2.first; r2i != r2.second; ++r2i) {
-				if (r1i->second != r2i->second) {
-					merge_order mo;
-					mo.edge = i;
-					if (partials[r1i->second].index > partials[r2i->second].index) {
-						mo.gap = partials[r1i->second].index - partials[r2i->second].index;
-					} else {
-						mo.gap = partials[r2i->second].index - partials[r1i->second].index;
-					}
-					mo.p1 = r1i->second;
-					mo.p2 = r2i->second;
-					order.push_back(mo);
-				}
-			}
-		}
-	}
-	std::sort(order.begin(), order.end());
-
-	size_t merged = 0;
-	for (size_t o = 0; o < order.size(); o++) {
-		if (merged >= merge_count) {
-			break;
-		}
-
-		size_t i = order[o].p1;
-		while (partials[i].renamed >= 0) {
-			i = partials[i].renamed;
-		}
-		size_t i2 = order[o].p2;
-		while (partials[i2].renamed >= 0) {
-			i2 = partials[i2].renamed;
-		}
-
-		for (size_t j = 0; j < partials[i].arc_polygon.size() && merged < merge_count; j++) {
-			if (partials[i].arc_polygon[j] == order[o].edge) {
-				{
-					// XXX snap links
-					if (partials[order[o].p2].arc_polygon.size() > 0) {
-						// This has to merge the ring that contains the anti-arc to this arc
-						// into the current ring, and then add whatever other rings were in
-						// that feature on to the end.
-						//
-						// This can't be good for keeping parent-child relationships among
-						// the rings in order, but Wagyu should sort that out later
-
-						std::vector<ssize_t> additions;
-						std::vector<ssize_t> &here = partials[i].arc_polygon;
-						std::vector<ssize_t> &other = partials[i2].arc_polygon;
-
-#if 0
-						printf("seeking %zd\n", partials[i].arc_polygon[j]);
-						printf("before: ");
-						for (size_t k = 0; k < here.size(); k++) {
-							printf("%zd ", here[k]);
-						}
-						printf("\n");
-						printf("other: ");
-						for (size_t k = 0; k < other.size(); k++) {
-							printf("%zd ", other[k]);
-						}
-						printf("\n");
-#endif
-
-						for (size_t k = 0; k < other.size(); k++) {
-							size_t l;
-							for (l = k; l < other.size(); l++) {
-								if (other[l] == 0) {
-									break;
-								}
-							}
-							if (l >= other.size()) {
-								l--;
-							}
-
-#if 0
-							for (size_t m = k; m <= l; m++) {
-								printf("%zd ", other[m]);
-							}
-							printf("\n");
-#endif
-
-							size_t m;
-							for (m = k; m <= l; m++) {
-								if (other[m] == -partials[i].arc_polygon[j]) {
-									break;
-								}
-							}
-
-							if (m <= l) {
-								// Found the shared arc
-
-								here.erase(here.begin() + j);
-
-								size_t off = 0;
-								for (size_t n = m + 1; n < l; n++) {
-									here.insert(here.begin() + j + off, other[n]);
-									off++;
-								}
-								for (size_t n = k; n < m; n++) {
-									here.insert(here.begin() + j + off, other[n]);
-									off++;
-								}
-							} else {
-								// Looking at some other ring
-
-								for (size_t n = k; n <= l; n++) {
-									additions.push_back(other[n]);
-								}
-							}
-
-							k = l;
-						}
-
-						partials[i2].arc_polygon.clear();
-						partials[i2].renamed = i;
-						merged++;
-
-						for (size_t k = 0; k < additions.size(); k++) {
-							partials[i].arc_polygon.push_back(additions[k]);
-						}
-
-#if 0
-						printf("after: ");
-						for (size_t k = 0; k < here.size(); k++) {
-							printf("%zd ", here[k]);
-						}
-						printf("\n");
-#endif
-
-#if 0
-						for (size_t k = 0; k + 1 < here.size(); k++) {
-							if (here[k] != 0 && here[k + 1] != 0) {
-								if (simplified_arcs[here[k + 1]][0] != simplified_arcs[here[k]][simplified_arcs[here[k]].size() - 1]) {
-									printf("error from %zd to %zd\n", here[k], here[k + 1]);
-								}
-							}
-						}
-#endif
-					}
-				}
-			}
-		}
-	}
-
-	// Turn the arc representations of the polygons back into standard polygon geometries
-
-	for (size_t i = 0; i < partials.size(); i++) {
-		if (partials[i].t == VT_POLYGON) {
-			partials[i].geoms.resize(0);
-			partials[i].geoms.push_back(drawvec());
-			bool at_start = true;
-			draw first(-1, 0, 0);
-
-			for (size_t j = 0; j < partials[i].arc_polygon.size(); j++) {
-				ssize_t p = partials[i].arc_polygon[j];
-
-				if (p == 0) {
-					if (first.op >= 0) {
-						partials[i].geoms[0].push_back(first);
-						first = draw(-1, 0, 0);
-					}
-					at_start = true;
-				} else if (p > 0) {
-					for (size_t k = 0; k + 1 < simplified_arcs[p].size(); k++) {
-						if (at_start) {
-							partials[i].geoms[0].push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
-							first = draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y);
-						} else {
-							partials[i].geoms[0].push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
-						}
-						at_start = 0;
-					}
-				} else { /* p < 0 */
-					for (ssize_t k = simplified_arcs[-p].size() - 1; k > 0; k--) {
-						if (at_start) {
-							partials[i].geoms[0].push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
-							first = draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y);
-						} else {
-							partials[i].geoms[0].push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
-						}
-						at_start = 0;
-					}
-				}
-			}
-		}
-	}
-
-	if (merged >= merge_count) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
-unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
+// This function is called to choose the new gap threshold for --drop-densest-as-needed
+// and --coalesce-densest-as-needed. The list that is passed in is the list of indices
+// of features that survived the previous gap-choosing, so it first needs to calculate
+// and sort the gaps between them before deciding which new gap threshold will satisfy
+// the need to keep only the requested fraction of features.
+static unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
 	unsigned long long bot = ULLONG_MAX;
 	unsigned long long top = 0;
 
@@ -1387,8 +790,7 @@ unsigned long long choose_mingap(std::vector<unsigned long long> const &indices,
 // of the list, until the possibilities run out or something higher than the old extent is found.
 // If there are no higher extents available, the tile has already been reduced as much as possible
 // and tippecanoe will exit with an error.
-
-long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
+static long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
 	std::sort(extents.begin(), extents.end());
 
 	size_t ix = (extents.size() - 1) * (1 - f);
@@ -1399,9 +801,16 @@ long long choose_minextent(std::vector<long long> &extents, double f, long long 
 	return extents[ix];
 }
 
+// This is the block of parameters that are passed to write_tile() to read a tile
+// from the serialized form, do whatever needs to be done to it, and to write the
+// MVT-format output to the output tileset.
+//
+// The _out parameters are thresholds calculated during tiling; they are collected
+// by the caller to determine whether the zoom level needs to be done over with
+// new thresholds.
 struct write_tile_args {
 	struct task *tasks = NULL;
-	char *stringpool = NULL;
+	char *global_stringpool = NULL;
 	int min_detail = 0;
 	sqlite3 *outdb = NULL;
 	const char *outdir = NULL;
@@ -1447,16 +856,19 @@ struct write_tile_args {
 	bool still_dropping = false;
 	int wrote_zoom = 0;
 	size_t tiling_seg = 0;
-	struct json_object *filter = NULL;
+	json_object *filter = NULL;
 	std::atomic<size_t> *dropped_count = NULL;
 	atomic_strategy *strategy = NULL;
 	int zoom = -1;
 	bool compressed;
-	struct node *shared_nodes_map;
+	node *shared_nodes_map;
 	size_t nodepos;
 };
 
-bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
+// Clips a feature's geometry to the tile bounds at the specified zoom level
+// with the specified buffer. Returns true if the feature was entirely clipped away
+// by bounding box alone; otherwise returns false.
+static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	int quick = quick_check(sf.bbox, z, buffer);
 
 	if (z == 0) {
@@ -1541,9 +953,10 @@ bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	return false;
 }
 
-void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes, const char *stringpool, long long *pool_off) {
+// Removes the attributes named in --exclude, if any, from the feature
+static void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_attributes) {
 	for (ssize_t i = sf.keys.size() - 1; i >= 0; i--) {
-		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+		std::string key = sf.stringpool + sf.keys[i] + 1;
 		if (exclude_attributes.count(key) > 0) {
 			sf.keys.erase(sf.keys.begin() + i);
 			sf.values.erase(sf.values.begin() + i);
@@ -1559,21 +972,26 @@ void remove_attributes(serial_feature &sf, std::set<std::string> const &exclude_
 	}
 }
 
+// This map maintains the count for attributes that resulted from the "mean"
+// --accumulate-attribute option so that features' attributes can be averaged in
+// without knowing their total count in advance.
 struct multiplier_state {
 	std::map<std::string, size_t> count;
 };
 
-serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, struct json_object *filter, const char *stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state) {
+// This function is called repeatedly from write_tile() to retrieve the next feature
+// from the input stream. If the stream is at an end, it returns a feature with the
+// geometry type set to -2.
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool) {
 	while (1) {
 		serial_feature sf;
-		std::string s;
 		long long len;
 
 		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
 			fprintf(stderr, "Unexpected physical EOF in feature stream\n");
 			exit(EXIT_READ);
 		}
-		if (len == 0) {
+		if (len <= 0) {
 			if (compressed) {
 				geoms->end(geompos_in);
 			}
@@ -1582,7 +1000,8 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			return sf;
 		}
 
-		s.resize(std::abs(len));
+		std::string s;
+		s.resize(len);
 		size_t n = geoms->fread((void *) s.c_str(), sizeof(char), s.size(), geompos_in);
 		if (n != s.size()) {
 			fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
@@ -1590,6 +1009,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		}
 
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
+		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;
@@ -1612,11 +1032,13 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
+		} else {
+			// XXX should continue, but affects test outputs
 		}
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf.geometry, z, nextzoom, maxzoom, sf.bbox, tx, ty, buffer, within, geompos, geomfile, fname, sf.t, sf.layer, sf.feature_minzoom, child_shards, max_zoom_increment, sf.seq, sf.tippecanoe_minzoom, sf.tippecanoe_maxzoom, sf.segment, initial_x, initial_y, sf.keys, sf.values, sf.has_id, sf.id, sf.index, sf.label_point, sf.extent);
+				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
 			}
 		}
 
@@ -1633,23 +1055,23 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 
 		if (filter != NULL) {
 			std::unordered_map<std::string, mvt_value> attributes;
-			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
+			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			std::set<std::string> exclude_attributes;
 
 			for (size_t i = 0; i < sf.keys.size(); i++) {
-				std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
+				std::string key = sf.stringpool + sf.keys[i] + 1;
 
 				serial_val sv;
-				sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
-				sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
+				sv.type = sf.stringpool[sf.values[i]];
+				sv.s = sf.stringpool + sf.values[i] + 1;
 
-				mvt_value val = stringified_to_mvt_value(sv.type, sv.s.c_str());
+				mvt_value val = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
 			}
 
 			for (size_t i = 0; i < sf.full_keys.size(); i++) {
 				std::string key = sf.full_keys[i];
-				mvt_value val = stringified_to_mvt_value(sf.full_values[i].type, sf.full_values[i].s.c_str());
+				mvt_value val = stringified_to_mvt_value(sf.full_values[i].type, sf.full_values[i].s.c_str(), tile_stringpool);
 
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
 			}
@@ -1686,14 +1108,14 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 			}
 
 			if (exclude_attributes.size() > 0) {
-				remove_attributes(sf, exclude_attributes, stringpool, pool_off);
+				remove_attributes(sf, exclude_attributes);
 			}
 		}
 
 		if (sf.tippecanoe_minzoom == -1) {
 			bool keep = false;
 
-			std::string layername = (*layer_unmaps)[sf.segment][sf.layer];
+			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
 			if (count == multiplier_state->count.end()) {
 				multiplier_state->count.emplace(layername, 0);
@@ -1707,12 +1129,8 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 				count->second = retain_points_multiplier;
 
 				if (retain_points_multiplier > 1) {
-					serial_val val;
-					val.type = mvt_bool;
-					val.s = "true";
-
 					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
-					sf.full_values.push_back(val);
+					sf.full_values.emplace_back(mvt_bool, "true");
 				}
 			}
 
@@ -1725,7 +1143,7 @@ serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos
 		// Remove nulls, now that the expression evaluation filter has run
 
 		for (ssize_t i = (ssize_t) sf.keys.size() - 1; i >= 0; i--) {
-			int type = (stringpool + pool_off[sf.segment])[sf.values[i]];
+			int type = sf.stringpool[sf.values[i]];
 
 			if (type == mvt_null) {
 				sf.keys.erase(sf.keys.begin() + i);
@@ -1770,10 +1188,10 @@ struct run_prefilter_args {
 	const char *fname = 0;
 	int child_shards = 0;
 	std::vector<std::vector<std::string>> *layer_unmaps = NULL;
-	char *stringpool = NULL;
+	char *global_stringpool = NULL;
 	long long *pool_off = NULL;
 	FILE *prefilter_fp = NULL;
-	struct json_object *filter = NULL;
+	json_object *filter = NULL;
 	bool first_time = false;
 	bool compressed = false;
 };
@@ -1782,9 +1200,10 @@ void *run_prefilter(void *v) {
 	run_prefilter_args *rpa = (run_prefilter_args *) v;
 	json_writer state(rpa->prefilter_fp);
 	struct multiplier_state multiplier_state;
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1815,7 +1234,7 @@ void *run_prefilter(void *v) {
 			tmp_feature.geometry[i].y += sy;
 		}
 
-		decode_meta(sf.keys, sf.values, rpa->stringpool + rpa->pool_off[sf.segment], tmp_layer, tmp_feature);
+		decode_meta(sf, tmp_layer, tmp_feature);
 		tmp_layer.features.push_back(tmp_feature);
 
 		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0);
@@ -1860,7 +1279,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 	add_to_tilestats(ts->second.tilestats, key, val);
 }
 
-void promote_attribute(std::string const &key, partial &p, char *stringpool, long long *pool_off) {
+void promote_attribute(std::string const &key, serial_feature &p) {
 	if (p.need_tilestats.count(key) == 0) {
 		p.need_tilestats.insert(key);
 	}
@@ -1869,13 +1288,13 @@ void promote_attribute(std::string const &key, partial &p, char *stringpool, lon
 	// promote it to a full_key so it can be modified
 
 	for (size_t i = 0; i < p.keys.size(); i++) {
-		if (strcmp(key.c_str(), stringpool + pool_off[p.segment] + p.keys[i] + 1) == 0) {
+		if (strcmp(key.c_str(), p.stringpool + p.keys[i] + 1) == 0) {
 			serial_val sv;
-			sv.s = stringpool + pool_off[p.segment] + p.values[i] + 1;
-			sv.type = (stringpool + pool_off[p.segment])[p.values[i]];
+			sv.s = p.stringpool + p.values[i] + 1;
+			sv.type = p.stringpool[p.values[i]];
 
 			p.full_keys.push_back(key);
-			p.full_values.push_back(sv);
+			p.full_values.push_back(std::move(sv));
 
 			p.keys.erase(p.keys.begin() + i);
 			p.values.erase(p.values.begin() + i);
@@ -1885,33 +1304,35 @@ void promote_attribute(std::string const &key, partial &p, char *stringpool, lon
 	}
 }
 
-void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, serial_feature &sf, char *stringpool, long long *pool_off, partial &p) {
+// accumulate attribute values from sf onto p
+void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
-		std::string key = stringpool + pool_off[sf.segment] + sf.keys[i] + 1;
-
-		serial_val sv;
-		sv.type = (stringpool + pool_off[sf.segment])[sf.values[i]];
-		sv.s = stringpool + pool_off[sf.segment] + sf.values[i] + 1;
+		std::string key = sf.stringpool + sf.keys[i] + 1;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			promote_attribute(key, p, stringpool, pool_off);
+			serial_val sv;
+			sv.type = sf.stringpool[sf.values[i]];
+			sv.s = sf.stringpool + sf.values[i] + 1;
+
+			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
-		std::string key = sf.full_keys[i];
-		serial_val sv = sf.full_values[i];
+		const std::string &key = sf.full_keys[i];
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
-			promote_attribute(key, p, stringpool, pool_off);
+			const serial_val &sv = sf.full_values[i];
+
+			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 		}
 	}
 }
 
-// This function finds the feature in `partials` onto which the attributes or geometry
+// This function finds the feature in `features` onto which the attributes or geometry
 // of a feature that is being dropped (`sf`) will be accumulated or coalesced. It
 // ordinarily returns the most recently-added feature from the same layer as the feature
 // that is being dropped, but if there is an active multiplier, will walk multiple
@@ -1919,13 +1340,13 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 // onto the N features that are being kept. The caller increments the `multiplier_seq`
 // mod N with each dropped feature to drive the round-robin decision.
 //
-bool find_partial(std::vector<partial> &partials, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
-	for (size_t i = partials.size(); i > 0; i--) {
-		if (partials[i - 1].t == sf.t) {
-			std::string &layername1 = (*layer_unmaps)[partials[i - 1].segment][partials[i - 1].layer];
+bool find_feature_to_accumulate_onto(std::vector<serial_feature> &features, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
+	for (size_t i = features.size(); i > 0; i--) {
+		if (features[i - 1].t == sf.t) {
+			std::string &layername1 = (*layer_unmaps)[features[i - 1].segment][features[i - 1].layer];
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
-			if (layername1 == layername2 && partials[i - 1].extent <= maxextent) {
+			if (layername1 == layername2 && features[i - 1].extent <= maxextent) {
 				if (multiplier_seq <= 0) {
 					out = i - 1;
 					return true;
@@ -1980,20 +1401,27 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 	}
 }
 
-void coalesce_geometry(partial &p, serial_feature &sf) {
+void coalesce_geometry(serial_feature &p, serial_feature &sf) {
+	// XXX need another way to deduplicate here
+#if 0
 	// if the geometry being coalesced on is an exact duplicate
 	// of an existing geometry, just drop it
 
-	for (size_t i = 0; i < p.geoms.size(); i++) {
-		if (p.geoms[i] == sf.geometry) {
+	for (size_t i = 0; i < p.geometries.size(); i++) {
+		if (p.geometries[i] == sf.geometry) {
 			return;
 		}
 	}
+#endif
 
-	p.geoms.push_back(sf.geometry);
+	size_t s = p.geometry.size();
+	p.geometry.resize(s + sf.geometry.size());
+	for (size_t i = 0; i < sf.geometry.size(); i++) {
+		p.geometry[s + i] = sf.geometry[i];
+	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, struct json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, struct node *shared_nodes_map, size_t nodepos) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, double fraction, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -2054,8 +1482,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long original_features = 0;
 		long long unclipped_features = 0;
 
-		std::vector<struct partial> partials;
-		std::map<std::string, std::vector<coalesce>> layers;
+		std::map<std::string, std::vector<serial_feature>> layers;
 
 		std::vector<unsigned long long> indices;
 		std::vector<long long> extents;
@@ -2077,6 +1504,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			geompos[i] = 0;
 			within[i] = 0;
 		}
+
+		std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 		if (*geompos_in != og) {
 			if (compressed_input) {
@@ -2105,7 +1534,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		FILE *prefilter_read_fp = NULL;
 		json_pull *prefilter_jp = NULL;
 
-		serial_feature tiny_feature;
+		serial_feature tiny_feature;  // used to track which feature currently represents the dust
 
 		if (z < minzoom) {
 			prefilter = NULL;
@@ -2146,12 +1575,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.child_shards = child_shards;
 			rpa.prefilter_fp = prefilter_fp;
 			rpa.layer_unmaps = layer_unmaps;
-			rpa.stringpool = stringpool;
+			rpa.global_stringpool = global_stringpool;
 			rpa.pool_off = pool_off;
 			rpa.filter = filter;
 			rpa.first_time = first_time;
 			rpa.compressed = compressed_input;
 
+			// this does need to be a real thread, so we can pipe both to and from it
 			if (pthread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
 				perror("pthread_create (prefilter writer)");
 				exit(EXIT_PTHREAD);
@@ -2165,14 +1595,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 		}
 
+		// Read features, filter them, assign them to layers
+
 		struct multiplier_state multiplier_state;
 		size_t multiplier_seq = retain_points_multiplier - 1;
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
-			ssize_t which_partial = -1;
+			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2180,6 +1612,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.t < 0) {
 				break;
 			}
+
+			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
+			if (layers.count(layername) == 0) {
+				layers.emplace(layername, std::vector<serial_feature>());
+			}
+			std::vector<serial_feature> &features = layers.find(layername)->second;
 
 			if (sf.t == VT_POINT) {
 				if (extent_previndex >= sf.index) {
@@ -2198,8 +1636,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.dropped) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
-				if (find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_by_rate++;
 					continue;
 				}
@@ -2208,8 +1646,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (gamma > 0) {
-				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_by_gamma++;
 					continue;
 				}
@@ -2227,22 +1665,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					partials[which_partial].clustered++;
+				if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					features[which_serial_feature].clustered++;
 
-					if (partials[which_partial].t == VT_POINT &&
-					    partials[which_partial].geoms.size() == 1 &&
-					    partials[which_partial].geoms[0].size() == 1 &&
+					if (features[which_serial_feature].t == VT_POINT &&
+					    features[which_serial_feature].geometry.size() == 1 &&
 					    sf.geometry.size() == 1) {
-						double x = (double) partials[which_partial].geoms[0][0].x * partials[which_partial].clustered;
-						double y = (double) partials[which_partial].geoms[0][0].y * partials[which_partial].clustered;
+						double x = (double) features[which_serial_feature].geometry[0].x * features[which_serial_feature].clustered;
+						double y = (double) features[which_serial_feature].geometry[0].y * features[which_serial_feature].clustered;
 						x += sf.geometry[0].x;
 						y += sf.geometry[0].y;
-						partials[which_partial].geoms[0][0].x = x / (partials[which_partial].clustered + 1);
-						partials[which_partial].geoms[0][0].y = y / (partials[which_partial].clustered + 1);
+						features[which_serial_feature].geometry[0].x = x / (features[which_serial_feature].clustered + 1);
+						features[which_serial_feature].geometry[0].y = y / (features[which_serial_feature].clustered + 1);
 					}
 
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2250,8 +1687,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
@@ -2259,11 +1696,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (indices.size() < MAX_INDICES) {
 					indices.push_back(sf.index);
 				}
-				if (sf.index - merge_previndex < mingap && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					coalesce_geometry(partials[which_partial], sf);
-					partials[which_partial].coalesced = true;
+				if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					coalesce_geometry(features[which_serial_feature], sf);
+					features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2271,18 +1708,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				add_sample_to(extents, sf.extent, extents_increment, seq);
 				// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 				// so we shouldn't expect to find anything small that we can related this feature to.
-				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_as_needed++;
 					continue;
 				}
 			} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 				add_sample_to(extents, sf.extent, extents_increment, seq);
-				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_partial(partials, sf, which_partial, layer_unmaps, minextent, multiplier_seq)) {
-					coalesce_geometry(partials[which_partial], sf);
-					partials[which_partial].coalesced = true;
+				if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent, multiplier_seq)) {
+					coalesce_geometry(features[which_serial_feature], sf);
+					features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
-					preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->coalesced_as_needed++;
 					continue;
 				}
@@ -2301,16 +1738,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			fraction_accum += fraction;
-			if (fraction_accum < 1 && find_partial(partials, sf, which_partial, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+			if (fraction_accum < 1 && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 				if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					coalesce_geometry(partials[which_partial], sf);
-					partials[which_partial].coalesced = true;
+					coalesce_geometry(features[which_serial_feature], sf);
+					features[which_serial_feature].coalesced = true;
 					coalesced_area += sf.extent;
 					strategy->coalesced_as_needed++;
 				} else {
 					strategy->dropped_as_needed++;
 				}
-				preserve_attributes(arg->attribute_accum, sf, stringpool, pool_off, partials[which_partial]);
+				preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 				continue;
 			}
 			fraction_accum -= 1;
@@ -2342,8 +1779,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
+			unsigned long long sfindex = sf.index;
+
 			if (sf.geometry.size() > 0) {
-				if (partials.size() > scaled_max_tile_size) {
+				if (features.size() > scaled_max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
@@ -2351,73 +1790,50 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					kept++;
 
 					for (auto &p : sf.edge_nodes) {
-						shared_nodes.push_back(p);
+						shared_nodes.push_back(std::move(p));
 					}
 
-					partial p;
-					p.geoms.push_back(sf.geometry);
-					p.layer = sf.layer;
-					p.t = sf.t;
-					p.segment = sf.segment;
-					p.original_seq = sf.seq;
-					p.reduced = !still_need_simplification_after_reduction;
-					p.coalesced = false;
-					p.z = z;
-					p.tx = tx;
-					p.ty = ty;
-					p.line_detail = line_detail;
-					p.extra_detail = line_detail;
-					p.maxzoom = maxzoom;
-					p.keys = sf.keys;
-					p.values = sf.values;
-					p.full_keys = sf.full_keys;
-					p.full_values = sf.full_values;
-					p.spacing = spacing;
-					p.simplification = simplification;
-					p.id = sf.id;
-					p.has_id = sf.has_id;
-					p.index = sf.index;
-					p.label_point = sf.label_point;
-					p.renamed = -1;
-					p.extent = sf.extent;
-					p.clustered = 0;
+					sf.reduced = !still_need_simplification_after_reduction;
+					sf.coalesced = false;
+					sf.z = z;
+					sf.tx = tx;
+					sf.ty = ty;
+					sf.line_detail = line_detail;
+					sf.extra_detail = line_detail;
+					sf.maxzoom = maxzoom;
+					sf.spacing = spacing;
+					sf.simplification = simplification;
+					sf.renamed = -1;
+					sf.clustered = 0;
+					sf.tile_stringpool = tile_stringpool;
 
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
-						p.extra_detail = extra_detail;
+						sf.extra_detail = extra_detail;
 						// maximum allowed coordinate delta in geometries is 2^31 - 1
 						// so we need to stay under that, including the buffer
-						if (p.extra_detail >= 30 - z) {
-							p.extra_detail = 30 - z;
+						if (sf.extra_detail >= 30 - z) {
+							sf.extra_detail = 30 - z;
 						}
-						tile_detail = p.extra_detail;
+						tile_detail = sf.extra_detail;
 					}
 
-					partials.push_back(p);
+					features.push_back(std::move(sf));
 
-					unsimplified_geometry_size += sf.geometry.size() * sizeof(draw);
+					unsimplified_geometry_size += features.back().geometry.size() * sizeof(draw);
 					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
 						// we should be safe to simplify here with P_SIMPLIFY_SHARED_NODES, since they will
 						// have been assembled globally, although that also means that simplification
 						// may not be very effective for reducing memory usage.
 
-						drawvec dv;
+						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
+							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos);
 
-						for (; simplified_geometry_through < partials.size(); simplified_geometry_through++) {
-							simplify_partial(&partials[simplified_geometry_through], dv, shared_nodes_map, nodepos);
-
-							if (partials[simplified_geometry_through].t == VT_POLYGON) {
-								drawvec to_clean;
-
-								for (auto &g : partials[simplified_geometry_through].geoms) {
-									for (auto &d : g) {
-										to_clean.push_back(d);
-									}
-								}
+							if (features[simplified_geometry_through].t == VT_POLYGON) {
+								drawvec to_clean = features[simplified_geometry_through].geometry;
 
 								// don't scale up because this is still world coordinates
 								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
-								partials[simplified_geometry_through].geoms.clear();
-								partials[simplified_geometry_through].geoms.push_back(to_clean);
+								features[simplified_geometry_through].geometry = std::move(to_clean);
 							}
 						}
 
@@ -2426,94 +1842,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			merge_previndex = sf.index;
+			merge_previndex = sfindex;
 			coalesced_area = 0;
 		}
 
-		if (retain_points_multiplier > 1) {
-			// mapping from input sequence to current sequence within this tile
-			std::vector<std::pair<size_t, size_t>> feature_sequences;
-
-			for (size_t i = 0; i < partials.size(); i++) {
-				feature_sequences.emplace_back(partials[i].original_seq, i);
-			}
-
-			// tag each feature with its sequence number within the tile
-			// if the tile were sorted by input order
-			//
-			// these will be smaller numbers, and avoid the problem of the
-			// original sequence number varying based on how many reader threads
-			// there were reading the input
-			std::sort(feature_sequences.begin(), feature_sequences.end());
-			for (size_t i = 0; i < feature_sequences.size(); i++) {
-				size_t j = feature_sequences[i].second;
-
-				serial_val val;
-				val.type = mvt_double;
-				val.s = std::to_string(i);
-
-				partials[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
-				partials[j].full_values.push_back(val);
-			}
-		}
-
-		std::sort(shared_nodes.begin(), shared_nodes.end());
-
-		for (size_t i = 0; i < partials.size(); i++) {
-			partial &p = partials[i];
-
-			if (p.clustered > 0) {
-				std::string layername = (*layer_unmaps)[p.segment][p.layer];
-				serial_val sv, sv2, sv3, sv4;
-				long long point_count = p.clustered + 1;
-				char abbrev[17];  // to_string(LLONG_MAX).length() / 1000 + 1;
-
-				p.full_keys.push_back("clustered");
-				sv.type = mvt_bool;
-				sv.s = "true";
-				p.full_values.push_back(sv);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "clustered", sv);
-
-				p.full_keys.push_back("point_count");
-				sv2.type = mvt_double;
-				sv2.s = std::to_string(point_count);
-				p.full_values.push_back(sv2);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count", sv2);
-
-				p.full_keys.push_back("sqrt_point_count");
-				sv3.type = mvt_double;
-				sv3.s = std::to_string(round(100 * sqrt(point_count)) / 100.0);
-				p.full_values.push_back(sv3);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "sqrt_point_count", sv3);
-
-				p.full_keys.push_back("point_count_abbreviated");
-				sv4.type = mvt_string;
-				if (point_count >= 10000) {
-					snprintf(abbrev, sizeof(abbrev), "%.0fk", point_count / 1000.0);
-				} else if (point_count >= 1000) {
-					snprintf(abbrev, sizeof(abbrev), "%.1fk", point_count / 1000.0);
-				} else {
-					snprintf(abbrev, sizeof(abbrev), "%lld", point_count);
-				}
-				sv4.s = abbrev;
-				p.full_values.push_back(sv4);
-
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count_abbreviated", sv4);
-			}
-
-			if (p.need_tilestats.size() > 0) {
-				std::string layername = (*layer_unmaps)[p.segment][p.layer];
-
-				for (size_t j = 0; j < p.full_keys.size(); j++) {
-					if (p.need_tilestats.count(p.full_keys[j]) > 0) {
-						add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, p.full_keys[j], p.full_values[j]);
-					}
-				}
-			}
-		}
+		// We are done reading the features.
+		// Close the prefilter if it was opened.
+		// Close the output files for the next zoom level.
 
 		if (prefilter != NULL) {
 			json_end(prefilter_jp);
@@ -2538,101 +1873,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		first_time = false;
-
-		if (additional[A_DETECT_SHARED_BORDERS]) {
-			find_common_edges(partials, z, line_detail, simplification, maxzoom, merge_fraction);
-		}
-
-		int tasks = ceil((double) CPUS / *running);
-		if (tasks < 1) {
-			tasks = 1;
-		}
-
-		pthread_t pthreads[tasks];
-		std::vector<partial_arg> args;
-		args.resize(tasks);
-		for (int i = 0; i < tasks; i++) {
-			args[i].task = i;
-			args[i].tasks = tasks;
-			args[i].partials = &partials;
-			args[i].shared_nodes = &shared_nodes;
-			args[i].shared_nodes_map = shared_nodes_map;
-			args[i].nodepos = nodepos;
-
-			if (tasks > 1) {
-				if (pthread_create(&pthreads[i], NULL, partial_feature_worker, &args[i]) != 0) {
-					perror("pthread_create");
-					exit(EXIT_PTHREAD);
-				}
-			} else {
-				partial_feature_worker(&args[i]);
-			}
-		}
-
-		if (tasks > 1) {
-			for (int i = 0; i < tasks; i++) {
-				void *retval;
-
-				if (pthread_join(pthreads[i], &retval) != 0) {
-					perror("pthread_join");
-				}
-			}
-		}
-
-		std::reverse(partials.begin(), partials.end());
-		for (ssize_t i = partials.size() - 1; i >= 0; i--) {
-			std::vector<drawvec> &pgeoms = partials[i].geoms;
-			signed char t = partials[i].t;
-			long long original_seq = partials[i].original_seq;
-
-			// A complex polygon may have been split up into multiple geometries.
-			// Break them out into multiple features if necessary.
-			for (size_t j = 0; j < pgeoms.size(); j++) {
-				if (t == VT_POINT || draws_something(pgeoms[j])) {
-					struct coalesce c;
-
-					c.type = t;
-					c.index = partials[i].index;
-					c.geom = pgeoms[j];
-					pgeoms[j].clear();
-					c.coalesced = false;
-					c.original_seq = original_seq;
-					c.stringpool = stringpool + pool_off[partials[i].segment];
-					c.keys = partials[i].keys;
-					c.values = partials[i].values;
-					c.full_keys = partials[i].full_keys;
-					c.full_values = partials[i].full_values;
-					c.spacing = partials[i].spacing;
-					c.id = partials[i].id;
-					c.has_id = partials[i].has_id;
-					c.extent = partials[i].extent;
-
-					// printf("segment %d layer %lld is %s\n", partials[i].segment, partials[i].layer, (*layer_unmaps)[partials[i].segment][partials[i].layer].c_str());
-
-					std::string layername = (*layer_unmaps)[partials[i].segment][partials[i].layer];
-					if (layers.count(layername) == 0) {
-						layers.insert(std::pair<std::string, std::vector<coalesce>>(layername, std::vector<coalesce>()));
-					}
-
-					auto l = layers.find(layername);
-					if (l == layers.end()) {
-						fprintf(stderr, "Internal error: couldn't find layer %s\n", layername.c_str());
-						fprintf(stderr, "segment %d\n", partials[i].segment);
-						fprintf(stderr, "layer %lld\n", partials[i].layer);
-						exit(EXIT_IMPOSSIBLE);
-					}
-					l->second.push_back(c);
-				}
-			}
-
-			partials.erase(partials.begin() + i);
-		}
-
-		partials.clear();
-
-		int j;
-		for (j = 0; j < child_shards; j++) {
+		for (int j = 0; j < child_shards; j++) {
 			if (within[j]) {
 				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
@@ -2640,11 +1881,161 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<coalesce> &layer_features = layer_iterator->second;
+		first_time = false;
+
+		// Operations on the features within each layer:
+		//
+		// Tag features with their sequence within the layer, if required for --retain-points-multiplier
+		// Add cluster size attributes to clustered features.
+		// Update tilestats if attribute accumulation earlier introduced new values.
+		// Detect shared borders.
+		// Simplify geometries.
+		// Reorder and coalesce.
+		// Sort back into input order or by attribute value
+
+		std::sort(shared_nodes.begin(), shared_nodes.end());
+
+		for (auto &kv : layers) {
+			std::string const &layername = kv.first;
+			std::vector<serial_feature> &features = kv.second;
+
+			if (retain_points_multiplier > 1) {
+				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "tippecanoe:retain_points_multiplier_first", serial_val(mvt_bool, "true"));
+
+				// mapping from input sequence to current sequence within this tile
+				std::vector<std::pair<size_t, size_t>> feature_sequences;
+
+				for (size_t i = 0; i < features.size(); i++) {
+					feature_sequences.emplace_back(features[i].seq, i);
+				}
+
+				// tag each feature with its sequence number within the layer
+				// if the tile were sorted by input order
+				//
+				// these will be smaller numbers, and avoid the problem of the
+				// original sequence number varying based on how many reader threads
+				// there were reading the input
+				std::sort(feature_sequences.begin(), feature_sequences.end());
+				for (size_t i = 0; i < feature_sequences.size(); i++) {
+					size_t j = feature_sequences[i].second;
+					serial_val sv(mvt_double, std::to_string(i));
+
+					features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+					features[j].full_values.push_back(sv);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, features[j].full_keys.back(), sv);
+				}
+			}
+
+			for (size_t i = 0; i < features.size(); i++) {
+				serial_feature &p = features[i];
+
+				if (p.clustered > 0) {
+					serial_val sv, sv2, sv3, sv4;
+					long long point_count = p.clustered + 1;
+					char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
+
+					p.full_keys.push_back("clustered");
+					sv.type = mvt_bool;
+					sv.s = "true";
+					p.full_values.push_back(sv);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "clustered", sv);
+
+					p.full_keys.push_back("point_count");
+					sv2.type = mvt_double;
+					sv2.s = std::to_string(point_count);
+					p.full_values.push_back(sv2);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count", sv2);
+
+					p.full_keys.push_back("sqrt_point_count");
+					sv3.type = mvt_double;
+					sv3.s = std::to_string(round(100 * sqrt(point_count)) / 100.0);
+					p.full_values.push_back(sv3);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "sqrt_point_count", sv3);
+
+					p.full_keys.push_back("point_count_abbreviated");
+					sv4.type = mvt_string;
+					if (point_count >= 10000) {
+						snprintf(abbrev, sizeof(abbrev), "%.0fk", point_count / 1000.0);
+					} else if (point_count >= 1000) {
+						snprintf(abbrev, sizeof(abbrev), "%.1fk", point_count / 1000.0);
+					} else {
+						snprintf(abbrev, sizeof(abbrev), "%lld", point_count);
+					}
+					sv4.s = abbrev;
+					p.full_values.push_back(sv4);
+
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count_abbreviated", sv4);
+				}
+
+				if (p.need_tilestats.size() > 0) {
+					for (size_t j = 0; j < p.full_keys.size(); j++) {
+						if (p.need_tilestats.count(p.full_keys[j]) > 0) {
+							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, p.full_keys[j], p.full_values[j]);
+						}
+					}
+				}
+			}
+
+			if (additional[A_DETECT_SHARED_BORDERS]) {
+				find_common_edges(features, z, line_detail, simplification, maxzoom, merge_fraction);
+			}
+
+			int tasks = ceil((double) CPUS / *running);
+			if (tasks < 1) {
+				tasks = 1;
+			}
+
+			pthread_t pthreads[tasks];
+			std::vector<simplification_worker_arg> args;
+			args.resize(tasks);
+			for (int i = 0; i < tasks; i++) {
+				args[i].task = i;
+				args[i].tasks = tasks;
+				args[i].features = &features;
+				args[i].shared_nodes = &shared_nodes;
+				args[i].shared_nodes_map = shared_nodes_map;
+				args[i].nodepos = nodepos;
+
+				if (tasks > 1) {
+					if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
+						perror("pthread_create");
+						exit(EXIT_PTHREAD);
+					}
+				} else {
+					simplification_worker(&args[i]);
+				}
+			}
+
+			if (tasks > 1) {
+				for (int i = 0; i < tasks; i++) {
+					void *retval;
+
+					if (pthread_join(pthreads[i], &retval) != 0) {
+						perror("pthread_join");
+					}
+				}
+			}
+
+			for (size_t i = 0; i < features.size(); i++) {
+				signed char t = features[i].t;
+
+				{
+					if (t == VT_POINT || draws_something(features[i].geometry)) {
+						// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
+
+						features[i].coalesced = false;
+					}
+				}
+			}
+
+			std::vector<serial_feature> &layer_features = features;
 
 			if (additional[A_REORDER]) {
-				std::sort(layer_features.begin(), layer_features.end());
+				std::sort(layer_features.begin(), layer_features.end(), coalindexcmp_comparator());
 			}
 
 			if (additional[A_COALESCE]) {
@@ -2659,8 +2050,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					size_t y = out - 1;
 
 					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
-						for (size_t g = 0; g < layer_features[x].geom.size(); g++) {
-							layer_features[y].geom.push_back(layer_features[x].geom[g]);
+						for (size_t g = 0; g < layer_features[x].geometry.size(); g++) {
+							layer_features[y].geometry.push_back(std::move(layer_features[x].geometry[g]));
 						}
 						layer_features[y].coalesced = true;
 					} else {
@@ -2680,25 +2071,25 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				size_t out = 0;
 
 				for (size_t x = 0; x < layer_features.size(); x++) {
-					if (layer_features[x].coalesced && layer_features[x].type == VT_LINE) {
-						layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+					if (layer_features[x].coalesced && layer_features[x].t == VT_LINE) {
+						layer_features[x].geometry = remove_noop(layer_features[x].geometry, layer_features[x].t, 0);
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
 							// XXX revisit: why does this not take zoom into account?
-							layer_features[x].geom = simplify_lines(layer_features[x].geom, 32, 0, 0, 0,
-												!(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].type == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+							layer_features[x].geometry = simplify_lines(layer_features[x].geometry, 32, 0, 0, 0,
+												    !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
 						}
 					}
 
-					if (layer_features[x].type == VT_POLYGON) {
+					if (layer_features[x].t == VT_POLYGON) {
 						if (layer_features[x].coalesced) {
 							// we can try scaling up because this is tile coordinates
-							layer_features[x].geom = clean_or_clip_poly(layer_features[x].geom, 0, 0, false, true);
+							layer_features[x].geometry = clean_or_clip_poly(layer_features[x].geometry, 0, 0, false, true);
 						}
 
-						layer_features[x].geom = close_poly(layer_features[x].geom);
+						layer_features[x].geometry = close_poly(layer_features[x].geometry);
 					}
 
-					if (layer_features[x].geom.size() > 0) {
+					if (layer_features[x].geometry.size() > 0) {
 						layer_features[out++] = layer_features[x];
 					}
 				}
@@ -2714,7 +2105,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (order_by.size() != 0) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
-				std::sort(clustered.begin(), clustered.end(), ordercmp);
+				std::sort(clustered.begin(), clustered.end(), ordercmp());
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
@@ -2733,7 +2124,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t totalsize = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
-			std::vector<coalesce> &layer_features = layer_iterator->second;
+			std::vector<serial_feature> &layer_features = layer_iterator->second;
 			totalsize += layer_features.size();
 
 			mvt_layer layer;
@@ -2741,30 +2132,29 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			layer.version = 2;
 			layer.extent = 1 << tile_detail;
 
-			std::reverse(layer_features.begin(), layer_features.end());
-			for (ssize_t x = layer_features.size() - 1; x >= 0; x--) {
+			for (size_t x = 0; x < layer_features.size(); x++) {
 				mvt_feature feature;
 
-				if (layer_features[x].type == VT_LINE || layer_features[x].type == VT_POLYGON) {
-					layer_features[x].geom = remove_noop(layer_features[x].geom, layer_features[x].type, 0);
+				if (layer_features[x].t == VT_LINE || layer_features[x].t == VT_POLYGON) {
+					layer_features[x].geometry = remove_noop(layer_features[x].geometry, layer_features[x].t, 0);
 				}
 
-				if (layer_features[x].geom.size() == 0) {
+				if (layer_features[x].geometry.size() == 0) {
 					continue;
 				}
 
-				feature.type = layer_features[x].type;
-				feature.geometry = to_feature(layer_features[x].geom);
-				count += layer_features[x].geom.size();
-				layer_features[x].geom.clear();
+				feature.type = layer_features[x].t;
+				feature.geometry = to_feature(layer_features[x].geometry);
+				count += layer_features[x].geometry.size();
+				layer_features[x].geometry.clear();
 
 				feature.id = layer_features[x].id;
 				feature.has_id = layer_features[x].has_id;
 
-				decode_meta(layer_features[x].keys, layer_features[x].values, layer_features[x].stringpool, layer, feature);
+				decode_meta(layer_features[x], layer, feature);
 				for (size_t a = 0; a < layer_features[x].full_keys.size(); a++) {
 					serial_val sv = layer_features[x].full_values[a];
-					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str());
+					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 					layer.tag(feature, layer_features[x].full_keys[a], v);
 				}
 
@@ -2789,12 +2179,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_tilestats(layer.name, z, layermaps, tiling_seg, layer_unmaps, "tippecanoe_feature_density", sv);
 				}
 
-				layer.features.push_back(feature);
-				layer_features.erase(layer_features.begin() + x);
+				layer.features.push_back(std::move(feature));
 			}
 
 			if (layer.features.size() > 0) {
-				tile.layers.push_back(layer);
+				tile.layers.push_back(std::move(layer));
 			}
 		}
 
@@ -3106,7 +2495,7 @@ void *run_thread(void *vargs) {
 
 			// fprintf(stderr, "%d/%u/%u\n", z, x, y);
 
-			long long len = write_tile(&dc, &geompos, arg->stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
+			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->fraction, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
 				perror("pthread_mutex_lock");
@@ -3171,7 +2560,7 @@ void *run_thread(void *vargs) {
 	return err_or_null;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, int basezoom, double droprate) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -3179,13 +2568,13 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 	// safely changed during tiling.
 	size_t layermaps_off = layermaps.size();
 	for (size_t i = 0; i < CPUS; i++) {
-		layermaps.push_back(std::map<std::string, layermap_entry>());
+		layermaps.emplace_back();
 	}
 
 	// Table to map segment and layer number back to layer name
 	std::vector<std::vector<std::string>> layer_unmaps;
 	for (size_t seg = 0; seg < layermaps.size(); seg++) {
-		layer_unmaps.push_back(std::vector<std::string>());
+		layer_unmaps.emplace_back();
 
 		for (auto a = layermaps[seg].begin(); a != layermaps[seg].end(); ++a) {
 			if (a->second.id >= layer_unmaps[seg].size()) {
@@ -3257,7 +2646,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 
 		// Assign temporary files to threads
 
-		std::vector<struct task> tasks;
+		std::vector<task> tasks;
 		tasks.resize(TEMP_FILES);
 
 		struct dispatch {
@@ -3265,10 +2654,10 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			long long todo = 0;
 			struct dispatch *next = NULL;
 		};
-		std::vector<struct dispatch> dispatches;
+		std::vector<dispatch> dispatches;
 		dispatches.resize(threads);
 
-		struct dispatch *dispatch_head = &dispatches[0];
+		dispatch *dispatch_head = &dispatches[0];
 		for (size_t j = 0; j < threads; j++) {
 			dispatches[j].tasks = NULL;
 			dispatches[j].todo = 0;
@@ -3289,7 +2678,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			dispatch_head->tasks = &tasks[j];
 			dispatch_head->todo += geom_size[j];
 
-			struct dispatch *here = dispatch_head;
+			dispatch *here = dispatch_head;
 			dispatch_head = dispatch_head->next;
 
 			dispatch **d;
@@ -3321,7 +2710,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 			atomic_strategy strategy;
 
 			for (size_t thread = 0; thread < threads; thread++) {
-				args[thread].stringpool = stringpool;
+				args[thread].global_stringpool = global_stringpool;
 				args[thread].min_detail = min_detail;
 				args[thread].outdb = outdb;  // locked with db_lock
 				args[thread].outdir = outdir;
@@ -3381,7 +2770,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<
 				args[thread].shared_nodes_map = shared_nodes_map;
 				args[thread].nodepos = nodepos;
 
-				if (pthread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
+				if (thread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
 					perror("pthread_create");
 					exit(EXIT_PTHREAD);
 				}

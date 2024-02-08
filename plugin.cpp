@@ -25,6 +25,7 @@
 #include "geometry.hpp"
 #include "serial.hpp"
 #include "errors.hpp"
+#include "thread.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -87,6 +88,7 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 // Reads from the postfilter
 std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, int extent) {
 	std::map<std::string, mvt_layer> ret;
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	FILE *f = fdopen(fd, "r");
 	if (f == NULL) {
@@ -262,23 +264,16 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 			}
 
 			for (size_t i = 0; i < properties->value.object.length; i++) {
-				int tp = -1;
-				std::string s;
-
-				stringify_value(properties->value.object.values[i], tp, s, "Filter output", jp->line, j);
+				serial_val sv = stringify_value(properties->value.object.values[i], "Filter output", jp->line, j);
 
 				// Nulls can be excluded here because this is the postfilter
 				// and it is nearly time to create the vector representation
 
-				if (tp >= 0 && tp != mvt_null) {
-					mvt_value v = stringified_to_mvt_value(tp, s.c_str());
+				if (sv.type != mvt_null) {
+					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 					l->second.tag(feature, std::string(properties->value.object.keys[i]->value.string.string), v);
 
-					serial_val attrib;
-					attrib.type = tp;
-					attrib.s = s;
-
-					add_to_tilestats(ts->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
+					add_to_tilestats(ts->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), sv);
 				}
 			}
 
@@ -503,24 +498,17 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 			}
 
 			for (size_t i = 0; i < properties->value.object.length; i++) {
-				serial_val v;
-				v.type = -1;
-
-				stringify_value(properties->value.object.values[i], v.type, v.s, "Filter output", jp->line, j);
+				serial_val v = stringify_value(properties->value.object.values[i], "Filter output", jp->line, j);
 
 				// Nulls can be excluded here because the expression evaluation filter
 				// would have already run before prefiltering
 
-				if (v.type >= 0 && v.type != mvt_null) {
+				if (v.type != mvt_null) {
 					sf.full_keys.push_back(std::string(properties->value.object.keys[i]->value.string.string));
 					sf.full_values.push_back(v);
 
-					serial_val attrib;
-					attrib.s = v.s;
-					attrib.type = v.type;
-
 					if (!postfilter) {
-						add_to_tilestats(ts->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), attrib);
+						add_to_tilestats(ts->second.tilestats, std::string(properties->value.object.keys[i]->value.string.string), v);
 					}
 				}
 			}
@@ -643,6 +631,7 @@ std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> 
 	wa.extent = extent;
 
 	pthread_t writer;
+	// this does need to be a real thread, so we can pipe both to and from it
 	if (pthread_create(&writer, NULL, run_writer, &wa) != 0) {
 		perror("pthread_create (filter writer)");
 		exit(EXIT_PTHREAD);

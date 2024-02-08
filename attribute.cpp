@@ -79,7 +79,7 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 	set_attribute_accum(attribute_accum, name, type);
 }
 
-void preserve_attribute(attribute_op op, std::string &key, serial_val &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
+void preserve_attribute(attribute_op const &op, std::string const &key, serial_val const &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
 	for (size_t i = 0; i < full_keys.size(); i++) {
 		if (key == full_keys[i]) {
 			switch (op) {
