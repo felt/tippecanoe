@@ -802,6 +802,10 @@ static long long choose_minextent(std::vector<long long> &extents, double f, lon
 }
 
 static unsigned long long choose_mindropby(std::vector<unsigned long long> &drop_bys, double f, unsigned long long existing_drop_by) {
+	if (drop_bys.size() == 0) {
+		return ULLONG_MAX;
+	}
+
 	std::sort(drop_bys.begin(), drop_bys.end());
 
 	size_t ix = (drop_bys.size() - 1) * (1 - f);
@@ -1654,7 +1658,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			unsigned long long drop_by = 0;
-			if (additional[A_COALESCE_SMALLEST_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
+			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
 				drop_by = calculate_drop_by(sf);
 			}
 
@@ -1768,19 +1772,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(drop_bys, drop_by, drop_bys_increment, seq);
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
-					// printf("drop by %llx vs threshold %llx\n", drop_by, mindropby);
-					if (mindropby != 0 && drop_by < mindropby && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if (mindropby != 0 && drop_by <= mindropby && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->dropped_as_needed++;
 						drop_rest = true;
 						continue;
 					}
-				} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
+				} else if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					add_sample_to(drop_bys, drop_by, drop_bys_increment, seq);
-					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent, multiplier_seq)) {
+					if (mindropby != 0 && drop_by <= mindropby && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
-						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->coalesced_as_needed++;
 						drop_rest = true;
@@ -2320,7 +2322,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
-				} else if (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
+				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
@@ -2432,7 +2434,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
-				} else if (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
+				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					mindropby_fraction = mindropby_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
 					unsigned long long m = choose_mindropby(drop_bys, mindropby_fraction, mindropby);
 					if (m != mindropby) {
