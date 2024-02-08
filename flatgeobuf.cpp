@@ -7,6 +7,7 @@
 #include "milo/dtoa_milo.h"
 #include "main.hpp"
 #include "errors.hpp"
+#include "thread.hpp"
 
 static constexpr uint8_t magicbytes[8] = { 0x66, 0x67, 0x62, 0x03, 0x66, 0x67, 0x62, 0x01 };
 
@@ -131,7 +132,6 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 	serial_feature sf;
 
 	sf.layer = layer;
-	sf.layername = layername;
 	sf.segment = sst->segment;
 	if (feature_sequence_id >= 0) {
 		sf.has_id = true;
@@ -139,8 +139,8 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 		sf.has_id = false;
 	}
 	sf.id = feature_sequence_id;
-	sf.has_tippecanoe_minzoom = false;
-	sf.has_tippecanoe_maxzoom = false;
+	sf.tippecanoe_minzoom = -1;
+	sf.tippecanoe_maxzoom = -1;
 	sf.feature_minzoom = false;
 	sf.seq = (*sst->layer_seq);
 	sf.geometry = dv;
@@ -246,7 +246,7 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 	sf.full_keys = full_keys;
 	sf.full_values = full_values;
 
-	serialize_feature(sst, sf);
+	serialize_feature(sst, sf, layername);
 }
 
 struct fgb_queued_feature {
@@ -303,7 +303,7 @@ void fgbRunQueue() {
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, fgb_run_parse_feature, &qra[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, fgb_run_parse_feature, &qra[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}

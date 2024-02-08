@@ -49,10 +49,11 @@ int memfile_close(struct memfile *file) {
 	return 0;
 }
 
-int memfile_write(struct memfile *file, void *s, long long len) {
+int memfile_write(struct memfile *file, void *s, long long len, bool &in_memory) {
 	// If it is full, append to the file.
 	// If it is not full yet, append to the string in memory.
 
+	in_memory = false;
 	if (file->fp != NULL) {
 		if (fwrite(s, sizeof(char), len, file->fp) != (size_t) len) {
 			return 0;
@@ -61,6 +62,7 @@ int memfile_write(struct memfile *file, void *s, long long len) {
 	} else {
 		file->map.append(std::string((char *) s, len));
 		file->off += len;
+		in_memory = true;
 	}
 
 	return len;

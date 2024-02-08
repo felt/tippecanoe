@@ -78,6 +78,4 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 
 void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string const &layername, serial_val const &val);
 
-unsigned long long fnv1a(std::string const &s);
-
 #endif

@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "errors.hpp"
+#include "text.hpp"
 
 struct mvt_value;
 struct mvt_layer;
@@ -132,28 +133,28 @@ struct std::hash<mvt_value> {
 	std::size_t operator()(const mvt_value &k) const {
 		switch (k.type) {
 		case mvt_string:
-			return std::hash<std::string_view>()(k.get_string_view());
+			return fnv1a(k.c_str(), 0);
 
 		case mvt_float:
-			return std::hash<float>()(k.numeric_value.float_value);
+			return fnv1a(sizeof(float), (void *) &k.numeric_value.float_value);
 
 		case mvt_double:
-			return std::hash<double>()(k.numeric_value.double_value);
+			return fnv1a(sizeof(double), (void *) &k.numeric_value.double_value);
 
 		case mvt_int:
-			return std::hash<long long>()(k.numeric_value.int_value);
+			return fnv1a(sizeof(long long), (void *) &k.numeric_value.int_value);
 
 		case mvt_uint:
-			return std::hash<unsigned long long>()(k.numeric_value.uint_value);
+			return fnv1a(sizeof(unsigned long long), (void *) &k.numeric_value.uint_value);
 
 		case mvt_sint:
-			return std::hash<long long>()(k.numeric_value.sint_value);
+			return fnv1a(sizeof(long long), (void *) &k.numeric_value.sint_value);
 
 		case mvt_bool:
-			return std::hash<bool>()(k.numeric_value.bool_value);
+			return fnv1a(sizeof(bool), (void *) &k.numeric_value.bool_value);
 
 		case mvt_null:
-			return std::hash<int>()(k.numeric_value.null_value);
+			return fnv1a(sizeof(int), (void *) &k.numeric_value.null_value);
 
 		default:
 			fprintf(stderr, "mvt_value hash can't happen\n");
@@ -174,8 +175,8 @@ struct mvt_layer {
 	void tag(mvt_feature &feature, std::string const &key, mvt_value const &value);
 
 	// For tracking the key-value constants already used in this layer
-	std::unordered_map<std::string, size_t> key_map{};
-	std::unordered_map<mvt_value, size_t> value_map{};
+	std::vector<ssize_t> key_dedup = std::vector<ssize_t>(65536, -1);
+	std::vector<ssize_t> value_dedup = std::vector<ssize_t>(65536, -1);
 };
 
 struct mvt_tile {
@@ -190,7 +191,7 @@ int decompress(std::string const &input, std::string &output);
 int compress(std::string const &input, std::string &output, bool gz);
 int dezig(unsigned n);
 
-mvt_value stringified_to_mvt_value(int type, const char *s);
+mvt_value stringified_to_mvt_value(int type, const char *s, std::shared_ptr<std::string> const &tile_stringpool);
 long long mvt_value_to_long_long(mvt_value const &v);
 
 bool is_integer(const char *s, long long *v);

@@ -42,6 +42,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "geometry.hpp"
+#include "thread.hpp"
 
 int pk = false;
 int pC = false;
@@ -85,6 +86,8 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
 		exit(EXIT_MVT);
 	}
+
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (size_t l = 0; l < tile.layers.size(); l++) {
 		mvt_layer &layer = tile.layers[l];
@@ -214,7 +217,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								outsv.s = joinval;
 
 								// Convert from double to int if the joined attribute is an integer
-								outval = stringified_to_mvt_value(outval.type, joinval.c_str());
+								outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
 
 								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
 								key_order.push_back(joinkey);
@@ -813,7 +816,7 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}

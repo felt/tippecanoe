@@ -15,7 +15,7 @@ struct memfile {
 
 struct memfile *memfile_open(int fd);
 int memfile_close(struct memfile *file);
-int memfile_write(struct memfile *file, void *s, long long len);
+int memfile_write(struct memfile *file, void *s, long long len, bool &in_memory);
 void memfile_full(struct memfile *file);
 
 #endif

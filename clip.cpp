@@ -785,7 +785,7 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::unordered_map<std::string, attribute_op> const &attribute_accum) {
+static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::shared_ptr<std::string> const &tile_stringpool) {
 	// Add geometry to output feature
 
 	mvt_feature outfeature;
@@ -849,7 +849,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 			for (size_t i = 0; i < full_keys.size(); i++) {
 				if (keep.size() == 0 || keep.find(full_keys[i]) != keep.end()) {
-					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str()));
+					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str(), tile_stringpool));
 				}
 			}
 		} else {
@@ -875,6 +875,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
 	mvt_tile outtile;
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (auto const &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();
@@ -917,7 +918,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 
 			if (flush_multiplier_cluster) {
 				if (pending_tile_features.size() > 0) {
-					feature_out(pending_tile_features, outlayer, keep, attribute_accum);
+					feature_out(pending_tile_features, outlayer, keep, attribute_accum, tile_stringpool);
 					pending_tile_features.clear();
 				}
 			}
@@ -1020,7 +1021,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		}
 
 		if (pending_tile_features.size() > 0) {
-			feature_out(pending_tile_features, outlayer, keep, attribute_accum);
+			feature_out(pending_tile_features, outlayer, keep, attribute_accum, tile_stringpool);
 			pending_tile_features.clear();
 		}
 

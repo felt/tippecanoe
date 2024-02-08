@@ -10,5 +10,8 @@ int integer_zoom(std::string where, std::string text);
 std::string format_commandline(int argc, char **argv);
 std::vector<std::string> read_unidecode(const char *fname);
 std::string unidecode_smash(std::vector<std::string> const &unidecode_data, const char *s);
+unsigned long long fnv1a(std::string const &s);
+unsigned long long fnv1a(const char *s, char additional);
+unsigned long long fnv1a(size_t size, void *p);
 
 #endif

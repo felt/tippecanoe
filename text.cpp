@@ -252,3 +252,44 @@ std::string unidecode_smash(std::vector<std::string> const &unidecode_data, cons
 
 	return out;
 }
+
+unsigned long long fnv1a(std::string const &s) {
+	// Store tiles by a hash of their contents (fnv1a 64-bit)
+	// http://www.isthe.com/chongo/tech/comp/fnv/
+	const unsigned long long fnv_offset_basis = 14695981039346656037u;
+	const unsigned long long fnv_prime = 1099511628211u;
+	unsigned long long h = fnv_offset_basis;
+	for (size_t i = 0; i < s.size(); i++) {
+		h ^= (unsigned char) s[i];
+		h *= fnv_prime;
+	}
+	return h;
+}
+
+// The "additional" is to make it easier to hash a serial_val attribute value and type together
+unsigned long long fnv1a(const char *s, char additional) {
+	// http://www.isthe.com/chongo/tech/comp/fnv/
+	const unsigned long long fnv_offset_basis = 14695981039346656037u;
+	const unsigned long long fnv_prime = 1099511628211u;
+	unsigned long long h = fnv_offset_basis;
+	for (size_t i = 0; s[i] != '\0'; i++) {
+		h ^= (unsigned char) s[i];
+		h *= fnv_prime;
+	}
+	h ^= (unsigned char) additional;
+	h *= fnv_prime;
+	return h;
+}
+
+unsigned long long fnv1a(size_t size, void *p) {
+	// http://www.isthe.com/chongo/tech/comp/fnv/
+	unsigned char *s = (unsigned char *) p;
+	const unsigned long long fnv_offset_basis = 14695981039346656037u;
+	const unsigned long long fnv_prime = 1099511628211u;
+	unsigned long long h = fnv_offset_basis;
+	for (size_t i = 0; i < size; i++) {
+		h ^= (unsigned char) s[i];
+		h *= fnv_prime;
+	}
+	return h;
+}

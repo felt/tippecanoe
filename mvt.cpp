@@ -15,6 +15,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "serial.hpp"
+#include "text.hpp"
 
 mvt_geometry::mvt_geometry(int nop, long long nx, long long ny) {
 	this->op = nop;
@@ -307,9 +308,13 @@ struct sorted_value {
 	bool operator<(const sorted_value &sv) const {
 		if (val < sv.val) {
 			return true;
-		} else {
-			return false;
+		} else if (val == sv.val) {
+			if (orig < sv.orig) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 };
 
@@ -376,9 +381,18 @@ std::string mvt_tile::encode() {
 		std::vector<size_t> mapping;
 		mapping.resize(sorted_values.size());
 
+		size_t value_index = 0;
 		for (size_t v = 0; v < sorted_values.size(); v++) {
-			mapping[sorted_values[v].orig] = v;
+			mapping[sorted_values[v].orig] = value_index;
 			layer_writer.add_message(4, sorted_values[v].val);
+
+			// crunch out duplicates that were missed by the hashing
+			while (v + 1 < sorted_values.size() && sorted_values[v].val == sorted_values[v + 1].val) {
+				mapping[sorted_values[v + 1].orig] = value_index;
+				v++;
+			}
+
+			value_index++;
 		}
 
 		for (size_t f = 0; f < layers[i].features.size(); f++) {
@@ -592,41 +606,23 @@ std::string mvt_value::toString() const {
 }
 
 void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
-	size_t ko, vo;
-
-	// initialize lazily the first time anyone tags an attribute
-	// to save the time of doing it in decode, which never actually matters.
-	// only tile writers actually need this.
-	if (key_map.size() == 0) {
-		for (size_t i = 0; i < keys.size(); i++) {
-			key_map.emplace(keys[i], i);
-		}
-		for (size_t i = 0; i < values.size(); i++) {
-			value_map.emplace(values[i], i);
-		}
-	}
-
-	std::unordered_map<std::string, size_t>::iterator ki = key_map.find(key);
-	std::unordered_map<mvt_value, size_t>::iterator vi = value_map.find(value);
-
-	if (ki == key_map.end()) {
-		ko = keys.size();
+	size_t key_hash = fnv1a(key) % key_dedup.size();
+	if (key_dedup[key_hash] >= 0 &&
+	    keys[key_dedup[key_hash]] == key) {
+	} else {
+		key_dedup[key_hash] = keys.size();
 		keys.push_back(key);
-		key_map.emplace(key, ko);
-	} else {
-		ko = ki->second;
 	}
+	feature.tags.push_back(key_dedup[key_hash]);
 
-	if (vi == value_map.end()) {
-		vo = values.size();
+	size_t value_hash = std::hash<mvt_value>()(value) % value_dedup.size();
+	if (value_dedup[value_hash] >= 0 &&
+	    values[value_dedup[value_hash]] == value) {
+	} else {
+		value_dedup[value_hash] = values.size();
 		values.push_back(value);
-		value_map.emplace(value, vo);
-	} else {
-		vo = vi->second;
 	}
-
-	feature.tags.push_back(ko);
-	feature.tags.push_back(vo);
+	feature.tags.push_back(value_dedup[value_hash]);
 }
 
 bool is_integer(const char *s, long long *v) {
@@ -705,8 +701,9 @@ bool is_unsigned_integer(const char *s, unsigned long long *v) {
 // the type (int, uint, sint, float, or double) that will give the
 // smallest representation in the tile without losing precision,
 // regardless of how the value was represented in the original source.
-mvt_value stringified_to_mvt_value(int type, const char *s) {
+mvt_value stringified_to_mvt_value(int type, const char *s, std::shared_ptr<std::string> const &tile_stringpool) {
 	mvt_value tv;
+	tv.s = tile_stringpool;
 
 	switch (type) {
 	case mvt_double: {

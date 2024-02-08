@@ -101,19 +101,6 @@ sqlite3 *mbtiles_open(char *dbname, char **argv, int forcetable) {
 	return outdb;
 }
 
-unsigned long long fnv1a(std::string const &s) {
-	// Store tiles by a hash of their contents (fnv1a 64-bit)
-	// http://www.isthe.com/chongo/tech/comp/fnv/
-	const unsigned long long fnv_offset_basis = 14695981039346656037u;
-	const unsigned long long fnv_prime = 1099511628211u;
-	unsigned long long h = fnv_offset_basis;
-	for (size_t i = 0; i < s.size(); i++) {
-		h ^= (unsigned char) s[i];
-		h *= fnv_prime;
-	}
-	return h;
-}
-
 void mbtiles_write_tile(sqlite3 *outdb, int z, int tx, int ty, const char *data, int size) {
 	std::string hash = std::to_string(fnv1a(std::string(data, size)));
 
@@ -930,10 +917,17 @@ void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string co
 
 	auto pt = std::lower_bound(tsa->second.sample_values.begin(), tsa->second.sample_values.end(), val);
 	if (pt == tsa->second.sample_values.end() || *pt != val) {  // not found
-		tsa->second.sample_values.insert(pt, val);
-
-		if (tsa->second.sample_values.size() > max_tilestats_sample_values) {
-			tsa->second.sample_values.pop_back();
+		if (tsa->second.sample_values.size() >= max_tilestats_sample_values) {
+			if (pt == tsa->second.sample_values.end()) {
+				// insertion point would be at the end,
+				// and the list is already full, so do nothing
+			} else {
+				// bump the former last value, insert this one
+				tsa->second.sample_values.insert(pt, val);
+				tsa->second.sample_values.pop_back();
+			}
+		} else {
+			tsa->second.sample_values.insert(pt, val);
 		}
 	}
 

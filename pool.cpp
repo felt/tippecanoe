@@ -7,32 +7,33 @@
 #include "memfile.hpp"
 #include "pool.hpp"
 #include "errors.hpp"
+#include "text.hpp"
 
-int swizzlecmp(const char *a, const char *b) {
-	ssize_t alen = strlen(a);
-	ssize_t blen = strlen(b);
-
-	if (strcmp(a, b) == 0) {
-		return 0;
+inline int swizzlecmp(const char *a, int atype, unsigned long long ahash, const char *b, int btype, unsigned long long bhash) {
+	if (ahash == bhash) {
+		if (atype == btype) {
+			return strcmp(a, b);
+		} else {
+			return atype - btype;
+		}
+	} else {
+		return (int) ahash - (int) bhash;
 	}
-
-	long long hash1 = 0, hash2 = 0;
-	for (ssize_t i = alen - 1; i >= 0; i--) {
-		hash1 = (hash1 * 37 + a[i]) & INT_MAX;
-	}
-	for (ssize_t i = blen - 1; i >= 0; i--) {
-		hash2 = (hash2 * 37 + b[i]) & INT_MAX;
-	}
-
-	int h1 = hash1, h2 = hash2;
-	if (h1 == h2) {
-		return strcmp(a, b);
-	}
-
-	return h1 - h2;
 }
 
-long long addpool(struct memfile *poolfile, struct memfile *treefile, const char *s, char type) {
+long long addpool(struct memfile *poolfile, struct memfile *treefile, const char *s, char type, std::vector<ssize_t> &dedup) {
+	unsigned long long hash = fnv1a(s, type);
+	size_t hash_off = hash % dedup.size();
+
+	if (dedup[hash_off] >= 0 &&
+	    poolfile->map[dedup[hash_off]] == type &&
+	    strcmp(poolfile->map.c_str() + dedup[hash_off] + 1, s) == 0) {
+		// printf("hit for %s\n", s);
+		return dedup[hash_off];
+	} else {
+		// printf("miss for %s\n", s);
+	}
+
 	unsigned long *sp = &treefile->tree;
 	size_t depth = 0;
 
@@ -43,17 +44,17 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	}
 
 	while (*sp != 0) {
-		int cmp = swizzlecmp(s, poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1);
-
-		if (cmp == 0) {
-			cmp = type - (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0];
-		}
+		int cmp = swizzlecmp(s, type, hash,
+				     poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off + 1,
+				     (poolfile->map.c_str() + ((struct stringpool *) (treefile->map.c_str() + *sp))->off)[0],
+				     ((struct stringpool *) (treefile->map.c_str() + *sp))->hash);
 
 		if (cmp < 0) {
 			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->left);
 		} else if (cmp > 0) {
 			sp = &(((struct stringpool *) (treefile->map.c_str() + *sp))->right);
 		} else {
+			dedup[hash_off] = ((struct stringpool *) (treefile->map.c_str() + *sp))->off;
 			return ((struct stringpool *) (treefile->map.c_str() + *sp))->off;
 		}
 
@@ -65,13 +66,19 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 			// the pool is full yet.
 
 			long long off = poolfile->off;
-			if (memfile_write(poolfile, &type, 1) < 0) {
+			bool in_memory = false;
+
+			if (memfile_write(poolfile, &type, 1, in_memory) < 0) {
 				perror("memfile write");
 				exit(EXIT_WRITE);
 			}
-			if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+			if (memfile_write(poolfile, (void *) s, strlen(s) + 1, in_memory) < 0) {
 				perror("memfile write");
 				exit(EXIT_WRITE);
+			}
+
+			if (in_memory) {
+				dedup[hash_off] = off;
 			}
 			return off;
 		}
@@ -95,11 +102,12 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 		// to the newly-added strings.
 
 		long long off = poolfile->off;
-		if (memfile_write(poolfile, &type, 1) < 0) {
+		bool in_memory;
+		if (memfile_write(poolfile, &type, 1, in_memory) < 0) {
 			perror("memfile write");
 			exit(EXIT_WRITE);
 		}
-		if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+		if (memfile_write(poolfile, (void *) s, strlen(s) + 1, in_memory) < 0) {
 			perror("memfile write");
 			exit(EXIT_WRITE);
 		}
@@ -115,13 +123,17 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	}
 
 	long long off = poolfile->off;
-	if (memfile_write(poolfile, &type, 1) < 0) {
+	bool in_memory = false;
+	if (memfile_write(poolfile, &type, 1, in_memory) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
 	}
-	if (memfile_write(poolfile, (void *) s, strlen(s) + 1) < 0) {
+	if (memfile_write(poolfile, (void *) s, strlen(s) + 1, in_memory) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
+	}
+	if (in_memory) {
+		dedup[hash_off] = off;
 	}
 
 	if (off >= LONG_MAX || treefile->off >= LONG_MAX) {
@@ -138,9 +150,10 @@ long long addpool(struct memfile *poolfile, struct memfile *treefile, const char
 	tsp.left = 0;
 	tsp.right = 0;
 	tsp.off = off;
+	tsp.hash = hash;
 
 	long long p = treefile->off;
-	if (memfile_write(treefile, &tsp, sizeof(struct stringpool)) < 0) {
+	if (memfile_write(treefile, &tsp, sizeof(struct stringpool), in_memory) < 0) {
 		perror("memfile write");
 		exit(EXIT_WRITE);
 	}
