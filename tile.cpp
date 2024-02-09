@@ -199,6 +199,23 @@ struct coalindexcmp_comparator {
 	}
 };
 
+static unsigned long long calculate_drop_sequence(serial_feature const &sf);
+
+struct drop_sequence_cmp {
+	bool operator()(const serial_feature &a, const serial_feature &b) {
+		unsigned long long a_seq = calculate_drop_sequence(a);
+		unsigned long long b_seq = calculate_drop_sequence(b);
+		printf("compare %llx and %llx\n", a_seq, b_seq);
+
+		// sorts backwards, to put the features that would be dropped last, first here
+		if (a_seq > b_seq) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+};
+
 // retrieve an attribute key or value from the string pool and return it as mvt_value
 static mvt_value retrieve_string(long long off, const char *stringpool, std::shared_ptr<std::string> const &tile_stringpool) {
 	int type = stringpool[off];
@@ -406,6 +423,11 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 					break;
 				}
 			}
+		}
+
+		// sort the other features by their drop sequence, for consistency across zoom levels
+		if (cluster.size() > 1) {
+			std::sort(cluster.begin() + 1, cluster.end(), drop_sequence_cmp());
 		}
 
 		for (auto const &feature : cluster) {
@@ -673,7 +695,9 @@ static void *simplification_worker(void *v) {
 			to_tile_scale(geom, z, out_detail);
 		}
 
-		(*features)[i].index = i;
+		if ((*features)[i].index == 0) {
+			(*features)[i].index = i;
+		}
 		(*features)[i].geometry = std::move(geom);
 	}
 
