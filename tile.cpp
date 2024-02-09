@@ -205,7 +205,6 @@ struct drop_sequence_cmp {
 	bool operator()(const serial_feature &a, const serial_feature &b) {
 		unsigned long long a_seq = calculate_drop_sequence(a);
 		unsigned long long b_seq = calculate_drop_sequence(b);
-		printf("compare %llx and %llx\n", a_seq, b_seq);
 
 		// sorts backwards, to put the features that would be dropped last, first here
 		if (a_seq > b_seq) {
