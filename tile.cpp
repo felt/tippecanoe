@@ -817,10 +817,10 @@ static unsigned long long choose_mindropby(std::vector<unsigned long long> &drop
 }
 
 static unsigned long long calculate_drop_by(serial_feature const &sf) {
-	unsigned long long zoom = std::max(std::min((unsigned long long) sf.feature_minzoom, 0ULL), 31ULL);
-	unsigned long long out = zoom << (64 - 5);  // top bits are the zoom level: top-priority features are those that appear in the low zooms
-	out |= bit_reverse(sf.index) >> 5;	    // remaining bits are the inverted indes, which should incrementally fill in spatially
-	return ULLONG_MAX - out;		    // lowest numbered feature gets dropped first
+	unsigned long long zoom = std::min(std::max((unsigned long long) sf.feature_minzoom, 0ULL), 31ULL);
+	unsigned long long out = zoom << (64 - 5);	      // top bits are the zoom level: top-priority features are those that appear in the low zooms
+	out |= bit_reverse(sf.index) & ~(31ULL << (64 - 5));  // remaining bits are from the inverted indes, which should incrementally fill in spatially
+	return ~out;					      // lowest numbered feature gets dropped first
 }
 
 // This is the block of parameters that are passed to write_tile() to read a tile
