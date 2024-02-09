@@ -801,22 +801,22 @@ static long long choose_minextent(std::vector<long long> &extents, double f, lon
 	return extents[ix];
 }
 
-static unsigned long long choose_mindropby(std::vector<unsigned long long> &drop_bys, double f, unsigned long long existing_drop_by) {
-	if (drop_bys.size() == 0) {
+static unsigned long long choose_mindrop_sequence(std::vector<unsigned long long> &drop_sequences, double f, unsigned long long existing_drop_sequence) {
+	if (drop_sequences.size() == 0) {
 		return ULLONG_MAX;
 	}
 
-	std::sort(drop_bys.begin(), drop_bys.end());
+	std::sort(drop_sequences.begin(), drop_sequences.end());
 
-	size_t ix = (drop_bys.size() - 1) * (1 - f);
-	while (ix + 1 < drop_bys.size() && drop_bys[ix] == existing_drop_by) {
+	size_t ix = (drop_sequences.size() - 1) * (1 - f);
+	while (ix + 1 < drop_sequences.size() && drop_sequences[ix] == existing_drop_sequence) {
 		ix++;
 	}
 
-	return drop_bys[ix];
+	return drop_sequences[ix];
 }
 
-static unsigned long long calculate_drop_by(serial_feature const &sf) {
+static unsigned long long calculate_drop_sequence(serial_feature const &sf) {
 	unsigned long long zoom = std::min(std::max((unsigned long long) sf.feature_minzoom, 0ULL), 31ULL);
 	unsigned long long out = zoom << (64 - 5);	      // top bits are the zoom level: top-priority features are those that appear in the low zooms
 	out |= bit_reverse(sf.index) & ~(31ULL << (64 - 5));  // remaining bits are from the inverted indes, which should incrementally fill in spatially
@@ -868,8 +868,8 @@ struct write_tile_args {
 	unsigned long long mingap_out = 0;
 	long long minextent = 0;
 	long long minextent_out = 0;
-	unsigned long long mindropby = 0;
-	unsigned long long mindropby_out = 0;
+	unsigned long long mindrop_sequence = 0;
+	unsigned long long mindrop_sequence_out = 0;
 	size_t tile_size_out = 0;
 	size_t feature_count_out = 0;
 	const char *prefilter = NULL;
@@ -1442,11 +1442,11 @@ return;
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindropby, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
-	double mindropby_fraction = 1;
+	double mindrop_sequence_fraction = 1;
 
 	// allow larger tile sizes at low zooms when the retain-points-multiplier
 	// is intended to allow more points through. scale back down toward a
@@ -1507,8 +1507,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		std::vector<unsigned long long> indices;
 		std::vector<long long> extents;
 		size_t extents_increment = 1;
-		std::vector<unsigned long long> drop_bys;
-		size_t drop_bys_increment = 1;
+		std::vector<unsigned long long> drop_sequences;
+		size_t drop_sequences_increment = 1;
 
 		double coalesced_area = 0;
 		drawvec shared_nodes;
@@ -1657,9 +1657,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
-			unsigned long long drop_by = 0;
+			unsigned long long drop_sequence = 0;
 			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
-				drop_by = calculate_drop_by(sf);
+				drop_sequence = calculate_drop_sequence(sf);
 			}
 
 			if (sf.dropped == 0) {
@@ -1769,18 +1769,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
-					add_sample_to(drop_bys, drop_by, drop_bys_increment, seq);
+					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
-					if (mindropby != 0 && drop_by <= mindropby && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->dropped_as_needed++;
 						drop_rest = true;
 						continue;
 					}
 				} else if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					add_sample_to(drop_bys, drop_by, drop_bys_increment, seq);
-					if (mindropby != 0 && drop_by <= mindropby && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
+					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
@@ -2326,18 +2326,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					mindropby_fraction = mindropby_fraction * max_tile_features / totalsize * 0.95;
-					unsigned long long m = choose_mindropby(drop_bys, mindropby_fraction, mindropby);
-					if (m != mindropby) {
-						mindropby = m;
-						if (mindropby > arg->mindropby_out) {
+					mindrop_sequence_fraction = mindrop_sequence_fraction * max_tile_features / totalsize * 0.95;
+					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
+					if (m != mindrop_sequence) {
+						mindrop_sequence = m;
+						if (mindrop_sequence > arg->mindrop_sequence_out) {
 							if (!prevent[P_DYNAMIC_DROP]) {
-								arg->mindropby_out = mindropby;
+								arg->mindrop_sequence_out = mindrop_sequence;
 							}
 							arg->still_dropping = true;
 						}
 						if (!quiet) {
-							fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", mindropby_fraction * 100.0);
+							fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", mindrop_sequence_fraction * 100.0);
 						}
 						line_detail++;	// to keep it the same when the loop decrements it
 						continue;
@@ -2435,18 +2435,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
-					mindropby_fraction = mindropby_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
-					unsigned long long m = choose_mindropby(drop_bys, mindropby_fraction, mindropby);
-					if (m != mindropby) {
-						mindropby = m;
-						if (mindropby > arg->mindropby_out) {
+					mindrop_sequence_fraction = mindrop_sequence_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
+					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
+					if (m != mindrop_sequence) {
+						mindrop_sequence = m;
+						if (mindrop_sequence > arg->mindrop_sequence_out) {
 							if (!prevent[P_DYNAMIC_DROP]) {
-								arg->mindropby_out = mindropby;
+								arg->mindrop_sequence_out = mindrop_sequence;
 							}
 							arg->still_dropping = true;
 						}
 						if (!quiet) {
-							fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", mindropby_fraction * 100.0);
+							fprintf(stderr, "Going to try keeping %0.2f%% of the features to make it fit\n", mindrop_sequence_fraction * 100.0);
 						}
 						line_detail++;
 						continue;
@@ -2552,7 +2552,7 @@ exit(EXIT_IMPOSSIBLE);
 
 			// fprintf(stderr, "%d/%u/%u\n", z, x, y);
 
-			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindropby, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
+			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos);
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
 				perror("pthread_mutex_lock");
@@ -2754,7 +2754,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		double zoom_gamma = gamma;
 		unsigned long long zoom_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
 		long long zoom_minextent = 0;
-		unsigned long long zoom_mindropby = 0;
+		unsigned long long zoom_mindrop_sequence = 0;
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
 
@@ -2782,8 +2782,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].mingap_out = zoom_mingap;
 				args[thread].minextent = zoom_minextent;
 				args[thread].minextent_out = zoom_minextent;
-				args[thread].mindropby = zoom_mindropby;
-				args[thread].mindropby_out = zoom_mindropby;
+				args[thread].mindrop_sequence = zoom_mindrop_sequence;
+				args[thread].mindrop_sequence_out = zoom_mindrop_sequence;
 				args[thread].tile_size_out = 0;
 				args[thread].feature_count_out = 0;
 				args[thread].child_shards = TEMP_FILES / threads;
@@ -2858,8 +2858,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 					zoom_minextent = args[thread].minextent_out;
 					again = true;
 				}
-				if (args[thread].mindropby_out > zoom_mindropby) {
-					zoom_mindropby = args[thread].mindropby_out;
+				if (args[thread].mindrop_sequence_out > zoom_mindrop_sequence) {
+					zoom_mindrop_sequence = args[thread].mindrop_sequence_out;
 					again = true;
 				}
 				if (args[thread].tile_size_out > zoom_tile_size) {
