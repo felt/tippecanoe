@@ -1171,11 +1171,6 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			if (z >= sf.feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
-
-				if (retain_points_multiplier > 1) {
-					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
-					sf.full_values.emplace_back(mvt_bool, "true");
-				}
 			} else if (count->second + 1 < retain_points_multiplier) {
 				count->second++;
 				sf.dropped = count->second;
@@ -1862,6 +1857,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					skipped++;
 				} else {
 					kept++;
+
+					if (sf.dropped == FEATURE_KEPT && retain_points_multiplier > 1) {
+						sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
+						sf.full_values.emplace_back(mvt_bool, "true");
+					}
 
 					for (auto &p : sf.edge_nodes) {
 						shared_nodes.push_back(std::move(p));
