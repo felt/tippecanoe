@@ -1,3 +1,9 @@
+# 2.43.0
+
+* Change -fraction-as-needed feature dropping to be consistent across tiles and zoom levels, and to follow the same pattern as point dropping by zoom level
+* With -as-needed feature dropping, drop or retain entire multiplier clusters instead of individual features
+* Sort the features within each multiplier cluster by its retention priority, for more consistency between zoom levels in filtered feature choice
+
 # 2.42.0
 
 * Improve tiling speed
