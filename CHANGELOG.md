@@ -1,3 +1,7 @@
+# 2.44.0
+
+* Add --unidecode-data option to allow case-insensitive filter comparisons of transliterated strings
+
 # 2.43.0
 
 * Change -fraction-as-needed feature dropping to be consistent across tiles and zoom levels, and to follow the same pattern as point dropping by zoom level
