@@ -54,7 +54,7 @@ struct mvt_feature {
 	int /* mvt_geometry_type */ type = 0;
 	unsigned long long id = 0;
 	bool has_id = false;
-	bool dropped = false;
+	int dropped = 0;
 	size_t seq = 0;	 // used for ordering in overzoom
 
 	mvt_feature() {

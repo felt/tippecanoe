@@ -297,3 +297,31 @@ unsigned long long fnv1a(size_t size, void *p) {
 	}
 	return h;
 }
+
+// This function reverses the order of the bits in a 64-bit word.
+// Instead of shifting individual bits in a loop, it shifts them
+// in blocks, starting with swapping the halfwords, and working downward
+// until it is swapping individual pairs of adjacent bits.
+//
+// The purpose is to permute the order in which features are visited:
+// instead of working in an orderly fashion from the top left to the
+// bottom right of the tile, instead jump around to minimize adjacency,
+// like a hash function, but taking advantage of the knowledge that we
+// are operating on a fixed-size input that can be directly inverted.
+// https://en.wikipedia.org/wiki/Bit-reversal_permutation
+//
+// This allows calculating an appropriate set of features to appear
+// at a fractional zoom level: at what is effectively z4.25, for example,
+// we can bring in a quarter of the features that will be added in the
+// transition from z4 to z5, and have them be spatially distributed
+// across the tile rather than clumped together.
+
+unsigned long long bit_reverse(unsigned long long v) {
+	v = ((v & 0x00000000FFFFFFFF) << 32) | ((v & 0xFFFFFFFF00000000) >> 32);
+	v = ((v & 0x0000FFFF0000FFFF) << 16) | ((v & 0xFFFF0000FFFF0000) >> 16);
+	v = ((v & 0x00FF00FF00FF00FF) << 8) | ((v & 0xFF00FF00FF00FF00) >> 8);
+	v = ((v & 0x0F0F0F0F0F0F0F0F) << 4) | ((v & 0xF0F0F0F0F0F0F0F0) >> 4);
+	v = ((v & 0x3333333333333333) << 2) | ((v & 0xCCCCCCCCCCCCCCCC) >> 2);
+	v = ((v & 0x5555555555555555) << 1) | ((v & 0xAAAAAAAAAAAAAAAA) >> 1);
+	return v;
+}
