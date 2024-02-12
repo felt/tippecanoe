@@ -428,9 +428,9 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 
 				json_object *dropped = json_hash_get(tippecanoe, "dropped");
 				if (dropped != NULL && dropped->type == JSON_TRUE) {
-					sf.dropped = -1;  // dropped
+					sf.dropped = FEATURE_DROPPED;  // dropped
 				} else {
-					sf.dropped = 0;	 // kept
+					sf.dropped = FEATURE_KEPT;  // kept
 				}
 			}
 

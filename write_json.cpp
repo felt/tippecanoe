@@ -15,6 +15,7 @@
 #include "write_json.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "serial.hpp"
 
 void json_writer::json_adjust() {
 	if (state.size() == 0) {
@@ -299,7 +300,7 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 
 			if (write_dropped) {
 				state.json_write_string("dropped");
-				state.json_write_bool(feat.dropped < 0);
+				state.json_write_bool(feat.dropped == FEATURE_DROPPED);
 			}
 
 			if (index != 0) {

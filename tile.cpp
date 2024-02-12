@@ -1158,19 +1158,19 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 
 		if (sf.tippecanoe_minzoom == -1) {
-			sf.dropped = -1;  // dropped
+			sf.dropped = FEATURE_DROPPED;  // dropped
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
 			if (count == multiplier_state->count.end()) {
 				multiplier_state->count.emplace(layername, 0);
 				count = multiplier_state->count.find(layername);
-				sf.dropped = 0;	 // the first feature in each tile is always kept
+				sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
 			}
 
-			if (z >= sf.feature_minzoom || sf.dropped == 0) {
+			if (z >= sf.feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
-				sf.dropped = 0;	 // feature is kept
+				sf.dropped = FEATURE_KEPT;  // feature is kept
 
 				if (retain_points_multiplier > 1) {
 					sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
@@ -1180,7 +1180,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				count->second++;
 				sf.dropped = count->second;
 			} else {
-				sf.dropped = -1;
+				sf.dropped = FEATURE_DROPPED;
 			}
 		}
 
@@ -1685,13 +1685,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				drop_sequence = calculate_drop_sequence(sf);
 			}
 
-			if (sf.dropped == 0) {
+			if (sf.dropped == FEATURE_KEPT) {
 				// this is a new multiplier cluster, so stop dropping features
 				// that were dropped because the previous lead feature was dropped
 				drop_rest = false;
 			}
 
-			if (sf.dropped < 0 || drop_rest) {
+			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
@@ -1706,7 +1706,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
 			// cluster down with it by setting drop_rest).
-			if (sf.dropped == 0) {
+			if (sf.dropped == FEATURE_KEPT) {
 				if (gamma > 0) {
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
