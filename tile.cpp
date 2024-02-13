@@ -1875,6 +1875,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else {
 					kept++;
 
+					if (features.size() == 0) {
+						// first feature of the the tile is always kept.
+						// it may not have been marked kept in next_feature
+						// if its geometry was clipped down to nothing
+						sf.dropped = FEATURE_KEPT;
+					}
+
 					if (sf.dropped == FEATURE_KEPT && retain_points_multiplier > 1) {
 						sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
 						sf.full_values.emplace_back(mvt_bool, "true");
@@ -1983,9 +1990,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		first_time = false;
 
 		// Adjust tile size limit based on the ratio of multiplier cluster features to lead features
-		if (lead_features_count == 0) {	 // how can this happen?
-			lead_features_count = 1;
-		}
 		size_t scaled_max_tile_size = max_tile_size * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
 		// printf("%d/%d/%d: given %zu lead features and %zu cluster features, tile size is %zu\n", z, tx, ty, lead_features_count, other_multiplier_cluster_features_count, scaled_max_tile_size);
 
