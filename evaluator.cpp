@@ -39,6 +39,26 @@ static std::string mvt_value_to_string(mvt_value const &one, bool &fail, std::ve
 	}
 }
 
+// Alter the JSON parse tree in place to replace the original match string
+// with its unidecode-smashed version.
+//
+// To avoid repeated re-smashings of the same JSON object, objects that have
+// already been smashed are marked by setting their refcon to the unidecode data.
+static void smash(std::vector<std::string> const &unidecode_data, json_object *j) {
+	if (j->value.string.refcon == (void *) &unidecode_data) {
+		return;
+	}
+
+	std::string s = unidecode_smash(unidecode_data, j->value.string.string);
+	j->value.string.string = (char *) realloc(j->value.string.string, s.size() + 1);
+	if (j->value.string.string == NULL) {
+		perror("realloc for unidecode_smash");
+		exit(EXIT_MEMORY);
+	}
+	strcpy(j->value.string.string, s.c_str());
+	j->value.string.refcon = (void *) &unidecode_data;
+}
+
 int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<std::string> const &unidecode_data) {
 	// In FSL expressions, the attribute value is coerced to the type
 	// of the JSON literal value it is being compared to.
@@ -104,10 +124,10 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<
 		std::string lhs = mvt_value_to_string(one, fail, unidecode_data);
 
 		if (unidecode_data.size() > 0) {
-			return strcmp(lhs.c_str(), unidecode_smash(unidecode_data, two->value.string.string).c_str());
-		} else {
-			return strcmp(lhs.c_str(), two->value.string.string);
+			smash(unidecode_data, two);
 		}
+
+		return strcmp(lhs.c_str(), two->value.string.string);
 	}
 
 	if (two->type == JSON_TRUE || two->type == JSON_FALSE) {
@@ -353,10 +373,9 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 
 			bool contains;
 			if (unidecode_data.size() > 0) {
-				contains = strstr(s.c_str(), unidecode_smash(unidecode_data, f->value.array.array[2]->value.string.string).c_str());
-			} else {
-				contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
+				smash(unidecode_data, f->value.array.array[2]);
 			}
+			contains = strstr(s.c_str(), f->value.array.array[2]->value.string.string);
 
 			if (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0) {
 				return contains;
@@ -380,15 +399,12 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 				}
 
 				if (unidecode_data.size() > 0) {
-					if (s == unidecode_smash(unidecode_data, f->value.array.array[2]->value.array.array[i]->value.string.string)) {
-						contains = true;
-						break;
-					}
-				} else {
-					if (strcmp(s.c_str(), f->value.array.array[2]->value.array.array[i]->value.string.string) == 0) {
-						contains = true;
-						break;
-					}
+					smash(unidecode_data, f->value.array.array[2]->value.array.array[i]);
+				}
+
+				if (strcmp(s.c_str(), f->value.array.array[2]->value.array.array[i]->value.string.string) == 0) {
+					contains = true;
+					break;
 				}
 			}
 
