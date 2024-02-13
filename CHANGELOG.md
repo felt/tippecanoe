@@ -1,3 +1,7 @@
+# 2.44.0
+
+* Adjust tile size limit with --retain-points-multiplier dynamically within each tile, to allow multiplier features at high zooms if other features are being dropped as-needed
+
 # 2.43.0
 
 * Change -fraction-as-needed feature dropping to be consistent across tiles and zoom levels, and to follow the same pattern as point dropping by zoom level
