@@ -1674,6 +1674,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// this is a new multiplier cluster, so stop dropping features
 				// that were dropped because the previous lead feature was dropped
 				drop_rest = false;
+			} else if (sf.dropped != FEATURE_DROPPED) {
+				if (multiplier_cluster_size >= (size_t) retain_points_multiplier) {
+					sf.dropped = FEATURE_DROPPED;
+				}
 			}
 
 			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
