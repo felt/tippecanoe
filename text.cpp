@@ -1,8 +1,10 @@
-#include "text.hpp"
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <vector>
+#include "text.hpp"
 #include "milo/dtoa_milo.h"
 #include "milo/milo.h"
 #include "errors.hpp"
@@ -183,6 +185,76 @@ char *dtoa_milo(double val) {
 		exit(EXIT_MEMORY);
 	}
 	return dup;
+}
+
+// to work with data from https://github.com/kmike/text-unidecode
+std::vector<std::string> read_unidecode(const char *fname) {
+	std::string data;
+
+	FILE *f = fopen(fname, "rb");
+	if (f == NULL) {
+		perror(fname);
+		exit(EXIT_OPEN);
+	}
+
+	std::string buf;
+	buf.resize(2000);
+
+	while (true) {
+		size_t nread = fread((void *) buf.c_str(), sizeof(char), buf.size(), f);
+		if (nread == 0) {
+			break;
+		}
+		data.append(buf.c_str(), nread);
+	}
+
+	fclose(f);
+
+	std::vector<std::string> out;
+	out.emplace_back();  // because the data file is 1-indexed
+	out.emplace_back();  // ascii 001
+
+	for (size_t i = 0; i < data.size(); i++) {
+		if (data[i] == '\0') {
+			out.emplace_back();
+		} else {
+			if (data[i] >= '\0' && data[i] <= '~') {
+				data[i] = tolower(data[i]);
+			}
+			out.back().push_back(data[i]);
+		}
+	}
+
+	return out;
+}
+
+std::string unidecode_smash(std::vector<std::string> const &unidecode_data, const char *s) {
+	if (unidecode_data.size() == 0) {
+		return s;
+	}
+
+	std::string out;
+	out.reserve(strlen(s));
+
+	long c;
+	while (true) {
+		const char *os = s;
+		s = utf8_next(s, &c);
+		if (s == NULL) {
+			break;
+		}
+
+		if (c >= 0 && c < (long) unidecode_data.size()) {
+			out.append(unidecode_data[c]);
+		} else {
+			// pass through anything that is out of unidecode range literally
+			for (; os != s; os++) {
+				out.push_back(*os);
+			}
+		}
+	}
+
+	return out;
 }
 
 unsigned long long fnv1a(std::string const &s) {
