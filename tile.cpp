@@ -1460,9 +1460,10 @@ return;
 	}
 }
 
+// This is the structure that the features from each layer are accumulated into
 struct layer_features {
-	std::vector<serial_feature> features;
-	size_t multiplier_cluster_size = 0;
+	std::vector<serial_feature> features;  // The features of this layer, so far
+	size_t multiplier_cluster_size = 0;    // The feature count of the current multiplier cluster
 };
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos) {
@@ -1680,6 +1681,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// that were dropped because the previous lead feature was dropped
 				drop_rest = false;
 			} else if (sf.dropped != FEATURE_DROPPED) {
+				// Does the current multiplier cluster already have too many features?
+				// If so, we have to drop this one, even if it would potentially qualify
+				// as a secondary feature to be exposed by filtering
 				if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) {
 					sf.dropped = FEATURE_DROPPED;
 				}
@@ -1876,9 +1880,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					kept++;
 
 					if (features.size() == 0) {
-						// first feature of the the tile is always kept.
+						// the first feature of the the tile is always kept.
 						// it may not have been marked kept in next_feature
-						// if its geometry was clipped down to nothing
+						// if the previous feature was nominally the first
+						// but has already been lost because its geometry was
+						// clipped away
 						sf.dropped = FEATURE_KEPT;
 					}
 
