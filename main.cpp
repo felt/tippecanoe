@@ -96,6 +96,7 @@ std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
 long long extend_zooms_max = 0;
 int retain_points_multiplier = 1;
+std::vector<std::string> unidecode_data;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2759,7 +2760,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, basezoom, droprate);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, basezoom, droprate, unidecode_data);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -3074,6 +3075,7 @@ int main(int argc, char **argv) {
 		{"Filtering features by attributes", 0, 0, 0},
 		{"feature-filter-file", required_argument, 0, 'J'},
 		{"feature-filter", required_argument, 0, 'j'},
+		{"unidecode-data", required_argument, 0, '~'},
 
 		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 		{"drop-rate", required_argument, 0, 'r'},
@@ -3300,6 +3302,8 @@ int main(int argc, char **argv) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
 			} else if (strcmp(opt, "retain-points-multiplier") == 0) {
 				retain_points_multiplier = atoll_require(optarg, "Multiply the fraction of points retained by zoom level");
+			} else if (strcmp(opt, "unidecode-data") == 0) {
+				unidecode_data = read_unidecode(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);

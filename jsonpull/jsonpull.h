@@ -38,6 +38,7 @@ typedef struct json_object {
 
 		struct {
 			char *string;
+			void *refcon;  // reference constant for caller's use
 		} string;
 
 		struct {

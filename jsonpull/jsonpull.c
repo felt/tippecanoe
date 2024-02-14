@@ -755,6 +755,7 @@ again:
 		json_object *s = add_object(j, JSON_STRING);
 		if (s != NULL) {
 			s->value.string.string = val.buf;
+			s->value.string.refcon = NULL;
 		} else {
 			string_free(&val);
 		}
