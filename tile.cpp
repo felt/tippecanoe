@@ -1468,6 +1468,26 @@ struct layer_features {
 	size_t multiplier_cluster_size = 0;    // The feature count of the current multiplier cluster
 };
 
+bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, size_t &multiplier_seq, atomic_strategy *strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
+	ssize_t which_serial_feature;
+
+	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+		if (layer.multiplier_cluster_size < (size_t) retain_points_multiplier) {
+			// we have capacity to keep this feature as part of an existing multiplier cluster that isn't full yet
+			// so do that instead of dropping it
+			sf.dropped = layer.multiplier_cluster_size + 1;
+			return false;  // converted rather than dropped
+		} else {
+			preserve_attributes(attribute_accum, sf, layer.features[which_serial_feature]);
+			strategy->dropped_as_needed++;
+			drop_rest = true;
+			return true;  // dropped
+		}
+	}
+
+	return false;  // did not drop because nothing could be found to accumulate attributes onto
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1752,18 +1772,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (indices.size() < MAX_INDICES) {
 						indices.push_back(sf.index);
 					}
-					if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-						if (layer.multiplier_cluster_size < (size_t) retain_points_multiplier) {
-							// we have capacity to keep this feature as part of an existing multiplier cluster that isn't full yet
-							// so do that instead of dropping it
-							sf.dropped = layer.multiplier_cluster_size + 1;
-						} else {
-							preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-							strategy->dropped_as_needed++;
-							drop_rest = true;
+					if (sf.index - merge_previndex < mingap) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
+
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
 					if (indices.size() < MAX_INDICES) {
 						indices.push_back(sf.index);
@@ -1781,15 +1795,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(extents, sf.extent, extents_increment, seq);
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
-					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-						if (layer.multiplier_cluster_size < (size_t) retain_points_multiplier) {
-							// we have capacity to keep this feature as part of an existing multiplier cluster that isn't full yet
-							// so do that instead of dropping it
-							sf.dropped = layer.multiplier_cluster_size + 1;
-						} else {
-							preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-							strategy->dropped_as_needed++;
-							drop_rest = true;
+					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
@@ -1808,15 +1815,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
-					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
-						if (layer.multiplier_cluster_size < (size_t) retain_points_multiplier) {
-							// we have capacity to keep this feature as part of an existing multiplier cluster that isn't full yet
-							// so do that instead of dropping it
-							sf.dropped = layer.multiplier_cluster_size + 1;
-						} else {
-							preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-							strategy->dropped_as_needed++;
-							drop_rest = true;
+					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
@@ -2000,7 +2000,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		// Adjust tile size limit based on the ratio of multiplier cluster features to lead features
 		size_t scaled_max_tile_size = max_tile_size * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
-		// printf("%d/%d/%d: given %zu lead features and %zu cluster features, tile size is %zu\n", z, tx, ty, lead_features_count, other_multiplier_cluster_features_count, scaled_max_tile_size);
 
 		// Operations on the features within each layer:
 		//
