@@ -30,10 +30,11 @@ for tile in data['features']:
             layers_per_zoom[zoom][layername].add(properties)
 
 for zoom in range(maxzoom + 1):
-    for layer in layers_per_zoom[zoom]:
-        for feature in layers_per_zoom[zoom][layer]:
-            if feature not in reported:
-                for z in range(zoom + 1, maxzoom + 1):
-                    if feature not in layers_per_zoom[z][layer]:
-                        print("in", zoom, "but not in", z, ":", feature)
-                        reported.add(feature)
+    if zoom in layers_per_zoom:
+        for layer in layers_per_zoom[zoom]:
+            for feature in layers_per_zoom[zoom][layer]:
+                if feature not in reported:
+                    for z in range(zoom + 1, maxzoom + 1):
+                        if feature not in layers_per_zoom[z][layer]:
+                            print("in", zoom, "but not in", z, ":", feature)
+                            reported.add(feature)
