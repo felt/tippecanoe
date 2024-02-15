@@ -2000,7 +2000,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		// Adjust tile size limit based on the ratio of multiplier cluster features to lead features
 		size_t scaled_max_tile_size = max_tile_size * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
-		// printf("%d/%d/%d: given %zu lead features and %zu cluster features, tile size is %zu\n", z, tx, ty, lead_features_count, other_multiplier_cluster_features_count, scaled_max_tile_size);
 
 		// Operations on the features within each layer:
 		//
