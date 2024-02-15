@@ -298,31 +298,26 @@ struct drop_densest {
 	}
 };
 
-int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
-	int feature_minzoom = 0;
+int calc_feature_minzoom(struct index *ix, struct drop_state *ds, size_t maxzoom, double gamma) {
+	size_t feature_minzoom = 0;
 
 	if (gamma >= 0 && (ix->t == VT_POINT ||
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
 			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
-		for (ssize_t i = maxzoom; i >= 0; i--) {
+		feature_minzoom = maxzoom;
+
+		// Advance the counter for all zooms
+
+		for (size_t i = 0; i <= maxzoom; i++) {
 			ds[i].seq++;
 		}
-		for (ssize_t i = maxzoom; i >= 0; i--) {
-			if (ds[i].seq < 0) {
-				feature_minzoom = i + 1;
 
-				// The feature we are pushing out
-				// appears in zooms i + 1 through maxzoom,
-				// so track where that was so we can make sure
-				// not to cluster something else that is *too*
-				// far away into it.
-				for (ssize_t j = i + 1; j <= maxzoom; j++) {
-					ds[j].previndex = ix->ix;
-				}
+		// Find the zoom at which it is time for a feature
 
+		for (size_t i = 0; i <= maxzoom; i++) {
+			if (ds[i].seq >= ds[i].interval) {
+				feature_minzoom = i;
 				break;
-			} else {
-				ds[i].seq -= ds[i].interval;
 			}
 		}
 
@@ -332,17 +327,20 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		// we will go ahead and push it out.
 
 		if (preserve_point_density_threshold > 0) {
-			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
+			for (size_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
-
-					for (ssize_t j = i; j <= maxzoom; j++) {
-						ds[j].previndex = ix->ix;
-					}
-
 					break;
 				}
 			}
+		}
+
+		// Set the counter back in all zooms that this feature will appear in,
+		// and remember its index for the next maximum-distance-exceeded decision
+
+		for (size_t i = feature_minzoom; i <= maxzoom; i++) {
+			ds[i].seq -= ds[i].interval;
+			ds[i].previndex = ix->ix;
 		}
 
 		// XXX manage_gap
