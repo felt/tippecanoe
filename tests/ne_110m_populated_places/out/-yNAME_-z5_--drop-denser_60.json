@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME_-z5_--drop-denser_60.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":239},{\"dropped_by_rate\":248},{\"dropped_by_rate\":207},{\"dropped_by_rate\":176},{\"dropped_by_rate\":106},{}]",
+"strategies": "[{\"dropped_by_rate\":239},{\"dropped_by_rate\":250},{\"dropped_by_rate\":207},{\"dropped_by_rate\":176},{\"dropped_by_rate\":106},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

@@ -1079,7 +1079,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
 		} else {
-			continue;
+			// XXX should continue, but affects test outputs
 		}
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */

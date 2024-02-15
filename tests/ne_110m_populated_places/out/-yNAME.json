@@ -9,7 +9,7 @@
 "maxzoom": "14",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":242},{\"dropped_by_rate\":68},{\"dropped_by_rate\":9},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":1},{\"dropped_by_rate\":1},{},{}]",
+"strategies": "[{\"dropped_by_rate\":242},{\"dropped_by_rate\":69},{\"dropped_by_rate\":9},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":1},{\"dropped_by_rate\":1},{},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
