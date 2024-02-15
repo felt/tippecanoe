@@ -9,7 +9,7 @@
 "maxzoom": "4",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME_-z4_--no-tile-stats.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":236},{\"dropped_by_rate\":246},{\"dropped_by_rate\":211},{\"dropped_by_rate\":142},{}]",
+"strategies": "[{\"dropped_by_rate\":236},{\"dropped_by_rate\":252},{\"dropped_by_rate\":216},{\"dropped_by_rate\":148},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -33,6 +33,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Nukualofa" }, "geometry": { "type": "Point", "coordinates": [ -175.209961, -21.125498 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Lima" }, "geometry": { "type": "Point", "coordinates": [ -77.036133, -12.039321 ] } }
 ] }
 ] }
@@ -51,6 +53,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Sao Tome" }, "geometry": { "type": "Point", "coordinates": [ 6.723633, 0.351560 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Putrajaya" }, "geometry": { "type": "Point", "coordinates": [ 101.689453, 2.899153 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Moroni" }, "geometry": { "type": "Point", "coordinates": [ 43.242188, -11.695273 ] } }
@@ -83,6 +87,12 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 2, "x": 0, "y": 2 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Nukualofa" }, "geometry": { "type": "Point", "coordinates": [ -175.209961, -21.145992 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 0, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "NAME": "Vancouver" }, "geometry": { "type": "Point", "coordinates": [ -123.112793, 49.267805 ] } }
@@ -93,6 +103,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 1, "y": 2 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Quito" }, "geometry": { "type": "Point", "coordinates": [ -78.508301, -0.219726 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Lima" }, "geometry": { "type": "Point", "coordinates": [ -77.058105, -12.039321 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Asuncion" }, "geometry": { "type": "Point", "coordinates": [ -57.634277, -25.304304 ] } }
@@ -177,6 +189,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 3, "y": 2 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Singapore" }, "geometry": { "type": "Point", "coordinates": [ 103.864746, 1.296276 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Dili" }, "geometry": { "type": "Point", "coordinates": [ 125.573730, -8.559294 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Sydney" }, "geometry": { "type": "Point", "coordinates": [ 151.193848, -33.925130 ] } }
@@ -185,6 +199,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 3, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Thimphu" }, "geometry": { "type": "Point", "coordinates": [ 89.626465, 27.469287 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Kolkata" }, "geometry": { "type": "Point", "coordinates": [ 88.330078, 22.492257 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Rangoon" }, "geometry": { "type": "Point", "coordinates": [ 96.174316, 16.783506 ] } }
@@ -205,6 +221,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 1, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "San Francisco" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.770715 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Denver" }, "geometry": { "type": "Point", "coordinates": [ -104.985352, 39.740986 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Houston" }, "geometry": { "type": "Point", "coordinates": [ -95.339355, 29.821583 ] } }
@@ -221,6 +239,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 2, "y": 4 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Quito" }, "geometry": { "type": "Point", "coordinates": [ -78.497314, -0.219726 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Lima" }, "geometry": { "type": "Point", "coordinates": [ -77.047119, -12.050065 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Valparaiso" }, "geometry": { "type": "Point", "coordinates": [ -71.619873, -33.045508 ] } }
@@ -259,6 +279,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 2, "y": 2 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Chicago" }, "geometry": { "type": "Point", "coordinates": [ -87.747803, 41.828642 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Ottawa" }, "geometry": { "type": "Point", "coordinates": [ -75.695801, 45.413876 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "New York" }, "geometry": { "type": "Point", "coordinates": [ -73.981934, 40.747257 ] } }
@@ -273,6 +295,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 3, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Praia" }, "geometry": { "type": "Point", "coordinates": [ -23.510742, 14.912938 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Lisbon" }, "geometry": { "type": "Point", "coordinates": [ -9.140625, 38.719805 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Rabat" }, "geometry": { "type": "Point", "coordinates": [ -6.833496, 34.025348 ] } }
@@ -325,6 +349,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 4, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Accra" }, "geometry": { "type": "Point", "coordinates": [ -0.219727, 5.550381 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Tirana" }, "geometry": { "type": "Point", "coordinates": [ 19.819336, 41.327326 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Istanbul" }, "geometry": { "type": "Point", "coordinates": [ 29.014893, 41.112469 ] } }
@@ -403,12 +429,16 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 5, "y": 4 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Victoria" }, "geometry": { "type": "Point", "coordinates": [ 55.447998, -4.620229 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Port Louis" }, "geometry": { "type": "Point", "coordinates": [ 57.502441, -20.169411 ] } }
 ] }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 5, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Yerevan" }, "geometry": { "type": "Point", "coordinates": [ 44.505615, 40.178873 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Baghdad" }, "geometry": { "type": "Point", "coordinates": [ 44.384766, 33.339707 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Baku" }, "geometry": { "type": "Point", "coordinates": [ 49.866943, 40.396764 ] } }
@@ -443,12 +473,16 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 6, "y": 4 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Jakarta" }, "geometry": { "type": "Point", "coordinates": [ 106.831055, -6.173324 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Dili" }, "geometry": { "type": "Point", "coordinates": [ 125.584717, -8.559294 ] } }
 ] }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 6, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Thimphu" }, "geometry": { "type": "Point", "coordinates": [ 89.637451, 27.469287 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Chengdu" }, "geometry": { "type": "Point", "coordinates": [ 104.073486, 30.666266 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Rangoon" }, "geometry": { "type": "Point", "coordinates": [ 96.163330, 16.783506 ] } }
@@ -475,8 +509,16 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 3, "x": 7, "y": 5 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Wellington" }, "geometry": { "type": "Point", "coordinates": [ 174.781494, -41.302571 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 7, "y": 4 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Port Moresby" }, "geometry": { "type": "Point", "coordinates": [ 147.194824, -9.470736 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Sydney" }, "geometry": { "type": "Point", "coordinates": [ 151.182861, -33.916013 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Port Vila" }, "geometry": { "type": "Point", "coordinates": [ 168.321533, -17.738223 ] } }
@@ -487,6 +529,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 7, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Melekeok" }, "geometry": { "type": "Point", "coordinates": [ 134.626465, 7.482304 ] } }
+,
 { "type": "Feature", "properties": { "NAME": "Osaka" }, "geometry": { "type": "Point", "coordinates": [ 135.461426, 34.750640 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Palikir" }, "geometry": { "type": "Point", "coordinates": [ 158.148193, 6.915521 ] } }

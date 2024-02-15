@@ -1163,22 +1163,16 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
+			if (count == multiplier_state->count.end()) {
+				multiplier_state->count.emplace(layername, 0);
+				count = multiplier_state->count.find(layername);
+				sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
+			}
 
-			if (z >= sf.feature_minzoom) {
-				if (count == multiplier_state->count.end()) {
-					multiplier_state->count.emplace(layername, 0);
-					count = multiplier_state->count.find(layername);
-				}
-
+			if (z >= sf.feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
 			} else if (count->second + 1 < retain_points_multiplier) {
-				if (count == multiplier_state->count.end()) {
-					// just drop features until we reach one that is
-					// supposed to appear in this zoom level
-					continue;
-				}
-
 				count->second++;
 				sf.dropped = count->second;
 			} else {

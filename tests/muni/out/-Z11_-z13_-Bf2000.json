@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-Bf2000.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":2910},{},{}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":2916},{},{}]",
 "tippecanoe_decisions": "{\"basezoom\":12,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
@@ -32,6 +32,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 327, "y": 792 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.500005, 37.718998 ] } }
+,
 { "type": "Feature", "properties": { "name": "Arballo Dr & Acevedo Ave ." }, "geometry": { "type": "Point", "coordinates": [ -122.483139, 37.719880 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Font Blvd & Serrano Dr NS/W-SB" }, "geometry": { "type": "Point", "coordinates": [ -122.479920, 37.719609 ] } }
@@ -446,6 +448,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 327, "y": 791 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "BUNKER RD/Stables" }, "geometry": { "type": "Point", "coordinates": [ -122.515368, 37.831751 ] } }
+,
 { "type": "Feature", "properties": { "name": "BUNKER RD/Stables" }, "geometry": { "type": "Point", "coordinates": [ -122.514939, 37.831785 ] } }
 ,
 { "type": "Feature", "properties": { "name": "BUNKER RD/Rifle Range" }, "geometry": { "type": "Point", "coordinates": [ -122.508802, 37.833005 ] } }
@@ -3870,6 +3874,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.435288, 37.762674 ] } }
+,
 { "type": "Feature", "properties": { "name": "Metro Montgomery Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.401900, 37.788692 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Metro Embarcadero Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.396536, 37.792999 ] } }
@@ -3892,6 +3898,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 954, "y": 791 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.240014, 37.819989 ] } }
+,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.240014, 37.819989 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.240014, 37.819989 ] } }

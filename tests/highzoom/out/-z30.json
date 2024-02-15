@@ -25,9 +25,27 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.399206 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 0, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -121.992188, 37.020098 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 2, "x": 1, "y": 1 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.508742 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 2, "x": 2, "y": 1 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.508742 ] } }
 ] }
 ] }
 ,
@@ -37,9 +55,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 3, "x": 3, "y": 2 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.508742 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 3, "x": 4, "y": 2 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.508742 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 4, "x": 2, "y": 6 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -121.992188, 36.985003 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 4, "x": 7, "y": 5 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.508742 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 4, "x": 8, "y": 5 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.508742 ] } }
 ] }
 ] }
 ,
@@ -49,9 +91,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 5, "x": 15, "y": 10 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.495065 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 5, "x": 16, "y": 10 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.495065 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 6, "x": 10, "y": 24 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.003174, 37.002553 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 6, "x": 31, "y": 21 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.501904 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 6, "x": 32, "y": 21 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.501904 ] } }
 ] }
 ] }
 ,
@@ -61,9 +127,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 7, "x": 63, "y": 42 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.498485 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 7, "x": 64, "y": 42 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.498485 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 8, "x": 41, "y": 99 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.000427, 37.000359 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 127, "y": 85 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500194 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 128, "y": 85 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500194 ] } }
 ] }
 ] }
 ,
@@ -73,9 +163,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 255, "y": 170 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500194 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 256, "y": 170 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500194 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 10, "x": 164, "y": 398 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -121.999741, 36.999811 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 511, "y": 340 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500194 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 512, "y": 340 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500194 ] } }
 ] }
 ] }
 ,
@@ -85,9 +199,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 1023, "y": 681 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499981 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 1024, "y": 681 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499981 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 659, "y": 1594 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.000084, 36.999948 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 2047, "y": 1362 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499981 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 2048, "y": 1362 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499981 ] } }
 ] }
 ] }
 ,
@@ -97,9 +235,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 13, "x": 4095, "y": 2724 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499981 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 13, "x": 4096, "y": 2724 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499981 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 14, "x": 2639, "y": 6377 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -121.999998, 37.000016 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 14, "x": 8191, "y": 5448 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500007 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 14, "x": 8192, "y": 5448 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500007 ] } }
 ] }
 ] }
 ,
@@ -109,9 +271,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 15, "x": 16383, "y": 10897 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499994 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 15, "x": 16384, "y": 10897 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.499994 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 16, "x": 10558, "y": 25508 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -121.999998, 36.999999 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 16, "x": 32767, "y": 21794 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500001 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 16, "x": 32768, "y": 21794 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500001 ] } }
 ] }
 ] }
 ,
@@ -121,9 +307,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 17, "x": 65535, "y": 43589 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500001 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 17, "x": 65536, "y": 43589 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500001 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 18, "x": 42234, "y": 102034 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.000001, 36.999999 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 18, "x": 131071, "y": 87178 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500001 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 18, "x": 131072, "y": 87178 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500001 ] } }
 ] }
 ] }
 ,
@@ -133,9 +343,33 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 19, "x": 262143, "y": 174356 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 19, "x": 262144, "y": 174356 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 20, "x": 168937, "y": 408137 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.000000, 37.000000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 20, "x": 524287, "y": 348712 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 20, "x": 524288, "y": 348712 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
 ] }
 ] }
 ,
@@ -145,15 +379,51 @@
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 21, "x": 1048575, "y": 697425 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 21, "x": 1048576, "y": 697425 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 22, "x": 675748, "y": 1632549 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.000000, 37.000000 ] } }
 ] }
 ] }
 ,
+{ "type": "FeatureCollection", "properties": { "zoom": 22, "x": 2097151, "y": 1394851 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 22, "x": 2097152, "y": 1394851 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
 { "type": "FeatureCollection", "properties": { "zoom": 23, "x": 1351497, "y": 3265098 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
 { "type": "Feature", "properties": { "name": "Santa Cruz" }, "geometry": { "type": "Point", "coordinates": [ -122.000000, 37.000000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 23, "x": 4194303, "y": 2789703 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 23, "x": 4194304, "y": 2789703 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "London" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 51.500000 ] } }
 ] }
 ] }
 ,

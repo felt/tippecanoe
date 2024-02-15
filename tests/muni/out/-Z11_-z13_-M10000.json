@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-M10000.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":18448,\"detail_reduced\":4,\"tile_size_desired\":10878},{\"dropped_by_rate\":6375,\"detail_reduced\":3,\"tile_size_desired\":10602},{}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":18525,\"detail_reduced\":4,\"tile_size_desired\":10909},{\"dropped_by_rate\":6385,\"detail_reduced\":3,\"tile_size_desired\":10656},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -25,6 +25,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 327, "y": 792 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.500005, 37.718998 ] } }
+,
 { "type": "Feature", "properties": { "name": "Crespi Dr & Varela Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475929, 37.720118 ] } }
 ,
 { "type": "Feature", "properties": { "name": "19TH AVE &  HOLLOWAY Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.475114, 37.721272 ] } }
@@ -181,6 +183,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 327, "y": 791 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 256 }, "features": [
+{ "type": "Feature", "properties": { "name": "BUNKER RD/Stables" }, "geometry": { "type": "Point", "coordinates": [ -122.515411, 37.831480 ] } }
+,
 { "type": "Feature", "properties": { "name": "BUNKER RD/Rifle Range" }, "geometry": { "type": "Point", "coordinates": [ -122.508545, 37.833107 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Conzelman Rd/GGNRA entrance sign" }, "geometry": { "type": "Point", "coordinates": [ -122.483826, 37.833107 ] } }
@@ -1555,6 +1559,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 256 }, "features": [
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.435074, 37.762573 ] } }
+,
 { "type": "Feature", "properties": { "name": "Metro Civic Center Station/Outbd" }, "geometry": { "type": "Point", "coordinates": [ -122.415161, 37.778856 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Metro Powell Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.407608, 37.784283 ] } }
@@ -1565,6 +1571,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 11, "x": 954, "y": 791 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.240014, 37.819989 ] } }
+,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.240014, 37.819989 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.240014, 37.819989 ] } }
@@ -1591,6 +1599,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 654, "y": 1584 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.500026, 37.718998 ] } }
+,
 { "type": "Feature", "properties": { "name": "Arballo Dr & Acevedo Ave ." }, "geometry": { "type": "Point", "coordinates": [ -122.483139, 37.719897 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Font Blvd & Serrano Dr NS/W-SB" }, "geometry": { "type": "Point", "coordinates": [ -122.479899, 37.719592 ] } }
@@ -1779,6 +1789,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 654, "y": 1583 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "Lincoln Blvd & Bowley Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.482624, 37.788488 ] } }
+,
 { "type": "Feature", "properties": { "name": "Lincoln Blvd & Bowley St" }, "geometry": { "type": "Point", "coordinates": [ -122.482452, 37.788353 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Sacramento St & Presidio Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.447090, 37.788081 ] } }
@@ -3293,10 +3305,16 @@
 ,
 { "type": "Feature", "properties": { "name": "Naples St & France Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.433529, 37.717640 ] } }
 ] }
+,
+{ "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 512 }, "features": [
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762708 ] } }
+] }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 654, "y": 1582 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "BUNKER RD/Stables" }, "geometry": { "type": "Point", "coordinates": [ -122.515368, 37.831751 ] } }
+,
 { "type": "Feature", "properties": { "name": "BUNKER RD/Stables" }, "geometry": { "type": "Point", "coordinates": [ -122.514939, 37.831802 ] } }
 ,
 { "type": "Feature", "properties": { "name": "BUNKER RD/Rifle Range" }, "geometry": { "type": "Point", "coordinates": [ -122.508824, 37.833022 ] } }
@@ -4975,6 +4993,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.402115, 37.788794 ] } }
+,
 { "type": "Feature", "properties": { "name": "Metro Montgomery Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.401922, 37.788709 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Metro Van Ness Station" }, "geometry": { "type": "Point", "coordinates": [ -122.419195, 37.775057 ] } }
@@ -4993,6 +5013,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1582 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "Buchanan St & Bay St" }, "geometry": { "type": "Point", "coordinates": [ -122.433336, 37.803426 ] } }
+,
 { "type": "Feature", "properties": { "name": "FORT MASON/Bus isl nr guard gate" }, "geometry": { "type": "Point", "coordinates": [ -122.432091, 37.805274 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Chestnut St & Buchanan St" }, "geometry": { "type": "Point", "coordinates": [ -122.433057, 37.801155 ] } }
@@ -5549,6 +5571,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.402115, 37.788794 ] } }
+,
 { "type": "Feature", "properties": { "name": "Metro Montgomery Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.401922, 37.788692 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Metro Embarcadero Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.396536, 37.792999 ] } }
@@ -5559,6 +5583,8 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 1908, "y": 1582 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.239993, 37.819989 ] } }
+,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.239993, 37.819989 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE" }, "geometry": { "type": "Point", "coordinates": [ -12.239993, 37.819989 ] } }

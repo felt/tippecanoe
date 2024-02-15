@@ -24,6 +24,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "geometrycollection", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "Point", "coordinates": [ 100.019531, 0.000000 ] } }
+,
 { "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "LineString", "coordinates": [ [ 100.986328, 0.000000 ], [ 102.041016, 0.966751 ] ] } }
 ] }
 ,
@@ -72,6 +74,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "geometrycollection", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "Point", "coordinates": [ 100.019531, 0.000000 ] } }
+,
 { "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "LineString", "coordinates": [ [ 100.986328, 0.000000 ], [ 101.997070, 1.010690 ] ] } }
 ] }
 ,
@@ -92,6 +96,8 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "geometrycollection", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "Point", "coordinates": [ 100.019531, 0.000000 ] } }
+,
 { "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "LineString", "coordinates": [ [ 100.986328, 0.000000 ], [ 101.997070, 1.010690 ] ] } }
 ] }
 ,
@@ -152,12 +158,16 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 3, "y": 2 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "geometrycollection", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "Point", "coordinates": [ 99.997559, 0.000000 ] } }
+,
 { "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "LineString", "coordinates": [ [ 101.008301, 0.000000 ], [ 101.997070, 1.010690 ] ] } }
 ] }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 3, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "geometrycollection", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "Point", "coordinates": [ 99.997559, 0.000000 ] } }
+,
 { "type": "Feature", "properties": { "collection": true }, "geometry": { "type": "LineString", "coordinates": [ [ 101.008301, 0.000000 ], [ 101.997070, 0.988720 ] ] } }
 ] }
 ] }

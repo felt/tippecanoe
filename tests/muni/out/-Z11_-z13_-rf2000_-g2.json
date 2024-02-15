@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-rf2000_-g2.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":1346,\"dropped_by_gamma\":985},{\"dropped_by_rate\":737,\"dropped_by_gamma\":757},{\"dropped_by_gamma\":514}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":1346,\"dropped_by_gamma\":986},{\"dropped_by_rate\":737,\"dropped_by_gamma\":759},{\"dropped_by_gamma\":514}]",
 "tippecanoe_decisions": "{\"basezoom\":13,\"droprate\":1.176222768016331,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
@@ -5062,7 +5062,7 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Metro Castro Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762607 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound" }, "geometry": { "type": "Point", "coordinates": [ -122.435288, 37.762674 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Metro Montgomery Station/Downtown" }, "geometry": { "type": "Point", "coordinates": [ -122.401900, 37.788692 ] } }
 ,
@@ -5462,7 +5462,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 654, "y": 1583 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Lincoln Blvd & Bowley St" }, "geometry": { "type": "Point", "coordinates": [ -122.482452, 37.788404 ] } }
+{ "type": "Feature", "properties": { "name": "Lincoln Blvd & Bowley Ave" }, "geometry": { "type": "Point", "coordinates": [ -122.482603, 37.788471 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Presidio Ave & Clay St" }, "geometry": { "type": "Point", "coordinates": [ -122.447262, 37.789184 ] } }
 ,
@@ -8784,7 +8784,7 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1583 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Sutter St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.433164, 37.786148 ] } }
+{ "type": "Feature", "properties": { "name": "Fillmore St & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.433207, 37.785996 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Sutter St & Fillmore St" }, "geometry": { "type": "Point", "coordinates": [ -122.432842, 37.786080 ] } }
 ,
