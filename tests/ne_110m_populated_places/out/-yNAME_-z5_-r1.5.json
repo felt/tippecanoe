@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-yNAME_-z5_-r1.5.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":211},{\"dropped_by_rate\":217},{\"dropped_by_rate\":180},{\"dropped_by_rate\":139},{\"dropped_by_rate\":73},{}]",
+"strategies": "[{\"dropped_by_rate\":211},{\"dropped_by_rate\":213},{\"dropped_by_rate\":180},{\"dropped_by_rate\":139},{\"dropped_by_rate\":73},{}]",
 "tippecanoe_decisions": "{\"basezoom\":5,\"droprate\":1.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
