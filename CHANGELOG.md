@@ -1,3 +1,7 @@
+# 2.45.0
+
+* Adjust tile size limit with --retain-points-multiplier dynamically within each tile, to allow multiplier features at high zooms if other features are being dropped as-needed
+
 # 2.44.0
 
 * Add --unidecode-data option to allow case-insensitive filter comparisons of transliterated strings
