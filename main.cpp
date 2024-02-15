@@ -1061,7 +1061,7 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 			ds[i].interval = std::exp(std::log(droprate) * (basezoom - i));
 		}
 
-		ds[i].seq = 0;
+		ds[i].seq = ds[i].interval - 1;  // the first feature appears in every zoom level
 	}
 }
 
