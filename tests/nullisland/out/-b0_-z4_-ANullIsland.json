@@ -10,7 +10,7 @@
 "maxzoom": "4",
 "minzoom": "0",
 "name": "tests/nullisland/out/-b0_-z4_-ANullIsland.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":4},{\"dropped_by_rate\":8},{\"dropped_by_rate\":8},{\"dropped_by_rate\":3},{}]",
+"strategies": "[{\"dropped_by_rate\":4},{\"dropped_by_rate\":7},{\"dropped_by_rate\":7},{\"dropped_by_rate\":5},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -74,13 +74,13 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 1.010690 ] } }
-,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 1.010742, 1.010690 ], [ 1.010742, 0.000000 ], [ 0.000000, 0.000000 ], [ 0.000000, 1.010690 ], [ 1.010742, 1.010690 ] ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 1.010742, 0.000000 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, 1.010690 ] ] } }
+,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
 ] }
 ] }
 ,
@@ -122,13 +122,13 @@
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 2, "x": 2, "y": 1 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.988720 ] } }
-,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 1.010742, 0.988720 ], [ 1.010742, 0.000000 ], [ 0.000000, 0.000000 ], [ 0.000000, 0.988720 ], [ 1.010742, 0.988720 ] ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 1.010742, 0.000000 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, 0.988720 ] ] } }
+,
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
 ] }
 ] }
 ,
@@ -142,7 +142,7 @@
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, -0.999705 ] ] } }
 ,
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, -0.999705 ] } }
 ] }
 ] }
 ,
@@ -155,8 +155,6 @@
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ -0.999756, 0.000000 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, 0.999705 ] ] } }
-,
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
 ] }
 ] }
 ,
@@ -170,14 +168,12 @@
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
 ,
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.999756, 0.000000 ] } }
+{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, -0.999705 ] } }
 ] }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "zoom": 3, "x": 4, "y": 3 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.999705 ] } }
-,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 0.999756, 0.999705 ], [ 0.999756, 0.000000 ], [ 0.000000, 0.000000 ], [ 0.000000, 0.999705 ], [ 0.999756, 0.999705 ] ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.999756, 0.000000 ] ] } }
@@ -185,8 +181,6 @@
 { "type": "Feature", "properties": {  }, "geometry": { "type": "LineString", "coordinates": [ [ 0.000000, 0.000000 ], [ 0.000000, 0.999705 ] ] } }
 ,
 { "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
-,
-{ "type": "Feature", "properties": {  }, "geometry": { "type": "Point", "coordinates": [ 0.999756, 0.000000 ] } }
 ] }
 ] }
 ,
