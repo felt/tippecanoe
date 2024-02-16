@@ -55,6 +55,9 @@ int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
 std::vector<std::string> unidecode_data;
+bool preserve_input_order = false;
+bool demultiply = false;
+std::unordered_map<std::string, attribute_op> attribute_accum;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -73,6 +76,12 @@ struct stats {
 };
 
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
+	if (attribute_accum.size() > 0 || demultiply) {
+		message = overzoom(message, z, x, y, z, x, y,
+				   -1 /* detail */, 128 /* buffer */, include, false /* compress */, NULL /* child tiles */,
+				   demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
+	}
+
 	mvt_tile tile;
 	int features_added = 0;
 	bool was_compressed;
@@ -735,6 +744,7 @@ struct arg {
 	std::set<std::string> *remove_layers = NULL;
 	int ifmatched = 0;
 	json_object *filter = NULL;
+
 	struct tileset_reader *readers = NULL;
 };
 
@@ -1235,6 +1245,9 @@ int main(int argc, char **argv) {
 		{"tile-stats-attributes-limit", required_argument, 0, '~'},
 		{"tile-stats-sample-values-limit", required_argument, 0, '~'},
 		{"tile-stats-values-limit", required_argument, 0, '~'},
+		{"filter-points-multiplier", no_argument, 0, 'm'},
+		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
+		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, '~'},
 
 		{0, 0, 0, 0},
@@ -1400,6 +1413,18 @@ int main(int argc, char **argv) {
 
 		case 'q':
 			quiet = true;
+			break;
+
+		case 'm':
+			demultiply = true;
+			break;
+
+		case 'o' & 0x1F:
+			preserve_input_order = true;
+			break;
+
+		case 'E':
+			set_attribute_accum(attribute_accum, optarg, argv);
 			break;
 
 		case '~': {
