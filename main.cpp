@@ -66,6 +66,8 @@
 #include "errors.hpp"
 #include "read_json.hpp"
 #include "sort.hpp"
+#include "attribute.hpp"
+#include "thread.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -93,6 +95,8 @@ unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
 long long extend_zooms_max = 0;
+int retain_points_multiplier = 1;
+std::vector<std::string> unidecode_data;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -303,7 +307,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
-		ssize_t chosen = maxzoom + 1;
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
@@ -317,7 +320,6 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 					ds[j].previndex = ix->ix;
 				}
 
-				chosen = i + 1;
 				break;
 			} else {
 				ds[i].seq -= ds[i].interval;
@@ -330,7 +332,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		// we will go ahead and push it out.
 
 		if (preserve_point_density_threshold > 0) {
-			for (ssize_t i = 0; i < chosen && i < maxzoom; i++) {
+			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
@@ -448,7 +450,7 @@ void *run_sort(void *v) {
 	return NULL;
 }
 
-void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	long long segs[CPUS + 1];
 	segs[0] = 0;
 	segs[CPUS] = len;
@@ -480,10 +482,10 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	sst.resize(CPUS);
 
 	pthread_t pthreads[CPUS];
-	std::vector<std::set<type_and_string> > file_subkeys;
+	std::vector<std::set<serial_val> > file_subkeys;
 
 	for (size_t i = 0; i < CPUS; i++) {
-		file_subkeys.push_back(std::set<type_and_string>());
+		file_subkeys.push_back(std::set<serial_val>());
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -518,7 +520,7 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, run_parse_json, &pja[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, run_parse_json, &pja[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}
@@ -649,7 +651,7 @@ struct read_parallel_arg {
 	unsigned *initial_y = NULL;
 	std::string layername = "";
 	bool uses_gamma = false;
-	std::map<std::string, int> const *attribute_types = NULL;
+	std::unordered_map<std::string, int> const *attribute_types = NULL;
 	double *dist_sum = NULL;
 	size_t *dist_count = NULL;
 	double *area_sum = NULL;
@@ -693,7 +695,7 @@ void *run_read_parallel(void *v) {
 	return NULL;
 }
 
-void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	// This has to kick off an intermediate thread to start the parser threads,
 	// so the main thread can get back to reading the next input stage while
 	// the intermediate thread waits for the completion of the parser threads.
@@ -735,7 +737,7 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	rpa->want_dist = want_dist;
 	rpa->filters = filters;
 
-	if (pthread_create(parallel_parser, NULL, run_read_parallel, rpa) != 0) {
+	if (thread_create(parallel_parser, NULL, run_read_parallel, rpa) != 0) {
 		perror("pthread_create");
 		exit(EXIT_PTHREAD);
 	}
@@ -931,7 +933,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				}
 
 				for (size_t a = 0; a < CPUS; a++) {
-					if (pthread_create(&pthreads[a], NULL, run_sort, &args[a]) != 0) {
+					if (thread_create(&pthreads[a], NULL, run_sort, &args[a]) != 0) {
 						perror("pthread_create");
 						exit(EXIT_PTHREAD);
 					}
@@ -1237,7 +1239,7 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
-std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::map<std::string, int> const *attribute_types, const char *pgm, std::map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -1335,7 +1337,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		// To distinguish a null value
 		{
 			struct stringpool p;
-			memfile_write(r->treefile, &p, sizeof(struct stringpool));
+			bool in_memory;
+			memfile_write(r->treefile, &p, sizeof(struct stringpool), in_memory);
 		}
 
 		r->file_bbox[0] = r->file_bbox[1] = UINT_MAX;
@@ -2757,7 +2760,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, basezoom, droprate, unidecode_data);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2825,7 +2828,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		ai->second.maxzoom = maxzoom;
 	}
 
-	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies);
+	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, forcetable);
 	} else {
@@ -2845,7 +2848,7 @@ static bool has_name(struct option *long_options, int *pl) {
 	return false;
 }
 
-void set_attribute_type(std::map<std::string, int> &attribute_types, const char *arg) {
+void set_attribute_type(std::unordered_map<std::string, int> &attribute_types, const char *arg) {
 	const char *s = strchr(arg, ':');
 	if (s == NULL) {
 		fprintf(stderr, "-T%s option must be in the form -Tname:type\n", arg);
@@ -2872,79 +2875,6 @@ void set_attribute_type(std::map<std::string, int> &attribute_types, const char 
 	attribute_types.insert(std::pair<std::string, int>(name, t));
 }
 
-void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, std::string name, std::string type) {
-	attribute_op t;
-
-	if (type == "sum") {
-		t = op_sum;
-	} else if (type == "product") {
-		t = op_product;
-	} else if (type == "mean") {
-		t = op_mean;
-	} else if (type == "max") {
-		t = op_max;
-	} else if (type == "min") {
-		t = op_min;
-	} else if (type == "concat") {
-		t = op_concat;
-	} else if (type == "comma") {
-		t = op_comma;
-	} else {
-		fprintf(stderr, "Attribute method (%s) must be sum, product, mean, max, min, concat, or comma\n", type.c_str());
-		exit(EXIT_ARGS);
-	}
-
-	attribute_accum.insert(std::pair<std::string, attribute_op>(name, t));
-}
-
-void set_attribute_accum(std::map<std::string, attribute_op> &attribute_accum, const char *arg) {
-	if (*arg == '{') {
-		json_pull *jp = json_begin_string(arg);
-		json_object *o = json_read_tree(jp);
-
-		if (o == NULL) {
-			fprintf(stderr, "%s: -E%s: %s\n", *av, arg, jp->error);
-			exit(EXIT_JSON);
-		}
-
-		if (o->type != JSON_HASH) {
-			fprintf(stderr, "%s: -E%s: not a JSON object\n", *av, arg);
-			exit(EXIT_JSON);
-		}
-
-		for (size_t i = 0; i < o->value.object.length; i++) {
-			json_object *k = o->value.object.keys[i];
-			json_object *v = o->value.object.values[i];
-
-			if (k->type != JSON_STRING) {
-				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *av, arg, i);
-				exit(EXIT_JSON);
-			}
-			if (v->type != JSON_STRING) {
-				fprintf(stderr, "%s: -E%s: value %zu not a string\n", *av, arg, i);
-				exit(EXIT_JSON);
-			}
-
-			set_attribute_accum(attribute_accum, k->value.string.string, v->value.string.string);
-		}
-
-		json_free(o);
-		json_end(jp);
-		return;
-	}
-
-	const char *s = strchr(arg, ':');
-	if (s == NULL) {
-		fprintf(stderr, "-E%s option must be in the form -Ename:method\n", arg);
-		exit(EXIT_ARGS);
-	}
-
-	std::string name = std::string(arg, s - arg);
-	std::string type = std::string(s + 1);
-
-	set_attribute_accum(attribute_accum, name, type);
-}
-
 void set_attribute_value(const char *arg) {
 	if (*arg == '{') {
 		json_pull *jp = json_begin_string(arg);
@@ -2969,10 +2899,8 @@ void set_attribute_value(const char *arg) {
 				exit(EXIT_JSON);
 			}
 
-			serial_val val;
-			stringify_value(v, val.type, val.s, "json", 1, o);
-
-			set_attributes.insert(std::pair<std::string, serial_val>(k->value.string.string, val));
+			serial_val val = stringify_value(v, "json", 1, o);
+			set_attributes.emplace(k->value.string.string, val);
 		}
 
 		json_free(o);
@@ -3078,8 +3006,8 @@ int main(int argc, char **argv) {
 	bool guess_cluster_maxzoom = false;
 
 	std::set<std::string> exclude, include;
-	std::map<std::string, int> attribute_types;
-	std::map<std::string, attribute_op> attribute_accum;
+	std::unordered_map<std::string, int> attribute_types;
+	std::unordered_map<std::string, attribute_op> attribute_accum;
 	std::map<std::string, std::string> attribute_descriptions;
 	int exclude_all = 0;
 	int read_parallel = 0;
@@ -3147,9 +3075,11 @@ int main(int argc, char **argv) {
 		{"Filtering features by attributes", 0, 0, 0},
 		{"feature-filter-file", required_argument, 0, 'J'},
 		{"feature-filter", required_argument, 0, 'j'},
+		{"unidecode-data", required_argument, 0, '~'},
 
 		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 		{"drop-rate", required_argument, 0, 'r'},
+		{"retain-points-multiplier", required_argument, 0, '~'},
 		{"base-zoom", required_argument, 0, 'B'},
 		{"drop-denser", required_argument, 0, '~'},
 		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
@@ -3370,6 +3300,10 @@ int main(int argc, char **argv) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
+			} else if (strcmp(opt, "retain-points-multiplier") == 0) {
+				retain_points_multiplier = atoll_require(optarg, "Multiply the fraction of points retained by zoom level");
+			} else if (strcmp(opt, "unidecode-data") == 0) {
+				unidecode_data = read_unidecode(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
@@ -3692,7 +3626,7 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'E':
-			set_attribute_accum(attribute_accum, optarg);
+			set_attribute_accum(attribute_accum, optarg, argv);
 			break;
 
 		default: {

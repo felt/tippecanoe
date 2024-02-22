@@ -10,6 +10,7 @@
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-B15.json.check.mbtiles",
 "strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":4727},{\"dropped_by_rate\":4643},{\"dropped_by_rate\":4210}]",
+"tippecanoe_decisions": "{\"basezoom\":15,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [

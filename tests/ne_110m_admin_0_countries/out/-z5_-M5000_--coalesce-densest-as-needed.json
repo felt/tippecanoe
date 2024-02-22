@@ -9,7 +9,11 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z5_-M5000_--coalesce-densest-as-needed.json.check.mbtiles",
+<<<<<<< HEAD
 "strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tiny_polygons\":2,\"tile_size_desired\":39186},{\"coalesced_as_needed\":212,\"tile_size_desired\":25143},{\"coalesced_as_needed\":190,\"tiny_polygons\":1,\"tile_size_desired\":21211},{\"coalesced_as_needed\":159,\"tile_size_desired\":10760},{\"coalesced_as_needed\":51,\"tile_size_desired\":6597},{\"tiny_polygons\":1}]",
+=======
+"strategies": "[{\"coalesced_as_needed\":528,\"detail_reduced\":2,\"tiny_polygons\":2,\"tile_size_desired\":39242},{\"coalesced_as_needed\":212,\"tile_size_desired\":25160},{\"coalesced_as_needed\":190,\"tiny_polygons\":1,\"tile_size_desired\":21223},{\"coalesced_as_needed\":159,\"tile_size_desired\":10749},{\"coalesced_as_needed\":51,\"tile_size_desired\":6591},{\"tiny_polygons\":1}]",
+>>>>>>> origin/main
 "type": "overlay",
 "version": "2"
 }, "features": [

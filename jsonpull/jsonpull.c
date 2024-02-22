@@ -10,6 +10,15 @@
 
 #define BUFFER 10000
 
+struct string {
+	char *buf;
+	size_t n;
+	size_t nalloc;
+};
+
+static void string_init(struct string *s);
+static void string_free(struct string *s);
+
 json_pull *json_begin(ssize_t (*read)(struct json_pull *, char *buffer, size_t n), void *source) {
 	json_pull *j = malloc(sizeof(json_pull));
 	if (j == NULL) {
@@ -32,6 +41,13 @@ json_pull *json_begin(ssize_t (*read)(struct json_pull *, char *buffer, size_t n
 		perror("Out of memory");
 		exit(EXIT_FAILURE);
 	}
+
+	j->number_buffer = malloc(sizeof(struct string));
+	if (j->number_buffer == NULL) {
+		perror("Out of memory");
+		exit(EXIT_FAILURE);
+	}
+	string_init(j->number_buffer);
 
 	return j;
 }
@@ -88,6 +104,9 @@ json_pull *json_begin_string(const char *s) {
 }
 
 void json_end(json_pull *p) {
+	string_free(p->number_buffer);
+	free(p->number_buffer);
+
 	json_free(p->root);
 	free(p->buffer);
 	free(p);
@@ -103,7 +122,7 @@ static inline int read_wrap(json_pull *j) {
 	return c;
 }
 
-#define SIZE_FOR(i, size) ((size_t)((((i) + 7) & ~7) * size))
+#define SIZE_FOR(i, size) ((size_t) ((((i) + 7) & ~7) * size))
 
 static json_object *fabricate_object(json_pull *jp, json_object *parent, json_type type) {
 	json_object *o = malloc(sizeof(struct json_object));
@@ -215,12 +234,6 @@ json_object *json_hash_get(json_object *o, const char *s) {
 	return NULL;
 }
 
-struct string {
-	char *buf;
-	size_t n;
-	size_t nalloc;
-};
-
 static void string_init(struct string *s) {
 	s->nalloc = 500;
 	s->buf = malloc(s->nalloc);
@@ -292,38 +305,45 @@ json_object *json_read_separators(json_pull *j, json_separator_callback cb, void
 	}
 
 again:
-	/////////////////////////// Whitespace
-
-	do {
-		c = read_wrap(j);
-		if (c == EOF) {
-			if (j->container != NULL) {
-				j->error = "Reached EOF without all containers being closed";
-			}
-
-			return NULL;
+	c = read_wrap(j);
+	if (c == EOF) {
+		if (j->container != NULL) {
+			j->error = "Reached EOF without all containers being closed";
 		}
 
-		// Byte-order mark
-		if (c == 0xEF) {
-			int c2 = peek(j);
-			if (c2 == 0xBB) {
+		return NULL;
+	}
+
+	switch (c) {
+		/////////////////////////// Byte order mark
+
+	case 0xEF: {
+		int c2 = peek(j);
+		if (c2 == 0xBB) {
+			c2 = read_wrap(j);
+			c2 = peek(j);
+			if (c2 == 0xBF) {
 				c2 = read_wrap(j);
-				c2 = peek(j);
-				if (c2 == 0xBF) {
-					c2 = read_wrap(j);
-					c = ' ';
-					continue;
-				}
+				c = ' ';
+				goto again;
 			}
-			j->error = "Corrupt byte-order mark found";
-			return NULL;
 		}
-	} while (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == 0x1E);
+		j->error = "Corrupt byte-order mark found";
+		return NULL;
+	}
 
-	/////////////////////////// Arrays
+		/////////////////////////// Whitespace
 
-	if (c == '[') {
+	case ' ':
+	case '\t':
+	case '\r':
+	case '\n':
+	case 0x1E:
+		goto again;
+
+		/////////////////////////// Arrays
+
+	case '[': {
 		json_object *o = add_object(j, JSON_ARRAY);
 		if (o == NULL) {
 			return NULL;
@@ -336,7 +356,9 @@ again:
 		}
 
 		goto again;
-	} else if (c == ']') {
+	}
+
+	case ']': {
 		if (j->container == NULL) {
 			j->error = "Found ] at top level";
 			return NULL;
@@ -359,9 +381,9 @@ again:
 		return ret;
 	}
 
-	/////////////////////////// Hashes
+		/////////////////////////// Hashes
 
-	if (c == '{') {
+	case '{': {
 		json_object *o = add_object(j, JSON_HASH);
 		if (o == NULL) {
 			return NULL;
@@ -374,7 +396,9 @@ again:
 		}
 
 		goto again;
-	} else if (c == '}') {
+	}
+
+	case '}': {
 		if (j->container == NULL) {
 			j->error = "Found } at top level";
 			return NULL;
@@ -397,9 +421,9 @@ again:
 		return ret;
 	}
 
-	/////////////////////////// Null
+		/////////////////////////// Null
 
-	if (c == 'n') {
+	case 'n': {
 		if (read_wrap(j) != 'u' || read_wrap(j) != 'l' || read_wrap(j) != 'l') {
 			j->error = "Found misspelling of null";
 			return NULL;
@@ -408,9 +432,9 @@ again:
 		return add_object(j, JSON_NULL);
 	}
 
-	/////////////////////////// NaN
+		/////////////////////////// NaN
 
-	if (c == 'N') {
+	case 'N': {
 		if (read_wrap(j) != 'a' || read_wrap(j) != 'N') {
 			j->error = "Found misspelling of NaN";
 			return NULL;
@@ -420,9 +444,9 @@ again:
 		return NULL;
 	}
 
-	/////////////////////////// Infinity
+		/////////////////////////// Infinity
 
-	if (c == 'I') {
+	case 'I': {
 		if (read_wrap(j) != 'n' || read_wrap(j) != 'f' || read_wrap(j) != 'i' ||
 		    read_wrap(j) != 'n' || read_wrap(j) != 'i' || read_wrap(j) != 't' ||
 		    read_wrap(j) != 'y') {
@@ -434,9 +458,9 @@ again:
 		return NULL;
 	}
 
-	/////////////////////////// True
+		/////////////////////////// True
 
-	if (c == 't') {
+	case 't': {
 		if (read_wrap(j) != 'r' || read_wrap(j) != 'u' || read_wrap(j) != 'e') {
 			j->error = "Found misspelling of true";
 			return NULL;
@@ -445,9 +469,9 @@ again:
 		return add_object(j, JSON_TRUE);
 	}
 
-	/////////////////////////// False
+		/////////////////////////// False
 
-	if (c == 'f') {
+	case 'f': {
 		if (read_wrap(j) != 'a' || read_wrap(j) != 'l' || read_wrap(j) != 's' || read_wrap(j) != 'e') {
 			j->error = "Found misspelling of false";
 			return NULL;
@@ -456,9 +480,9 @@ again:
 		return add_object(j, JSON_FALSE);
 	}
 
-	/////////////////////////// Comma
+		/////////////////////////// Comma
 
-	if (c == ',') {
+	case ',': {
 		if (j->container != NULL) {
 			if (j->container->expect != JSON_COMMA) {
 				j->error = "Found unexpected comma";
@@ -479,9 +503,9 @@ again:
 		goto again;
 	}
 
-	/////////////////////////// Colon
+		/////////////////////////// Colon
 
-	if (c == ':') {
+	case ':': {
 		if (j->container == NULL) {
 			j->error = "Found colon at top level";
 			return NULL;
@@ -501,71 +525,80 @@ again:
 		goto again;
 	}
 
-	/////////////////////////// Numbers
+		/////////////////////////// Numbers
 
-	if (c == '-' || (c >= '0' && c <= '9')) {
-		struct string val;
-		string_init(&val);
+	case '-':
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9': {
+		j->number_buffer->n = 0;
 		int decimal = 0;
 
 		if (c == '-') {
-			string_append(&val, c);
+			string_append(j->number_buffer, c);
 			c = read_wrap(j);
 		}
 
 		if (c == '0') {
-			string_append(&val, c);
+			string_append(j->number_buffer, c);
 		} else if (c >= '1' && c <= '9') {
-			string_append(&val, c);
+			string_append(j->number_buffer, c);
 			c = peek(j);
 
 			while (c >= '0' && c <= '9') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 				c = peek(j);
 			}
 		}
 
 		if (peek(j) == '.') {
-			string_append(&val, read_wrap(j));
+			string_append(j->number_buffer, read_wrap(j));
 			decimal = 1;
 
 			c = peek(j);
 			if (c < '0' || c > '9') {
 				j->error = "Decimal point without digits";
-				string_free(&val);
+				string_free(j->number_buffer);
 				return NULL;
 			}
 			while (c >= '0' && c <= '9') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 				c = peek(j);
 			}
 		}
 
 		c = peek(j);
 		if (c == 'e' || c == 'E') {
-			string_append(&val, read_wrap(j));
+			string_append(j->number_buffer, read_wrap(j));
 			decimal = 1;
 
 			c = peek(j);
 			if (c == '+' || c == '-') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 			}
 
 			c = peek(j);
 			if (c < '0' || c > '9') {
 				j->error = "Exponent without digits";
-				string_free(&val);
+				string_free(j->number_buffer);
 				return NULL;
 			}
 			while (c >= '0' && c <= '9') {
-				string_append(&val, read_wrap(j));
+				string_append(j->number_buffer, read_wrap(j));
 				c = peek(j);
 			}
 		}
 
 		json_object *n = add_object(j, JSON_NUMBER);
 		if (n != NULL) {
-			n->value.number.number = atof(val.buf);
+			n->value.number.number = atof(j->number_buffer->buf);
 			n->value.number.large_signed = 0;
 			n->value.number.large_unsigned = 0;
 
@@ -575,7 +608,7 @@ again:
 			if (!decimal && n->value.number.number > MAX_SAFE_INTEGER) {
 				errno = 0;
 				char *err = NULL;
-				unsigned long long ull = strtoull(val.buf, &err, 10);
+				unsigned long long ull = strtoull(j->number_buffer->buf, &err, 10);
 				if (errno == 0 && (err == NULL || *err == '\0')) {
 					n->value.number.large_unsigned = ull;
 				}
@@ -583,22 +616,18 @@ again:
 			if (!decimal && n->value.number.number < MIN_SAFE_INTEGER) {
 				errno = 0;
 				char *err = NULL;
-				long long ll = strtoll(val.buf, &err, 10);
+				long long ll = strtoll(j->number_buffer->buf, &err, 10);
 				if (errno == 0 && (err == NULL || *err == '\0')) {
 					n->value.number.large_signed = ll;
 				}
 			}
-
-			string_free(&val);
-		} else {
-			string_free(&val);
 		}
 		return n;
 	}
 
-	/////////////////////////// Strings
+		/////////////////////////// Strings
 
-	if (c == '"') {
+	case '"': {
 		struct string val;
 		string_init(&val);
 
@@ -726,10 +755,12 @@ again:
 		json_object *s = add_object(j, JSON_STRING);
 		if (s != NULL) {
 			s->value.string.string = val.buf;
+			s->value.string.refcon = NULL;
 		} else {
 			string_free(&val);
 		}
 		return s;
+	}
 	}
 
 	j->error = "Found unexpected character";

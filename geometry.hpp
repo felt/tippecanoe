@@ -8,6 +8,8 @@
 #include <sqlite3.h>
 #include <stdio.h>
 #include <mvt.hpp>
+#include "jsonpull/jsonpull.h"
+#include "attribute.hpp"
 
 #define VT_POINT 1
 #define VT_LINE 2
@@ -65,22 +67,22 @@ struct draw {
 typedef std::vector<draw> drawvec;
 struct serial_feature;
 
-drawvec decode_geometry(char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y);
+drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y);
 void to_tile_scale(drawvec &geom, int z, int detail);
 drawvec from_tile_scale(drawvec const &geom, int z, int detail);
 drawvec remove_noop(drawvec geom, int type, int shift);
 drawvec clip_point(drawvec &geom, int z, long long buffer);
 drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
 drawvec close_poly(drawvec &geom);
-drawvec reduce_tiny_poly(drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);
+drawvec reduce_tiny_poly(const drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature);
 int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax);
 drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);
 bool point_within_tile(long long x, long long y, int z);
-int quick_check(long long *bbox, int z, long long buffer);
+int quick_check(const long long *bbox, int z, long long buffer);
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos);
-drawvec reorder_lines(drawvec &geom);
-drawvec fix_polygon(drawvec &geom);
+drawvec reorder_lines(const drawvec &geom);
+drawvec fix_polygon(const drawvec &geom);
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms);
 void check_polygon(drawvec &geom);
 double get_area(const drawvec &geom, size_t i, size_t j);
@@ -98,12 +100,18 @@ void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
-std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles);
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
+		     bool demultiply, json_object *filter, bool preserve_input_order,
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
+		     std::vector<std::string> const &unidecode_data);
 
-std::string overzoom(std::string s, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
-		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles);
+		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
+		     bool demultiply, json_object *filter, bool preserve_input_order,
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
+		     std::vector<std::string> const &unidecode_data);
 
 #endif

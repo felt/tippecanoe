@@ -9,6 +9,7 @@
 "maxzoom": "3",
 "minzoom": "0",
 "name": "tests/stable/out/-z3_-B0.json.check.mbtiles",
+"tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [

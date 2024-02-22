@@ -6,12 +6,20 @@
 #include "errors.hpp"
 #include "mvt.hpp"
 #include "geometry.hpp"
+#include "evaluator.hpp"
+#include "attribute.hpp"
+#include "text.hpp"
 
 extern char *optarg;
 extern int optind;
 
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
+bool demultiply = false;
+std::string filter;
+bool preserve_input_order = false;
+std::unordered_map<std::string, attribute_op> attribute_accum;
+std::vector<std::string> unidecode_data;
 
 std::set<std::string> keep;
 
@@ -25,7 +33,33 @@ int main(int argc, char **argv) {
 	int i;
 	const char *outfile = NULL;
 
-	while ((i = getopt(argc, argv, "y:o:d:b:")) != -1) {
+	struct option long_options[] = {
+		{"include", required_argument, 0, 'y'},
+		{"full-detail", required_argument, 0, 'd'},
+		{"buffer", required_argument, 0, 'b'},
+		{"output", required_argument, 0, 'o'},
+		{"filter-points-multiplier", no_argument, 0, 'm'},
+		{"feature-filter", required_argument, 0, 'j'},
+		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
+		{"accumulate-attribute", required_argument, 0, 'E'},
+		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
+
+		{0, 0, 0, 0},
+	};
+
+	std::string getopt_str;
+	for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
+		if (long_options[lo].val > ' ') {
+			getopt_str.push_back(long_options[lo].val);
+
+			if (long_options[lo].has_arg == required_argument) {
+				getopt_str.push_back(':');
+			}
+		}
+	}
+
+	int option_index = 0;
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, &option_index)) != -1) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
@@ -43,7 +77,28 @@ int main(int argc, char **argv) {
 			buffer = atoi(optarg);
 			break;
 
+		case 'm':
+			demultiply = true;
+			break;
+
+		case 'j':
+			filter = optarg;
+			break;
+
+		case 'o' & 0x1F:
+			preserve_input_order = true;
+			break;
+
+		case 'E':
+			set_attribute_accum(attribute_accum, optarg, argv);
+			break;
+
+		case 'u' & 0x1F:
+			unidecode_data = read_unidecode(optarg);
+			break;
+
 		default:
+			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
 		}
 	}
@@ -91,7 +146,12 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL);
+	json_object *json_filter = NULL;
+	if (filter.size() > 0) {
+		json_filter = parse_filter(filter.c_str());
+	}
+
+	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <climits>
 #include <limits>
+#include <map>
 #include "geometry.hpp"
 #include "errors.hpp"
 

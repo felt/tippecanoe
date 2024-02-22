@@ -42,6 +42,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "geometry.hpp"
+#include "thread.hpp"
 
 int pk = false;
 int pC = false;
@@ -53,6 +54,7 @@ int maxzoom = 32;
 int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
+std::vector<std::string> unidecode_data;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -70,21 +72,6 @@ struct stats {
 	std::vector<struct strategy> strategies;
 };
 
-void aprintf(std::string *buf, const char *format, ...) {
-	va_list ap;
-	char *tmp;
-
-	va_start(ap, format);
-	if (vasprintf(&tmp, format, ap) < 0) {
-		fprintf(stderr, "memory allocation failure\n");
-		exit(EXIT_MEMORY);
-	}
-	va_end(ap);
-
-	buf->append(tmp, strlen(tmp));
-	free(tmp);
-}
-
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
@@ -99,6 +86,8 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
 		exit(EXIT_MVT);
 	}
+
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (size_t l = 0; l < tile.layers.size(); l++) {
 		mvt_layer &layer = tile.layers[l];
@@ -149,52 +138,14 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 		}
 
-		auto file_keys = layermap.find(layer.name);
+		auto tilestats = layermap.find(layer.name);
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
 			mvt_feature feat = layer.features[f];
 			std::set<std::string> exclude_attributes;
 
-			if (filter != NULL) {
-				std::map<std::string, mvt_value> attributes;
-
-				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
-					std::string key = layer.keys[feat.tags[t]];
-					mvt_value &val = layer.values[feat.tags[t + 1]];
-
-					attributes.insert(std::pair<std::string, mvt_value>(key, val));
-				}
-
-				if (feat.has_id) {
-					mvt_value v;
-					v.type = mvt_uint;
-					v.numeric_value.uint_value = feat.id;
-
-					attributes.insert(std::pair<std::string, mvt_value>("$id", v));
-				}
-
-				mvt_value v;
-				v.type = mvt_string;
-
-				if (feat.type == mvt_point) {
-					v.string_value = "Point";
-				} else if (feat.type == mvt_linestring) {
-					v.string_value = "LineString";
-				} else if (feat.type == mvt_polygon) {
-					v.string_value = "Polygon";
-				}
-
-				attributes.insert(std::pair<std::string, mvt_value>("$type", v));
-
-				mvt_value v2;
-				v2.type = mvt_uint;
-				v2.numeric_value.uint_value = z;
-
-				attributes.insert(std::pair<std::string, mvt_value>("$zoom", v2));
-
-				if (!evaluate(attributes, layer.name, filter, exclude_attributes)) {
-					continue;
-				}
+			if (filter != NULL && !evaluate(feat, layer, filter, exclude_attributes, z, unidecode_data)) {
+				continue;
 			}
 
 			mvt_feature outfeature;
@@ -205,55 +156,25 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				outfeature.id = feat.id;
 			}
 
-			std::map<std::string, std::pair<mvt_value, type_and_string>> attributes;
+			std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
 			std::vector<std::string> key_order;
 
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
 				const char *key = layer.keys[feat.tags[t]].c_str();
 				mvt_value &val = layer.values[feat.tags[t + 1]];
-				std::string value;
-				int type = -1;
+				serial_val sv = mvt_value_to_serial_val(val);
 
-				if (val.type == mvt_string) {
-					value = val.string_value;
-					type = mvt_string;
-				} else if (val.type == mvt_int) {
-					aprintf(&value, "%lld", (long long) val.numeric_value.int_value);
-					type = mvt_double;
-				} else if (val.type == mvt_double) {
-					aprintf(&value, "%s", milo::dtoa_milo(val.numeric_value.double_value).c_str());
-					type = mvt_double;
-				} else if (val.type == mvt_float) {
-					aprintf(&value, "%s", milo::dtoa_milo(val.numeric_value.float_value).c_str());
-					type = mvt_double;
-				} else if (val.type == mvt_bool) {
-					aprintf(&value, "%s", val.numeric_value.bool_value ? "true" : "false");
-					type = mvt_bool;
-				} else if (val.type == mvt_sint) {
-					aprintf(&value, "%lld", (long long) val.numeric_value.sint_value);
-					type = mvt_double;
-				} else if (val.type == mvt_uint) {
-					aprintf(&value, "%llu", (long long) val.numeric_value.uint_value);
-					type = mvt_double;
-				} else {
-					continue;
-				}
-
-				if (type < 0) {
+				if (sv.type == mvt_null) {
 					continue;
 				}
 
 				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
-					type_and_string tas;
-					tas.type = type;
-					tas.string = value;
-
-					attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(key, std::pair<mvt_value, type_and_string>(val, tas)));
+					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
 					key_order.push_back(key);
 				}
 
 				if (header.size() > 0 && strcmp(key, header[0].c_str()) == 0) {
-					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(value);
+					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(sv.s);
 
 					if (ii != mapping.end()) {
 						std::vector<std::string> fields = ii->second;
@@ -280,7 +201,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								mvt_value outval;
 								if (attr_type == mvt_string) {
 									outval.type = mvt_string;
-									outval.string_value = joinval;
+									outval.set_string_value(joinval);
 								} else {
 									outval.type = mvt_double;
 									outval.numeric_value.double_value = atof(joinval.c_str());
@@ -291,14 +212,14 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 									attributes.erase(fa);
 								}
 
-								type_and_string tas;
-								tas.type = outval.type;
-								tas.string = joinval;
+								serial_val outsv;
+								outsv.type = outval.type;
+								outsv.s = joinval;
 
 								// Convert from double to int if the joined attribute is an integer
-								outval = stringified_to_mvt_value(outval.type, joinval.c_str());
+								outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
 
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, type_and_string>>(joinkey, std::pair<mvt_value, type_and_string>(outval, tas)));
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
 								key_order.push_back(joinkey);
 							}
 						}
@@ -307,11 +228,11 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 
 			if (matched || !ifmatched) {
-				if (file_keys == layermap.end()) {
+				if (tilestats == layermap.end()) {
 					layermap.insert(std::pair<std::string, layermap_entry>(layer.name, layermap_entry(layermap.size())));
-					file_keys = layermap.find(layer.name);
-					file_keys->second.minzoom = z;
-					file_keys->second.maxzoom = z;
+					tilestats = layermap.find(layer.name);
+					tilestats->second.minzoom = z;
+					tilestats->second.maxzoom = z;
 				}
 
 				// To keep attributes in their original order instead of alphabetical
@@ -320,7 +241,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 
 					if (fa != attributes.end()) {
 						outlayer.tag(outfeature, k, fa->second.first);
-						add_to_file_keys(file_keys->second.file_keys, k, fa->second.second);
+						add_to_tilestats(tilestats->second.tilestats, k, fa->second.second);
 						attributes.erase(fa);
 					}
 				}
@@ -338,19 +259,19 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				features_added++;
 				outlayer.features.push_back(outfeature);
 
-				if (z < file_keys->second.minzoom) {
-					file_keys->second.minzoom = z;
+				if (z < tilestats->second.minzoom) {
+					tilestats->second.minzoom = z;
 				}
-				if (z > file_keys->second.maxzoom) {
-					file_keys->second.maxzoom = z;
+				if (z > tilestats->second.maxzoom) {
+					tilestats->second.maxzoom = z;
 				}
 
 				if (feat.type == mvt_point) {
-					file_keys->second.points++;
+					tilestats->second.points++;
 				} else if (feat.type == mvt_linestring) {
-					file_keys->second.lines++;
+					tilestats->second.lines++;
 				} else if (feat.type == mvt_polygon) {
-					file_keys->second.polygons++;
+					tilestats->second.polygons++;
 				}
 			}
 		}
@@ -771,8 +692,8 @@ struct tileset_reader {
 			perror("pthread_mutex_lock");
 		}
 
-		std::function<mvt_tile(zxy)> getter = [&](zxy tile) {
-			return get_tile(tile);
+		std::function<mvt_tile(zxy)> getter = [&](zxy tileno) {
+			return get_tile(tileno);
 		};
 
 		mvt_tile source = cache.get(parent_tile, getter);
@@ -782,7 +703,7 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles);
+			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data);
 			return ret;
 		}
 
@@ -895,7 +816,7 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 	}
 
 	for (size_t i = 0; i < CPUS; i++) {
-		if (pthread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
+		if (thread_create(&pthreads[i], NULL, join_worker, &args[i]) != 0) {
 			perror("pthread_create");
 			exit(EXIT_PTHREAD);
 		}
@@ -1314,6 +1235,7 @@ int main(int argc, char **argv) {
 		{"tile-stats-attributes-limit", required_argument, 0, '~'},
 		{"tile-stats-sample-values-limit", required_argument, 0, '~'},
 		{"tile-stats-values-limit", required_argument, 0, '~'},
+		{"unidecode-data", required_argument, 0, '~'},
 
 		{0, 0, 0, 0},
 	};
@@ -1488,6 +1410,8 @@ int main(int argc, char **argv) {
 				max_tilestats_sample_values = atoi(optarg);
 			} else if (strcmp(opt, "tile-stats-values-limit") == 0) {
 				max_tilestats_values = atoi(optarg);
+			} else if (strcmp(opt, "unidecode-data") == 0) {
+				unidecode_data = read_unidecode(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
@@ -1606,7 +1530,7 @@ int main(int argc, char **argv) {
 		st.maxlon2 = st.maxlon;
 	}
 
-	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies);
+	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies, st.maxzoom, 2.5, 1);
 
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, true);

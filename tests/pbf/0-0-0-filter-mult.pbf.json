@@ -1,0 +1,19 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Los Angeles" }, "geometry": { "type": "Point", "coordinates": [ -118.125000, 33.943360 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "London" }, "geometry": { "type": "Point", "coordinates": [ -0.087891, 51.508742 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Santiago" }, "geometry": { "type": "Point", "coordinates": [ -70.664062, -33.431441 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Rome" }, "geometry": { "type": "Point", "coordinates": [ 12.480469, 41.902277 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Lagos" }, "geometry": { "type": "Point", "coordinates": [ 3.427734, 6.402648 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Riyadh" }, "geometry": { "type": "Point", "coordinates": [ 46.757812, 24.607069 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Singapore" }, "geometry": { "type": "Point", "coordinates": [ 103.886719, 1.230374 ] } }
+,
+{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Cape Town" }, "geometry": { "type": "Point", "coordinates": [ 18.457031, -33.943360 ] } }
+] }
+] }

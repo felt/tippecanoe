@@ -99,3 +99,9 @@ TEST_CASE("Tile-join cache", "tile cache") {
 	REQUIRE(tc.overzoom_cache.size() == 5);
 	REQUIRE(tc.overzoom_cache.find(zxy(11, 5, 8)) == tc.overzoom_cache.end());
 }
+
+TEST_CASE("Bit reversal", "bit reversal") {
+	REQUIRE(bit_reverse(1) == 0x8000000000000000);
+	REQUIRE(bit_reverse(0x1234567812489BCF) == 0xF3D912481E6A2C48);
+	REQUIRE(bit_reverse(0xF3D912481E6A2C48) == 0x1234567812489BCF);
+}

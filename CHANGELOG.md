@@ -1,3 +1,49 @@
+# 2.45.0
+
+* Adjust tile size limit with --retain-points-multiplier dynamically within each tile, to allow multiplier features at high zooms if other features are being dropped as-needed
+
+# 2.44.0
+
+* Add --unidecode-data option to allow case-insensitive filter comparisons of transliterated strings
+
+# 2.43.0
+
+* Change -fraction-as-needed feature dropping to be consistent across tiles and zoom levels, and to follow the same pattern as point dropping by zoom level
+* With -as-needed feature dropping, drop or retain entire multiplier clusters instead of individual features
+* Sort the features within each multiplier cluster by its retention priority, for more consistency between zoom levels in filtered feature choice
+
+# 2.42.0
+
+* Improve tiling speed
+* Generate tilestats for the --retain-points-multiplier attributes
+
+# 2.41.3
+
+* Performance optimizations to tile reading, writing, and overzooming
+* Automatically vary the tile size limit by zoom level to match the intended retain-points-multiplier multiplication
+* Fix decompression error when bailing out because a tile can't be made small enough
+* Search harder for a feature size threshold to make the tile small enough before giving up
+
+# 2.41.2
+
+* Add --accumulate-attribute to tippecanoe-overzoom
+* Go back to ordering features within each multiplier cluster spatially, not in the order specified for tile feature order
+
+# 2.41.1
+
+* Make --preserve-input-order, --order-by, --order-descending-by, --order-smallest-first, and --order-largest-first cooperate with --retain-points-multiplier. The clusters will be ordered by their lead feature in the specified sequence. The other features in each cluster will continue to be physically near the lead feature, but ordered as specified within the cluster.
+
+# 2.41.0
+
+* Add Felt-style expression support for -j feature filters
+* Add --retain-points-multiplier option
+* Add tippecanoe_decisions metadata field to record basezoom, drop rate, and multiplier
+* Add multiplier thinning (-m) and feature filters (-j) to tippecanoe-overzoom
+
+# 2.40.0
+
+* Slightly reduce compression aggressiveness to improve as-needed dropping speed
+
 # 2.39.0
 
 * Reduce memory usage during tiling

@@ -38,6 +38,7 @@ typedef struct json_object {
 
 		struct {
 			char *string;
+			void *refcon;  // reference constant for caller's use
 		} string;
 
 		struct {
@@ -68,6 +69,8 @@ typedef struct json_pull {
 
 	json_object *container;
 	json_object *root;
+
+	struct string *number_buffer;
 } json_pull;
 
 json_pull *json_begin_file(FILE *f);

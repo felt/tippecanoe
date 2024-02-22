@@ -14,6 +14,8 @@
 #include "protozero/pbf_writer.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "serial.hpp"
+#include "text.hpp"
 
 mvt_geometry::mvt_geometry(int nop, long long nx, long long ny) {
 	this->op = nop;
@@ -89,7 +91,7 @@ int compress(std::string const &input, std::string &output, bool gz) {
 	deflate_s.opaque = Z_NULL;
 	deflate_s.avail_in = 0;
 	deflate_s.next_in = Z_NULL;
-	deflateInit2(&deflate_s, Z_BEST_COMPRESSION, Z_DEFLATED, gz ? 31 : 15, 8, Z_DEFAULT_STRATEGY);
+	deflateInit2(&deflate_s, Z_DEFAULT_COMPRESSION, Z_DEFLATED, gz ? 31 : 15, 8, Z_DEFAULT_STRATEGY);
 	deflate_s.next_in = (Bytef *) input.data();
 	deflate_s.avail_in = input.size();
 	size_t length = 0;
@@ -109,7 +111,7 @@ int compress(std::string const &input, std::string &output, bool gz) {
 	return 0;
 }
 
-bool mvt_tile::decode(std::string &message, bool &was_compressed) {
+bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 	layers.clear();
 	std::string src;
 
@@ -126,6 +128,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 	}
 
 	protozero::pbf_reader reader(src);
+	std::shared_ptr<std::string> string_pool = std::make_shared<std::string>();
 
 	while (reader.next()) {
 		switch (reader.tag()) {
@@ -156,7 +159,12 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 						switch (value_reader.tag()) {
 						case 1: /* string */
 							value.type = mvt_string;
-							value.string_value = value_reader.get_string();
+							value.s = string_pool;
+							{
+								auto v = value_reader.get_view();
+								std::string_view sv(v.data(), v.size());
+								value.set_string_value(sv);
+							}
 							break;
 
 						case 2: /* float */
@@ -195,7 +203,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 						}
 					}
 
-					layer.values.push_back(value);
+					layer.values.push_back(std::move(value));
 					break;
 				}
 
@@ -223,6 +231,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 						case 2: /* tag */
 						{
 							auto pi = feature_reader.get_packed_uint32();
+							feature.tags.reserve(std::distance(pi.first, pi.second));
 							for (auto it = pi.first; it != pi.second; ++it) {
 								feature.tags.push_back(*it);
 							}
@@ -236,6 +245,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 						case 4: /* geometry */
 						{
 							auto pi = feature_reader.get_packed_uint32();
+							geoms.reserve(std::distance(pi.first, pi.second));
 							for (auto it = pi.first; it != pi.second; ++it) {
 								geoms.push_back(*it);
 							}
@@ -249,6 +259,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 					}
 
 					long long px = 0, py = 0;
+					feature.geometry.reserve(geoms.size());	 // probably not quite right, but still plausible
 					for (size_t g = 0; g < geoms.size(); g++) {
 						uint32_t geom = geoms[g];
 						uint32_t op = geom & 7;
@@ -260,14 +271,14 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 								py += protozero::decode_zigzag32(geoms[g + 2]);
 								g += 2;
 
-								feature.geometry.push_back(mvt_geometry(op, px, py));
+								feature.geometry.emplace_back(op, px, py);
 							}
 						} else {
-							feature.geometry.push_back(mvt_geometry(op, 0, 0));
+							feature.geometry.emplace_back(op, 0, 0);
 						}
 					}
 
-					layer.features.push_back(feature);
+					layer.features.push_back(std::move(feature));
 					break;
 				}
 
@@ -277,14 +288,7 @@ bool mvt_tile::decode(std::string &message, bool &was_compressed) {
 				}
 			}
 
-			for (size_t i = 0; i < layer.keys.size(); i++) {
-				layer.key_map.insert(std::pair<std::string, size_t>(layer.keys[i], i));
-			}
-			for (size_t i = 0; i < layer.values.size(); i++) {
-				layer.value_map.insert(std::pair<mvt_value, size_t>(layer.values[i], i));
-			}
-
-			layers.push_back(layer);
+			layers.push_back(std::move(layer));
 			break;
 		}
 
@@ -304,15 +308,18 @@ struct sorted_value {
 	bool operator<(const sorted_value &sv) const {
 		if (val < sv.val) {
 			return true;
-		} else {
-			return false;
+		} else if (val == sv.val) {
+			if (orig < sv.orig) {
+				return true;
+			}
 		}
+
+		return false;
 	}
 };
 
 std::string mvt_tile::encode() {
 	std::string data;
-
 	protozero::pbf_writer writer(data);
 
 	for (size_t i = 0; i < layers.size(); i++) {
@@ -334,41 +341,58 @@ std::string mvt_tile::encode() {
 			protozero::pbf_writer value_writer(value_string);
 			mvt_value &pbv = layers[i].values[v];
 
-			if (pbv.type == mvt_string) {
-				value_writer.add_string(1, pbv.string_value);
-			} else if (pbv.type == mvt_float) {
+			switch (pbv.type) {
+			case mvt_string:
+				value_writer.add_string(1, pbv.get_string_value());
+				break;
+			case mvt_float:
 				value_writer.add_float(2, pbv.numeric_value.float_value);
-			} else if (pbv.type == mvt_double) {
+				break;
+			case mvt_double:
 				value_writer.add_double(3, pbv.numeric_value.double_value);
-			} else if (pbv.type == mvt_int) {
+				break;
+			case mvt_int:
 				value_writer.add_int64(4, pbv.numeric_value.int_value);
-			} else if (pbv.type == mvt_uint) {
+				break;
+			case mvt_uint:
 				value_writer.add_uint64(5, pbv.numeric_value.uint_value);
-			} else if (pbv.type == mvt_sint) {
+				break;
+			case mvt_sint:
 				value_writer.add_sint64(6, pbv.numeric_value.sint_value);
-			} else if (pbv.type == mvt_bool) {
+				break;
+			case mvt_bool:
 				value_writer.add_bool(7, pbv.numeric_value.bool_value);
-			} else if (pbv.type == mvt_null) {
+				break;
+			case mvt_null:
 				fprintf(stderr, "Internal error: trying to write null attribute to tile\n");
 				exit(EXIT_IMPOSSIBLE);
-			} else {
+			default:
 				fprintf(stderr, "Internal error: trying to write undefined attribute type to tile\n");
 				exit(EXIT_IMPOSSIBLE);
 			}
 
 			sorted_value sv;
-			sv.val = value_string;
+			sv.val = std::move(value_string);
 			sv.orig = v;
-			sorted_values.push_back(sv);
+			sorted_values.push_back(std::move(sv));
 		}
 
 		std::sort(sorted_values.begin(), sorted_values.end());
 		std::vector<size_t> mapping;
 		mapping.resize(sorted_values.size());
 
+		size_t value_index = 0;
 		for (size_t v = 0; v < sorted_values.size(); v++) {
-			mapping[sorted_values[v].orig] = v;
+			mapping[sorted_values[v].orig] = value_index;
 			layer_writer.add_message(4, sorted_values[v].val);
+
+			// crunch out duplicates that were missed by the hashing
+			while (v + 1 < sorted_values.size() && sorted_values[v].val == sorted_values[v + 1].val) {
+				mapping[sorted_values[v + 1].orig] = value_index;
+				v++;
+			}
+
+			value_index++;
 		}
 
 		for (size_t f = 0; f < layers[i].features.size(); f++) {
@@ -455,15 +479,70 @@ bool mvt_value::operator<(const mvt_value &o) const {
 		return true;
 	}
 	if (type == o.type) {
-		if ((type == mvt_string && string_value < o.string_value) ||
-		    (type == mvt_float && numeric_value.float_value < o.numeric_value.float_value) ||
-		    (type == mvt_double && numeric_value.double_value < o.numeric_value.double_value) ||
-		    (type == mvt_int && numeric_value.int_value < o.numeric_value.int_value) ||
-		    (type == mvt_uint && numeric_value.uint_value < o.numeric_value.uint_value) ||
-		    (type == mvt_sint && numeric_value.sint_value < o.numeric_value.sint_value) ||
-		    (type == mvt_bool && numeric_value.bool_value < o.numeric_value.bool_value) ||
-		    (type == mvt_null && numeric_value.null_value < o.numeric_value.null_value)) {
-			return true;
+		switch (type) {
+		case mvt_string:
+			return get_string_view() < o.get_string_view();
+
+		case mvt_float:
+			return numeric_value.float_value < o.numeric_value.float_value;
+
+		case mvt_double:
+			return numeric_value.double_value < o.numeric_value.double_value;
+
+		case mvt_int:
+			return numeric_value.int_value < o.numeric_value.int_value;
+
+		case mvt_uint:
+			return numeric_value.uint_value < o.numeric_value.uint_value;
+
+		case mvt_sint:
+			return numeric_value.sint_value < o.numeric_value.sint_value;
+
+		case mvt_bool:
+			return numeric_value.bool_value < o.numeric_value.bool_value;
+
+		case mvt_null:
+			return numeric_value.null_value < o.numeric_value.null_value;
+
+		default:
+			fprintf(stderr, "mvt_value::operator<<: can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	return false;
+}
+
+bool mvt_value::operator==(const mvt_value &o) const {
+	if (type == o.type) {
+		switch (type) {
+		case mvt_string:
+			return get_string_view() == o.get_string_view();
+
+		case mvt_float:
+			return numeric_value.float_value == o.numeric_value.float_value;
+
+		case mvt_double:
+			return numeric_value.double_value == o.numeric_value.double_value;
+
+		case mvt_int:
+			return numeric_value.int_value == o.numeric_value.int_value;
+
+		case mvt_uint:
+			return numeric_value.uint_value == o.numeric_value.uint_value;
+
+		case mvt_sint:
+			return numeric_value.sint_value == o.numeric_value.sint_value;
+
+		case mvt_bool:
+			return numeric_value.bool_value == o.numeric_value.bool_value;
+
+		case mvt_null:
+			return numeric_value.null_value == o.numeric_value.null_value;
+
+		default:
+			fprintf(stderr, "mvt_value::operator==: can't happen\n");
+			exit(EXIT_IMPOSSIBLE);
 		}
 	}
 
@@ -492,61 +571,58 @@ static std::string quote(std::string const &s) {
 }
 
 std::string mvt_value::toString() const {
-	if (type == mvt_string) {
-		return quote(string_value);
-	} else if (type == mvt_int) {
+	switch (type) {
+	case mvt_string:
+		return quote(get_string_value());
+	case mvt_int:
 		return std::to_string(numeric_value.int_value);
-	} else if (type == mvt_double) {
+	case mvt_double: {
 		double v = numeric_value.double_value;
 		if (v == (long long) v) {
 			return std::to_string((long long) v);
 		} else {
 			return milo::dtoa_milo(v);
 		}
-	} else if (type == mvt_float) {
+	}
+	case mvt_float: {
 		double v = numeric_value.float_value;
 		if (v == (long long) v) {
 			return std::to_string((long long) v);
 		} else {
 			return milo::dtoa_milo(v);
 		}
-	} else if (type == mvt_sint) {
+	}
+	case mvt_sint:
 		return std::to_string(numeric_value.sint_value);
-	} else if (type == mvt_uint) {
+	case mvt_uint:
 		return std::to_string(numeric_value.uint_value);
-	} else if (type == mvt_bool) {
+	case mvt_bool:
 		return numeric_value.bool_value ? "true" : "false";
-	} else if (type == mvt_null) {
+	case mvt_null:
 		return "null";
-	} else {
+	default:
 		return "unknown";
 	}
 }
 
-void mvt_layer::tag(mvt_feature &feature, std::string key, mvt_value value) {
-	size_t ko, vo;
-
-	std::map<std::string, size_t>::iterator ki = key_map.find(key);
-	std::map<mvt_value, size_t>::iterator vi = value_map.find(value);
-
-	if (ki == key_map.end()) {
-		ko = keys.size();
+void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
+	size_t key_hash = fnv1a(key) % key_dedup.size();
+	if (key_dedup[key_hash] >= 0 &&
+	    keys[key_dedup[key_hash]] == key) {
+	} else {
+		key_dedup[key_hash] = keys.size();
 		keys.push_back(key);
-		key_map.insert(std::pair<std::string, size_t>(key, ko));
-	} else {
-		ko = ki->second;
 	}
+	feature.tags.push_back(key_dedup[key_hash]);
 
-	if (vi == value_map.end()) {
-		vo = values.size();
+	size_t value_hash = std::hash<mvt_value>()(value) % value_dedup.size();
+	if (value_dedup[value_hash] >= 0 &&
+	    values[value_dedup[value_hash]] == value) {
+	} else {
+		value_dedup[value_hash] = values.size();
 		values.push_back(value);
-		value_map.insert(std::pair<mvt_value, size_t>(value, vo));
-	} else {
-		vo = vi->second;
 	}
-
-	feature.tags.push_back(ko);
-	feature.tags.push_back(vo);
+	feature.tags.push_back(value_dedup[value_hash]);
 }
 
 bool is_integer(const char *s, long long *v) {
@@ -620,10 +696,17 @@ bool is_unsigned_integer(const char *s, unsigned long long *v) {
 	return 1;
 }
 
-mvt_value stringified_to_mvt_value(int type, const char *s) {
+// This converts a serial_val-style attribute value to an mvt_value
+// to store in a tile. If the value is numeric, it tries to choose
+// the type (int, uint, sint, float, or double) that will give the
+// smallest representation in the tile without losing precision,
+// regardless of how the value was represented in the original source.
+mvt_value stringified_to_mvt_value(int type, const char *s, std::shared_ptr<std::string> const &tile_stringpool) {
 	mvt_value tv;
+	tv.s = tile_stringpool;
 
-	if (type == mvt_double) {
+	switch (type) {
+	case mvt_double: {
 		long long v;
 		unsigned long long uv;
 		if (is_unsigned_integer(s, &uv)) {
@@ -662,16 +745,93 @@ mvt_value stringified_to_mvt_value(int type, const char *s) {
 				}
 			}
 		}
-	} else if (type == mvt_bool) {
+	} break;
+	case mvt_bool:
 		tv.type = mvt_bool;
 		tv.numeric_value.bool_value = (s[0] == 't');
-	} else if (type == mvt_null) {
+		break;
+	case mvt_null:
 		tv.type = mvt_null;
 		tv.numeric_value.null_value = 0;
-	} else {
+		break;
+	default:
 		tv.type = mvt_string;
-		tv.string_value = s;
+		tv.set_string_value(s);
 	}
 
 	return tv;
+}
+
+// This converts a mvt_value attribute value from a tile back into
+// a serial_val for more convenient parsing and comparison without
+// having to handle all of the vector tile numeric types separately.
+// All numeric types are given the type mvt_double in the serial_val
+// whether the actual value is integer or floating point.
+serial_val mvt_value_to_serial_val(mvt_value const &v) {
+	serial_val sv;
+
+	switch (v.type) {
+	case mvt_string:
+		sv.type = mvt_string;
+		sv.s = v.get_string_value();
+		break;
+	case mvt_float:
+		sv.type = mvt_double;
+		sv.s = milo::dtoa_milo(v.numeric_value.float_value);
+		break;
+	case mvt_double:
+		sv.type = mvt_double;
+		sv.s = milo::dtoa_milo(v.numeric_value.double_value);
+		break;
+	case mvt_int:
+		sv.type = mvt_double;
+		sv.s = std::to_string(v.numeric_value.int_value);
+		break;
+	case mvt_uint:
+		sv.type = mvt_double;
+		sv.s = std::to_string(v.numeric_value.uint_value);
+		break;
+	case mvt_sint:
+		sv.type = mvt_double;
+		sv.s = std::to_string(v.numeric_value.sint_value);
+		break;
+	case mvt_bool:
+		sv.type = mvt_bool;
+		sv.s = v.numeric_value.bool_value ? "true" : "false";
+		break;
+	case mvt_null:
+		sv.type = mvt_null;
+		sv.s = "null";
+		break;
+	default:
+		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	return sv;
+}
+
+// This extracts an integer value from an mvt_value
+long long mvt_value_to_long_long(mvt_value const &v) {
+	switch (v.type) {
+	case mvt_string:
+		return atoll(v.c_str());
+	case mvt_float:
+		return v.numeric_value.float_value;
+	case mvt_double:
+		return v.numeric_value.double_value;
+	case mvt_int:
+		return v.numeric_value.int_value;
+	case mvt_uint:
+		return v.numeric_value.uint_value;
+	case mvt_sint:
+		return v.numeric_value.sint_value;
+	case mvt_bool:
+		return v.numeric_value.bool_value;
+	case mvt_null:
+		return 0;
+	default:
+		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
+		exit(EXIT_IMPOSSIBLE);
+	}
 }

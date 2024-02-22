@@ -25,15 +25,30 @@ void serialize_ulong_long(std::string &out, unsigned long long n);
 void serialize_byte(std::string &out, signed char n);
 void serialize_uint(std::string &out, unsigned n);
 
-void deserialize_int(char **f, int *n);
-void deserialize_long_long(char **f, long long *n);
-void deserialize_ulong_long(char **f, unsigned long long *n);
-void deserialize_uint(char **f, unsigned *n);
-void deserialize_byte(char **f, signed char *n);
+void deserialize_int(const char **f, int *n);
+void deserialize_long_long(const char **f, long long *n);
+void deserialize_ulong_long(const char **f, unsigned long long *n);
+void deserialize_uint(const char **f, unsigned *n);
+void deserialize_byte(const char **f, signed char *n);
 
+// This is the main representation of attribute values in memory and
+// in the string pool. The type is one of the mvt_value type (mvt_string,
+// mvt_double, mvt_bool, or mvt_null). Note that all numeric values,
+// whether integer or floating point, use mvt_double here.
 struct serial_val {
-	int type = 0;
-	std::string s = "";
+	int type;
+	std::string s;
+
+	bool operator<(const serial_val &o) const;
+	bool operator!=(const serial_val &o) const;
+
+	serial_val() {
+		type = 0;
+	}
+
+	serial_val(int t, const std::string &val)
+	    : type(t), s(val) {
+	}
 };
 
 struct serial_feature {
@@ -47,31 +62,65 @@ struct serial_feature {
 	bool has_id = false;
 	unsigned long long id = 0;
 
-	bool has_tippecanoe_minzoom = false;
-	int tippecanoe_minzoom = 0;
-
-	bool has_tippecanoe_maxzoom = false;
-	int tippecanoe_maxzoom = 0;
+	int tippecanoe_minzoom = -1;
+	int tippecanoe_maxzoom = -1;
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
 	unsigned long long label_point = 0;
 	long long extent = 0;
 
+	// These fields are not directly serialized, but are used
+	// to create the keys and values references into the string pool
+	// during initial serialization
+
+	std::vector<std::string> full_keys{};
+	std::vector<serial_val> full_values{};
+
+	// These fields are generated from full_keys and full_values
+	// during initial serialization and then replace the string
+	// representations:
+
 	std::vector<long long> keys{};
 	std::vector<long long> values{};
 
-	// XXX This isn't serialized. Should it be here?
+	// These fields are used during tiling,
+	// but are not serialized and are not expected
+	// to be provided by frontends:
+
 	long long bbox[4] = {0, 0, 0, 0};
-	std::vector<std::string> full_keys{};
-	std::vector<serial_val> full_values{};
-	std::string layername = "";
-	bool dropped = false;
-	drawvec edge_nodes;
+	drawvec edge_nodes;  // what nodes at the tile edge were added during clipping?
+
+#define FEATURE_DROPPED -1
+#define FEATURE_KEPT 0
+	// <0: dropped
+	//  0: kept
+	// >0: sequence number of additional feature kept by retain-points-multiplier
+	int dropped = FEATURE_DROPPED;	// was this feature dropped by rate?
+
+	// unsigned long long drop_by;  // dot-dropping priority
+	bool reduced;	   // is polygon dust
+	bool coalesced;	   // was coalesced from multiple features
+	int line_detail;   // current tile resolution being used for simplification
+	int extra_detail;  // extra tile resolution to retain in output
+	int maxzoom;
+	double spacing;				       // feature spacing for --calculate-feature-density
+	double simplification;			       // simplification level at this zoom level
+	std::vector<ssize_t> arc_polygon;	       // used in --detect-shared-borders
+	ssize_t renamed;			       // used in --detect-shared-borders logic
+	long long clustered;			       // does this feature need the clustered/point_count attributes?
+	const char *stringpool;			       // string pool for keys/values lookup
+	std::shared_ptr<std::string> tile_stringpool;  // string pool for mvt_value construction
+	std::set<std::string> need_tilestats;
+	std::unordered_map<std::string, accum_state> attribute_accum_state;
+
+	int z;	// tile being produced
+	int tx;
+	int ty;
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
-serial_feature deserialize_feature(std::string &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
 
 struct reader {
 	int poolfd = -1;
@@ -94,13 +143,14 @@ struct reader {
 	std::atomic<long long> nodepos;
 
 	long long file_bbox[4] = {0, 0, 0, 0};
-
 	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};	      // standard -180 to 180 world plane
 	long long file_bbox2[4] = {0x1FFFFFFFF, 0xFFFFFFFF, 0x100000000, 0};  // 0 to 360 world plane
 
 	struct stat geomst {};
-
 	char *geom_map = NULL;
+
+	std::vector<ssize_t> key_dedup = std::vector<ssize_t>(655536, -1);
+	std::vector<ssize_t> value_dedup = std::vector<ssize_t>(655536, -1);
 
 	reader()
 	    : geompos(0), indexpos(0), vertexpos(0), nodepos(0) {
@@ -168,7 +218,7 @@ struct serialization_state {
 
 	std::map<std::string, layermap_entry> *layermap = NULL;
 
-	std::map<std::string, int> const *attribute_types = NULL;
+	std::unordered_map<std::string, int> const *attribute_types = NULL;
 	std::set<std::string> *exclude = NULL;
 	std::set<std::string> *include = NULL;
 	int exclude_all = 0;
@@ -220,7 +270,7 @@ struct node {
 
 int nodecmp(const void *void1, const void *void2);
 
-int serialize_feature(struct serialization_state *sst, serial_feature &sf);
-void coerce_value(std::string const &key, int &vt, std::string &val, std::map<std::string, int> const *attribute_types);
+int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername);
+void coerce_value(std::string const &key, int &vt, std::string &val, std::unordered_map<std::string, int> const *attribute_types);
 
 #endif
