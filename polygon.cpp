@@ -334,7 +334,9 @@ struct scan_transition {
 };
 
 double xcoord(std::vector<segment> const &segs, size_t seg, long long y) {
-	return 0;
+	const segment &s = segs[seg];
+
+	return s.first.x + (s.second.x - s.first.x) / (double) ((y - s.first.y) / (s.second.y - s.first.y));
 }
 
 struct active {
@@ -457,11 +459,15 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 			}
 
 			// deactivate any bottoms at this y coordinate
+			// need to scan linearly because we don't know the x coordinate for it
 
 			for (; i < transitions.size() && transitions[i].kind > 0 && transitions[i].y == y; i++) {
-				struct active bottom(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
-				auto where = std::lower_bound(active.begin(), active.end(), bottom);
-				active.erase(where);
+				for (size_t j = 0; j < active.size(); j++) {
+					if (active[j].seg == transitions[i].segment) {
+						active.erase(active.begin() + j);
+						break;
+					}
+				}
 			}
 		}
 	}
