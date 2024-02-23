@@ -265,6 +265,11 @@ bool intersect_collinear(std::vector<segment> &segs, size_t s1, size_t s2) {
 }
 
 bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
+	if ((segs[s1].first == segs[s2].second && segs[s1].second != segs[s2].first) ||
+	    (segs[s1].first != segs[s2].second && segs[s1].second == segs[s2].first)) {
+		return true;  // they intersect only at one endpoint; nothing to do
+	}
+
 	auto intersections = get_line_intersection(segs[s1].first.x, segs[s1].first.y,
 						   segs[s1].second.x, segs[s1].second.y,
 						   segs[s2].first.x, segs[s2].first.y,
@@ -398,7 +403,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 
 		std::sort(transitions.begin(), transitions.end());
 		for (size_t i = 0; i < transitions.size(); i++) {
-			printf("transition %zu: y %lld, kind %d, seg %zu\n", i, transitions[i].y, transitions[i].kind, transitions[i].segment);
+			// printf("transition %zu: y %lld, kind %d, seg %zu\n", i, transitions[i].y, transitions[i].kind, transitions[i].segment);
 		}
 
 		// do the scan
