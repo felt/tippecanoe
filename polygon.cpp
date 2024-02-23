@@ -313,7 +313,7 @@ struct scan_transition {
 	int kind;  // -1 == top, 0 == horizontal, +1 == bottom
 	size_t segment;
 
-	scan_transition(long long y_, bool kind_, size_t segment_)
+	scan_transition(long long y_, int kind_, size_t segment_)
 	    : y(y_), kind(kind_), segment(segment_) {
 	}
 
@@ -337,7 +337,7 @@ struct scan_transition {
 double xcoord(std::vector<segment> const &segs, size_t seg, long long y) {
 	const segment &s = segs[seg];
 
-	return s.first.x + (s.second.x - s.first.x) / (double) ((y - s.first.y) / (s.second.y - s.first.y));
+	return s.first.x + (s.second.x - s.first.x) * (double) ((y - s.first.y) / (s.second.y - s.first.y));
 }
 
 struct active {
@@ -397,6 +397,9 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 		}
 
 		std::sort(transitions.begin(), transitions.end());
+		for (size_t i = 0; i < transitions.size(); i++) {
+			printf("transition %zu: y %lld, kind %d, seg %zu\n", i, transitions[i].y, transitions[i].kind, transitions[i].segment);
+		}
 
 		// do the scan
 
@@ -405,6 +408,10 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 		size_t i = 0;
 		while (i < transitions.size()) {
 			long long y = transitions[i].y;
+
+			printf("at y %lld: kind %d segment %zu  (%lld,%lld to %lld,%lld)\n", y, transitions[i].kind, transitions[i].segment,
+			       segs[transitions[i].segment].first.x, segs[transitions[i].segment].first.y,
+			       segs[transitions[i].segment].second.x, segs[transitions[i].segment].second.y);
 
 			// update the active positions to correspond to the new Y coordinate
 
@@ -419,6 +426,7 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 					long long kx = xcoord(segs, active[k].seg, y);
 
 					if (kx == x) {
+						printf("collinear at %lld: %zu and %zu\n", kx, active[j].seg, active[k].seg);
 						if (intersect(segs, active[j].seg, active[k].seg)) {
 							again = true;
 						}
@@ -428,6 +436,12 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 				active[j].x = x;
 			}
 
+			printf("actives now:");
+			for (size_t j = 0; j < active.size(); j++) {
+				printf(" %lld ", active[j].x);
+			}
+			printf("\n");
+
 			// are they still in order?
 
 			for (size_t j = 0; j < active.size(); j++) {
@@ -435,7 +449,15 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 					// no, they are out of order. bubble them into order,
 					// and check where the intersection was at each step
 
+					printf("swapping %zu (%lld) and %zu (%lld)\n", k, active[k].x, k + 1, active[k + 1].x);
 					std::swap(active[k], active[k + 1]);
+					printf("intersect %lld,%lld to %lld,%lld\n",
+					       segs[active[k].seg].first.x, segs[active[k].seg].first.y,
+					       segs[active[k].seg].second.x, segs[active[k].seg].second.y);
+					printf("with %lld,%lld to %lld,%lld\n",
+					       segs[active[k + 1].seg].first.x, segs[active[k + 1].seg].first.y,
+					       segs[active[k + 1].seg].second.x, segs[active[k + 1].seg].second.y);
+
 					if (intersect(segs, active[k].seg, active[k + 1].seg)) {
 						again = true;
 					} else {
@@ -449,6 +471,8 @@ void snap_round(std::vector<segment> &segs, long long extent) {
 
 			for (; i < transitions.size() && transitions[i].kind < 0 && transitions[i].y == y; i++) {
 				struct active top(xcoord(segs, transitions[i].segment, y), transitions[i].segment);
+				printf("activating segment %zu at %lld,%lld\n", transitions[i].segment, top.x, y);
+
 				auto where = std::upper_bound(active.begin(), active.end(), top);
 				active.insert(where, top);
 			}
