@@ -167,8 +167,14 @@ std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, 
 bool vertical(std::vector<segment> &segs, size_t s, long long y) {
 	if ((y > segs[s].first.y && y < segs[s].second.y) ||
 	    (y > segs[s].second.y && y < segs[s].first.y)) {
-		segs.push_back(std::make_pair(point(segs[s].first.x, y), segs[s].second));
-		segs[s] = std::make_pair(segs[s].first, point(segs[s].first.x, y));
+		// existing ID always keeps the bottom half
+		if (segs[s].first.y > segs[s].second.y) {
+			segs.push_back(std::make_pair(point(segs[s].first.x, y), segs[s].second));
+			segs[s] = std::make_pair(segs[s].first, point(segs[s].first.x, y));
+		} else {
+			segs.push_back(std::make_pair(segs[s].first, point(segs[s].first.x, y)));
+			segs[s] = std::make_pair(point(segs[s].first.x, y), segs[s].second);
+		}
 
 		return true;
 	}
@@ -182,8 +188,15 @@ bool horizontal(std::vector<segment> &segs, size_t s, long long x) {
 		double slope = (segs[s].second.y - segs[s].first.y) /
 			       (double) (segs[s].second.x - segs[s].first.x);
 		long long y = std::llround(segs[s].first.y + slope * (x - segs[s].first.x));
-		segs.push_back(std::make_pair(point(x, y), segs[s].second));
-		segs[s] = std::make_pair(segs[s].first, point(x, y));
+
+		// existing ID always keeps the bottom half
+		if (segs[s].first.y > segs[s].second.y) {
+			segs.push_back(std::make_pair(point(x, y), segs[s].second));
+			segs[s] = std::make_pair(segs[s].first, point(x, y));
+		} else {
+			segs.push_back(std::make_pair(segs[s].first, point(x, y)));
+			segs[s] = std::make_pair(point(x, y), segs[s].second);
+		}
 
 		return true;
 	}
@@ -285,8 +298,15 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 			// at an endpoint in s1, so it doesn't need to be changed
 		} else {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s1 %zu %zu)\n", x, y, segs[s1].first.x, segs[s1].first.y, segs[s1].second.x, segs[s1].second.y, s1, s2);
-			segs.push_back(std::make_pair(point(x, y), segs[s1].second));
-			segs[s1] = std::make_pair(segs[s1].first, point(x, y));
+			// existing segment id needs to go to the *bottom* half,
+			// so it will still end at the right Y coordinate
+			if (segs[s1].first.y > segs[s1].second.y) {
+				segs.push_back(std::make_pair(point(x, y), segs[s1].second));
+				segs[s1] = std::make_pair(segs[s1].first, point(x, y));
+			} else {
+				segs.push_back(std::make_pair(segs[s1].first, point(x, y)));
+				segs[s1] = std::make_pair(point(x, y), segs[s1].second);
+			}
 
 			changed = true;
 		}
@@ -297,8 +317,13 @@ bool intersect(std::vector<segment> &segs, size_t s1, size_t s2) {
 		} else {
 			// printf("introduce %f,%f in %f,%f to %f,%f (s2 %zu %zu)\n", x, y, segs[s2].first.x, segs[s2].first.y, segs[s2].second.x, segs[s2].second.y, s1, s2);
 			// printf("introduce %lld,%lld in %lld,%lld to %lld,%lld (s2)\n", std::llround(x), std::llround(y), std::llround(segs[s2].first.x), std::llround(segs[s2].first.y), std::llround(segs[s2].second.x), std::llround(segs[s2].second.y));
-			segs.push_back(std::make_pair(point(x, y), segs[s2].second));
-			segs[s2] = std::make_pair(segs[s2].first, point(x, y));
+			if (segs[s2].first.y > segs[s2].second.y) {
+				segs.push_back(std::make_pair(point(x, y), segs[s2].second));
+				segs[s2] = std::make_pair(segs[s2].first, point(x, y));
+			} else {
+				segs.push_back(std::make_pair(segs[s2].first, point(x, y)));
+				segs[s2] = std::make_pair(point(x, y), segs[s2].second);
+			}
 
 			changed = true;
 		}
