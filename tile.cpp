@@ -536,6 +536,15 @@ struct simplification_worker_arg {
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
 	size_t nodepos;
+
+	int zoom;
+	int x;
+	int y;
+
+	int line_detail;
+	int extra_detail;
+	int maxzoom;
+	double simplification;
 };
 
 // If a polygon has collapsed away to nothing during polygon cleaning,
@@ -585,12 +594,9 @@ static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 // This simplifies the geometry of one feature. It is generally called from the feature_simplification_worker
 // but is broken out here so that it can be called from earlier in write_tile if coalesced geometries build up
 // too much in memory.
-static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
+static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos, int z, int x, int y, int line_detail, int maxzoom, double simplification) {
 	drawvec geom = p->geometry;
 	signed char t = p->t;
-	int z = p->z;
-	int line_detail = p->line_detail;
-	int maxzoom = p->maxzoom;
 
 	if (additional[A_GRID_LOW_ZOOMS] && z < maxzoom) {
 		geom = stairstep(geom, z, line_detail);
@@ -632,7 +638,7 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
-				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
+				drawvec ngeom = simplify_lines(geom, z, x, y, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
 
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
 					geom = ngeom;
@@ -657,11 +663,11 @@ static void *simplification_worker(void *v) {
 	std::vector<serial_feature> *features = a->features;
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
-		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, a->zoom, a->x, a->y, a->line_detail, a->maxzoom, a->simplification);
 
 		signed char t = (*features)[i].t;
-		int z = (*features)[i].z;
-		int out_detail = (*features)[i].extra_detail;
+		int z = a->zoom;
+		int out_detail = a->extra_detail;
 
 		drawvec geom = (*features)[i].geometry;
 		to_tile_scale(geom, z, out_detail);
@@ -690,7 +696,7 @@ static void *simplification_worker(void *v) {
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 			t = (*features)[i].t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i].tx, (*features)[i].ty, z, (*features)[i].label_point);
+			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), a->x, a->y, z, (*features)[i].label_point);
 			to_tile_scale(geom, z, out_detail);
 		}
 
@@ -1545,7 +1551,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		double coalesced_area = 0;
 		drawvec shared_nodes;
 
-		int tile_detail = line_detail;
 		size_t skipped = 0;
 		size_t kept = 0;
 
@@ -1910,27 +1915,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					sf.reduced = !still_need_simplification_after_reduction;
 					sf.coalesced = false;
-					sf.z = z;
-					sf.tx = tx;
-					sf.ty = ty;
-					sf.line_detail = line_detail;
-					sf.extra_detail = line_detail;
-					sf.maxzoom = maxzoom;
 					sf.spacing = spacing;
-					sf.simplification = simplification;
 					sf.renamed = -1;
 					sf.clustered = 0;
 					sf.tile_stringpool = tile_stringpool;
-
-					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
-						sf.extra_detail = extra_detail;
-						// maximum allowed coordinate delta in geometries is 2^31 - 1
-						// so we need to stay under that, including the buffer
-						if (sf.extra_detail >= 30 - z) {
-							sf.extra_detail = 30 - z;
-						}
-						tile_detail = sf.extra_detail;
-					}
 
 					features.push_back(std::move(sf));
 
@@ -1941,7 +1929,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// may not be very effective for reducing memory usage.
 
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
-							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos);
+							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, z, tx, ty, line_detail, maxzoom, simplification);
 
 							if (features[simplified_geometry_through].t == VT_POLYGON) {
 								drawvec to_clean = features[simplified_geometry_through].geometry;
@@ -2012,6 +2000,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// Sort back into input order or by attribute value
 
 		std::sort(shared_nodes.begin(), shared_nodes.end());
+		int tile_detail = line_detail;
 
 		for (auto &kv : layers) {
 			std::string const &layername = kv.first;
@@ -2117,6 +2106,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				args[i].shared_nodes = &shared_nodes;
 				args[i].shared_nodes_map = shared_nodes_map;
 				args[i].nodepos = nodepos;
+				args[i].zoom = z;
+				args[i].x = tx;
+				args[i].y = ty;
+				args[i].line_detail = line_detail;
+				args[i].extra_detail = line_detail;
+				args[i].maxzoom = maxzoom;
+				args[i].simplification = simplification;
+
+				if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
+					args[i].extra_detail = extra_detail;
+					// maximum allowed coordinate delta in geometries is 2^31 - 1
+					// so we need to stay under that, including the buffer
+					if (args[i].extra_detail >= 30 - z) {
+						args[i].extra_detail = 30 - z;
+					}
+					tile_detail = args[i].extra_detail;
+				}
 
 				if (tasks > 1) {
 					if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
