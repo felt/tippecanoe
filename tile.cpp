@@ -438,7 +438,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 }
 
 // Write out copies of a feature into the temporary files for the next zoom level
-static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y, long long osf_bbox[]) {
 	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -449,7 +449,7 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = osf.bbox[k] / (1 << (32 - nextzoom - 8));
+			bbox2[k] = osf_bbox[k] / (1 << (32 - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.
@@ -920,30 +920,30 @@ struct write_tile_args {
 // Clips a feature's geometry to the tile bounds at the specified zoom level
 // with the specified buffer. Returns true if the feature was entirely clipped away
 // by bounding box alone; otherwise returns false.
-static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
-	int quick = quick_check(sf.bbox, z, buffer);
+static bool clip_to_tile(serial_feature &sf, int z, long long buffer, long long sf_bbox[]) {
+	int quick = quick_check(sf_bbox, z, buffer);
 
 	if (z == 0) {
-		if (sf.bbox[0] <= (1LL << 32) * buffer / 256 || sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
+		if (sf_bbox[0] <= (1LL << 32) * buffer / 256 || sf_bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
 			// If the geometry extends off the edge of the world, concatenate on another copy
 			// shifted by 360 degrees, and then make sure both copies get clipped down to size.
 
 			size_t n = sf.geometry.size();
 
-			if (sf.bbox[0] <= (1LL << 32) * buffer / 256) {
+			if (sf_bbox[0] <= (1LL << 32) * buffer / 256) {
 				for (size_t i = 0; i < n; i++) {
 					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x + (1LL << 32), sf.geometry[i].y));
 				}
 			}
 
-			if (sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
+			if (sf_bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
 				for (size_t i = 0; i < n; i++) {
 					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x - (1LL << 32), sf.geometry[i].y));
 				}
 			}
 
-			sf.bbox[0] = 0;
-			sf.bbox[2] = 1LL << 32;
+			sf_bbox[0] = 0;
+			sf_bbox[2] = 1LL << 32;
 
 			quick = -1;
 		}
@@ -986,7 +986,7 @@ static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 		// that are duplicated across the date line
 
 		if (prevent[P_DUPLICATION] && z != 0) {
-			if (point_within_tile((sf.bbox[0] + sf.bbox[2]) / 2, (sf.bbox[1] + sf.bbox[3]) / 2, z)) {
+			if (point_within_tile((sf_bbox[0] + sf_bbox[2]) / 2, (sf_bbox[1] + sf_bbox[3]) / 2, z)) {
 				// sf.geometry is unchanged
 			} else {
 				sf.geometry.clear();
@@ -1060,7 +1060,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			exit(EXIT_READ);
 		}
 
-		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
+		long long sf_bbox[4];
+		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y, sf_bbox);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
 		size_t passes = pass + 1;
@@ -1078,7 +1079,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		(*original_features)++;
 
-		if (clip_to_tile(sf, z, buffer)) {
+		if (clip_to_tile(sf, z, buffer, sf_bbox)) {
 			continue;
 		}
 
@@ -1090,7 +1091,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
+				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y, sf_bbox);
 			}
 		}
 

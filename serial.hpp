@@ -65,30 +65,30 @@ struct serial_feature {
 	int tippecanoe_minzoom = -1;
 	int tippecanoe_maxzoom = -1;
 
-	drawvec geometry = drawvec();
+	drawvec geometry;
 	unsigned long long index = 0;
 	unsigned long long label_point = 0;
 	long long extent = 0;
 
 	// These fields are not directly serialized, but are used
 	// to create the keys and values references into the string pool
-	// during initial serialization
+	// during initial serialization,
+	// and are used to store attributes that are altered during tiling
 
-	std::vector<std::string> full_keys{};
-	std::vector<serial_val> full_values{};
+	std::vector<std::string> full_keys;
+	std::vector<serial_val> full_values;
 
 	// These fields are generated from full_keys and full_values
 	// during initial serialization and then replace the string
 	// representations:
 
-	std::vector<long long> keys{};
-	std::vector<long long> values{};
+	std::vector<long long> keys;
+	std::vector<long long> values;
 
 	// These fields are used during tiling,
 	// but are not serialized and are not expected
 	// to be provided by frontends:
 
-	long long bbox[4] = {0, 0, 0, 0};
 	drawvec edge_nodes;  // what nodes at the tile edge were added during clipping?
 
 #define FEATURE_DROPPED -1
@@ -112,7 +112,7 @@ struct serial_feature {
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
-serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long bbox[]);
 
 struct reader {
 	int poolfd = -1;

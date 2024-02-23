@@ -398,8 +398,6 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 			sf.geometry = dv;
 			sf.seq = 0;
 			sf.index = 0;
-			sf.bbox[0] = sf.bbox[1] = LLONG_MAX;
-			sf.bbox[2] = sf.bbox[3] = LLONG_MIN;
 			sf.extent = 0;
 			sf.has_id = false;
 
@@ -431,23 +429,6 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 					sf.dropped = FEATURE_DROPPED;  // dropped
 				} else {
 					sf.dropped = FEATURE_KEPT;  // kept
-				}
-			}
-
-			for (size_t i = 0; i < dv.size(); i++) {
-				if (dv[i].op == VT_MOVETO || dv[i].op == VT_LINETO) {
-					if (dv[i].x < sf.bbox[0]) {
-						sf.bbox[0] = dv[i].x;
-					}
-					if (dv[i].y < sf.bbox[1]) {
-						sf.bbox[1] = dv[i].y;
-					}
-					if (dv[i].x > sf.bbox[2]) {
-						sf.bbox[2] = dv[i].x;
-					}
-					if (dv[i].y > sf.bbox[3]) {
-						sf.bbox[3] = dv[i].y;
-					}
 				}
 			}
 
