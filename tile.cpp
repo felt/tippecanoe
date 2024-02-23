@@ -45,6 +45,7 @@
 #include "errors.hpp"
 #include "compression.hpp"
 #include "protozero/varint.hpp"
+#include "polygon.hpp"
 #include "attribute.hpp"
 #include "thread.hpp"
 #include "shared_borders.hpp"
@@ -626,9 +627,7 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 					// clean coalesced polygons before simplification to avoid
 					// introducing shards between shapes that otherwise would have
 					// unioned exactly
-					//
-					// don't try to scale up because these are still world coordinates
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					geom = clean_polygon(geom, 1LL << (32 - z));  // world coordinates at zoom z
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -664,28 +663,12 @@ static void *simplification_worker(void *v) {
 		int out_detail = (*features)[i].extra_detail;
 
 		drawvec geom = (*features)[i].geometry;
-		to_tile_scale(geom, z, out_detail);
 
 		if (t == VT_POLYGON) {
-			// Scaling may have made the polygon degenerate.
-			// Give Clipper a chance to try to fix it.
-			{
-				drawvec before = geom;
-				// we can try scaling up because this is now tile scale
-				geom = clean_or_clip_poly(geom, 0, 0, false, true);
-				if (additional[A_DEBUG_POLYGON]) {
-					check_polygon(geom);
-				}
-
-				if (geom.size() < 3) {
-					if (area > 0) {
-						// area is in world coordinates, calculated before scaling down
-						geom = revive_polygon(before, area, z, out_detail);
-					} else {
-						geom.clear();
-					}
-				}
-			}
+			geom = scale_polygon(geom, z, out_detail);
+			geom = clean_polygon(geom, 1LL << out_detail);	// tile coordinates
+		} else {
+			to_tile_scale(geom, z, out_detail);
 		}
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
@@ -1254,7 +1237,7 @@ void *run_prefilter(void *v) {
 		tmp_layer.name = (*(rpa->layer_unmaps))[sf.segment][sf.layer];
 
 		if (sf.t == VT_POLYGON) {
-			sf.geometry = close_poly(sf.geometry);
+			sf.geometry = close_poly(sf.geometry);	// i.e., change last lineto to closepath
 		}
 
 		mvt_feature tmp_feature;
@@ -1946,8 +1929,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							if (features[simplified_geometry_through].t == VT_POLYGON) {
 								drawvec to_clean = features[simplified_geometry_through].geometry;
 
-								// don't scale up because this is still world coordinates
-								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
+								to_clean = clean_polygon(to_clean, 1LL << (32 - z));  // world coordinates at zoom z
 								features[simplified_geometry_through].geometry = std::move(to_clean);
 							}
 						}
@@ -2201,7 +2183,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (layer_features[x].t == VT_POLYGON) {
 						if (layer_features[x].coalesced) {
 							// we can try scaling up because this is tile coordinates
-							layer_features[x].geometry = clean_or_clip_poly(layer_features[x].geometry, 0, 0, false, true);
+							layer_features[x].geometry = clean_polygon(layer_features[x].geometry, 1LL << (32 - z));  // world coordinates at zoom z
 						}
 
 						layer_features[x].geometry = close_poly(layer_features[x].geometry);

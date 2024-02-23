@@ -71,28 +71,6 @@ drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long
 	return out;
 }
 
-/* pnpoly:
-Copyright (c) 1970-2003, Wm. Randolph Franklin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimers.
-Redistributions in binary form must reproduce the above copyright notice in the documentation and/or other materials provided with the distribution.
-The name of W. Randolph Franklin may not be used to endorse or promote products derived from this Software without specific prior written permission.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-
-int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy) {
-	size_t i, j;
-	bool c = false;
-	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
-		if (((vert[i + start].y > testy) != (vert[j + start].y > testy)) &&
-		    (testx < (vert[j + start].x - vert[i + start].x) * (testy - vert[i + start].y) / (double) (vert[j + start].y - vert[i + start].y) + vert[i + start].x))
-			c = !c;
-	}
-	return c;
-}
-
 void check_polygon(drawvec &geom) {
 	geom = remove_noop(geom, VT_POLYGON, 0);
 
@@ -168,6 +146,18 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
+double get_perimeter(const drawvec &geom, size_t i, size_t j) {
+	double perimeter = 0;
+
+	for (size_t k = i; k + 1 < j; k++) {
+		double dx = geom[k].x - geom[k + 1].x;
+		double dy = geom[k].y - geom[k + 1].y;
+		perimeter += sqrt(dx * dx + dy * dy);
+	}
+
+	return perimeter;
+}
+
 drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
@@ -188,6 +178,17 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 			}
 
 			double area = get_area(geom, i, j);
+			double schwartzberg = 1;
+
+			if (area != 0) {
+				// polygon compactness measure
+				// https://fisherzachary.github.io/public/r-output.html
+				// Schwartzberg, Joseph E. 1965. “Reapportionment, gerrymanders, and the notion of compactness”.
+				// In: Minn. L. Rev. 50, 443.
+
+				double perimeter = get_perimeter(geom, i, j);
+				schwartzberg = 1 / (perimeter / (2 * M_PI * sqrt(std::fabs(area) / M_PI)));
+			}
 
 			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
 			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
@@ -205,7 +206,8 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 				// OR it is an inner ring and we haven't output an outer ring for it to be
 				// cut out of, so we are just subtracting its area from the tiny polygon
 				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
+				if ((area > 0 && area <= pixel * pixel && schwartzberg > 0.3) ||
+				    (area < 0 && !included_last_outer)) {
 					*accum_area += area;
 					*reduced_away = true;
 

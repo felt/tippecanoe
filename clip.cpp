@@ -7,6 +7,7 @@
 #include "errors.hpp"
 #include "compression.hpp"
 #include "mvt.hpp"
+#include "polygon.hpp"
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
@@ -340,7 +341,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 							if (k != i) {
 								fprintf(f, ",");
 							}
-							fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
+							fprintf(f, "[%lld,%lld]", (long long) geom[k].x, (long long) geom[k].y);
 						}
 
 						fprintf(f, "]");
@@ -993,7 +994,11 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 
 			// Scale to output tile extent
 
-			to_tile_scale(geom, nz, det);
+			if (t == VT_POLYGON) {
+				geom = scale_polygon(geom, nz, det);
+			} else {
+				to_tile_scale(geom, nz, det);
+			}
 
 			if (!sametile) {
 				// Clean geometries
@@ -1005,6 +1010,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 			}
 
 			if (t == VT_POLYGON) {
+				geom = clean_polygon(geom, 1LL << det);
 				geom = close_poly(geom);
 			}
 
@@ -1071,4 +1077,26 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 	} else {
 		return "";
 	}
+}
+
+/* pnpoly:
+Copyright (c) 1970-2003, Wm. Randolph Franklin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimers.
+Redistributions in binary form must reproduce the above copyright notice in the documentation and/or other materials provided with the distribution.
+The name of W. Randolph Franklin may not be used to endorse or promote products derived from this Software without specific prior written permission.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy) {
+	size_t i, j;
+	bool c = false;
+	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+		if (((vert[i + start].y > testy) != (vert[j + start].y > testy)) &&
+		    (testx < (vert[j + start].x - vert[i + start].x) * (testy - vert[i + start].y) / (double) (vert[j + start].y - vert[i + start].y) + vert[i + start].x))
+			c = !c;
+	}
+	return c;
 }

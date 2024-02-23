@@ -1,6 +1,6 @@
 { "type": "FeatureCollection", "properties": { "zoom": 13, "x": 1310, "y": 3166 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "ne_10m_land", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "featurecla": "Land", "scalerank": 0, "min_zoom": 0 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.387760, 37.788760 ], [ -122.387094, 37.778754 ], [ -122.386837, 37.778517 ], [ -122.386837, 37.752665 ], [ -122.432499, 37.752665 ], [ -122.432499, 37.788760 ], [ -122.387760, 37.788760 ] ] ] } }
+{ "type": "Feature", "properties": { "featurecla": "Land", "scalerank": 0, "min_zoom": 0 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.432499, 37.788760 ], [ -122.387760, 37.788760 ], [ -122.387094, 37.778754 ], [ -122.386837, 37.778517 ], [ -122.386837, 37.752665 ], [ -122.432499, 37.752665 ], [ -122.432499, 37.788760 ] ] ] } }
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "ne_10m_populated_places", "version": 2, "extent": 4096 }, "features": [
