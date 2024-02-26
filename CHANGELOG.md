@@ -1,3 +1,7 @@
+# 2.46.0
+
+* Polygon dust returns to having the attributes of the contributing feature nearest the placeholder instead of the contributing feature with the largest area.
+
 # 2.45.0
 
 * Adjust tile size limit with --retain-points-multiplier dynamically within each tile, to allow multiplier features at high zooms if other features are being dropped as-needed
