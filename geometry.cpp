@@ -168,7 +168,7 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, serial_feature *this_feature, serial_feature *tiny_feature) {
+drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area) {
 	drawvec out;
 	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
 
