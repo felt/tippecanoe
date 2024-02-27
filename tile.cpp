@@ -438,7 +438,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 }
 
 // Write out copies of a feature into the temporary files for the next zoom level
-static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y, long long osf_bbox[]) {
 	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -449,7 +449,7 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = osf.bbox[k] / (1 << (32 - nextzoom - 8));
+			bbox2[k] = osf_bbox[k] / (1 << (32 - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.
@@ -536,6 +536,15 @@ struct simplification_worker_arg {
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
 	size_t nodepos;
+
+	int zoom;
+	int x;
+	int y;
+
+	int line_detail;
+	int extra_detail;
+	int maxzoom;
+	double simplification;
 };
 
 // If a polygon has collapsed away to nothing during polygon cleaning,
@@ -585,12 +594,9 @@ static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 // This simplifies the geometry of one feature. It is generally called from the feature_simplification_worker
 // but is broken out here so that it can be called from earlier in write_tile if coalesced geometries build up
 // too much in memory.
-static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
+static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos, int z, int x, int y, int line_detail, int maxzoom, double simplification) {
 	drawvec geom = p->geometry;
 	signed char t = p->t;
-	int z = p->z;
-	int line_detail = p->line_detail;
-	int maxzoom = p->maxzoom;
 
 	if (additional[A_GRID_LOW_ZOOMS] && z < maxzoom) {
 		geom = stairstep(geom, z, line_detail);
@@ -632,7 +638,7 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
-				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
+				drawvec ngeom = simplify_lines(geom, z, x, y, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
 
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
 					geom = ngeom;
@@ -657,11 +663,11 @@ static void *simplification_worker(void *v) {
 	std::vector<serial_feature> *features = a->features;
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
-		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, a->zoom, a->x, a->y, a->line_detail, a->maxzoom, a->simplification);
 
 		signed char t = (*features)[i].t;
-		int z = (*features)[i].z;
-		int out_detail = (*features)[i].extra_detail;
+		int z = a->zoom;
+		int out_detail = a->extra_detail;
 
 		drawvec geom = (*features)[i].geometry;
 		to_tile_scale(geom, z, out_detail);
@@ -690,7 +696,7 @@ static void *simplification_worker(void *v) {
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 			t = (*features)[i].t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i].tx, (*features)[i].ty, z, (*features)[i].label_point);
+			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), a->x, a->y, z, (*features)[i].label_point);
 			to_tile_scale(geom, z, out_detail);
 		}
 
@@ -914,30 +920,30 @@ struct write_tile_args {
 // Clips a feature's geometry to the tile bounds at the specified zoom level
 // with the specified buffer. Returns true if the feature was entirely clipped away
 // by bounding box alone; otherwise returns false.
-static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
-	int quick = quick_check(sf.bbox, z, buffer);
+static bool clip_to_tile(serial_feature &sf, int z, long long buffer, long long sf_bbox[]) {
+	int quick = quick_check(sf_bbox, z, buffer);
 
 	if (z == 0) {
-		if (sf.bbox[0] <= (1LL << 32) * buffer / 256 || sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
+		if (sf_bbox[0] <= (1LL << 32) * buffer / 256 || sf_bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
 			// If the geometry extends off the edge of the world, concatenate on another copy
 			// shifted by 360 degrees, and then make sure both copies get clipped down to size.
 
 			size_t n = sf.geometry.size();
 
-			if (sf.bbox[0] <= (1LL << 32) * buffer / 256) {
+			if (sf_bbox[0] <= (1LL << 32) * buffer / 256) {
 				for (size_t i = 0; i < n; i++) {
 					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x + (1LL << 32), sf.geometry[i].y));
 				}
 			}
 
-			if (sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
+			if (sf_bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
 				for (size_t i = 0; i < n; i++) {
 					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x - (1LL << 32), sf.geometry[i].y));
 				}
 			}
 
-			sf.bbox[0] = 0;
-			sf.bbox[2] = 1LL << 32;
+			sf_bbox[0] = 0;
+			sf_bbox[2] = 1LL << 32;
 
 			quick = -1;
 		}
@@ -980,7 +986,7 @@ static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 		// that are duplicated across the date line
 
 		if (prevent[P_DUPLICATION] && z != 0) {
-			if (point_within_tile((sf.bbox[0] + sf.bbox[2]) / 2, (sf.bbox[1] + sf.bbox[3]) / 2, z)) {
+			if (point_within_tile((sf_bbox[0] + sf_bbox[2]) / 2, (sf_bbox[1] + sf_bbox[3]) / 2, z)) {
 				// sf.geometry is unchanged
 			} else {
 				sf.geometry.clear();
@@ -1054,7 +1060,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			exit(EXIT_READ);
 		}
 
-		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
+		long long sf_bbox[4];
+		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y, sf_bbox);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
 		size_t passes = pass + 1;
@@ -1072,7 +1079,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		(*original_features)++;
 
-		if (clip_to_tile(sf, z, buffer)) {
+		if (clip_to_tile(sf, z, buffer, sf_bbox)) {
 			continue;
 		}
 
@@ -1084,7 +1091,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
+				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y, sf_bbox);
 			}
 		}
 
@@ -1545,7 +1552,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		double coalesced_area = 0;
 		drawvec shared_nodes;
 
-		int tile_detail = line_detail;
 		size_t skipped = 0;
 		size_t kept = 0;
 
@@ -1873,9 +1879,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
-				if (lead_features_count > max_tile_size) {
+				if (lead_features_count * 2 > max_tile_size || (lead_features_count > 2 * max_tile_features && !prevent[P_FEATURE_LIMIT])) {
 					// Even being maximally conservative, each feature is still going to be
-					// at least one byte in the output tile, so this can't possibly work.
+					// at least two bytes in the output tile, so this can't possibly work.
 					skipped++;
 				} else {
 					kept++;
@@ -1908,27 +1914,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					sf.reduced = !still_need_simplification_after_reduction;
 					sf.coalesced = false;
-					sf.z = z;
-					sf.tx = tx;
-					sf.ty = ty;
-					sf.line_detail = line_detail;
-					sf.extra_detail = line_detail;
-					sf.maxzoom = maxzoom;
 					sf.spacing = spacing;
-					sf.simplification = simplification;
 					sf.renamed = -1;
 					sf.clustered = 0;
 					sf.tile_stringpool = tile_stringpool;
-
-					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
-						sf.extra_detail = extra_detail;
-						// maximum allowed coordinate delta in geometries is 2^31 - 1
-						// so we need to stay under that, including the buffer
-						if (sf.extra_detail >= 30 - z) {
-							sf.extra_detail = 30 - z;
-						}
-						tile_detail = sf.extra_detail;
-					}
 
 					features.push_back(std::move(sf));
 
@@ -1939,7 +1928,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// may not be very effective for reducing memory usage.
 
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
-							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos);
+							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, z, tx, ty, line_detail, maxzoom, simplification);
 
 							if (features[simplified_geometry_through].t == VT_POLYGON) {
 								drawvec to_clean = features[simplified_geometry_through].geometry;
@@ -2010,6 +1999,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// Sort back into input order or by attribute value
 
 		std::sort(shared_nodes.begin(), shared_nodes.end());
+		int tile_detail = line_detail;
 
 		for (auto &kv : layers) {
 			std::string const &layername = kv.first;
@@ -2115,6 +2105,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				args[i].shared_nodes = &shared_nodes;
 				args[i].shared_nodes_map = shared_nodes_map;
 				args[i].nodepos = nodepos;
+				args[i].zoom = z;
+				args[i].x = tx;
+				args[i].y = ty;
+				args[i].line_detail = line_detail;
+				args[i].extra_detail = line_detail;
+				args[i].maxzoom = maxzoom;
+				args[i].simplification = simplification;
+
+				if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
+					args[i].extra_detail = extra_detail;
+					// maximum allowed coordinate delta in geometries is 2^31 - 1
+					// so we need to stay under that, including the buffer
+					if (args[i].extra_detail >= 30 - z) {
+						args[i].extra_detail = 30 - z;
+					}
+					tile_detail = args[i].extra_detail;
+				}
 
 				if (tasks > 1) {
 					if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
@@ -2237,11 +2244,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		mvt_tile tile;
-		size_t totalsize = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
 			std::vector<serial_feature> &layer_features = layer_iterator->second.features;
-			totalsize += layer_features.size();
 
 			mvt_layer layer;
 			layer.name = layer_iterator->first;
@@ -2325,14 +2330,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			oprogress = progress;
 		}
 
-		if (totalsize > 0 && tile.layers.size() > 0) {
-			if (totalsize > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
-				if (totalsize > arg->feature_count_out) {
-					arg->feature_count_out = totalsize;
+		if (lead_features_count > 0 && tile.layers.size() > 0) {
+			if (lead_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+				if (lead_features_count > arg->feature_count_out) {
+					arg->feature_count_out = lead_features_count;
 				}
 
 				if (!quiet) {
-					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, totalsize, max_tile_features);
+					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, lead_features_count, max_tile_features);
 				}
 
 				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
@@ -2353,7 +2358,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.90;
+					mingap_fraction = mingap_fraction * max_tile_features / lead_features_count * 0.90;
 					unsigned long long mg = choose_mingap(indices, mingap_fraction);
 					if (mg <= mingap) {
 						mg = (mingap + 1) * 1.5;
@@ -2373,7 +2378,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;
 					continue;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * max_tile_features / totalsize * 0.75;
+					minextent_fraction = minextent_fraction * max_tile_features / lead_features_count * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m != minextent) {
 						minextent = m;
@@ -2387,11 +2392,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
-				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
+				} else if (lead_features_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					mindrop_sequence_fraction = mindrop_sequence_fraction * max_tile_features / totalsize * 0.95;
+					mindrop_sequence_fraction = mindrop_sequence_fraction * max_tile_features / lead_features_count * 0.95;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m != mindrop_sequence) {
 						mindrop_sequence = m;
@@ -2499,7 +2504,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
-				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
+				} else if (lead_features_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					mindrop_sequence_fraction = mindrop_sequence_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m != mindrop_sequence) {

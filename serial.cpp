@@ -230,7 +230,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	return s;
 }
 
-serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long bbox[]) {
 	serial_feature sf;
 	const char *cp = geoms.c_str();
 
@@ -261,7 +261,7 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	sf.label_point = 0;
 	sf.extent = 0;
 
-	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
+	sf.geometry = decode_geometry(&cp, z, tx, ty, bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
@@ -412,10 +412,11 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername) {
 	struct reader *r = &(*sst->readers)[sst->segment];
 
-	sf.bbox[0] = LLONG_MAX;
-	sf.bbox[1] = LLONG_MAX;
-	sf.bbox[2] = LLONG_MIN;
-	sf.bbox[3] = LLONG_MIN;
+	long long sf_bbox[4];
+	sf_bbox[0] = LLONG_MAX;
+	sf_bbox[1] = LLONG_MAX;
+	sf_bbox[2] = LLONG_MIN;
+	sf_bbox[3] = LLONG_MIN;
 
 	for (size_t i = 0; i < sf.geometry.size(); i++) {
 		if (sf.geometry[i].op == VT_MOVETO || sf.geometry[i].op == VT_LINETO) {
@@ -448,7 +449,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	// try to remind myself that the geometry in this function is in SCALED COORDINATES
 	drawvec scaled_geometry = sf.geometry;
 	sf.geometry.clear();
-	scale_geometry(sst, sf.bbox, scaled_geometry);
+	scale_geometry(sst, sf_bbox, scaled_geometry);
 
 	// This has to happen after scaling so that the wraparound detection has happened first.
 	// Otherwise the inner/outer calculation will be confused by bad geometries.
@@ -467,26 +468,26 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 		scaled_geometry = remove_noop(scaled_geometry, sf.t, 0);
 
-		sf.bbox[0] = LLONG_MAX;
-		sf.bbox[1] = LLONG_MAX;
-		sf.bbox[2] = LLONG_MIN;
-		sf.bbox[3] = LLONG_MIN;
+		sf_bbox[0] = LLONG_MAX;
+		sf_bbox[1] = LLONG_MAX;
+		sf_bbox[2] = LLONG_MIN;
+		sf_bbox[3] = LLONG_MIN;
 
 		for (auto &g : scaled_geometry) {
 			long long x = SHIFT_LEFT(g.x);
 			long long y = SHIFT_LEFT(g.y);
 
-			if (x < sf.bbox[0]) {
-				sf.bbox[0] = x;
+			if (x < sf_bbox[0]) {
+				sf_bbox[0] = x;
 			}
-			if (y < sf.bbox[1]) {
-				sf.bbox[1] = y;
+			if (y < sf_bbox[1]) {
+				sf_bbox[1] = y;
 			}
-			if (x > sf.bbox[2]) {
-				sf.bbox[2] = x;
+			if (x > sf_bbox[2]) {
+				sf_bbox[2] = x;
 			}
-			if (y > sf.bbox[3]) {
-				sf.bbox[3] = y;
+			if (y > sf_bbox[3]) {
+				sf_bbox[3] = y;
 			}
 		}
 	}
@@ -672,8 +673,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 	if (sf.t == VT_POINT) {
 		// keep old behavior, which loses one bit of precision at the bottom
-		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
-		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+		midx = (sf_bbox[0] / 2 + sf_bbox[2] / 2) & ((1LL << 32) - 1);
+		midy = (sf_bbox[1] / 2 + sf_bbox[3] / 2) & ((1LL << 32) - 1);
 	} else {
 		// To reduce the chances of giving multiple polygons or linestrings
 		// the same index, use an arbitrary but predictable point from the
@@ -858,13 +859,13 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	fwrite_check(&index, sizeof(struct index), 1, r->indexfile, &r->indexpos, sst->fname);
 
 	for (size_t i = 0; i < 2; i++) {
-		if (sf.bbox[i] < r->file_bbox[i]) {
-			r->file_bbox[i] = sf.bbox[i];
+		if (sf_bbox[i] < r->file_bbox[i]) {
+			r->file_bbox[i] = sf_bbox[i];
 		}
 	}
 	for (size_t i = 2; i < 4; i++) {
-		if (sf.bbox[i] > r->file_bbox[i]) {
-			r->file_bbox[i] = sf.bbox[i];
+		if (sf_bbox[i] > r->file_bbox[i]) {
+			r->file_bbox[i] = sf_bbox[i];
 		}
 	}
 
