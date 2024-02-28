@@ -17,7 +17,7 @@ inline int swizzlecmp(const char *a, int atype, unsigned long long ahash, const 
 			return atype - btype;
 		}
 	} else {
-		return (int) ahash - (int) bhash;
+		return (int) (ahash - bhash);
 	}
 }
 
