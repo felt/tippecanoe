@@ -1,3 +1,7 @@
+# 2.47.0
+
+* Stabilize feature order in tippecanoe-overzoom when --preserve-feature-order is specified but the sequence attribute is not present
+
 # 2.46.0
 
 * Polygon dust returns to having the attributes of the contributing feature nearest the placeholder instead of the contributing feature with the largest area.
