@@ -303,8 +303,15 @@ bool point_within_tile(long long x, long long y, int z) {
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
 	long long p2x = segB_x - segA_x;
 	long long p2y = segB_y - segA_y;
-	double something = p2x * p2x + p2y * p2y;
-	double u = (0 == something) ? 0 : ((point_x - segA_x) * p2x + (point_y - segA_y) * p2y) / (something);
+
+	// These calculations must be made in integers instead of floating point
+	// to make them consistent between x86 and arm floating point implementations.
+	//
+	// Coordinates may be up to 34 bits, so their product is up to 68 bits,
+	// making their sum up to 69 bits. Downshift before multiplying to keep them in range.
+	double something = ((p2x / 4) * (p2x / 8) + (p2y / 4) * (p2y / 8)) * 32.0;
+	// likewise
+	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 * (p2x / 8) + (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
 
 	if (u >= 1) {
 		u = 1;
