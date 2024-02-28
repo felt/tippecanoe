@@ -8,7 +8,7 @@ SHELL = /bin/sh
 CC := $(CC)
 CXX := $(CXX)
 CFLAGS := $(CFLAGS) -fPIE
-CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE
+CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE -fsanitize=undefined
 LDFLAGS := $(LDFLAGS)
 WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow
 RELEASE_FLAGS := -O3 -DNDEBUG
