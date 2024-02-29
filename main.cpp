@@ -2704,7 +2704,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				}
 			}
 
-			std::sort(ddv.begin(), ddv.end());
+			std::stable_sort(ddv.begin(), ddv.end());
 
 			size_t i = 0;
 			for (int z = 0; z <= basezoom; z++) {

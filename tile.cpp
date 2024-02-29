@@ -426,7 +426,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 
 		// sort the other features by their drop sequence, for consistency across zoom levels
 		if (cluster.size() > 1) {
-			std::sort(cluster.begin() + 1, cluster.end(), drop_sequence_cmp());
+			std::stable_sort(cluster.begin() + 1, cluster.end(), drop_sequence_cmp());
 		}
 
 		for (auto const &feature : cluster) {
@@ -814,7 +814,7 @@ static unsigned long long choose_mingap(std::vector<unsigned long long> const &i
 // If there are no higher extents available, the tile has already been reduced as much as possible
 // and tippecanoe will exit with an error.
 static long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
-	std::sort(extents.begin(), extents.end());
+	std::stable_sort(extents.begin(), extents.end());
 
 	size_t ix = (extents.size() - 1) * (1 - f);
 	while (ix + 1 < extents.size() && extents[ix] == existing_extent) {
@@ -829,7 +829,7 @@ static unsigned long long choose_mindrop_sequence(std::vector<unsigned long long
 		return ULLONG_MAX;
 	}
 
-	std::sort(drop_sequences.begin(), drop_sequences.end());
+	std::stable_sort(drop_sequences.begin(), drop_sequences.end());
 
 	size_t ix = (drop_sequences.size() - 1) * (1 - f);
 	while (ix + 1 < drop_sequences.size() && drop_sequences[ix] == existing_drop_sequence) {
@@ -2012,7 +2012,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// Reorder and coalesce.
 		// Sort back into input order or by attribute value
 
-		std::sort(shared_nodes.begin(), shared_nodes.end());
+		std::stable_sort(shared_nodes.begin(), shared_nodes.end());
 
 		for (auto &kv : layers) {
 			std::string const &layername = kv.first;
@@ -2034,7 +2034,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// these will be smaller numbers, and avoid the problem of the
 				// original sequence number varying based on how many reader threads
 				// there were reading the input
-				std::sort(feature_sequences.begin(), feature_sequences.end());
+				std::stable_sort(feature_sequences.begin(), feature_sequences.end());
 				for (size_t i = 0; i < feature_sequences.size(); i++) {
 					size_t j = feature_sequences[i].second;
 					serial_val sv(mvt_double, std::to_string(i));
@@ -2154,7 +2154,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::vector<serial_feature> &layer_features = features;
 
 			if (additional[A_REORDER]) {
-				std::sort(layer_features.begin(), layer_features.end(), coalindexcmp_comparator());
+				std::stable_sort(layer_features.begin(), layer_features.end(), coalindexcmp_comparator());
 			}
 
 			if (additional[A_COALESCE]) {
@@ -2218,13 +2218,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (prevent[P_INPUT_ORDER]) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
-				std::sort(clustered.begin(), clustered.end(), preservecmp);
+				std::stable_sort(clustered.begin(), clustered.end(), preservecmp);
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
 			if (order_by.size() != 0) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
-				std::sort(clustered.begin(), clustered.end(), ordercmp());
+				std::stable_sort(clustered.begin(), clustered.end(), ordercmp());
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 

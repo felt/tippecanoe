@@ -604,7 +604,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 				locs.push_back(encode_index(SHIFT_LEFT(scaled_geometry[i].x), SHIFT_LEFT(scaled_geometry[i].y)));
 			}
 		}
-		std::sort(locs.begin(), locs.end());
+		std::stable_sort(locs.begin(), locs.end());
 		size_t n = 0;
 		double sum = 0;
 		for (size_t i = 1; i < locs.size(); i++) {

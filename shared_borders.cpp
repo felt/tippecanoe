@@ -136,7 +136,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 		}
 	}
 
-	std::sort(edges.begin(), edges.end(), edgecmp_ring);
+	std::stable_sort(edges.begin(), edges.end(), edgecmp_ring);
 	std::set<draw> necessaries;
 
 	// Now mark all the points where the set of rings using the edge on one side
@@ -397,7 +397,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 			}
 		}
 	}
-	std::sort(order.begin(), order.end());
+	std::stable_sort(order.begin(), order.end());
 
 	size_t merged = 0;
 	for (size_t o = 0; o < order.size(); o++) {

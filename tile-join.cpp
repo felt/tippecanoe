@@ -584,7 +584,7 @@ struct tileset_reader {
 			next_overzoomed_tiles.clear();
 		}
 
-		std::sort(overzoomed_tiles.begin(), overzoomed_tiles.end(), tilecmp);
+		std::stable_sort(overzoomed_tiles.begin(), overzoomed_tiles.end(), tilecmp);
 		overzoom_consumed_at_this_zoom = false;
 	}
 

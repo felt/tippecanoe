@@ -174,7 +174,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 		sqlite3_finalize(stmt);
 	}
 
-	std::sort(tile_ids.begin(), tile_ids.end());
+	std::stable_sort(tile_ids.begin(), tile_ids.end());
 
 	std::unordered_map<std::string, std::pair<unsigned long long, unsigned long>> hash_to_offset_len;
 	std::vector<pmtiles::entryv3> entries;
@@ -263,7 +263,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 
 	// finalize PMTiles archive.
 	{
-		std::sort(entries.begin(), entries.end(), pmtiles::entryv3_cmp());
+		std::stable_sort(entries.begin(), entries.end(), pmtiles::entryv3_cmp());
 
 		std::string root_bytes;
 		std::string leaves_bytes;
