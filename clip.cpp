@@ -1026,7 +1026,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		}
 
 		if (preserve_input_order) {
-			std::sort(outlayer.features.begin(), outlayer.features.end(), preservecmp);
+			std::stable_sort(outlayer.features.begin(), outlayer.features.end(), preservecmp);
 		}
 
 		if (outlayer.features.size() > 0) {

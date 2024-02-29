@@ -176,7 +176,7 @@ std::vector<zxy> enumerate_dirtiles(const char *fname, int minzoom, int maxzoom)
 		closedir(d1);
 	}
 
-	std::sort(tiles.begin(), tiles.end());
+	std::stable_sort(tiles.begin(), tiles.end());
 	return tiles;
 }
 
