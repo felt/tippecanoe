@@ -895,7 +895,6 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
 
 		for (auto feature : layer.features) {
-			feature.seq = 0;
 			bool flush_multiplier_cluster = false;
 			if (demultiply) {
 				for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
