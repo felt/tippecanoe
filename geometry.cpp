@@ -1189,7 +1189,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				std::vector<candidate> candidates;
 
 				for (size_t pass = 0; pass < 4; pass++) {
-					std::sort(points.begin(), points.end(), sorty_sorter(pass));
+					std::stable_sort(points.begin(), points.end(), sorty_sorter(pass));
 
 					for (size_t i = 1; i < points.size(); i++) {
 						double dx = points[i].x - points[i - 1].x;
@@ -1213,7 +1213,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 				// segment, if we find one whose midpoint is inside the polygon and
 				// far enough from any edge to be good enough, stop looking.
 
-				std::sort(candidates.begin(), candidates.end());
+				std::stable_sort(candidates.begin(), candidates.end());
 				// only check the top 50 stride midpoints, since this list can be quite large
 				for (size_t i = 0; i < candidates.size() && i < 50; i++) {
 					double maybe_goodness = label_goodness(geom, candidates[i].x, candidates[i].y);

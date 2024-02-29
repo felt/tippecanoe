@@ -377,7 +377,7 @@ std::string mvt_tile::encode() {
 			sorted_values.push_back(std::move(sv));
 		}
 
-		std::sort(sorted_values.begin(), sorted_values.end());
+		std::stable_sort(sorted_values.begin(), sorted_values.end());
 		std::vector<size_t> mapping;
 		mapping.resize(sorted_values.size());
 
