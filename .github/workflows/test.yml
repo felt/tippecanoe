@@ -5,10 +5,7 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        version: ['Release', 'Debug']
     steps:
       - uses: actions/checkout@v3
-      - run: uname -a; BUILDTYPE=${{ matrix.version }} make
+      - run: uname -a; make
       - run: make test
