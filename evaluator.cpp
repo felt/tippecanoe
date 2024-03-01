@@ -394,15 +394,13 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 
 			bool contains = false;
 			for (size_t i = 0; i < f->value.array.array[2]->value.array.length; i++) {
-				if (f->value.array.array[2]->value.array.array[i]->type != JSON_STRING) {
-					return -1;  // anything in [not-a-string] => null
+				fail = false;
+				int cmp = compare_fsl(ff, f->value.array.array[2]->value.array.array[i], fail, unidecode_data);
+				if (fail) {
+					continue;  // null
 				}
 
-				if (unidecode_data.size() > 0) {
-					smash(unidecode_data, f->value.array.array[2]->value.array.array[i]);
-				}
-
-				if (strcmp(s.c_str(), f->value.array.array[2]->value.array.array[i]->value.string.string) == 0) {
+				if (cmp == 0) {
 					contains = true;
 					break;
 				}
