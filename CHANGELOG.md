@@ -1,3 +1,7 @@
+# 2.48.0
+
+* Fix some undefined behavior bugs, one of which results in slight changes to line simplification choices
+
 # 2.47.0
 
 * Stabilize feature order in tippecanoe-overzoom when --preserve-feature-order is specified but the sequence attribute is not present
