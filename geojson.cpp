@@ -105,7 +105,8 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		if (id->type == JSON_NUMBER) {
 			if (id->value.number.number >= 0) {
 				char *err = NULL;
-				id_value = strtoull(milo::dtoa_milo(id->value.number.number).c_str(), &err, 10);
+				std::string id_number = milo::dtoa_milo(id->value.number.number);
+				id_value = strtoull(id_number.c_str(), &err, 10);
 
 				if (id->value.number.large_unsigned != 0) {
 					id_value = id->value.number.large_unsigned;
