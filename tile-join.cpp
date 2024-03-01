@@ -562,7 +562,8 @@ struct tileset_reader {
 		zoom++;
 		overzoomed_tiles.clear();
 
-		long long scale = (1LL << zoom) / (1LL << maxzoom_so_far);
+		// +1 because maxzoom_so_far is initially -1, an invalid shift
+		long long scale = (1LL << (zoom + 1)) / (1LL << (maxzoom_so_far + 1));
 
 		// If this is the first overzoomed level, we don't know yet
 		// which tiles will be useful, so spell out all 4 child tiles

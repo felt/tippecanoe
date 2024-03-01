@@ -904,9 +904,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 							flush_multiplier_cluster = true;
 							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
 						}
-					}
-
-					if (layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
+					} else if (i < (ssize_t) feature.tags.size() && layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
 						mvt_value v = layer.values[feature.tags[i + 1]];
 						feature.seq = mvt_value_to_long_long(v);
 						feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
