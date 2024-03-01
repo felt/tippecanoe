@@ -1033,6 +1033,12 @@ The options are:
 \fB\fC\-J\fR \fIfilter\-file\fP or \fB\fC\-\-feature\-filter\-file\fR=\fIfilter\-file\fP: Like \fB\fC\-j\fR, but read the filter from a file.
 .IP \(bu 2
 \fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
+.IP \(bu 2
+\fB\fC\-m\fR: If a tile was created with the \fB\fC\-\-retain\-points\-multiplier\fR option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless \fB\fC\-j\fR is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
+.IP \(bu 2
+\fB\fC\-\-preserve\-input\-order\fR: Restore a set of filtered features to its original input order
+.IP \(bu 2
+\fB\fC\-\-accumulate\-attribute\fR: Behaves as in \fB\fCtippecanoe\fR to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with \fB\fC\-j\fR are \fInot\fP accumulated onto the output feature.
 .RE
 .SS Setting or disabling tile size limits
 .RS
