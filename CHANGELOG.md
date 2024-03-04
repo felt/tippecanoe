@@ -1,3 +1,7 @@
+# 2.49.0
+
+* FSL-style "in" expressions now allow numeric comparisons, but they no longer use unidecode to remove diacritics.
+
 # 2.48.0
 
 * Fix some undefined behavior bugs, one of which results in slight changes to line simplification choices
