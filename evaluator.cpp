@@ -387,22 +387,21 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		if (f->value.array.array[2]->type == JSON_ARRAY &&
 		    (strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
 		     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0)) {
-			std::string s = mvt_value_to_string(lhs, fail, unidecode_data);
+			static std::vector<std::string> no_unidecode_data;
+			std::string s = mvt_value_to_string(lhs, fail, no_unidecode_data);
 			if (fail) {
 				return -1;  // null in anything => false
 			}
 
 			bool contains = false;
 			for (size_t i = 0; i < f->value.array.array[2]->value.array.length; i++) {
-				if (f->value.array.array[2]->value.array.array[i]->type != JSON_STRING) {
-					return -1;  // anything in [not-a-string] => null
+				fail = false;
+				int cmp = compare_fsl(ff, f->value.array.array[2]->value.array.array[i], fail, no_unidecode_data);
+				if (fail) {
+					continue;  // null
 				}
 
-				if (unidecode_data.size() > 0) {
-					smash(unidecode_data, f->value.array.array[2]->value.array.array[i]);
-				}
-
-				if (strcmp(s.c_str(), f->value.array.array[2]->value.array.array[i]->value.string.string) == 0) {
+				if (cmp == 0) {
 					contains = true;
 					break;
 				}
