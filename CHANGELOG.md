@@ -1,3 +1,7 @@
+# 2.50.0
+
+* FSL-style "in" expressions use unidecode again
+
 # 2.49.0
 
 * FSL-style "in" expressions now allow numeric comparisons, but they no longer use unidecode to remove diacritics.
