@@ -1,3 +1,8 @@
+# 2.51.0
+
+* Fix null behavior in "in" expressions
+* But they are back to not using unidecode
+
 # 2.50.0
 
 * FSL-style "in" expressions use unidecode again
