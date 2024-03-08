@@ -1,0 +1,15 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 2145, "y": 1391 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "parsed", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 1, "properties": { "osm_id": "192162", "felt:cluster_size": 1 }, "geometry": { "type": "Point", "coordinates": [ 8.585773, 49.852166 ] } }
+,
+{ "type": "Feature", "id": 516, "properties": { "osm_id": "317282344", "felt:cluster_size": 1 }, "geometry": { "type": "Point", "coordinates": [ 8.591459, 49.856800 ] } }
+,
+{ "type": "Feature", "id": 545, "properties": { "osm_id": "330843617", "felt:cluster_size": 1 }, "geometry": { "type": "Point", "coordinates": [ 8.591051, 49.857063 ] } }
+,
+{ "type": "Feature", "id": 546, "properties": { "osm_id": "330843827", "felt:cluster_size": 1 }, "geometry": { "type": "Point", "coordinates": [ 8.592553, 49.851875 ] } }
+,
+{ "type": "Feature", "id": 547, "properties": { "osm_id": "330844309", "felt:cluster_size": 1 }, "geometry": { "type": "Point", "coordinates": [ 8.581738, 49.854047 ] } }
+,
+{ "type": "Feature", "id": 41908, "properties": { "name": "August-Euler-Flugplatz", "wikipedia": "de:August-Euler-Flugplatz", "ele": "102", "osm_way_id": "23872501", "felt:cluster_size": 1 }, "geometry": { "type": "Point", "coordinates": [ 8.586588, 49.853687 ] } }
+] }
+] }
