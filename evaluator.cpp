@@ -398,7 +398,8 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 					}
 				} else {
 					fail = false;
-					int cmp = compare_fsl(lhs, f->value.array.array[2]->value.array.array[i], fail, unidecode_data);
+					static std::vector<std::string> no_unidecode_data;
+					int cmp = compare_fsl(lhs, f->value.array.array[2]->value.array.array[i], fail, no_unidecode_data);
 
 					if (fail) {
 						contains = false;  // non-null isnt null
