@@ -343,11 +343,9 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	     strcmp(f->value.array.array[1]->value.string.string, "is") == 0 ||
 	     strcmp(f->value.array.array[1]->value.string.string, "isnt") == 0 ||
 	     false)) {
-		mvt_value lhs;
-		lhs.type = mvt_null;  // attributes that aren't found are nulls
-		mvt_value ff = feature(std::string(f->value.array.array[0]->value.string.string));
-		if (ff.type != mvt_no_such_key) {
-			lhs = ff;
+		mvt_value lhs = feature(std::string(f->value.array.array[0]->value.string.string));
+		if (lhs.type == mvt_no_such_key) {
+			lhs.type = mvt_null;
 		}
 
 		if (f->value.array.array[2]->type == JSON_NULL && strcmp(f->value.array.array[1]->value.string.string, "is") == 0) {
@@ -357,15 +355,15 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			return lhs.type != mvt_null;  // null isnt null => false, anything isnt null => true
 		}
 
-		if (lhs.type == mvt_null) {
-			return -1;  // null op anything => null
-		}
-
 		bool fail = false;
 
 		if (f->value.array.array[2]->type == JSON_STRING &&
 		    (strcmp(f->value.array.array[1]->value.string.string, "cn") == 0 ||
 		     strcmp(f->value.array.array[1]->value.string.string, "nc") == 0)) {
+			if (lhs.type == mvt_null) {
+				return -1;  // null cn/nc anything => null
+			}
+
 			std::string s = mvt_value_to_string(lhs, fail, unidecode_data);
 			if (fail) {
 				return -1;  // null cn anything => false
@@ -387,22 +385,27 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		if (f->value.array.array[2]->type == JSON_ARRAY &&
 		    (strcmp(f->value.array.array[1]->value.string.string, "in") == 0 ||
 		     strcmp(f->value.array.array[1]->value.string.string, "ni") == 0)) {
-			std::string s = mvt_value_to_string(lhs, fail, unidecode_data);
-			if (fail) {
-				return -1;  // null in anything => false
-			}
+			// no null check here, since null can be in or not in
 
 			bool contains = false;
 			for (size_t i = 0; i < f->value.array.array[2]->value.array.length; i++) {
-				fail = false;
-				int cmp = compare_fsl(ff, f->value.array.array[2]->value.array.array[i], fail, unidecode_data);
-				if (fail) {
-					continue;  // null
-				}
+				if (lhs.type == mvt_null) {
+					if (f->value.array.array[2]->value.array.array[i]->type == JSON_NULL) {
+						contains = true;  // null is null
+						break;
+					} else {
+						contains = false;  // null isnt non-null
+					}
+				} else {
+					fail = false;
+					int cmp = compare_fsl(lhs, f->value.array.array[2]->value.array.array[i], fail, unidecode_data);
 
-				if (cmp == 0) {
-					contains = true;
-					break;
+					if (fail) {
+						contains = false;  // non-null isnt null
+					} else if (cmp == 0) {
+						contains = true;
+						break;
+					}
 				}
 			}
 
@@ -413,7 +416,11 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			}
 		}
 
-		int cmp = compare_fsl(ff, f->value.array.array[2], fail, unidecode_data);
+		if (lhs.type == mvt_null) {
+			return -1;  // null compared to anything => null
+		}
+
+		int cmp = compare_fsl(lhs, f->value.array.array[2], fail, unidecode_data);
 		if (fail) {
 			return -1;  // null
 		}

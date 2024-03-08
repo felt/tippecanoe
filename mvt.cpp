@@ -601,7 +601,7 @@ std::string mvt_value::toString() const {
 	case mvt_null:
 		return "null";
 	default:
-		return "unknown";
+		return "unknown " + std::to_string(type);
 	}
 }
 
