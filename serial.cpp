@@ -25,7 +25,7 @@
 #include "errors.hpp"
 
 // Offset coordinates to keep them positive
-#define COORD_OFFSET (4LL << 32)
+#define COORD_OFFSET (4LL << GLOBAL_DETAIL)
 #define SHIFT_RIGHT(a) ((long long) std::round((double) (a) / (1LL << geometry_scale)))
 #define SHIFT_LEFT(a) ((((a) + (COORD_OFFSET >> geometry_scale)) << geometry_scale) - COORD_OFFSET)
 
@@ -315,12 +315,12 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 						// jumps at least 180° but not exactly 360°,
 						// which in some data sets is an intentional
 						// line across the world
-						if (x - prev > (1LL << 31) && x - prev != (1LL << 32)) {
-							offset -= 1LL << 32;
-							x -= 1LL << 32;
-						} else if (prev - x > (1LL << 31) && prev - x != (1LL << 32)) {
-							offset += 1LL << 32;
-							x += 1LL << 32;
+						if (x - prev > (1LL << (GLOBAL_DETAIL - 1)) && x - prev != (1LL << GLOBAL_DETAIL)) {
+							offset -= 1LL << GLOBAL_DETAIL;
+							x -= 1LL << GLOBAL_DETAIL;
+						} else if (prev - x > (1LL << (GLOBAL_DETAIL - 1)) && prev - x != (1LL << GLOBAL_DETAIL)) {
+							offset += 1LL << GLOBAL_DETAIL;
+							x += 1LL << GLOBAL_DETAIL;
 						}
 					}
 
@@ -345,11 +345,17 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 				bbox[3] = y;
 			}
 
+			// if the geometry offset is not yet initialized, initialize it
 			if (!*(sst->initialized)) {
-				if (x < 0 || x >= (1LL << 32) || y < 0 || y >= (1LL << 32)) {
-					*(sst->initial_x) = 1LL << 31;
-					*(sst->initial_y) = 1LL << 31;
+				if (x < 0 || x >= (1LL << GLOBAL_DETAIL) || y < 0 || y >= (1LL << GLOBAL_DETAIL)) {
+					// if the first point is off the edge of the world plane,
+					// use null island
+
+					*(sst->initial_x) = 1LL << (GLOBAL_DETAIL - 1);
+					*(sst->initial_y) = 1LL << (GLOBAL_DETAIL - 1);
 				} else {
+					// otherwise use the actual first point (rounded to the geometry_scale)
+
 					*(sst->initial_x) = SHIFT_LEFT(SHIFT_RIGHT(x));
 					*(sst->initial_y) = SHIFT_LEFT(SHIFT_RIGHT(y));
 				}
@@ -672,8 +678,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 	if (sf.t == VT_POINT) {
 		// keep old behavior, which loses one bit of precision at the bottom
-		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
-		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << GLOBAL_DETAIL) - 1);
+		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << GLOBAL_DETAIL) - 1);
 	} else {
 		// To reduce the chances of giving multiple polygons or linestrings
 		// the same index, use an arbitrary but predictable point from the
@@ -694,8 +700,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 
 		// If off the edge of the plane, mask to bring it back into the addressable area
-		midx = SHIFT_LEFT(scaled_geometry[ix].x) & ((1LL << 32) - 1);
-		midy = SHIFT_LEFT(scaled_geometry[ix].y) & ((1LL << 32) - 1);
+		midx = SHIFT_LEFT(scaled_geometry[ix].x) & ((1LL << GLOBAL_DETAIL) - 1);
+		midy = SHIFT_LEFT(scaled_geometry[ix].y) & ((1LL << GLOBAL_DETAIL) - 1);
 	}
 
 	bbox_index = encode_index(midx, midy);
@@ -703,8 +709,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 		drawvec dv = polygon_to_anchor(scaled_geometry);
 		if (dv.size() > 0) {
-			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << 32) - 1);
-			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << 32) - 1);
+			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << GLOBAL_DETAIL) - 1);
+			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << GLOBAL_DETAIL) - 1);
 			sf.label_point = encode_index(dv[0].x, dv[0].y);
 		}
 	}

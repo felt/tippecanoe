@@ -50,7 +50,9 @@ int pg = false;
 int pe = false;
 size_t CPUS;
 int quiet = false;
-int maxzoom = 32;
+
+#define MAX_MAXZOOM 32
+int maxzoom = MAX_MAXZOOM;
 int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
@@ -474,7 +476,7 @@ struct tileset_reader {
 			if (overzoomed_tiles.size() == 0) {
 				// we have nothing to overzoom; give up
 				current_tile_is_overzoomed = false;
-				zoom = 32;
+				zoom = MAX_MAXZOOM;
 				return;
 			}
 
@@ -533,7 +535,7 @@ struct tileset_reader {
 				next_overzoom();
 				advance();
 			} else {
-				zoom = 32;
+				zoom = MAX_MAXZOOM;
 			}
 		} else {
 			if (zoom > maxzoom_so_far) {
