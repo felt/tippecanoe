@@ -200,6 +200,14 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
 	}
 }
 
+unsigned coordinate_to_encodable(long long coord) {
+	return (unsigned) (coord / (1LL << (GLOBAL_DETAIL - 32)));
+}
+
+long long decoded_to_coordinate(unsigned coord) {
+	return ((long long) coord) * (1LL << (GLOBAL_DETAIL - 32));
+}
+
 void set_projection_or_exit(const char *optarg) {
 	struct projection *p;
 	for (p = projections; p->name != NULL; p++) {

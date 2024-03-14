@@ -10,6 +10,7 @@
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
+#include "projection.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,

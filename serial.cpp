@@ -409,7 +409,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 	long long y = SHIFT_LEFT(g.y);
 
 	struct node n;
-	n.index = encode_quadkey((unsigned) x, (unsigned) y);
+	n.index = encode_quadkey(coordinate_to_encodable(x), coordinate_to_encodable(y));
 
 	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
 }
@@ -704,14 +704,15 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		midy = SHIFT_LEFT(scaled_geometry[ix].y) & ((1LL << GLOBAL_DETAIL) - 1);
 	}
 
-	bbox_index = encode_index(midx, midy);
+	bbox_index = encode_index(coordinate_to_encodable(midx), coordinate_to_encodable(midy));
 
 	if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 		drawvec dv = polygon_to_anchor(scaled_geometry);
 		if (dv.size() > 0) {
 			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << GLOBAL_DETAIL) - 1);
 			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << GLOBAL_DETAIL) - 1);
-			sf.label_point = encode_index(dv[0].x, dv[0].y);
+			// this could just be serialized as numbers instead of encoding and decoding
+			sf.label_point = encode_index(coordinate_to_encodable(dv[0].x), coordinate_to_encodable(dv[0].y));
 		}
 	}
 

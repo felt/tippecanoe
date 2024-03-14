@@ -497,7 +497,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 				// to quadkey
 				struct node n;
-				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+				n.index = encode_quadkey(coordinate_to_encodable(d.x), coordinate_to_encodable(d.y));
 
 				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
 					geom[i].necessary = true;
@@ -578,8 +578,8 @@ drawvec reorder_lines(const drawvec &geom) {
 	// instead of down and to the right
 	// so that it will coalesce better
 
-	unsigned long long l1 = encode_index(geom[0].x, geom[0].y);
-	unsigned long long l2 = encode_index(geom[geom.size() - 1].x, geom[geom.size() - 1].y);
+	unsigned long long l1 = encode_index(coordinate_to_encodable(geom[0].x), coordinate_to_encodable(geom[0].y));
+	unsigned long long l2 = encode_index(coordinate_to_encodable(geom[geom.size() - 1].x), coordinate_to_encodable(geom[geom.size() - 1].y));
 
 	if (l1 > l2) {
 		drawvec out;
@@ -1302,6 +1302,9 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 	unsigned wx, wy;
 	decode_index(label_point, &wx, &wy);
 
+	long long wwx = decoded_to_coordinate(wx);
+	long long wwy = decoded_to_coordinate(wy);
+
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
 	// lower right of tile in world coordinates;
@@ -1340,16 +1343,16 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 
 	const long long label_spacing = spiral_dist * (tx2 - tx1);
 
-	long long x1 = floor(std::min(bx1 - wx, bx2 - wx) / label_spacing);
-	long long x2 = ceil(std::max(bx1 - wx, bx2 - wx) / label_spacing);
+	long long x1 = floor(std::min(bx1 - wwx, bx2 - wwx) / label_spacing);
+	long long x2 = ceil(std::max(bx1 - wwx, bx2 - wwx) / label_spacing);
 
-	long long y1 = floor(std::min(by1 - wy, by2 - wy) / label_spacing - 0.5);
-	long long y2 = ceil(std::max(by1 - wy, by2 - wy) / label_spacing);
+	long long y1 = floor(std::min(by1 - wwy, by2 - wwy) / label_spacing - 0.5);
+	long long y2 = ceil(std::max(by1 - wwy, by2 - wwy) / label_spacing);
 
 	for (long long lx = x1; lx <= x2; lx++) {
 		for (long long ly = y1; ly <= y2; ly++) {
-			long long x = lx * label_spacing + wx;
-			long long y = ly * label_spacing + wy;
+			long long x = lx * label_spacing + wwx;
+			long long y = ly * label_spacing + wwy;
 
 			if (((unsigned long long) lx & 1) == 1) {
 				y += label_spacing / 2;

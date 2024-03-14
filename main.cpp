@@ -2069,7 +2069,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 #endif
 
 				struct node n;
-				n.index = encode_quadkey((unsigned) x, (unsigned) y);
+				n.index = encode_quadkey(coordinate_to_encodable(x), coordinate_to_encodable(y));
 
 				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
 			}
@@ -2152,7 +2152,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				unsigned wx, wy;
 				decode_quadkey(here.index, &wx, &wy);
 				double lon, lat;
-				tile2lonlat(wx, wy, 32, &lon, &lat);
+				tile2lonlat(decoded_to_coordinate(wx), decoded_to_coordinate(wy), GLOBAL_DETAIL, &lon, &lat);
 				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
 #endif
 			}
@@ -2505,6 +2505,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			unsigned xx, yy;
 			decode_index(map[ip].ix, &xx, &yy);
 
+			long long gxx = decoded_to_coordinate(xx);
+			long long gyy = decoded_to_coordinate(yy);
+
 			long long nprogress = 100 * ip / indices;
 			if (nprogress != progress) {
 				progress = nprogress;
@@ -2520,8 +2523,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (z != 0) {
 					// These are tile numbers, not pixels,
 					// so shift, not round
-					xxx = xx >> (32 - z);
-					yyy = yy >> (32 - z);
+					xxx = gxx >> (GLOBAL_DETAIL - z);
+					yyy = gyy >> (GLOBAL_DETAIL - z);
 				}
 
 				double scale = (double) (1LL << (64 - 2 * (z + 8)));
