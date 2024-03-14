@@ -57,8 +57,6 @@ extern "C" {
 
 #define CMD_BITS 3
 
-// Offset coordinates to keep them positive
-#define COORD_OFFSET (4LL << 32)
 #define SHIFT_RIGHT(a) ((long long) std::round((double) (a) / (1LL << geometry_scale)))
 
 #define XSTRINGIFY(s) STRINGIFY(s)
@@ -449,7 +447,7 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = osf.bbox[k] / (1 << (32 - nextzoom - 8));
+			bbox2[k] = osf.bbox[k] / (1 << (GLOBAL_DETAIL - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.
@@ -472,8 +470,8 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		// Offset from tile coordinates back to world coordinates
 		unsigned sx = 0, sy = 0;
 		if (z != 0) {
-			sx = tx << (32 - z);
-			sy = ty << (32 - z);
+			sx = tx << (GLOBAL_DETAIL - z);
+			sy = ty << (GLOBAL_DETAIL - z);
 		}
 
 		drawvec geom2;
@@ -543,7 +541,7 @@ struct simplification_worker_arg {
 // so that the area of the feature is still somehow represented
 static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 	// From area in world coordinates to area in tile coordinates
-	long long divisor = 1LL << (32 - detail - z);
+	long long divisor = 1LL << (GLOBAL_DETAIL - detail - z);
 	area /= divisor * divisor;
 
 	if (area == 0) {
@@ -613,7 +611,7 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 			// it would leave something else within the same tile pixel.
 			if (t == VT_LINE && !prevent[P_SIMPLIFY_SHARED_NODES]) {
 				// continues to deduplicate to line_detail even if we have extra detail
-				geom = remove_noop(geom, t, 32 - z - line_detail);
+				geom = remove_noop(geom, t, GLOBAL_DETAIL - z - line_detail);
 			}
 
 			bool already_marked = false;
@@ -918,26 +916,26 @@ static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 	int quick = quick_check(sf.bbox, z, buffer);
 
 	if (z == 0) {
-		if (sf.bbox[0] <= (1LL << 32) * buffer / 256 || sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
+		if (sf.bbox[0] <= (1LL << GLOBAL_DETAIL) * buffer / 256 || sf.bbox[2] >= (1LL << GLOBAL_DETAIL) - ((1LL << GLOBAL_DETAIL) * buffer / 256)) {
 			// If the geometry extends off the edge of the world, concatenate on another copy
 			// shifted by 360 degrees, and then make sure both copies get clipped down to size.
 
 			size_t n = sf.geometry.size();
 
-			if (sf.bbox[0] <= (1LL << 32) * buffer / 256) {
+			if (sf.bbox[0] <= (1LL << GLOBAL_DETAIL) * buffer / 256) {
 				for (size_t i = 0; i < n; i++) {
-					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x + (1LL << 32), sf.geometry[i].y));
+					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x + (1LL << GLOBAL_DETAIL), sf.geometry[i].y));
 				}
 			}
 
-			if (sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
+			if (sf.bbox[2] >= (1LL << GLOBAL_DETAIL) - ((1LL << GLOBAL_DETAIL) * buffer / 256)) {
 				for (size_t i = 0; i < n; i++) {
-					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x - (1LL << 32), sf.geometry[i].y));
+					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x - (1LL << GLOBAL_DETAIL), sf.geometry[i].y));
 				}
 			}
 
 			sf.bbox[0] = 0;
-			sf.bbox[2] = 1LL << 32;
+			sf.bbox[2] = 1LL << GLOBAL_DETAIL;
 
 			quick = -1;
 		}
@@ -1250,7 +1248,7 @@ void *run_prefilter(void *v) {
 		}
 
 		mvt_layer tmp_layer;
-		tmp_layer.extent = 1LL << 32;
+		tmp_layer.extent = 1LL << GLOBAL_DETAIL;
 		tmp_layer.name = (*(rpa->layer_unmaps))[sf.segment][sf.layer];
 
 		if (sf.t == VT_POLYGON) {
@@ -1267,8 +1265,8 @@ void *run_prefilter(void *v) {
 		// Offset from tile coordinates back to world coordinates
 		unsigned sx = 0, sy = 0;
 		if (rpa->z != 0) {
-			sx = rpa->tx << (32 - rpa->z);
-			sy = rpa->ty << (32 - rpa->z);
+			sx = rpa->tx << (GLOBAL_DETAIL - rpa->z);
+			sy = rpa->ty << (GLOBAL_DETAIL - rpa->z);
 		}
 		for (size_t i = 0; i < tmp_feature.geometry.size(); i++) {
 			tmp_feature.geometry[i].x += sx;
@@ -1406,12 +1404,12 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 		return true;
 	}
 
-	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
-	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
+	long long x = std::round((double) geometry[0].x / (1LL << (GLOBAL_DETAIL - detail - z)));
+	long long y = std::round((double) geometry[0].y / (1LL << (GLOBAL_DETAIL - detail - z)));
 
 	for (auto &g : geometry) {
-		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
-		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
+		long long xx = std::round((double) g.x / (1LL << (GLOBAL_DETAIL - detail - z)));
+		long long yy = std::round((double) g.y / (1LL << (GLOBAL_DETAIL - detail - z)));
 
 		if (xx != x || yy != y) {
 			return false;
@@ -2194,7 +2192,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						layer_features[x].geometry = remove_noop(layer_features[x].geometry, layer_features[x].t, 0);
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
 							// XXX revisit: why does this not take zoom into account?
-							layer_features[x].geometry = simplify_lines(layer_features[x].geometry, 32, 0, 0, 0,
+							layer_features[x].geometry = simplify_lines(layer_features[x].geometry, GLOBAL_DETAIL, 0, 0, 0,
 												    !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
 						}
 					}
@@ -2633,8 +2631,10 @@ exit(EXIT_IMPOSSIBLE);
 					*arg->midy = y;
 					*arg->most = len;
 				} else if (len == *arg->most) {
-					unsigned long long a = (((unsigned long long) x) << 32) | y;
-					unsigned long long b = (((unsigned long long) *arg->midx) << 32) | *arg->midy;
+					// the details of the construction of a and b don't really matter very much;
+					// this is just a tie breaker if two maxzoom tiles have identical sizes
+					unsigned long long a = (((unsigned long long) x) << (8 * sizeof(y))) | y;
+					unsigned long long b = (((unsigned long long) *arg->midx) << (8 * sizeof(y))) | *arg->midy;
 
 					if (a < b) {
 						*arg->midx = x;
@@ -2820,7 +2820,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		int err = INT_MAX;
 
 		double zoom_gamma = gamma;
-		unsigned long long zoom_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
+		unsigned long long zoom_mingap = ((1LL << (GLOBAL_DETAIL - z)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - z)) / 256 * cluster_distance);
 		long long zoom_minextent = 0;
 		unsigned long long zoom_mindrop_sequence = 0;
 		size_t zoom_tile_size = 0;

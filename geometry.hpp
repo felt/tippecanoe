@@ -20,6 +20,8 @@
 #define VT_LINETO 2
 #define VT_CLOSEPATH 7
 
+#define GLOBAL_DETAIL 32
+
 // The bitfield is to make sizeof(draw) be 16 instead of 24
 // at the cost, apparently, of a 0.7% increase in running time
 // for packing and unpacking.

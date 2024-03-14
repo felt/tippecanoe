@@ -45,7 +45,7 @@ drawvec readPoints(const FlatGeobuf::Geometry *geometry) {
 
 	for (unsigned int i = 0; i < xy->size(); i+=2) {
 		long long x, y;
-		projection->project(xy->Get(i), xy->Get(i+1), 32, &x, &y);
+		projection->project(xy->Get(i), xy->Get(i+1), GLOBAL_DETAIL, &x, &y);
 		dv.push_back(draw(VT_MOVETO, x, y));
 	}
 	return dv;
@@ -59,7 +59,7 @@ drawvec readLinePart(const FlatGeobuf::Geometry *geometry) {
 
 	for (unsigned int i = 0; i < xy->size(); i+=2) {
 		long long x, y;
-		projection->project(xy->Get(i), xy->Get(i+1), 32, &x, &y);
+		projection->project(xy->Get(i), xy->Get(i+1), GLOBAL_DETAIL, &x, &y);
 		if (i == 0 || (ends != NULL && current_end < ends->size() && i == ends->Get(current_end)*2)) {
 			dv.push_back(draw(VT_MOVETO, x, y));
 			if (i > 0) current_end++;
