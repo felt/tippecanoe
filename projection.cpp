@@ -7,6 +7,8 @@
 #include "projection.hpp"
 #include "errors.hpp"
 
+#define UINT_BITS 32
+
 unsigned long long (*encode_index)(unsigned int wx, unsigned int wy) = NULL;
 void (*decode_index)(unsigned long long index, unsigned *wx, unsigned *wy) = NULL;
 
@@ -84,23 +86,23 @@ void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y) 
 		ix = 40000000.0;
 	}
 
-	*x = std::round(ix * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31));
-	*y = std::round(((1LL << 32) - 1) - (iy * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31)));
+	*x = std::round(ix * (1LL << (GLOBAL_DETAIL - 1)) / 6378137.0 / M_PI + (1LL << (GLOBAL_DETAIL - 1)));
+	*y = std::round(((1LL << GLOBAL_DETAIL) - 1) - (iy * (1LL << (GLOBAL_DETAIL - 1)) / 6378137.0 / M_PI + (1LL << (GLOBAL_DETAIL - 1))));
 
 	if (zoom != 0) {
-		*x = std::round((double) *x / (1LL << (32 - zoom)));
-		*y = std::round((double) *y / (1LL << (32 - zoom)));
+		*x = std::round((double) *x / (1LL << (GLOBAL_DETAIL - zoom)));
+		*y = std::round((double) *y / (1LL << (GLOBAL_DETAIL - zoom)));
 	}
 }
 
 void tiletoepsg3857(long long ix, long long iy, int zoom, double *ox, double *oy) {
 	if (zoom != 0) {
-		ix <<= (32 - zoom);
-		iy <<= (32 - zoom);
+		ix <<= (GLOBAL_DETAIL - zoom);
+		iy <<= (GLOBAL_DETAIL - zoom);
 	}
 
-	*ox = (ix - (1LL << 31)) * M_PI * 6378137.0 / (1LL << 31);
-	*oy = ((1LL << 32) - 1 - iy - (1LL << 31)) * M_PI * 6378137.0 / (1LL << 31);
+	*ox = (ix - (1LL << (GLOBAL_DETAIL - 1))) * M_PI * 6378137.0 / (1LL << (GLOBAL_DETAIL - 1));
+	*oy = ((1LL << GLOBAL_DETAIL) - 1 - iy - (1LL << (GLOBAL_DETAIL - 1))) * M_PI * 6378137.0 / (1LL << (GLOBAL_DETAIL - 1));
 }
 
 // https://en.wikipedia.org/wiki/Hilbert_curve
@@ -149,20 +151,20 @@ void hilbert_d2xy(unsigned long long n, unsigned long long d, unsigned *x, unsig
 }
 
 unsigned long long encode_hilbert(unsigned int wx, unsigned int wy) {
-	return hilbert_xy2d(1LL << 32, wx, wy);
+	return hilbert_xy2d(1LL << UINT_BITS, wx, wy);
 }
 
 void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy) {
-	hilbert_d2xy(1LL << 32, index, wx, wy);
+	hilbert_d2xy(1LL << UINT_BITS, index, wx, wy);
 }
 
 unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
 	unsigned long long out = 0;
 
 	int i;
-	for (i = 0; i < 32; i++) {
-		unsigned long long v = ((wx >> (32 - (i + 1))) & 1) << 1;
-		v |= (wy >> (32 - (i + 1))) & 1;
+	for (i = 0; i < UINT_BITS; i++) {
+		unsigned long long v = ((wx >> (UINT_BITS - (i + 1))) & 1) << 1;
+		v |= (wy >> (UINT_BITS - (i + 1))) & 1;
 		v = v << (64 - 2 * (i + 1));
 
 		out |= v;
@@ -180,9 +182,9 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
 		for (size_t ix = 0; ix < 256; ix++) {
 			size_t xx = 0, yy = 0;
 
-			for (size_t i = 0; i < 32; i++) {
-				xx |= ((ix >> (64 - 2 * (i + 1) + 1)) & 1) << (32 - (i + 1));
-				yy |= ((ix >> (64 - 2 * (i + 1) + 0)) & 1) << (32 - (i + 1));
+			for (size_t i = 0; i < UINT_BITS; i++) {
+				xx |= ((ix >> (64 - 2 * (i + 1) + 1)) & 1) << (UINT_BITS - (i + 1));
+				yy |= ((ix >> (64 - 2 * (i + 1) + 0)) & 1) << (UINT_BITS - (i + 1));
 			}
 
 			decodex[ix] = xx;
@@ -201,11 +203,11 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
 }
 
 unsigned coordinate_to_encodable(long long coord) {
-	return (unsigned) (coord / (1LL << (GLOBAL_DETAIL - 32)));
+	return (unsigned) (coord / (1LL << (GLOBAL_DETAIL - UINT_BITS)));
 }
 
 long long decoded_to_coordinate(unsigned coord) {
-	return ((long long) coord) * (1LL << (GLOBAL_DETAIL - 32));
+	return ((long long) coord) * (1LL << (GLOBAL_DETAIL - UINT_BITS));
 }
 
 void set_projection_or_exit(const char *optarg) {

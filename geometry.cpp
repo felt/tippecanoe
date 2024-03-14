@@ -52,8 +52,8 @@ drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long
 			long long wwy = wy;
 
 			if (z != 0) {
-				wwx -= tx << (32 - z);
-				wwy -= ty << (32 - z);
+				wwx -= tx << (GLOBAL_DETAIL - z);
+				wwy -= ty << (GLOBAL_DETAIL - z);
 			}
 
 			bbox[0] = std::min(wwx, bbox[0]);
@@ -170,7 +170,7 @@ void check_polygon(drawvec &geom) {
 
 drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area) {
 	drawvec out;
-	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
+	const double pixel = (1LL << (GLOBAL_DETAIL - detail - z)) * (double) tiny_polygon_size;
 
 	bool included_last_outer = false;
 	*still_needs_simplification = false;
@@ -264,7 +264,7 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 
 int quick_check(const long long *bbox, int z, long long buffer) {
 	long long min = 0;
-	long long area = 1LL << (32 - z);
+	long long area = 1LL << (GLOBAL_DETAIL - z);
 
 	// bbox entirely within the tile proper
 	if (bbox[0] > min && bbox[1] > min && bbox[2] < area && bbox[3] < area) {
@@ -295,7 +295,7 @@ bool point_within_tile(long long x, long long y, int z) {
 	// No adjustment for buffer, because the point must be
 	// strictly within the tile to appear exactly once
 
-	long long area = 1LL << (32 - z);
+	long long area = 1LL << (GLOBAL_DETAIL - z);
 
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
@@ -459,8 +459,8 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 }
 
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
-	int res = 1 << (32 - detail - z);
-	long long area = 1LL << (32 - z);
+	int res = 1 << (GLOBAL_DETAIL - detail - z);
+	long long area = 1LL << (GLOBAL_DETAIL - z);
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
@@ -491,8 +491,8 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				// offset to global
 				draw d = geom[i];
 				if (z != 0) {
-					d.x += tx * (1LL << (32 - z));
-					d.y += ty * (1LL << (32 - z));
+					d.x += tx * (1LL << (GLOBAL_DETAIL - z));
+					d.y += ty * (1LL << (GLOBAL_DETAIL - z));
 				}
 
 				// to quadkey
@@ -823,7 +823,7 @@ std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms) {
 
 drawvec stairstep(drawvec &geom, int z, int detail) {
 	drawvec out;
-	double scale = 1 << (32 - detail - z);
+	double scale = 1 << (GLOBAL_DETAIL - detail - z);
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		geom[i].x = std::round(geom[i].x / scale);
@@ -900,8 +900,8 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 	}
 
 	for (size_t i = 0; i < out.size(); i++) {
-		out[i].x *= 1 << (32 - detail - z);
-		out[i].y *= 1 << (32 - detail - z);
+		out[i].x *= 1LL << (GLOBAL_DETAIL - detail - z);
+		out[i].y *= 1LL << (GLOBAL_DETAIL - detail - z);
 	}
 
 	return out;
@@ -1277,7 +1277,7 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 
 				if (goodness <= 0) {
 					double lon, lat;
-					tile2lonlat(d.x, d.y, 32, &lon, &lat);
+					tile2lonlat(d.x, d.y, GLOBAL_DETAIL, &lon, &lat);
 
 					static std::atomic<long long> warned(0);
 					if (warned++ < 10) {
@@ -1308,13 +1308,13 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
 	// lower right of tile in world coordinates;
-	long long tx2 = 1LL << 32;  // , ty2 = 1LL << 32;
+	long long tx2 = 1LL << GLOBAL_DETAIL;  // , ty2 = 1LL << GLOBAL_DETAIL;
 	if (z != 0) {
-		tx1 = (long long) tx << (32 - z);
-		ty1 = (long long) ty << (32 - z);
+		tx1 = (long long) tx << (GLOBAL_DETAIL - z);
+		ty1 = (long long) ty << (GLOBAL_DETAIL - z);
 
-		tx2 = (long long) (tx + 1) << (32 - z);
-		// ty2 = (long long) (ty + 1) << (32 - z);
+		tx2 = (long long) (tx + 1) << (GLOBAL_DETAIL - z);
+		// ty2 = (long long) (ty + 1) << (GLOBAL_DETAIL - z);
 	}
 
 	// upper left of feature in world coordinates
@@ -1369,7 +1369,7 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 				out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));
 				break;
 			} else {
-				double tilesize = 1LL << (32 - z);
+				double tilesize = 1LL << (GLOBAL_DETAIL - z);
 				double goodness_threshold = tilesize / 100;
 				if (label_goodness(geom, x - tx1, y - ty1) > goodness_threshold) {
 					out.push_back(draw(VT_MOVETO, x - tx1, y - ty1));

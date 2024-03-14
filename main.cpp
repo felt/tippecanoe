@@ -333,7 +333,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 
 		if (preserve_point_density_threshold > 0) {
 			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
-				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
+				if (ix->ix - ds[i].previndex > ((1LL << (GLOBAL_DETAIL - i)) / preserve_point_density_threshold) * ((1LL << (GLOBAL_DETAIL - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
 					for (ssize_t j = i; j <= maxzoom; j++) {
@@ -1181,21 +1181,21 @@ void choose_first_zoom(long long *file_bbox, long long *file_bbox1, long long *f
 	// bounding box is the whole world.
 	if (file_bbox[0] < 0) {
 		file_bbox[0] = 0;
-		file_bbox[2] = (1LL << 32) - 1;
+		file_bbox[2] = (1LL << GLOBAL_DETAIL) - 1;
 	}
-	if (file_bbox[2] > (1LL << 32) - 1) {
+	if (file_bbox[2] > (1LL << GLOBAL_DETAIL) - 1) {
 		file_bbox[0] = 0;
-		file_bbox[2] = (1LL << 32) - 1;
+		file_bbox[2] = (1LL << GLOBAL_DETAIL) - 1;
 	}
 	if (file_bbox[1] < 0) {
 		file_bbox[1] = 0;
 	}
-	if (file_bbox[3] > (1LL << 32) - 1) {
-		file_bbox[3] = (1LL << 32) - 1;
+	if (file_bbox[3] > (1LL << GLOBAL_DETAIL) - 1) {
+		file_bbox[3] = (1LL << GLOBAL_DETAIL) - 1;
 	}
 
 	for (ssize_t z = minzoom; z >= 0; z--) {
-		long long shift = 1LL << (32 - z);
+		long long shift = 1LL << (GLOBAL_DETAIL - z);
 
 		long long left = (file_bbox[0] - buffer * shift / 256) / shift;
 		long long top = (file_bbox[1] - buffer * shift / 256) / shift;
@@ -2064,7 +2064,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 #if 0
 				double lon, lat;
-				tile2lonlat(x, y, 32, &lon, &lat);
+				tile2lonlat(x, y, GLOBAL_DETAIL, &lon, &lat);
 				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
 #endif
 
@@ -2357,11 +2357,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (maxzoom < 0) {
 				maxzoom = 0;
 			}
-			if (maxzoom > 32 - full_detail) {
-				maxzoom = 32 - full_detail;
+			if (maxzoom > GLOBAL_DETAIL - full_detail) {
+				maxzoom = GLOBAL_DETAIL - full_detail;
 			}
-			if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-				maxzoom = 33 - low_detail;
+			if (maxzoom - 1 > GLOBAL_DETAIL - low_detail) {
+				maxzoom = GLOBAL_DETAIL + 1 - low_detail;
 			}
 
 			if (!quiet) {
@@ -2374,8 +2374,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			}
 
 			bool changed = false;
-			while (maxzoom < 32 - full_detail && maxzoom < 33 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
-				unsigned long long zoom_mingap = ((1LL << (32 - maxzoom)) / 256 * cluster_distance) * ((1LL << (32 - maxzoom)) / 256 * cluster_distance);
+			while (maxzoom < GLOBAL_DETAIL - full_detail && maxzoom < GLOBAL_DETAIL + 1 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
+				unsigned long long zoom_mingap = ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance);
 				if (avg > zoom_mingap) {
 					break;
 				}
@@ -2414,11 +2414,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (mz < 0) {
 				mz = 0;
 			}
-			if (mz > 32 - full_detail) {
-				mz = 32 - full_detail;
+			if (mz > GLOBAL_DETAIL - full_detail) {
+				mz = GLOBAL_DETAIL - full_detail;
 			}
-			if (mz > 33 - low_detail) {  // that is, mz - 1 > 32 - low_detail
-				mz = 33 - low_detail;
+			if (mz - 1 > GLOBAL_DETAIL - low_detail) {
+				mz = GLOBAL_DETAIL + 1 - low_detail;
 			}
 
 			if (mz > maxzoom || count <= 0) {
@@ -2431,7 +2431,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		double total_tile_count = 0;
 		for (int i = 1; i <= maxzoom; i++) {
-			double tile_count = ceil(area_sum / ((1LL << (32 - i)) * (1LL << (32 - i))));
+			double tile_count = ceil(area_sum / ((1LL << (GLOBAL_DETAIL - i)) * (1LL << (GLOBAL_DETAIL - i))));
 			total_tile_count += tile_count;
 
 			// 2M tiles is an arbitrary limit, chosen to make tiling jobs
@@ -2797,8 +2797,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	midlat = (maxlat + minlat) / 2;
 	midlon = (maxlon + minlon) / 2;
 
-	tile2lonlat(file_bbox[0], file_bbox[1], 32, &minlon, &maxlat);
-	tile2lonlat(file_bbox[2], file_bbox[3], 32, &maxlon, &minlat);
+	tile2lonlat(file_bbox[0], file_bbox[1], GLOBAL_DETAIL, &minlon, &maxlat);
+	tile2lonlat(file_bbox[2], file_bbox[3], GLOBAL_DETAIL, &maxlon, &minlat);
 
 	if (midlat < minlat) {
 		midlat = minlat;
@@ -2817,11 +2817,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	double minlat2 = 0, minlon2 = 0, maxlat2 = 0, maxlon2 = 0;
 	// choose whichever of the two calculated bboxes is narrower
 	if (file_bbox2[2] - file_bbox2[0] < file_bbox1[2] - file_bbox1[0]) {
-		tile2lonlat(file_bbox2[0], file_bbox2[1], 32, &minlon2, &maxlat2);
-		tile2lonlat(file_bbox2[2], file_bbox2[3], 32, &maxlon2, &minlat2);
+		tile2lonlat(file_bbox2[0], file_bbox2[1], GLOBAL_DETAIL, &minlon2, &maxlat2);
+		tile2lonlat(file_bbox2[2], file_bbox2[3], GLOBAL_DETAIL, &maxlon2, &minlat2);
 	} else {
-		tile2lonlat(file_bbox1[0], file_bbox1[1], 32, &minlon2, &maxlat2);
-		tile2lonlat(file_bbox1[2], file_bbox1[3], 32, &maxlon2, &minlat2);
+		tile2lonlat(file_bbox1[0], file_bbox1[1], GLOBAL_DETAIL, &minlon2, &maxlat2);
+		tile2lonlat(file_bbox1[2], file_bbox1[3], GLOBAL_DETAIL, &maxlon2, &minlat2);
 	}
 
 	std::map<std::string, layermap_entry> merged_lm = merge_layermaps(layermaps);
@@ -3684,8 +3684,8 @@ int main(int argc, char **argv) {
 	// the same no matter what order the projection and bounding box are
 	// specified in
 	for (auto &c : clipbboxes) {
-		projection->project(c.lon1, c.lat1, 32, &c.minx, &c.maxy);
-		projection->project(c.lon2, c.lat2, 32, &c.maxx, &c.miny);
+		projection->project(c.lon1, c.lat1, GLOBAL_DETAIL, &c.minx, &c.maxy);
+		projection->project(c.lon2, c.lat2, GLOBAL_DETAIL, &c.maxx, &c.miny);
 	}
 
 	if (max_tilestats_sample_values < max_tilestats_values) {
@@ -3724,12 +3724,12 @@ int main(int argc, char **argv) {
 	// This previously dropped the maxzoom rather than the detail when they were in conflict,
 	// which proved to be annoying.
 	if (!guess_maxzoom) {
-		if (maxzoom > 32 - full_detail) {
-			full_detail = 32 - maxzoom;
+		if (maxzoom > GLOBAL_DETAIL - full_detail) {
+			full_detail = GLOBAL_DETAIL - maxzoom;
 			fprintf(stderr, "Highest supported detail with maxzoom %d is %d\n", maxzoom, full_detail);
 		}
-		if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-			low_detail = 33 - maxzoom;
+		if (maxzoom - 1 > GLOBAL_DETAIL - low_detail) {
+			low_detail = GLOBAL_DETAIL + 1 - maxzoom;
 			fprintf(stderr, "Highest supported low detail with maxzoom %d is %d\n", maxzoom, low_detail);
 		}
 	}
@@ -3757,12 +3757,12 @@ int main(int argc, char **argv) {
 	if (extra_detail >= 0 || prevent[P_SIMPLIFY_SHARED_NODES] || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) {
 		geometry_scale = 0;
 	} else {
-		geometry_scale = 32 - (full_detail + maxzoom);
+		geometry_scale = GLOBAL_DETAIL - (full_detail + maxzoom);
 		if (geometry_scale < 0) {
 			geometry_scale = 0;
 			if (!guess_maxzoom) {
 				// This shouldn't be able to happen any more. Can it still?
-				fprintf(stderr, "Full detail + maxzoom > 32, so you are asking for more detail than is available.\n");
+				fprintf(stderr, "Full detail + maxzoom > %d, so you are asking for more detail than is available.\n", GLOBAL_DETAIL);
 			}
 		}
 	}
