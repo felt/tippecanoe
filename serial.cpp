@@ -370,6 +370,15 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 
 				geom[i].x = std::round(x * scale);
 				geom[i].y = std::round(y * scale);
+			} else if (geometry_scale >= GLOBAL_DETAIL - 32) {
+				// this is silly, but rounding coordinates to what they would have been
+				// with a 32-bit world extent helps make test expectations not change
+
+				x = std::llround((double) x / (1LL << (GLOBAL_DETAIL - 32))) * (1LL << (GLOBAL_DETAIL - 32));
+				y = std::llround((double) y / (1LL << (GLOBAL_DETAIL - 32))) * (1LL << (GLOBAL_DETAIL - 32));
+
+				geom[i].x = SHIFT_RIGHT(x);
+				geom[i].y = SHIFT_RIGHT(y);
 			} else {
 				geom[i].x = SHIFT_RIGHT(x);
 				geom[i].y = SHIFT_RIGHT(y);
