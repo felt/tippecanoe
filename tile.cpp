@@ -2820,11 +2820,13 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		int err = INT_MAX;
 
 		double zoom_gamma = gamma;
-		unsigned long long zoom_mingap = ((1LL << (GLOBAL_DETAIL - z)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - z)) / 256 * cluster_distance);
 		long long zoom_minextent = 0;
 		unsigned long long zoom_mindrop_sequence = 0;
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
+
+		// yes, these need to be 32, not GLOBAL_DETAIL, because clusters operate on indices, not coordinates
+		unsigned long long zoom_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
 
 		for (size_t pass = 0;; pass++) {
 			pthread_t pthreads[threads];
