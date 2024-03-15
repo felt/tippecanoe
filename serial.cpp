@@ -425,11 +425,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 	for (size_t i = 0; i < sf.geometry.size(); i++) {
 		if (sf.geometry[i].op == VT_MOVETO || sf.geometry[i].op == VT_LINETO) {
-			if (sf.geometry[i].y > 0 && sf.geometry[i].y < 0xFFFFFFFF) {
+			if (sf.geometry[i].y > 0 && sf.geometry[i].y < (1LL << GLOBAL_DETAIL) - 1) {
 				// standard -180 to 180 world plane
 
-				long long x = sf.geometry[i].x & 0xFFFFFFFF;
-				long long y = sf.geometry[i].y & 0xFFFFFFFF;
+				long long x = sf.geometry[i].x & ((1LL << GLOBAL_DETAIL) - 1);
+				long long y = sf.geometry[i].y & ((1LL << GLOBAL_DETAIL) - 1);
 
 				r->file_bbox1[0] = std::min(r->file_bbox1[0], x);
 				r->file_bbox1[1] = std::min(r->file_bbox1[1], y);
@@ -439,8 +439,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 				// printf("%llx,%llx  %llx,%llx %llx,%llx  ", x, y, r->file_bbox1[0], r->file_bbox1[1], r->file_bbox1[2], r->file_bbox1[3]);
 
 				// shift the western hemisphere 360 degrees to the east
-				if (x < 0x80000000) {  // prime meridian
-					x += 0x100000000;
+				if (x < 1LL << (GLOBAL_DETAIL - 1)) {  // prime meridian
+					x += 1LL << GLOBAL_DETAIL;
 				}
 
 				r->file_bbox2[0] = std::min(r->file_bbox2[0], x);

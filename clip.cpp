@@ -293,7 +293,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 		}
 
 		if (clip) {
-			long long area = 0xFFFFFFFF;
+			long long area = (1LL << GLOBAL_DETAIL) - 1;
 			if (z != 0) {
 				area = 1LL << (GLOBAL_DETAIL - z);
 			}
