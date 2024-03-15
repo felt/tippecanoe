@@ -230,7 +230,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	return s;
 }
 
-serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, long long *initial_x, long long *initial_y) {
 	serial_feature sf;
 	const char *cp = geoms.c_str();
 

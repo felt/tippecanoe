@@ -120,7 +120,7 @@ struct serial_feature {
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
-serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, long long *initial_x, long long *initial_y);
 
 struct reader {
 	int poolfd = -1;
@@ -201,8 +201,8 @@ struct serialization_state {
 	std::vector<struct reader> *readers = NULL;  // array of data for each input thread
 	int segment = 0;			     // the current input thread
 
-	unsigned *initial_x = NULL;  // relative offset of all geometries
-	unsigned *initial_y = NULL;
+	long long *initial_x = NULL;  // relative offset of all geometries
+	long long *initial_y = NULL;
 	int *initialized = NULL;
 
 	double *dist_sum = NULL;  // running tally for calculation of resolution within features

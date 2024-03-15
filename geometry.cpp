@@ -21,7 +21,7 @@
 #include "errors.hpp"
 #include "projection.hpp"
 
-drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
+drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, long long initial_x, long long initial_y) {
 	drawvec out;
 
 	bbox[0] = LLONG_MAX;

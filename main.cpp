@@ -450,7 +450,7 @@ void *run_sort(void *v) {
 	return NULL;
 }
 
-void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, long long *initial_x, long long *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	long long segs[CPUS + 1];
 	segs[0] = 0;
 	segs[CPUS] = len;
@@ -647,8 +647,8 @@ struct read_parallel_arg {
 	int source = 0;
 	std::vector<std::map<std::string, layermap_entry> > *layermaps = NULL;
 	int *initialized = NULL;
-	unsigned *initial_x = NULL;
-	unsigned *initial_y = NULL;
+	long long *initial_x = NULL;
+	long long *initial_y = NULL;
 	std::string layername = "";
 	bool uses_gamma = false;
 	std::unordered_map<std::string, int> const *attribute_types = NULL;
@@ -695,7 +695,7 @@ void *run_read_parallel(void *v) {
 	return NULL;
 }
 
-void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, long long *initial_x, long long *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	// This has to kick off an intermediate thread to start the parser threads,
 	// so the main thread can get back to reading the next input stage while
 	// the intermediate thread waits for the completion of the parser threads.
@@ -1358,7 +1358,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	// 2 * CPUS: One per reader thread, one per tiling thread
 	int initialized[2 * CPUS];
-	unsigned initial_x[2 * CPUS], initial_y[2 * CPUS];
+	long long initial_x[2 * CPUS], initial_y[2 * CPUS];
 	for (size_t i = 0; i < 2 * CPUS; i++) {
 		initialized[i] = initial_x[i] = initial_y[i] = 0;
 	}
