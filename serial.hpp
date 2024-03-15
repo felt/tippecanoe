@@ -10,6 +10,7 @@
 #include "geometry.hpp"
 #include "mbtiles.hpp"
 #include "jsonpull/jsonpull.h"
+#include "projection.hpp"
 
 size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, std::atomic<long long> *fpos, const char *fname);
 
@@ -143,8 +144,8 @@ struct reader {
 	std::atomic<long long> nodepos;
 
 	long long file_bbox[4] = {0, 0, 0, 0};
-	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};	      // standard -180 to 180 world plane
-	long long file_bbox2[4] = {0x1FFFFFFFF, 0xFFFFFFFF, 0x100000000, 0};  // 0 to 360 world plane
+	long long file_bbox1[4] = {(1LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 0, 0};		      // standard -180 to 180 world plane
+	long long file_bbox2[4] = {(2LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 1LL << GLOBAL_DETAIL, 0};  // 0 to 360 world plane
 
 	struct stat geomst {};
 	char *geom_map = NULL;
