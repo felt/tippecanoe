@@ -436,7 +436,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 }
 
 // Write out copies of a feature into the temporary files for the next zoom level
-static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, long long *initial_x, long long *initial_y) {
+static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, long long tx, long long ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, long long *initial_x, long long *initial_y) {
 	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -468,7 +468,7 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		}
 
 		// Offset from tile coordinates back to world coordinates
-		unsigned sx = 0, sy = 0;
+		long long sx = 0, sy = 0;
 		if (z != 0) {
 			sx = tx << (GLOBAL_DETAIL - z);
 			sy = ty << (GLOBAL_DETAIL - z);
