@@ -67,7 +67,7 @@ struct draw {
 typedef std::vector<draw> drawvec;
 struct serial_feature;
 
-drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, long long initial_x, long long initial_y);
+drawvec decode_geometry(const char **meta, int z, long long tx, long long ty, long long *bbox, long long initial_x, long long initial_y);
 void to_tile_scale(drawvec &geom, int z, int detail);
 drawvec from_tile_scale(drawvec const &geom, int z, int detail);
 drawvec remove_noop(drawvec geom, int type, int shift);

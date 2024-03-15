@@ -447,7 +447,7 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		int k;
 		for (k = 0; k < 4; k++) {
 			// Division instead of right-shift because coordinates can be negative
-			bbox2[k] = osf.bbox[k] / (1 << (GLOBAL_DETAIL - nextzoom - 8));
+			bbox2[k] = osf.bbox[k] / (1LL << (GLOBAL_DETAIL - nextzoom - 8));
 		}
 		// Decrement the top and left edges so that any features that are
 		// touching the edge can potentially be included in the adjacent tiles too.

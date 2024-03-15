@@ -386,13 +386,13 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	if (GLOBAL_DETAIL - detail - z < 0) {
 		for (size_t i = 0; i < geom.size(); i++) {
-			geom[i].x = std::round((double) geom[i].x * (1LL << (-(GLOBAL_DETAIL - detail - z))));
-			geom[i].y = std::round((double) geom[i].y * (1LL << (-(GLOBAL_DETAIL - detail - z))));
+			geom[i].x = geom[i].x * (1LL << (-(GLOBAL_DETAIL - detail - z)));
+			geom[i].y = geom[i].y * (1LL << (-(GLOBAL_DETAIL - detail - z)));
 		}
 	} else {
 		for (size_t i = 0; i < geom.size(); i++) {
-			geom[i].x = std::round((double) geom[i].x / (1LL << (GLOBAL_DETAIL - detail - z)));
-			geom[i].y = std::round((double) geom[i].y / (1LL << (GLOBAL_DETAIL - detail - z)));
+			geom[i].x = std::llround((double) geom[i].x / (1LL << (GLOBAL_DETAIL - detail - z)));
+			geom[i].y = std::llround((double) geom[i].y / (1LL << (GLOBAL_DETAIL - detail - z)));
 		}
 	}
 }
@@ -415,8 +415,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		long long nx = std::round((double) geom[i].x / (1LL << shift));
-		long long ny = std::round((double) geom[i].y / (1LL << shift));
+		long long nx = std::llround((double) geom[i].x / (1LL << shift));
+		long long ny = std::llround((double) geom[i].y / (1LL << shift));
 
 		if (geom[i].op == VT_LINETO && nx == ox && ny == oy) {
 			continue;
