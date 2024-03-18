@@ -301,8 +301,8 @@ bool point_within_tile(long long x, long long y, int z) {
 }
 
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
-	long long p2x = segB_x - segA_x;
-	long long p2y = segB_y - segA_y;
+	__int128 p2x = segB_x - segA_x;
+	__int128 p2y = segB_y - segA_y;
 
 	// These calculations must be made in integers instead of floating point
 	// to make them consistent between x86 and arm floating point implementations.
@@ -311,7 +311,7 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 	// making their sum up to 69 bits. Downshift before multiplying to keep them in range.
 	double something = ((p2x / 4) * (p2x / 8) + (p2y / 4) * (p2y / 8)) * 32.0;
 	// likewise
-	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 * (p2x / 8) + (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
+	double u = (0 == something) ? 0 : ((__int128) (point_x - segA_x) / 4 * (p2x / 8) + (__int128) (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
 
 	if (u >= 1) {
 		u = 1;
@@ -671,9 +671,9 @@ drawvec fix_polygon(const drawvec &geom) {
 
 			// calculate centroid
 			// a + 1 < size() because point 0 is duplicated at the end
-			long long xtotal = 0;
-			long long ytotal = 0;
-			long long count = 0;
+			__int128 xtotal = 0;
+			__int128 ytotal = 0;
+			size_t count = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
 				xtotal += ring[a].x;
 				ytotal += ring[a].y;
@@ -683,13 +683,13 @@ drawvec fix_polygon(const drawvec &geom) {
 			ytotal /= count;
 
 			// figure out which point is furthest from the centroid
-			long long dist2 = 0;
-			long long furthest = 0;
+			__int128 dist2 = 0;
+			size_t furthest = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
 				// division by 16 because these are z0 coordinates and we need to avoid overflow
-				long long xd = (ring[a].x - xtotal) / 16;
-				long long yd = (ring[a].y - ytotal) / 16;
-				long long d2 = xd * xd + yd * yd;
+				__int128 xd = (ring[a].x - xtotal) / 16;
+				__int128 yd = (ring[a].y - ytotal) / 16;
+				__int128 d2 = xd * xd + yd * yd;
 				if (d2 > dist2 || (d2 == dist2 && ring[a] < ring[furthest])) {
 					dist2 = d2;
 					furthest = a;
@@ -699,13 +699,13 @@ drawvec fix_polygon(const drawvec &geom) {
 			// then figure out which point is furthest from *that*,
 			// which will hopefully be a good origin point since it should be
 			// at a far edge of the shape.
-			long long dist2b = 0;
-			long long furthestb = 0;
+			__int128 dist2b = 0;
+			size_t furthestb = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
 				// division by 16 because these are z0 coordinates and we need to avoid overflow
-				long long xd = (ring[a].x - ring[furthest].x) / 16;
-				long long yd = (ring[a].y - ring[furthest].y) / 16;
-				long long d2 = xd * xd + yd * yd;
+				__int128 xd = (ring[a].x - ring[furthest].x) / 16;
+				__int128 yd = (ring[a].y - ring[furthest].y) / 16;
+				__int128 d2 = xd * xd + yd * yd;
 				if (d2 > dist2b || (d2 == dist2b && ring[a] < ring[furthestb])) {
 					dist2b = d2;
 					furthestb = a;
