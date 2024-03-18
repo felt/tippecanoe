@@ -98,7 +98,7 @@ drawvec clip_lines(drawvec &geom, long long x1, long long y1, long long x2, long
 drawvec clip_point(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain);
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
-double distance_from_line(__int128 point_x, __int128 point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
 std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
