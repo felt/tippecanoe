@@ -1341,7 +1341,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			memfile_write(r->treefile, &p, sizeof(struct stringpool), in_memory);
 		}
 
-		r->file_bbox[0] = r->file_bbox[1] = UINT_MAX;
+		r->file_bbox[0] = r->file_bbox[1] = LLONG_MAX;
 		r->file_bbox[2] = r->file_bbox[3] = 0;
 	}
 
@@ -3821,7 +3821,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	long long file_bbox[4] = {UINT_MAX, UINT_MAX, 0, 0};
+	long long file_bbox[4] = {LLONG_MAX, LLONG_MAX, 0, 0};
 
 	long long file_bbox1[4] = {(1LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 0, 0};		      // standard -180 to 180 world plane
 	long long file_bbox2[4] = {(2LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 1LL << GLOBAL_DETAIL, 0};  // 0 to 360 world plane
