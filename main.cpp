@@ -2431,7 +2431,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		double total_tile_count = 0;
 		for (int i = 1; i <= maxzoom; i++) {
-			double tile_count = ceil(area_sum / ((1LL << (GLOBAL_DETAIL - i)) * (1LL << (GLOBAL_DETAIL - i))));
+			double tile_count = ceil(area_sum / ((__int128) (1LL << (GLOBAL_DETAIL - i)) * (1LL << (GLOBAL_DETAIL - i))));
 			total_tile_count += tile_count;
 
 			// 2M tiles is an arbitrary limit, chosen to make tiling jobs
