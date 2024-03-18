@@ -307,14 +307,11 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 	// These calculations must be made in integers instead of floating point
 	// to make them consistent between x86 and arm floating point implementations.
 	//
-	// In a 32-bit world, coordinates may be up to 34 bits, so their product is up to 68 bits,
+	// Coordinates may be up to 34 bits, so their product is up to 68 bits,
 	// making their sum up to 69 bits. Downshift before multiplying to keep them in range.
-	//
-	// If the world is bigger than 32 bits, scale down to 32 bits.
-	long long shift = 1LL << (GLOBAL_DETAIL - 32);
-	double something = ((p2x / 4 / shift) * (p2x / 8 / shift) + (p2y / 4 / shift) * (p2y / 8 / shift)) * 32.0 * shift * shift;
+	double something = ((p2x / 4) * (p2x / 8) + (p2y / 4) * (p2y / 8)) * 32.0;
 	// likewise
-	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 / shift * (p2x / 8 / shift) + (point_y - segA_y) / 4 / shift * (p2y / 8 / shift)) * 32.0 * shift * shift / (something);
+	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 * (p2x / 8) + (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
 
 	if (u >= 1) {
 		u = 1;
@@ -685,15 +682,13 @@ drawvec fix_polygon(const drawvec &geom) {
 			xtotal /= count;
 			ytotal /= count;
 
-            long long shift = 1LL << (GLOBAL_DETAIL - 32);
-
 			// figure out which point is furthest from the centroid
 			long long dist2 = 0;
 			long long furthest = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
 				// division by 16 because these are z0 coordinates and we need to avoid overflow
-				long long xd = (ring[a].x - xtotal) / 16 / shift;
-				long long yd = (ring[a].y - ytotal) / 16 / shift;
+				long long xd = (ring[a].x - xtotal) / 16;
+				long long yd = (ring[a].y - ytotal) / 16;
 				long long d2 = xd * xd + yd * yd;
 				if (d2 > dist2 || (d2 == dist2 && ring[a] < ring[furthest])) {
 					dist2 = d2;
@@ -708,8 +703,8 @@ drawvec fix_polygon(const drawvec &geom) {
 			long long furthestb = 0;
 			for (size_t a = 0; a + 1 < ring.size(); a++) {
 				// division by 16 because these are z0 coordinates and we need to avoid overflow
-				long long xd = (ring[a].x - ring[furthest].x) / 16 / shift;
-				long long yd = (ring[a].y - ring[furthest].y) / 16 / shift;
+				long long xd = (ring[a].x - ring[furthest].x) / 16;
+				long long yd = (ring[a].y - ring[furthest].y) / 16;
 				long long d2 = xd * xd + yd * yd;
 				if (d2 > dist2b || (d2 == dist2b && ring[a] < ring[furthestb])) {
 					dist2b = d2;
