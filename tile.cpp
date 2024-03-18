@@ -1263,10 +1263,10 @@ void *run_prefilter(void *v) {
 		tmp_feature.dropped = sf.dropped;
 
 		// Offset from tile coordinates back to world coordinates
-		unsigned sx = 0, sy = 0;
+		long long sx = 0, sy = 0;
 		if (rpa->z != 0) {
-			sx = rpa->tx << (GLOBAL_DETAIL - rpa->z);
-			sy = rpa->ty << (GLOBAL_DETAIL - rpa->z);
+			sx = (long long) rpa->tx << (GLOBAL_DETAIL - rpa->z);
+			sy = (long long) rpa->ty << (GLOBAL_DETAIL - rpa->z);
 		}
 		for (size_t i = 0; i < tmp_feature.geometry.size(); i++) {
 			tmp_feature.geometry[i].x += sx;
