@@ -184,19 +184,21 @@ int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long x
 
 			// XXX truncating division
 
+			long long shift = 1LL << (GLOBAL_DETAIL - 32);
+
 			// Now find the intersection point;
 			// use formulas y = y0 + slope * (x - x0), x = x0 + (1 / slope) * (y - y0)
 			if (outcodeOut & TOP) {	 // point is above the clip rectangle
-				x = *x0 + (*x1 - *x0) * (ymax - *y0) / (*y1 - *y0);
+				x = *x0 + ((*x1 - *x0) / shift) * ((ymax - *y0) / shift) / (*y1 - *y0) * shift * shift;
 				y = ymax;
 			} else if (outcodeOut & BOTTOM) {  // point is below the clip rectangle
-				x = *x0 + (*x1 - *x0) * (ymin - *y0) / (*y1 - *y0);
+				x = *x0 + ((*x1 - *x0) / shift) * ((ymin - *y0) / shift) / (*y1 - *y0) * shift * shift;
 				y = ymin;
 			} else if (outcodeOut & RIGHT) {  // point is to the right of clip rectangle
-				y = *y0 + (*y1 - *y0) * (xmax - *x0) / (*x1 - *x0);
+				y = *y0 + ((*y1 - *y0) / shift) * ((xmax - *x0) / shift) / (*x1 - *x0) * shift * shift;
 				x = xmax;
 			} else if (outcodeOut & LEFT) {	 // point is to the left of clip rectangle
-				y = *y0 + (*y1 - *y0) * (xmin - *x0) / (*x1 - *x0);
+				y = *y0 + ((*y1 - *y0) / shift) * ((xmin - *x0) / shift) / (*x1 - *x0) * shift * shift;
 				x = xmin;
 			}
 

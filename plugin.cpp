@@ -385,8 +385,8 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 		for (size_t i = 0; i < dv.size(); i++) {
 			unsigned sx = 0, sy = 0;
 			if (z != 0) {
-				sx = x << (GLOBAL_DETAIL - z);
-				sy = y << (GLOBAL_DETAIL - z);
+				sx = (long long) x << (GLOBAL_DETAIL - z);
+				sy = (long long) y << (GLOBAL_DETAIL - z);
 			}
 			dv[i].x = std::round(dv[i].x / scale) * scale - sx;
 			dv[i].y = std::round(dv[i].y / scale) * scale - sy;
