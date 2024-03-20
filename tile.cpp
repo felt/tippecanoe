@@ -2769,6 +2769,9 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			threads = 1;
 		}
 
+		size_t child_shards = TEMP_FILES / threads;
+		fprintf(stderr, "Using %zu temporary files and %zu threads on %zu CPUS for %zu child shards\n", TEMP_FILES, threads, CPUS, child_shards);
+
 		// Assign temporary files to threads
 
 		std::vector<task> tasks;
