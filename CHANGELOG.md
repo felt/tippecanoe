@@ -1,3 +1,7 @@
+# 2.52.0
+
+* Fix accidental loss (at all zooms) of features that specify an explicit minzoom
+
 # 2.51.0
 
 * Fix null behavior in "in" expressions
