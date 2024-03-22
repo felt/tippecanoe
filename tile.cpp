@@ -1178,6 +1178,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			} else {
 				sf.dropped = FEATURE_DROPPED;
 			}
+		} else {
+			sf.dropped = FEATURE_KEPT;
 		}
 
 		// Remove nulls, now that the expression evaluation filter has run

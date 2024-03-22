@@ -642,6 +642,10 @@ void mbtiles_write_metadata(sqlite3 *db, const metadata &m, bool forcetable) {
 	}
 }
 
+static double sixdig(double val) {
+	return std::round(val * 1e6) / 1e6;
+}
+
 metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, int retain_points_multiplier) {
 	metadata m;
 
@@ -654,18 +658,18 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 	m.minzoom = minzoom;
 	m.maxzoom = maxzoom;
 
-	m.minlat = minlat;
-	m.minlon = minlon;
-	m.maxlat = maxlat;
-	m.maxlon = maxlon;
+	m.minlat = sixdig(minlat);
+	m.minlon = sixdig(minlon);
+	m.maxlat = sixdig(maxlat);
+	m.maxlon = sixdig(maxlon);
 
-	m.minlat2 = minlat2;
-	m.minlon2 = minlon2;
-	m.maxlat2 = maxlat2;
-	m.maxlon2 = maxlon2;
+	m.minlat2 = sixdig(minlat2);
+	m.minlon2 = sixdig(minlon2);
+	m.maxlat2 = sixdig(maxlat2);
+	m.maxlon2 = sixdig(maxlon2);
 
-	m.center_lat = midlat;
-	m.center_lon = midlon;
+	m.center_lat = sixdig(midlat);
+	m.center_lon = sixdig(midlon);
 	m.center_z = maxzoom;
 
 	if (attribution != NULL) {
