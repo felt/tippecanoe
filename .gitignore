@@ -35,6 +35,7 @@ tile-join
 tippecanoe-decode
 tippecanoe-enumerate
 tippecanoe-json-tool
+tippecanoe-overzoom
 unit
 
 # Tests
