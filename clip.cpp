@@ -10,6 +10,7 @@
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
+#include "projection.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -69,7 +70,7 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 }
 
 drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &edge_nodes, bool prevent_simplify_shared_nodes) {
-	long long area = 1LL << (32 - z);
+	long long area = 1LL << (GLOBAL_DETAIL - z);
 	long long clip_buffer = buffer * area / 256;
 
 	return simple_clip_poly(geom, -clip_buffer, -clip_buffer, area + clip_buffer, area + clip_buffer,
@@ -78,7 +79,7 @@ drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &edge_nodes, 
 
 drawvec clip_point(drawvec &geom, int z, long long buffer) {
 	long long min = 0;
-	long long area = 1LL << (32 - z);
+	long long area = 1LL << (GLOBAL_DETAIL - z);
 
 	min -= buffer * area / 256;
 	area += buffer * area / 256;
@@ -100,7 +101,7 @@ drawvec clip_point(drawvec &geom, long long minx, long long miny, long long maxx
 
 drawvec clip_lines(drawvec &geom, int z, long long buffer) {
 	long long min = 0;
-	long long area = 1LL << (32 - z);
+	long long area = 1LL << (GLOBAL_DETAIL - z);
 	min -= buffer * area / 256;
 	area += buffer * area / 256;
 
@@ -176,7 +177,7 @@ int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long x
 		} else {
 			// failed both tests, so calculate the line segment to clip
 			// from an outside point to an intersection with clip edge
-			long long x = *x0, y = *y0;
+			__int128 x = *x0, y = *y0;
 
 			// At least one endpoint is outside the clip rectangle; pick it.
 			int outcodeOut = outcode0 ? outcode0 : outcode1;
@@ -186,16 +187,16 @@ int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long x
 			// Now find the intersection point;
 			// use formulas y = y0 + slope * (x - x0), x = x0 + (1 / slope) * (y - y0)
 			if (outcodeOut & TOP) {	 // point is above the clip rectangle
-				x = *x0 + (*x1 - *x0) * (ymax - *y0) / (*y1 - *y0);
+				x = *x0 + (__int128) (*x1 - *x0) * (ymax - *y0) / (*y1 - *y0);
 				y = ymax;
 			} else if (outcodeOut & BOTTOM) {  // point is below the clip rectangle
-				x = *x0 + (*x1 - *x0) * (ymin - *y0) / (*y1 - *y0);
+				x = *x0 + (__int128) (*x1 - *x0) * (ymin - *y0) / (*y1 - *y0);
 				y = ymin;
 			} else if (outcodeOut & RIGHT) {  // point is to the right of clip rectangle
-				y = *y0 + (*y1 - *y0) * (xmax - *x0) / (*x1 - *x0);
+				y = *y0 + (__int128) (*y1 - *y0) * (xmax - *x0) / (*x1 - *x0);
 				x = xmax;
 			} else if (outcodeOut & LEFT) {	 // point is to the left of clip rectangle
-				y = *y0 + (*y1 - *y0) * (xmin - *x0) / (*x1 - *x0);
+				y = *y0 + (__int128) (*y1 - *y0) * (xmin - *x0) / (*x1 - *x0);
 				x = xmin;
 			}
 
@@ -292,9 +293,9 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 		}
 
 		if (clip) {
-			long long area = 0xFFFFFFFF;
+			long long area = (1LL << GLOBAL_DETAIL) - 1;
 			if (z != 0) {
-				area = 1LL << (32 - z);
+				area = 1LL << (GLOBAL_DETAIL - z);
 			}
 			long long clip_buffer = buffer * area / 256;
 
@@ -383,15 +384,15 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 }
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
-	if (32 - detail - z < 0) {
+	if (GLOBAL_DETAIL - detail - z < 0) {
 		for (size_t i = 0; i < geom.size(); i++) {
-			geom[i].x = std::round((double) geom[i].x * (1LL << (-(32 - detail - z))));
-			geom[i].y = std::round((double) geom[i].y * (1LL << (-(32 - detail - z))));
+			geom[i].x = geom[i].x * (1LL << (-(GLOBAL_DETAIL - detail - z)));
+			geom[i].y = geom[i].y * (1LL << (-(GLOBAL_DETAIL - detail - z)));
 		}
 	} else {
 		for (size_t i = 0; i < geom.size(); i++) {
-			geom[i].x = std::round((double) geom[i].x / (1LL << (32 - detail - z)));
-			geom[i].y = std::round((double) geom[i].y / (1LL << (32 - detail - z)));
+			geom[i].x = std::llround((double) geom[i].x / (1LL << (GLOBAL_DETAIL - detail - z)));
+			geom[i].y = std::llround((double) geom[i].y / (1LL << (GLOBAL_DETAIL - detail - z)));
 		}
 	}
 }
@@ -400,8 +401,8 @@ drawvec from_tile_scale(drawvec const &geom, int z, int detail) {
 	drawvec out;
 	for (size_t i = 0; i < geom.size(); i++) {
 		draw d = geom[i];
-		d.x *= (1LL << (32 - detail - z));
-		d.y *= (1LL << (32 - detail - z));
+		d.x *= (1LL << (GLOBAL_DETAIL - detail - z));
+		d.y *= (1LL << (GLOBAL_DETAIL - detail - z));
 		out.push_back(d);
 	}
 	return out;
@@ -414,8 +415,8 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 	drawvec out;
 
 	for (size_t i = 0; i < geom.size(); i++) {
-		long long nx = std::round((double) geom[i].x / (1LL << shift));
-		long long ny = std::round((double) geom[i].y / (1LL << shift));
+		long long nx = std::llround((double) geom[i].x / (1LL << shift));
+		long long ny = std::llround((double) geom[i].y / (1LL << shift));
 
 		if (geom[i].op == VT_LINETO && nx == ox && ny == oy) {
 			continue;
@@ -526,7 +527,7 @@ double get_area(const drawvec &geom, size_t i, size_t j) {
 	// do not use the full precision, shift them nearer to the origin so
 	// their product is more likely to be exactly representable as a double.
 	//
-	// (In practice they are actually 34-bit integers: 32 bits for the
+	// (In practice they are actually (GLOBAL_DETAIL + 2)-bit integers: GLOBAL_DETAIL bits for the
 	// Mercator world plane, plus another two bits so features can stick
 	// off either the left or right side. But that is still too many bits
 	// for the product to fit either in a 64-bit long long or in a
@@ -931,7 +932,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 
 			// Convert feature geometry to world coordinates
 
-			long long tilesize = 1LL << (32 - oz);	// source tile size in world coordinates
+			long long tilesize = 1LL << (GLOBAL_DETAIL - oz);  // source tile size in world coordinates
 			draw ring_closure(0, 0, 0);
 			bool sametile = (nz == oz && nx == ox && ny == oy && outlayer.extent >= layer.extent);
 
@@ -953,7 +954,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 			// Now offset from world coordinates to output tile coordinates,
 			// but retain world scale, because that is what tippecanoe clipping expects
 
-			long long outtilesize = 1LL << (32 - nz);  // destination tile size in world coordinates
+			long long outtilesize = 1LL << (GLOBAL_DETAIL - nz);  // destination tile size in world coordinates
 			for (auto &g : geom) {
 				g.x -= nx * outtilesize;
 				g.y -= ny * outtilesize;

@@ -1,6 +1,8 @@
 #ifndef PROJECTION_HPP
 #define PROJECTION_HPP
 
+#define GLOBAL_DETAIL 32
+
 void lonlat2tile(double lon, double lat, int zoom, long long *x, long long *y);
 void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y);
 void tile2lonlat(long long x, long long y, int zoom, double *lon, double *lat);
@@ -25,5 +27,8 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy);
 
 unsigned long long encode_hilbert(unsigned int wx, unsigned int wy);
 void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy);
+
+unsigned coordinate_to_encodable(long long coord);
+long long decoded_to_coordinate(unsigned coord);
 
 #endif

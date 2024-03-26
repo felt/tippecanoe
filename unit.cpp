@@ -3,6 +3,7 @@
 #include "text.hpp"
 #include "sort.hpp"
 #include "tile-cache.hpp"
+#include "projection.hpp"
 #include <unistd.h>
 #include <limits.h>
 
@@ -104,4 +105,20 @@ TEST_CASE("Bit reversal", "bit reversal") {
 	REQUIRE(bit_reverse(1) == 0x8000000000000000);
 	REQUIRE(bit_reverse(0x1234567812489BCF) == 0xF3D912481E6A2C48);
 	REQUIRE(bit_reverse(0xF3D912481E6A2C48) == 0x1234567812489BCF);
+}
+
+TEST_CASE("Projection", "projection") {
+	// troublesome point from tests/accumulate/in.json
+	long long wx36, wy36;
+	lonlat2tile(-123.948513, -81.873970, 36, &wx36, &wy36);
+	REQUIRE(wx36 == 0x27dbdc9fb);
+	REQUIRE(wy36 == 0xebc06c629);
+
+	long long wx32, wy32;
+	lonlat2tile(-123.948513, -81.873970, 32, &wx32, &wy32);
+	REQUIRE(wx32 == 0x27dbdca0);
+	REQUIRE(wy32 == 0xebc06c63);
+
+	REQUIRE(std::llround(wx36 / 16.0) == wx32);
+	REQUIRE(std::llround(wy36 / 16.0) == wy32);
 }
