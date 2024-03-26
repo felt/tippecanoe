@@ -20,6 +20,7 @@ std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
+json_object *join_attributes_json = NULL;
 
 std::set<std::string> keep;
 
@@ -43,6 +44,7 @@ int main(int argc, char **argv) {
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
 		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
+		{"join-attributes-json", required_argument, 0, 'c' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -95,6 +97,10 @@ int main(int argc, char **argv) {
 
 		case 'u' & 0x1F:
 			unidecode_data = read_unidecode(optarg);
+			break;
+
+		case 'c' & 0x1F:
+			join_attributes_json = read_filter(optarg);
 			break;
 
 		default:
@@ -151,7 +157,7 @@ int main(int argc, char **argv) {
 		json_filter = parse_filter(filter.c_str());
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
+	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, join_attributes_json);
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 
