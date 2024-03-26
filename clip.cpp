@@ -758,7 +758,7 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, json_object *join_attributes_json) {
 	mvt_tile tile;
 
 	try {
@@ -772,7 +772,7 @@ std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int n
 		exit(EXIT_PROTOBUF);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
+	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, join_attributes_json);
 }
 
 struct tile_feature {
@@ -870,10 +870,37 @@ static struct preservecmp {
 	}
 } preservecmp;
 
+/* Format looks like:
+
+{
+    "id": {
+	"1234": { "name": "Rome", "population", 567890 },
+	"15": { "name": "New York", "population": 32, "fictional": false }
+    }
+}
+
+IDs are really unsigned ints, not strings, but it feels like the keys
+and values should be written as keys instead of in some other way.
+
+Joined values win over original values, at least for the moment.
+
+*/
+
+void join_by_id(mvt_feature &feature, const json_object *j) {
+	if (j->type != JSON_HASH) {
+		fprintf(stderr, "list of attributes to be joined to features is not a json object\n");
+		exit(EXIT_JSON);
+	}
+
+	for (size_t i = 0; i < j->value.object.length; i++) {
+		const json_object *key = j->value.object.keys[i];
+	}
+}
+
 std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, json_object *join_attributes_json) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -895,6 +922,10 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
 
 		for (auto feature : layer.features) {
+			if (join_attributes_json != NULL) {
+				join_by_id(feature, join_attributes_json);
+			}
+
 			bool flush_multiplier_cluster = false;
 			if (demultiply) {
 				for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
@@ -1046,7 +1077,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 					std::string child = overzoom(outtile, nz, nx, ny,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
+								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, join_attributes_json);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
