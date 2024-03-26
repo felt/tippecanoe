@@ -870,6 +870,33 @@ static struct preservecmp {
 	}
 } preservecmp;
 
+/* Format looks like:
+
+{
+    "id": {
+	"1234": { "name": "Rome", "population", 567890 },
+	"15": { "name": "New York", "population": 32, "fictional": false }
+    }
+}
+
+IDs are really unsigned ints, not strings, but it feels like the keys
+and values should be written as keys instead of in some other way.
+
+Joined values win over original values, at least for the moment.
+
+*/
+
+void join_by_id(mvt_feature &feature, const json_object *j) {
+	if (j->type != JSON_HASH) {
+		fprintf(stderr, "list of attributes to be joined to features is not a json object\n");
+		exit(EXIT_JSON);
+	}
+
+	for (size_t i = 0; i < j->value.object.length; i++) {
+		const json_object *key = j->value.object.keys[i];
+	}
+}
+
 std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
@@ -895,6 +922,10 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
 
 		for (auto feature : layer.features) {
+			if (join_attributes_json != NULL) {
+				join_by_id(feature, join_attributes_json);
+			}
+
 			bool flush_multiplier_cluster = false;
 			if (demultiply) {
 				for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
