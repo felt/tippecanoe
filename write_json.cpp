@@ -268,7 +268,7 @@ void write_coords(json_writer &state, lonlat const &ll, double scale) {
 	}
 }
 
-void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, unsigned long long index, long long sequence, long long extent, bool complain, json_writer &state, double scale) {
+void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, __uint128_t index, long long sequence, long long extent, bool complain, json_writer &state, double scale) {
 	for (size_t f = 0; f < layer.features.size(); f++) {
 		mvt_feature const &feat = layer.features[f];
 
@@ -305,7 +305,7 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 
 			if (index != 0) {
 				state.json_write_string("index");
-				state.json_write_unsigned(index);
+				state.json_write_unsigned(index);  // XXX 128
 			}
 
 			if (sequence != 0) {

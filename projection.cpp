@@ -9,8 +9,8 @@
 
 #define UINT_BITS 32
 
-unsigned long long (*encode_index)(unsigned int wx, unsigned int wy) = NULL;
-void (*decode_index)(unsigned long long index, unsigned *wx, unsigned *wy) = NULL;
+__uint128_t (*encode_index)(unsigned long long wx, unsigned long long wy) = NULL;
+void (*decode_index)(__uint128_t index, unsigned long long *wx, unsigned long long *wy) = NULL;
 
 struct projection projections[] = {
 	{"EPSG:4326", lonlat2tile, tile2lonlat, "urn:ogc:def:crs:OGC:1.3:CRS84"},
@@ -107,11 +107,11 @@ void tiletoepsg3857(long long ix, long long iy, int zoom, double *ox, double *oy
 
 // https://en.wikipedia.org/wiki/Hilbert_curve
 
-void hilbert_rot(unsigned long long n, unsigned *x, unsigned *y, unsigned long long rx, unsigned long long ry) {
+void hilbert_rot(__uint128_t s, unsigned long long *x, unsigned long long *y, unsigned long long rx, unsigned long long ry) {
 	if (ry == 0) {
 		if (rx == 1) {
-			*x = n - 1 - *x;
-			*y = n - 1 - *y;
+			*x = s - 1 - *x;
+			*y = s - 1 - *y;
 		}
 
 		unsigned t = *x;
@@ -120,11 +120,11 @@ void hilbert_rot(unsigned long long n, unsigned *x, unsigned *y, unsigned long l
 	}
 }
 
-unsigned long long hilbert_xy2d(unsigned long long n, unsigned x, unsigned y) {
-	unsigned long long d = 0;
+__uint128_t hilbert_xy2d(__uint128_t n, unsigned long long x, unsigned long long y) {
+	__uint128_t d = 0;
 	unsigned long long rx, ry;
 
-	for (unsigned long long s = n / 2; s > 0; s /= 2) {
+	for (__uint128_t s = n / 2; s > 0; s /= 2) {
 		rx = (x & s) != 0;
 		ry = (y & s) != 0;
 
@@ -135,12 +135,12 @@ unsigned long long hilbert_xy2d(unsigned long long n, unsigned x, unsigned y) {
 	return d;
 }
 
-void hilbert_d2xy(unsigned long long n, unsigned long long d, unsigned *x, unsigned *y) {
+void hilbert_d2xy(__uint128_t n, __uint128_t d, unsigned long long *x, unsigned long long *y) {
 	unsigned long long rx, ry;
-	unsigned long long t = d;
+	__uint128_t t = d;
 
 	*x = *y = 0;
-	for (unsigned long long s = 1; s < n; s *= 2) {
+	for (__uint128_t s = 1; s < n; s *= 2) {
 		rx = 1 & (t / 2);
 		ry = 1 & (t ^ rx);
 		hilbert_rot(s, x, y, rx, ry);
@@ -150,22 +150,22 @@ void hilbert_d2xy(unsigned long long n, unsigned long long d, unsigned *x, unsig
 	}
 }
 
-unsigned long long encode_hilbert(unsigned int wx, unsigned int wy) {
-	return hilbert_xy2d(1LL << UINT_BITS, wx, wy);
+__uint128_t encode_hilbert(unsigned long long wx, unsigned long long wy) {
+	return hilbert_xy2d(1LL << GLOBAL_DETAIL, wx, wy);
 }
 
-void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy) {
-	hilbert_d2xy(1LL << UINT_BITS, index, wx, wy);
+void decode_hilbert(__uint128_t index, unsigned long long *wx, unsigned long long *wy) {
+	hilbert_d2xy(1LL << GLOBAL_DETAIL, index, wx, wy);
 }
 
-unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
-	unsigned long long out = 0;
+__uint128_t encode_quadkey(unsigned long long wx, unsigned long long wy) {
+	__uint128_t out = 0;
 
 	int i;
-	for (i = 0; i < UINT_BITS; i++) {
-		unsigned long long v = ((wx >> (UINT_BITS - (i + 1))) & 1) << 1;
-		v |= (wy >> (UINT_BITS - (i + 1))) & 1;
-		v = v << (64 - 2 * (i + 1));
+	for (i = 0; i < GLOBAL_DETAIL; i++) {
+		unsigned long long v = ((wx >> (GLOBAL_DETAIL - (i + 1))) & 1) << 1;
+		v |= (wy >> (GLOBAL_DETAIL - (i + 1))) & 1;
+		v = v << (2 * GLOBAL_DETAIL - 2 * (i + 1));
 
 		out |= v;
 	}
@@ -176,15 +176,20 @@ unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
 static std::atomic<unsigned char> decodex[256];
 static std::atomic<unsigned char> decodey[256];
 
-void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
+void decode_quadkey(__uint128_t index, unsigned long long *wx, unsigned long long *wy) {
 	static std::atomic<int> initialized(0);
 	if (!initialized) {
+		if (GLOBAL_DETAIL % 8 != 0) {
+			fprintf(stderr, "GLOBAL_DETAIL %d is not a multiple of 8\n", GLOBAL_DETAIL);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
 		for (size_t ix = 0; ix < 256; ix++) {
 			size_t xx = 0, yy = 0;
 
-			for (size_t i = 0; i < UINT_BITS; i++) {
-				xx |= ((ix >> (64 - 2 * (i + 1) + 1)) & 1) << (UINT_BITS - (i + 1));
-				yy |= ((ix >> (64 - 2 * (i + 1) + 0)) & 1) << (UINT_BITS - (i + 1));
+			for (size_t i = 0; i < GLOBAL_DETAIL; i++) {
+				xx |= ((ix >> (64 - 2 * (i + 1) + 1)) & 1) << (GLOBAL_DETAIL - (i + 1));
+				yy |= ((ix >> (64 - 2 * (i + 1) + 0)) & 1) << (GLOBAL_DETAIL - (i + 1));
 			}
 
 			decodex[ix] = xx;
@@ -196,18 +201,18 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
 
 	*wx = *wy = 0;
 
-	for (size_t i = 0; i < 8; i++) {
+	for (size_t i = 0; i < GLOBAL_DETAIL / 8; i++) {
 		*wx |= ((unsigned) decodex[(index >> (8 * i)) & 0xFF]) << (4 * i);
 		*wy |= ((unsigned) decodey[(index >> (8 * i)) & 0xFF]) << (4 * i);
 	}
 }
 
-unsigned coordinate_to_encodable(long long coord) {
-	return (unsigned) (coord / (1LL << (GLOBAL_DETAIL - UINT_BITS)));
+unsigned long long coordinate_to_encodable(long long coord) {
+	return coord;
 }
 
-long long decoded_to_coordinate(unsigned coord) {
-	return ((long long) coord) * (1LL << (GLOBAL_DETAIL - UINT_BITS));
+long long decoded_to_coordinate(unsigned long long coord) {
+	return coord;
 }
 
 void set_projection_or_exit(const char *optarg) {

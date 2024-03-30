@@ -8,6 +8,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 #include <mvt.hpp>
+#include "projection.hpp"
 #include "jsonpull/jsonpull.h"
 #include "attribute.hpp"
 
@@ -24,9 +25,9 @@
 // at the cost, apparently, of a 0.7% increase in running time
 // for packing and unpacking.
 struct draw {
-	long long x : 40;
+	long long x : GLOBAL_DETAIL + 2;
 	signed char op;
-	long long y : 40;
+	long long y : GLOBAL_DETAIL + 2;
 	signed char necessary;
 
 	draw(int nop, long long nx, long long ny)
@@ -88,7 +89,7 @@ void check_polygon(drawvec &geom);
 double get_area(const drawvec &geom, size_t i, size_t j);
 double get_mp_area(drawvec &geom);
 drawvec polygon_to_anchor(const drawvec &geom);
-drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point);
+drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, __uint128_t label_point);
 
 drawvec simple_clip_poly(drawvec &geom, int z, int buffer, drawvec &shared_nodes, bool prevent_simplify_shared_nodes);
 drawvec simple_clip_poly(drawvec &geom, long long x1, long long y1, long long x2, long long y2, bool prevent_simplify_shared_nodes);

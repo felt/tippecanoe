@@ -67,8 +67,8 @@ struct serial_feature {
 	int tippecanoe_maxzoom = -1;
 
 	drawvec geometry = drawvec();
-	unsigned long long index = 0;
-	unsigned long long label_point = 0;
+	__uint128_t index = 0;
+	__uint128_t label_point = 0;
 	long long extent = 0;
 
 	// These fields are not directly serialized, but are used
@@ -266,7 +266,7 @@ struct node {
 	// this is in quadkey coordinates so that the nodes for each tile
 	// will be adjacent in memory, reducing potential thrashing during
 	// the binary search.
-	unsigned long long index;
+	__uint128_t index;
 };
 
 int nodecmp(const void *void1, const void *void2);
