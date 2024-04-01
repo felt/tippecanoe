@@ -25,9 +25,9 @@
 // at the cost, apparently, of a 0.7% increase in running time
 // for packing and unpacking.
 struct draw {
-	long long x : GLOBAL_DETAIL + 2;
+	long long x : GLOBAL_DETAIL + 3;
 	signed char op;
-	long long y : GLOBAL_DETAIL + 2;
+	long long y : GLOBAL_DETAIL + 3;
 	signed char necessary;
 
 	draw(int nop, long long nx, long long ny)
