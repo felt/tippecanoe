@@ -2261,6 +2261,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (layer_features[x].geometry.size() == 0) {
+					layer_features[x] = serial_feature();
 					continue;
 				}
 
@@ -2301,7 +2302,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(std::move(feature));
+				layer_features[x] = serial_feature();
 			}
+
+			printf("tile_stringpool: %zu\n", tile_stringpool->size());
 
 			if (layer.features.size() > 0) {
 				tile.layers.push_back(std::move(layer));
