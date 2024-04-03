@@ -92,6 +92,11 @@ void serialize_ulong_long(std::string &out, unsigned long long zigzag) {
 	out.append(buf, s - buf);
 }
 
+void serialize_index(std::string &out, index_t zigzag) {
+	serialize_ulong_long(out, zigzag);
+	serialize_ulong_long(out, ((__uint128_t) zigzag) >> 64);
+}
+
 void serialize_long_long(std::string &out, long long n) {
 	unsigned long long zigzag = protozero::encode_zigzag64(n);
 
@@ -140,6 +145,16 @@ void deserialize_ulong_long(const char **f, unsigned long long *zigzag) {
 			shift += 7;
 		}
 	}
+}
+
+void deserialize_index(const char **f, index_t *zigzag) {
+	unsigned long long bottom;
+	unsigned long long top;
+
+	deserialize_ulong_long(f, &bottom);
+	deserialize_ulong_long(f, &top);
+
+	*zigzag = (((__uint128_t) top) << 64) | bottom;
 }
 
 void deserialize_uint(const char **f, unsigned *n) {
@@ -209,10 +224,10 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	write_geometry(sf->geometry, s, wx, wy);
 
 	if (sf->index != 0) {
-		serialize_ulong_long(s, sf->index);
+		serialize_index(s, sf->index);
 	}
 	if (sf->label_point != 0) {
-		serialize_ulong_long(s, sf->label_point);
+		serialize_index(s, sf->label_point);
 	}
 	if (sf->extent != 0) {
 		serialize_long_long(s, sf->extent);
@@ -264,10 +279,10 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
-		deserialize_ulong_long(&cp, &sf.index);
+		deserialize_index(&cp, &sf.index);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		deserialize_ulong_long(&cp, &sf.label_point);
+		deserialize_index(&cp, &sf.label_point);
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
 		deserialize_long_long(&cp, &sf.extent);

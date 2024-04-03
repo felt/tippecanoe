@@ -23,10 +23,10 @@ extern struct projection projections[];
 extern index_t (*encode_index)(unsigned int wx, unsigned int wy);
 extern void (*decode_index)(index_t index, unsigned *wx, unsigned *wy);
 
-unsigned long long encode_quadkey(unsigned int wx, unsigned int wy);
+index_t encode_quadkey(unsigned int wx, unsigned int wy);
 void decode_quadkey(index_t index, unsigned *wx, unsigned *wy);
 
-unsigned long long encode_hilbert(unsigned int wx, unsigned int wy);
+index_t encode_hilbert(unsigned int wx, unsigned int wy);
 void decode_hilbert(index_t index, unsigned *wx, unsigned *wy);
 
 unsigned coordinate_to_encodable(long long coord);

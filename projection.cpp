@@ -150,7 +150,7 @@ void hilbert_d2xy(unsigned long long n, unsigned long long d, unsigned *x, unsig
 	}
 }
 
-unsigned long long encode_hilbert(unsigned int wx, unsigned int wy) {
+index_t encode_hilbert(unsigned int wx, unsigned int wy) {
 	return hilbert_xy2d(1LL << UINT_BITS, wx, wy);
 }
 
@@ -158,7 +158,7 @@ void decode_hilbert(index_t index, unsigned *wx, unsigned *wy) {
 	hilbert_d2xy(1LL << UINT_BITS, index, wx, wy);
 }
 
-unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
+index_t encode_quadkey(unsigned int wx, unsigned int wy) {
 	unsigned long long out = 0;
 
 	int i;
