@@ -1,3 +1,7 @@
+# 2.53.0
+
+* Stop trying to add features to the tile after the feature limit is reached
+
 # 2.52.0
 
 * Fix accidental loss (at all zooms) of features that specify an explicit minzoom
