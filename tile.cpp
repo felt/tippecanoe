@@ -1875,7 +1875,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
-				if (lead_features_count > max_tile_size) {
+				if (lead_features_count > max_tile_size || (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT])) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
