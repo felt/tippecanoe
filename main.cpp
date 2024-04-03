@@ -283,7 +283,7 @@ static void insert(struct mergelist *m, struct mergelist **head, unsigned char *
 
 struct drop_state {
 	double gap;
-	__uint128_t previndex;
+	unsigned long long previndex;
 	double interval;
 	double seq;  // floating point because interval is
 };
@@ -822,7 +822,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 			for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 				struct index ix = indexmap[a];
-				unsigned long long which = (ix.ix << prefix) >> (64 - splitbits);  // XX 128
+				unsigned long long which = (ix.ix << prefix) >> (64 - splitbits);
 				long long pos = sub_geompos[which];
 
 				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], &sub_geompos[which], "geom");
@@ -2487,7 +2487,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			long long count;
 			long long fullcount;
 			double gap;
-			__uint128_t previndex;
+			unsigned long long previndex;
 		} tile[MAX_ZOOM + 1], max[MAX_ZOOM + 1];
 
 		{
@@ -2502,7 +2502,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		long long ip;
 		for (ip = 0; ip < indices; ip++) {
-			unsigned long long xx, yy;
+			unsigned xx, yy;
 			decode_index(map[ip].ix, &xx, &yy);
 
 			long long gxx = decoded_to_coordinate(xx);
@@ -2687,7 +2687,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
-			__uint128_t previndex = 0;
+			unsigned long long previndex = 0;
 
 			for (long long ip = 0; ip < indices; ip++) {
 				if (map[ip].t == VT_POINT ||

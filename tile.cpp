@@ -705,7 +705,7 @@ static void *simplification_worker(void *v) {
 // get rid of the --gamma option. It does something with the feature spacing to calculate
 // whether each feature should be kept or is in a dense enough context that it should
 // be dropped
-int manage_gap(__uint128_t index, __uint128_t *previndex, double scale, double gamma, double *gap) {
+int manage_gap(unsigned long long index, unsigned long long *previndex, double scale, double gamma, double *gap) {
 	if (gamma > 0) {
 		if (*gap > 0) {
 			if (index == *previndex) {
@@ -1525,8 +1525,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long count = 0;
 		double accum_area = 0;
 
-		__uint128_t previndex = 0, density_previndex = 0, merge_previndex = 0;
-		__uint128_t extent_previndex = 0;
+		unsigned long long previndex = 0, density_previndex = 0, merge_previndex = 0;
+		unsigned long long extent_previndex = 0;
 		double scale = (double) (1LL << (64 - 2 * (z + 8)));
 		double gap = 0, density_gap = 0;
 		double spacing = 0;
@@ -1870,7 +1870,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			__uint128_t sfindex = sf.index;
+			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
 				if (lead_features_count > max_tile_size || (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT])) {

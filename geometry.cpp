@@ -578,8 +578,8 @@ drawvec reorder_lines(const drawvec &geom) {
 	// instead of down and to the right
 	// so that it will coalesce better
 
-	__uint128_t l1 = encode_index(coordinate_to_encodable(geom[0].x), coordinate_to_encodable(geom[0].y));
-	__uint128_t l2 = encode_index(coordinate_to_encodable(geom[geom.size() - 1].x), coordinate_to_encodable(geom[geom.size() - 1].y));
+	unsigned long long l1 = encode_index(coordinate_to_encodable(geom[0].x), coordinate_to_encodable(geom[0].y));
+	unsigned long long l2 = encode_index(coordinate_to_encodable(geom[geom.size() - 1].x), coordinate_to_encodable(geom[geom.size() - 1].y));
 
 	if (l1 > l2) {
 		drawvec out;
@@ -1295,11 +1295,11 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 	return drawvec();
 }
 
-drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, __uint128_t label_point) {
+drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point) {
 	drawvec out;
 
 	// anchor point in world coordinates
-	unsigned long long wx, wy;
+	unsigned wx, wy;
 	decode_index(label_point, &wx, &wy);
 
 	long long wwx = decoded_to_coordinate(wx);
