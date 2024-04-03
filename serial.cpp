@@ -682,7 +682,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		*(sst->area_sum) += extent;
 	}
 
-	unsigned long long bbox_index;
+	index_t bbox_index;
 	long long midx, midy;
 
 	if (sf.t == VT_POINT) {

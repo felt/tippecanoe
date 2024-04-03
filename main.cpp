@@ -283,13 +283,13 @@ static void insert(struct mergelist *m, struct mergelist **head, unsigned char *
 
 struct drop_state {
 	double gap;
-	unsigned long long previndex;
+	index_t previndex;
 	double interval;
 	double seq;  // floating point because interval is
 };
 
 struct drop_densest {
-	unsigned long long gap;
+	index_t gap;
 	size_t seq;
 
 	bool operator<(const drop_densest &o) const {
@@ -822,7 +822,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 			for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 				struct index ix = indexmap[a];
-				unsigned long long which = (ix.ix << prefix) >> (64 - splitbits);
+				index_t which = (ix.ix << prefix) >> (2 * GLOBAL_DETAIL - splitbits);
 				long long pos = sub_geompos[which];
 
 				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], &sub_geompos[which], "geom");
@@ -2375,7 +2375,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 			bool changed = false;
 			while (maxzoom < GLOBAL_DETAIL - full_detail && maxzoom < GLOBAL_DETAIL + 1 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
-				unsigned long long zoom_mingap = ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance);
+				index_t zoom_mingap = ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance);
 				if (avg > zoom_mingap) {
 					break;
 				}
@@ -2487,7 +2487,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			long long count;
 			long long fullcount;
 			double gap;
-			unsigned long long previndex;
+			index_t previndex;
 		} tile[MAX_ZOOM + 1], max[MAX_ZOOM + 1];
 
 		{
@@ -2687,7 +2687,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
-			unsigned long long previndex = 0;
+			index_t previndex = 0;
 
 			for (long long ip = 0; ip < indices; ip++) {
 				if (map[ip].t == VT_POINT ||

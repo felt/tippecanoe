@@ -9,8 +9,8 @@
 
 #define UINT_BITS 32
 
-unsigned long long (*encode_index)(unsigned int wx, unsigned int wy) = NULL;
-void (*decode_index)(unsigned long long index, unsigned *wx, unsigned *wy) = NULL;
+index_t (*encode_index)(unsigned int wx, unsigned int wy) = NULL;
+void (*decode_index)(index_t index, unsigned *wx, unsigned *wy) = NULL;
 
 struct projection projections[] = {
 	{"EPSG:4326", lonlat2tile, tile2lonlat, "urn:ogc:def:crs:OGC:1.3:CRS84"},
@@ -154,7 +154,7 @@ unsigned long long encode_hilbert(unsigned int wx, unsigned int wy) {
 	return hilbert_xy2d(1LL << UINT_BITS, wx, wy);
 }
 
-void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy) {
+void decode_hilbert(index_t index, unsigned *wx, unsigned *wy) {
 	hilbert_d2xy(1LL << UINT_BITS, index, wx, wy);
 }
 
@@ -176,7 +176,7 @@ unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
 static std::atomic<unsigned char> decodex[256];
 static std::atomic<unsigned char> decodey[256];
 
-void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
+void decode_quadkey(index_t index, unsigned *wx, unsigned *wy) {
 	static std::atomic<int> initialized(0);
 	if (!initialized) {
 		for (size_t ix = 0; ix < 256; ix++) {

@@ -67,8 +67,8 @@ struct serial_feature {
 	int tippecanoe_maxzoom = -1;
 
 	drawvec geometry = drawvec();
-	unsigned long long index = 0;
-	unsigned long long label_point = 0;
+	index_t index = 0;
+	index_t label_point = 0;
 	long long extent = 0;
 
 	// These fields are not directly serialized, but are used

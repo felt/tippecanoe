@@ -57,6 +57,6 @@ struct strategy {
 
 int traverse_zooms(int *geomfd, off_t *geom_size, char *stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, long long *initial_x, long long *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry> > &layermap, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, struct json_object *filter, std::vector<strategy> &strategies, int iz, struct node *shared_nodes_map, size_t nodepos, int basezoom, double droprate, std::vector<std::string> const &unidecode_data);
 
-int manage_gap(unsigned long long index, unsigned long long *previndex, double scale, double gamma, double *gap);
+int manage_gap(index_t index, index_t *previndex, double scale, double gamma, double *gap);
 
 #endif

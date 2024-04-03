@@ -705,7 +705,7 @@ static void *simplification_worker(void *v) {
 // get rid of the --gamma option. It does something with the feature spacing to calculate
 // whether each feature should be kept or is in a dense enough context that it should
 // be dropped
-int manage_gap(unsigned long long index, unsigned long long *previndex, double scale, double gamma, double *gap) {
+int manage_gap(index_t index, index_t *previndex, double scale, double gamma, double *gap) {
 	if (gamma > 0) {
 		if (*gap > 0) {
 			if (index == *previndex) {
@@ -742,7 +742,7 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 // of features that survived the previous gap-choosing, so it first needs to calculate
 // and sort the gaps between them before deciding which new gap threshold will satisfy
 // the need to keep only the requested fraction of features.
-static unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
+static index_t choose_mingap(std::vector<unsigned long long> const &indices, double f) {
 	unsigned long long bot = ULLONG_MAX;
 	unsigned long long top = 0;
 
@@ -885,8 +885,8 @@ struct write_tile_args {
 	std::vector<std::map<std::string, layermap_entry>> *layermaps = NULL;
 	std::vector<std::vector<std::string>> *layer_unmaps = NULL;
 	size_t pass = 0;
-	unsigned long long mingap = 0;
-	unsigned long long mingap_out = 0;
+	index_t mingap = 0;
+	index_t mingap_out = 0;
 	long long minextent = 0;
 	long long minextent_out = 0;
 	unsigned long long mindrop_sequence = 0;
@@ -1488,7 +1488,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 	return false;  // did not drop because nothing could be found to accumulate attributes onto
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, long long *initial_x, long long *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, long long *initial_x, long long *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, index_t mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1525,8 +1525,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long count = 0;
 		double accum_area = 0;
 
-		unsigned long long previndex = 0, density_previndex = 0, merge_previndex = 0;
-		unsigned long long extent_previndex = 0;
+		index_t previndex = 0, density_previndex = 0, merge_previndex = 0;
+		index_t extent_previndex = 0;
 		double scale = (double) (1LL << (64 - 2 * (z + 8)));
 		double gap = 0, density_gap = 0;
 		double spacing = 0;
@@ -1870,7 +1870,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			unsigned long long sfindex = sf.index;
+			index_t sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
 				if (lead_features_count > max_tile_size || (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT])) {
@@ -2361,7 +2361,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
+					index_t mg = choose_mingap(indices, mingap_fraction);
 					if (mg <= mingap) {
 						mg = (mingap + 1) * 1.5;
 
@@ -2468,7 +2468,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
+					index_t mg = choose_mingap(indices, mingap_fraction);
 					if (mg <= mingap) {
 						double nmg = (mingap + 1) * 1.5;
 
@@ -2831,8 +2831,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
 
-		// yes, these need to be 32, not GLOBAL_DETAIL, because clusters operate on indices, not coordinates
-		unsigned long long zoom_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
+		index_t zoom_mingap = (index_t) ((1LL << (GLOBAL_DETAIL - z)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - z)) / 256 * cluster_distance);
 
 		for (size_t pass = 0;; pass++) {
 			pthread_t pthreads[threads];

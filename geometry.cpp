@@ -578,8 +578,8 @@ drawvec reorder_lines(const drawvec &geom) {
 	// instead of down and to the right
 	// so that it will coalesce better
 
-	unsigned long long l1 = encode_index(coordinate_to_encodable(geom[0].x), coordinate_to_encodable(geom[0].y));
-	unsigned long long l2 = encode_index(coordinate_to_encodable(geom[geom.size() - 1].x), coordinate_to_encodable(geom[geom.size() - 1].y));
+	index_t l1 = encode_index(coordinate_to_encodable(geom[0].x), coordinate_to_encodable(geom[0].y));
+	index_t l2 = encode_index(coordinate_to_encodable(geom[geom.size() - 1].x), coordinate_to_encodable(geom[geom.size() - 1].y));
 
 	if (l1 > l2) {
 		drawvec out;
