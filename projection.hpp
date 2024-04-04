@@ -2,7 +2,7 @@
 #define PROJECTION_HPP
 
 #define GLOBAL_DETAIL 32
-typedef unsigned long long index_t;
+typedef __uint128_t index_t;
 
 void lonlat2tile(double lon, double lat, int zoom, long long *x, long long *y);
 void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y);

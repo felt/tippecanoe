@@ -822,9 +822,20 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 			for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 				struct index ix = indexmap[a];
-				index_t which = (ix.ix << prefix) >> (2 * GLOBAL_DETAIL - splitbits);
-				long long pos = sub_geompos[which];
 
+				// I think what is going on here is that `prefix` represents the top bits
+				// of the index, which we have already sorted on, so we are shifting up
+				// to mask off those bits (which previously fell off the top of the word)
+				// and then shifting back down to bring the top `splitbits` of what remains
+				// down to be the new partitions.
+				index_t ixmask = (((__int128_t) 1) << (2 * GLOBAL_DETAIL)) - 1;
+				index_t which = ((ix.ix << prefix) & ixmask) >> (2 * GLOBAL_DETAIL - splitbits);
+				if ((int) which >= splits) {
+					fprintf(stderr, "splits off the edge! segment %d of %d\n", (int) which, splits);
+					exit(EXIT_IMPOSSIBLE);
+				}
+
+				long long pos = sub_geompos[which];
 				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], &sub_geompos[which], "geom");
 
 				// Count this as a 25%-accomplishment, since we will copy again
@@ -897,17 +908,12 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
-				int page = sysconf(_SC_PAGESIZE);
 				// Don't try to sort more than 2GB at once,
 				// which used to crash Macs and may still
-				long long max_unit = 2LL * 1024 * 1024 * 1024;
+				long long max_unit = ((2LL * 1024 * 1024 * 1024) / bytes) * bytes;
 				long long unit = ((indexpos / CPUS + bytes - 1) / bytes) * bytes;
 				if (unit > max_unit) {
 					unit = max_unit;
-				}
-				unit = ((unit + page - 1) / page) * page;
-				if (unit < page) {
-					unit = page;
 				}
 
 				size_t nmerges = (indexpos + unit - 1) / unit;
@@ -975,7 +981,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					perror("unmap geom");
 					exit(EXIT_MEMORY);
 				}
-			} else if (indexst.st_size == sizeof(struct index) || prefix + splitbits >= 64) {
+			} else if (indexst.st_size == sizeof(struct index) || prefix + splitbits >= 2 * GLOBAL_DETAIL) {
 				struct index *indexmap = (struct index *) mmap(NULL, indexst.st_size, PROT_READ, MAP_PRIVATE, indexfds[i], 0);
 				if (indexmap == MAP_FAILED) {
 					fprintf(stderr, "fd %lld, len %lld\n", (long long) indexfds[i], (long long) indexst.st_size);
