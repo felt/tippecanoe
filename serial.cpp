@@ -187,6 +187,8 @@ static void write_geometry(drawvec const &dv, std::string &out, long long wx, lo
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	std::string s;
 
+	// index comes first so the sort can find it easily
+	serialize_index(s, sf->index);
 	serialize_byte(s, sf->t);
 
 #define FLAG_LAYER 7
@@ -223,9 +225,6 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	write_geometry(sf->geometry, s, wx, wy);
 
-	if (sf->index != 0) {
-		serialize_index(s, sf->index);
-	}
 	if (sf->label_point != 0) {
 		serialize_index(s, sf->label_point);
 	}
@@ -248,6 +247,9 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, long long *initial_x, long long *initial_y) {
 	serial_feature sf;
 	const char *cp = geoms.c_str();
+
+	// index comes first so the sort can find it easily
+	deserialize_index(&cp, &sf.index);
 
 	deserialize_byte(&cp, &sf.t);
 	deserialize_long_long(&cp, &sf.layer);
@@ -272,15 +274,11 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	deserialize_int(&cp, &sf.segment);
 
-	sf.index = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
 
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
-	if (sf.layer & (1 << FLAG_INDEX)) {
-		deserialize_index(&cp, &sf.index);
-	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
 		deserialize_index(&cp, &sf.label_point);
 	}
