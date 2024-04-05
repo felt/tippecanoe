@@ -122,3 +122,22 @@ TEST_CASE("Projection", "projection") {
 	REQUIRE(std::llround(wx36 / 16.0) == wx32);
 	REQUIRE(std::llround(wy36 / 16.0) == wy32);
 }
+
+TEST_CASE("Quadkey index", "quadkey index") {
+	unsigned x = (unsigned) 1234567890;
+	unsigned y = (unsigned) 3210987654;
+	index_t encoded;
+	unsigned nx, ny;
+
+	encoded = encode_quadkey(x, y);
+	REQUIRE((unsigned long long) encoded == 7338499239188161052);
+	decode_quadkey(encoded, &nx, &ny);
+	REQUIRE(nx == x);
+	REQUIRE(ny == y);
+
+	encoded = encode_hilbert(x, y);
+	REQUIRE((unsigned long long) encoded == 8447864191955811122);
+	decode_hilbert(encoded, &nx, &ny);
+	REQUIRE(nx == x);
+	REQUIRE(ny == y);
+}
