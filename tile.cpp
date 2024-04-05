@@ -1490,6 +1490,20 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 	return false;  // did not drop because nothing could be found to accumulate attributes onto
 }
 
+double get_perimeter(const drawvec &geom, size_t i, size_t j) {
+	double perimeter = 0;
+
+	for (size_t k = i; k + 1 < j; k++) {
+		if (geom[k + 1].op == VT_LINETO) {
+			double dx = geom[k].x - geom[k + 1].x;
+			double dy = geom[k].y - geom[k + 1].y;
+			perimeter += sqrt(dx * dx + dy * dy);
+		}
+	}
+
+	return perimeter;
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -2050,6 +2064,25 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			for (size_t i = 0; i < features.size(); i++) {
 				serial_feature &p = features[i];
+
+				double area = get_mp_area(p.geometry);
+				double schwartzberg = 1;
+
+				if (area != 0) {
+					// polygon compactness measure
+					// https://fisherzachary.github.io/public/r-output.html
+					// Schwartzberg, Joseph E. 1965. “Reapportionment, gerrymanders, and the notion of compactness”.
+					// In: Minn. L. Rev. 50, 443.
+
+					double perimeter = get_perimeter(p.geometry, 0, p.geometry.size());
+					schwartzberg = 1 / (perimeter / (2 * M_PI * sqrt(std::fabs(area) / M_PI)));
+
+					serial_val sv;
+					p.full_keys.push_back("Schwartzberg");
+					sv.type = mvt_double;
+					sv.s = std::to_string(schwartzberg);
+					p.full_values.push_back(sv);
+				}
 
 				if (p.clustered > 0) {
 					serial_val sv, sv2, sv3, sv4;
