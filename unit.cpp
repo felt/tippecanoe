@@ -127,7 +127,7 @@ TEST_CASE("Quadkey index", "quadkey index") {
 	unsigned x = (unsigned) 1234567890;
 	unsigned y = (unsigned) 3210987654;
 	index_t encoded;
-	unsigned nx, ny;
+	unsigned long long nx, ny;
 
 	encoded = encode_quadkey(x, y);
 	REQUIRE((unsigned long long) encoded == 7338499239188161052);

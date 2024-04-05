@@ -2508,7 +2508,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		long long ip;
 		for (ip = 0; ip < indices; ip++) {
-			unsigned xx, yy;
+			unsigned long long xx, yy;
 			decode_index(map[ip].ix, &xx, &yy);
 
 			long long gxx = decoded_to_coordinate(xx);

@@ -1299,7 +1299,7 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 	drawvec out;
 
 	// anchor point in world coordinates
-	unsigned wx, wy;
+	unsigned long long wx, wy;
 	decode_index(label_point, &wx, &wy);
 
 	long long wwx = decoded_to_coordinate(wx);

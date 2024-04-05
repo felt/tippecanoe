@@ -20,14 +20,14 @@ struct projection {
 extern struct projection *projection;
 extern struct projection projections[];
 
-extern index_t (*encode_index)(unsigned int wx, unsigned int wy);
-extern void (*decode_index)(index_t index, unsigned *wx, unsigned *wy);
+extern index_t (*encode_index)(unsigned long long wx, unsigned long long wy);
+extern void (*decode_index)(index_t index, unsigned long long *wx, unsigned long long *wy);
 
-index_t encode_quadkey(unsigned int wx, unsigned int wy);
-void decode_quadkey(index_t index, unsigned *wx, unsigned *wy);
+index_t encode_quadkey(unsigned long long wx, unsigned long long wy);
+void decode_quadkey(index_t index, unsigned long long *wx, unsigned long long *wy);
 
-index_t encode_hilbert(unsigned int wx, unsigned int wy);
-void decode_hilbert(index_t index, unsigned *wx, unsigned *wy);
+index_t encode_hilbert(unsigned long long wx, unsigned long long wy);
+void decode_hilbert(index_t index, unsigned long long *wx, unsigned long long *wy);
 
 unsigned coordinate_to_encodable(long long coord);
 long long decoded_to_coordinate(unsigned coord);
