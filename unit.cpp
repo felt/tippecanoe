@@ -124,20 +124,29 @@ TEST_CASE("Projection", "projection") {
 }
 
 TEST_CASE("Quadkey index", "quadkey index") {
-	unsigned x = (unsigned) 1234567890;
-	unsigned y = (unsigned) 3210987654;
+	unsigned long long a = (unsigned) 1234567890;
+	unsigned long long b = (unsigned) 3210987654;
+
+	unsigned long long x = (b << 32) | a;
+	unsigned long long y = (a << 32) | b;
 	index_t encoded;
 	unsigned long long nx, ny;
 
 	encoded = encode_quadkey(x, y);
-	REQUIRE((unsigned long long) encoded == 7338499239188161052);
+	// the *bottom* 64 bits of the 128-bit encoding
+	// are the same as the 64-bit encoding of a, b
+	REQUIRE((unsigned long long) encoded == 7338499239188161052ULL);
+	REQUIRE((unsigned long long) (encoded >> 64) == 11163131681630900524ULL);
 	decode_quadkey(encoded, &nx, &ny);
 	REQUIRE(nx == x);
 	REQUIRE(ny == y);
 
-	encoded = encode_hilbert(x, y);
-	REQUIRE((unsigned long long) encoded == 8447864191955811122);
-	decode_hilbert(encoded, &nx, &ny);
+	encoded = encode_hilbert(y, x);
+	// the *top* 64 bits of the 128-bit encoding
+	// of the 64-bit encoding of a, b
+	REQUIRE((unsigned long long) (encoded >> 64) == 8447864191955811122ULL);
+	REQUIRE((unsigned long long) encoded == 16122461378071376152ULL);
+	decode_hilbert(encoded, &ny, &nx);
 	REQUIRE(nx == x);
 	REQUIRE(ny == y);
 }

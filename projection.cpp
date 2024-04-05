@@ -107,22 +107,22 @@ void tiletoepsg3857(long long ix, long long iy, int zoom, double *ox, double *oy
 
 // https://en.wikipedia.org/wiki/Hilbert_curve
 
-void hilbert_rot(unsigned long long n, unsigned long long *x, unsigned long long *y, unsigned long long rx, unsigned long long ry) {
+static void hilbert_rot(index_t n, unsigned long long *x, unsigned long long *y, index_t rx, index_t ry) {
 	if (ry == 0) {
 		if (rx == 1) {
 			*x = n - 1 - *x;
 			*y = n - 1 - *y;
 		}
 
-		unsigned t = *x;
+		unsigned long long t = *x;
 		*x = *y;
 		*y = t;
 	}
 }
 
-index_t hilbert_xy2d(unsigned long long n, unsigned long long x, unsigned long long y) {
+static index_t hilbert_xy2d(index_t n, unsigned long long x, unsigned long long y) {
 	index_t d = 0;
-	unsigned long long rx, ry;
+	index_t rx, ry;
 
 	for (index_t s = n / 2; s > 0; s /= 2) {
 		rx = (x & s) != 0;
@@ -135,8 +135,8 @@ index_t hilbert_xy2d(unsigned long long n, unsigned long long x, unsigned long l
 	return d;
 }
 
-void hilbert_d2xy(index_t n, index_t d, unsigned long long *x, unsigned long long *y) {
-	unsigned long long rx, ry;
+static void hilbert_d2xy(index_t n, index_t d, unsigned long long *x, unsigned long long *y) {
+	index_t rx, ry;
 	index_t t = d;
 
 	*x = *y = 0;
@@ -151,21 +151,21 @@ void hilbert_d2xy(index_t n, index_t d, unsigned long long *x, unsigned long lon
 }
 
 index_t encode_hilbert(unsigned long long wx, unsigned long long wy) {
-	return hilbert_xy2d(1LL << UINT_BITS, wx, wy);
+	return hilbert_xy2d((index_t) 1 << 64, wx, wy);
 }
 
 void decode_hilbert(index_t index, unsigned long long *wx, unsigned long long *wy) {
-	hilbert_d2xy(1LL << UINT_BITS, index, wx, wy);
+	hilbert_d2xy((index_t) 1 << 64, index, wx, wy);
 }
 
 index_t encode_quadkey(unsigned long long wx, unsigned long long wy) {
 	index_t out = 0;
 
 	int i;
-	for (i = 0; i < UINT_BITS; i++) {
-		index_t v = ((wx >> (UINT_BITS - (i + 1))) & 1) << 1;
-		v |= (wy >> (UINT_BITS - (i + 1))) & 1;
-		v = v << (64 - 2 * (i + 1));
+	for (i = 0; i < 64; i++) {
+		index_t v = ((wx >> (64 - (i + 1))) & 1) << 1;
+		v |= (wy >> (64 - (i + 1))) & 1;
+		v = v << (128 - 2 * (i + 1));
 
 		out |= v;
 	}
@@ -196,9 +196,9 @@ void decode_quadkey(index_t index, unsigned long long *wx, unsigned long long *w
 
 	*wx = *wy = 0;
 
-	for (size_t i = 0; i < 8; i++) {
-		*wx |= ((unsigned long long) decodex[(index >> (8 * i)) & 0xFF]) << (4 * i);
-		*wy |= ((unsigned long long) decodey[(index >> (8 * i)) & 0xFF]) << (4 * i);
+	for (size_t i = 0; i < 16; i++) {
+		*wx |= ((index_t) decodex[(index >> (8 * i)) & 0xFF]) << (4 * i);
+		*wy |= ((index_t) decodey[(index >> (8 * i)) & 0xFF]) << (4 * i);
 	}
 }
 
