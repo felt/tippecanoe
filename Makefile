@@ -345,6 +345,11 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/12-2145-1391-filter2.pbf 12 2145 1391 > tests/pbf/12-2145-1391-filter2.pbf.json.check
 	cmp tests/pbf/12-2145-1391-filter2.pbf.json.check tests/pbf/12-2145-1391-filter2.pbf.json
 	rm tests/pbf/12-2145-1391-filter2.pbf.json.check tests/pbf/12-2145-1391-filter2.pbf
+	# Test joining attributes from JSON
+	./tippecanoe-overzoom -o tests/pbf/ne-110m-z3-0-0-0-joined.pbf --join-attributes-json tests/pbf/name-fr.json tests/pbf/ne-110m-z3-0-0-0.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/ne-110m-z3-0-0-0-joined.pbf 0 0 0 > tests/pbf/ne-110m-z3-0-0-0-joined.pbf.json.check
+	cmp tests/pbf/ne-110m-z3-0-0-0-joined.pbf.json.check tests/pbf/ne-110m-z3-0-0-0-joined.pbf.json
+	rm tests/pbf/ne-110m-z3-0-0-0-joined.pbf.json.check tests/pbf/ne-110m-z3-0-0-0-joined.pbf
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
