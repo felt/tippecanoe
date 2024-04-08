@@ -100,7 +100,7 @@ void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
-std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,

@@ -905,7 +905,7 @@ void json_disconnect(json_object *o) {
 	o->parent = NULL;
 }
 
-static void json_print_one(struct string *val, json_object *o) {
+static void json_print_one(struct string *val, const json_object *o) {
 	if (o == NULL) {
 		string_append_string(val, "...");
 	} else if (o->type == JSON_STRING) {
@@ -955,7 +955,7 @@ static void json_print_one(struct string *val, json_object *o) {
 	}
 }
 
-static void json_print(struct string *val, json_object *o) {
+static void json_print(struct string *val, const json_object *o) {
 	if (o == NULL) {
 		// Hash value in incompletely read hash
 		string_append_string(val, "...");
@@ -987,7 +987,7 @@ static void json_print(struct string *val, json_object *o) {
 	}
 }
 
-char *json_stringify(json_object *o) {
+char *json_stringify(const json_object *o) {
 	struct string val;
 	string_init(&val);
 	json_print(&val, o);

@@ -10,6 +10,7 @@
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
+#include "read_json.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -886,7 +887,11 @@ Joined values win over original values, at least for the moment.
 
 */
 
-void join_by_id(mvt_feature &feature, const json_object *j) {
+void join_by_id(mvt_layer &layer, mvt_feature &feature, const json_object *j, std::shared_ptr<std::string> tile_stringpool) {
+	if (!feature.has_id) {
+		return;
+	}
+
 	if (j->type != JSON_HASH) {
 		fprintf(stderr, "list of attributes to be joined to features is not a json object\n");
 		exit(EXIT_JSON);
@@ -894,17 +899,47 @@ void join_by_id(mvt_feature &feature, const json_object *j) {
 
 	for (size_t i = 0; i < j->value.object.length; i++) {
 		const json_object *key = j->value.object.keys[i];
+		if (key->type == JSON_STRING) {
+			unsigned long long feature_id = atoll(j->value.object.keys[i]->value.string.string);
+			if (feature_id == feature.id) {
+				const json_object *value = j->value.object.values[i];
+
+				if (value->type == JSON_HASH) {
+					for (size_t a = 0; a < value->value.object.length; a++) {
+						json_object *k = value->value.object.keys[a];
+						json_object *v = value->value.object.values[a];
+
+						if (k->type != JSON_STRING) {
+							fprintf(stderr, "Expected string for key in json join, not %s\n", json_stringify(k));
+							exit(EXIT_JSON);
+						}
+
+						serial_val sv = stringify_value(v, "joined json", 1, value);
+						mvt_value mv = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
+						layer.tag(feature, k->value.string.string, mv);
+					}
+				} else {
+					fprintf(stderr, "Expected attribute object for value in json join, not %s\n", json_stringify(value));
+					exit(EXIT_JSON);
+				}
+
+				break;
+			}
+		} else {
+			fprintf(stderr, "Expected string for key in json join, not %s\n", json_stringify(key));
+			exit(EXIT_JSON);
+		}
 	}
 }
 
-std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(mvt_tile tile, int oz, int ox, int oy, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, json_object *join_attributes_json) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
-	for (auto const &layer : tile.layers) {
+	for (auto &layer : tile.layers) {
 		mvt_layer outlayer = mvt_layer();
 
 		int det = detail;
@@ -923,7 +958,7 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 
 		for (auto feature : layer.features) {
 			if (join_attributes_json != NULL) {
-				join_by_id(feature, join_attributes_json);
+				join_by_id(layer, feature, join_attributes_json, tile_stringpool);
 			}
 
 			bool flush_multiplier_cluster = false;
