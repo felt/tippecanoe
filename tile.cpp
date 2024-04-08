@@ -1875,7 +1875,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
-				if (lead_features_count > max_tile_size) {
+				if (lead_features_count > max_tile_size || (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT])) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
@@ -2110,33 +2110,35 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				tasks = 1;
 			}
 
-			pthread_t pthreads[tasks];
-			std::vector<simplification_worker_arg> args;
-			args.resize(tasks);
-			for (int i = 0; i < tasks; i++) {
-				args[i].task = i;
-				args[i].tasks = tasks;
-				args[i].features = &features;
-				args[i].shared_nodes = &shared_nodes;
-				args[i].shared_nodes_map = shared_nodes_map;
-				args[i].nodepos = nodepos;
+			{
+				pthread_t pthreads[tasks];
+				std::vector<simplification_worker_arg> args;
+				args.resize(tasks);
+				for (int i = 0; i < tasks; i++) {
+					args[i].task = i;
+					args[i].tasks = tasks;
+					args[i].features = &features;
+					args[i].shared_nodes = &shared_nodes;
+					args[i].shared_nodes_map = shared_nodes_map;
+					args[i].nodepos = nodepos;
+
+					if (tasks > 1) {
+						if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
+							perror("pthread_create");
+							exit(EXIT_PTHREAD);
+						}
+					} else {
+						simplification_worker(&args[i]);
+					}
+				}
 
 				if (tasks > 1) {
-					if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
-						perror("pthread_create");
-						exit(EXIT_PTHREAD);
-					}
-				} else {
-					simplification_worker(&args[i]);
-				}
-			}
+					for (int i = 0; i < tasks; i++) {
+						void *retval;
 
-			if (tasks > 1) {
-				for (int i = 0; i < tasks; i++) {
-					void *retval;
-
-					if (pthread_join(pthreads[i], &retval) != 0) {
-						perror("pthread_join");
+						if (pthread_join(pthreads[i], &retval) != 0) {
+							perror("pthread_join");
+						}
 					}
 				}
 			}
@@ -2261,6 +2263,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (layer_features[x].geometry.size() == 0) {
+					layer_features[x] = serial_feature();
 					continue;
 				}
 
@@ -2301,6 +2304,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(std::move(feature));
+				layer_features[x] = serial_feature();
 			}
 
 			if (layer.features.size() > 0) {
