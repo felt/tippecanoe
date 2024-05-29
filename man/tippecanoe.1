@@ -3,7 +3,7 @@
 Builds vector tilesets \[la]https://github.com/mapbox/vector-tile-spec/\[ra] from large (or small) collections of GeoJSON \[la]http://geojson.org/\[ra], FlatGeobuf \[la]https://github.com/flatgeobuf/flatgeobuf\[ra], or CSV \[la]https://en.wikipedia.org/wiki/Comma-separated_values\[ra] features,
 like these \[la]MADE_WITH.md\[ra]\&.
 .PP
-This is the official home of Tippecanoe, developed and actively maintained by Erica Fischer \[la]https://github.com/e-n-f\[ra] at Felt \[la]https://felt.com\[ra]\&. 
+This is the official home of Tippecanoe, developed and actively maintained by Erica Fischer \[la]https://github.com/e-n-f\[ra] at Felt \[la]https://felt.com\[ra]\&.
 .PP
 Version 2.0.0 is equivalent to 1.36.0 \[la]https://github.com/mapbox/tippecanoe/tree/1.36.0\[ra] in the original repository. Thank you Mapbox for the many years of early support.
 .SH Intent
@@ -374,7 +374,7 @@ tippecanoe \-z5 \-o world.mbtiles \-L'{"file":"ne_10m_admin_0_countries.json", "
 .fi
 .RE
 .PP
-CSV input files currently support only Point geometries, from columns named \fB\fClatitude\fR, \fB\fClongitude\fR, \fB\fClat\fR, \fB\fClon\fR, \fB\fClong\fR, \fB\fClng\fR, \fB\fCx\fR, or \fB\fCy\fR\&.
+CSV input files currently support Point geometries, from columns named \fB\fClatitude\fR, \fB\fClongitude\fR, \fB\fClat\fR, \fB\fClon\fR, \fB\fClong\fR, \fB\fClng\fR, \fB\fCx\fR, or \fB\fCy\fRand Point, LineString, and Polygon geometries as a WKT string from columns named \fB\fCgeometry\fR or \fB\fCwkt\fR\&.
 .SS Parallel processing of input
 .RS
 .IP \(bu 2
@@ -471,8 +471,8 @@ zoom level	precision (ft)	precision (m)	map scale
 \fB\fC\-z18\fR	1.5 in	4 cm	1:1250
 \fB\fC\-z19\fR	0.8 in	2 cm	1:600
 \fB\fC\-z20\fR	0.4 in	1 cm	1:300
-\fB\fC\-z21\fR	0.2 in	0.5 cm	1:150
-\fB\fC\-z22\fR	0.1 in	0.25 cm	1:75
+\fB\fC\-z21\fR	0.4 in	1 cm	1:300
+\fB\fC\-z22\fR	0.4 in	1 cm	1:300
 .TE
 .SS Tile resolution
 .RS
