@@ -837,6 +837,7 @@ struct write_tile_args {
 	int buffer = 0;
 	const char *fname = NULL;
 	compressor **geomfile = NULL;
+	std::atomic<long long> *geompos = NULL;
 	double todo = 0;
 	std::atomic<long long> *along = NULL;
 	double gamma = 0;
@@ -1487,7 +1488,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 	return false;  // did not drop because nothing could be found to accumulate attributes onto
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1559,9 +1560,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t other_multiplier_cluster_features_count = 0;  // of the tile so far
 
 		int within[child_shards];
-		std::atomic<long long> geompos[child_shards];
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
-			geompos[i] = 0;
 			within[i] = 0;
 		}
 
@@ -2625,7 +2624,7 @@ exit(EXIT_IMPOSSIBLE);
 
 			// fprintf(stderr, "%d/%u/%u\n", z, x, y);
 
-			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, (*arg->unidecode_data));
+			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, (*arg->unidecode_data));
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
 				perror("pthread_mutex_lock");
@@ -2720,6 +2719,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 
 		compressor compressors[TEMP_FILES];
 		compressor *sub[TEMP_FILES];
+		std::atomic<long long> subpos[TEMP_FILES];
 		int subfd[TEMP_FILES];
 		for (size_t j = 0; j < TEMP_FILES; j++) {
 			char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX" XSTRINGIFY(INT_MAX)) + 1];
@@ -2737,6 +2737,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			}
 			compressors[j] = compressor(fp);
 			sub[j] = &compressors[j];
+			subpos[j] = 0;
 			unlink(geomname);
 		}
 
@@ -2847,6 +2848,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].buffer = buffer;
 				args[thread].fname = fname;
 				args[thread].geomfile = sub + thread * (TEMP_FILES / threads);
+				args[thread].geompos = subpos + thread * (TEMP_FILES / threads);
 				args[thread].todo = todo;
 				args[thread].along = &along;  // locked with var_lock
 				args[thread].gamma = zoom_gamma;
