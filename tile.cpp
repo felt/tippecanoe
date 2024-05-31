@@ -438,7 +438,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 }
 
 // Write out copies of a feature into the temporary files for the next zoom level
-static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, int within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, std::atomic<long long> within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
 	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -507,12 +507,12 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 					(child_shards - 1);
 
 				{
-					if (!within[j]) {
+					if (within[j] < 0) {
+						within[j] = (long long) geompos[j];  // no competition between threads
 						serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, tx * span + xo, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, ty * span + yo, &geompos[j], fname);
 						geomfile[j]->begin();
-						within[j] = 1;
 					}
 
 					serial_feature sf = osf;
@@ -1004,7 +1004,7 @@ struct multiplier_state {
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<long long> *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex) {
 	while (1) {
 		serial_feature sf;
 		long long len;
@@ -1219,7 +1219,7 @@ struct run_prefilter_args {
 	std::atomic<long long> *along = 0;
 	long long alongminus = 0;
 	int buffer = 0;
-	int *within = NULL;
+	std::atomic<long long> *within = NULL;
 	compressor **geomfile = NULL;
 	std::atomic<long long> *geompos = NULL;
 	std::atomic<double> *oprogress = NULL;
@@ -1559,9 +1559,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t lead_features_count = 0;			     // of the tile so far
 		size_t other_multiplier_cluster_features_count = 0;  // of the tile so far
 
-		int within[child_shards];
+		std::atomic<long long> within[child_shards];
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
-			within[i] = 0;
+			within[i] = -1;
 		}
 
 		std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
@@ -2002,10 +2002,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		for (int j = 0; j < child_shards; j++) {
-			if (within[j]) {
+			if (within[j] >= 0) {
 				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
-				within[j] = 0;
+				within[j] = -1;
 			}
 		}
 
