@@ -1,3 +1,7 @@
+# 2.55.0
+
+* Fix hash collisions in the string pool
+
 # 2.53.0
 
 * Stop trying to add features to the tile after the feature limit is reached
