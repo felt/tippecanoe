@@ -114,4 +114,7 @@ std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int n
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data);
 
+std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, long long p1_x, long long p1_y,
+						long long p2_x, long long p2_y, long long p3_x, long long p3_y);
+
 #endif
