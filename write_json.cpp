@@ -268,7 +268,7 @@ void write_coords(json_writer &state, lonlat const &ll, double scale) {
 	}
 }
 
-void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, unsigned long long index, long long sequence, long long extent, bool complain, json_writer &state, double scale) {
+void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, index_t index, long long sequence, long long extent, bool complain, json_writer &state, double scale) {
 	for (size_t f = 0; f < layer.features.size(); f++) {
 		mvt_feature const &feat = layer.features[f];
 
@@ -389,12 +389,12 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 			long long py = feat.geometry[g].y;
 
 			if (op == VT_MOVETO || op == VT_LINETO) {
-				long long wscale = 1LL << (32 - z);
+				long long wscale = 1LL << (GLOBAL_DETAIL - z);
 				long long wx = wscale * x + (wscale / layer.extent) * px;
 				long long wy = wscale * y + (wscale / layer.extent) * py;
 
 				double lat, lon;
-				projection->unproject(wx, wy, 32, &lon, &lat);
+				projection->unproject(wx, wy, GLOBAL_DETAIL, &lon, &lat);
 
 				ops.push_back(lonlat(op, lon, lat, px, py));
 			} else {

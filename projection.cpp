@@ -7,8 +7,10 @@
 #include "projection.hpp"
 #include "errors.hpp"
 
-unsigned long long (*encode_index)(unsigned int wx, unsigned int wy) = NULL;
-void (*decode_index)(unsigned long long index, unsigned *wx, unsigned *wy) = NULL;
+#define UINT_BITS 32
+
+index_t (*encode_index)(unsigned long long wx, unsigned long long wy) = NULL;
+void (*decode_index)(index_t index, unsigned long long *wx, unsigned long long *wy) = NULL;
 
 struct projection projections[] = {
 	{"EPSG:4326", lonlat2tile, tile2lonlat, "urn:ogc:def:crs:OGC:1.3:CRS84"},
@@ -84,45 +86,45 @@ void epsg3857totile(double ix, double iy, int zoom, long long *x, long long *y) 
 		ix = 40000000.0;
 	}
 
-	*x = std::round(ix * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31));
-	*y = std::round(((1LL << 32) - 1) - (iy * (1LL << 31) / 6378137.0 / M_PI + (1LL << 31)));
+	*x = std::round(ix * (1LL << (GLOBAL_DETAIL - 1)) / 6378137.0 / M_PI + (1LL << (GLOBAL_DETAIL - 1)));
+	*y = std::round(((1LL << GLOBAL_DETAIL) - 1) - (iy * (1LL << (GLOBAL_DETAIL - 1)) / 6378137.0 / M_PI + (1LL << (GLOBAL_DETAIL - 1))));
 
 	if (zoom != 0) {
-		*x = std::round((double) *x / (1LL << (32 - zoom)));
-		*y = std::round((double) *y / (1LL << (32 - zoom)));
+		*x = std::round((double) *x / (1LL << (GLOBAL_DETAIL - zoom)));
+		*y = std::round((double) *y / (1LL << (GLOBAL_DETAIL - zoom)));
 	}
 }
 
 void tiletoepsg3857(long long ix, long long iy, int zoom, double *ox, double *oy) {
 	if (zoom != 0) {
-		ix <<= (32 - zoom);
-		iy <<= (32 - zoom);
+		ix <<= (GLOBAL_DETAIL - zoom);
+		iy <<= (GLOBAL_DETAIL - zoom);
 	}
 
-	*ox = (ix - (1LL << 31)) * M_PI * 6378137.0 / (1LL << 31);
-	*oy = ((1LL << 32) - 1 - iy - (1LL << 31)) * M_PI * 6378137.0 / (1LL << 31);
+	*ox = (ix - (1LL << (GLOBAL_DETAIL - 1))) * M_PI * 6378137.0 / (1LL << (GLOBAL_DETAIL - 1));
+	*oy = ((1LL << GLOBAL_DETAIL) - 1 - iy - (1LL << (GLOBAL_DETAIL - 1))) * M_PI * 6378137.0 / (1LL << (GLOBAL_DETAIL - 1));
 }
 
 // https://en.wikipedia.org/wiki/Hilbert_curve
 
-void hilbert_rot(unsigned long long n, unsigned *x, unsigned *y, unsigned long long rx, unsigned long long ry) {
+static void hilbert_rot(index_t n, unsigned long long *x, unsigned long long *y, index_t rx, index_t ry) {
 	if (ry == 0) {
 		if (rx == 1) {
 			*x = n - 1 - *x;
 			*y = n - 1 - *y;
 		}
 
-		unsigned t = *x;
+		unsigned long long t = *x;
 		*x = *y;
 		*y = t;
 	}
 }
 
-unsigned long long hilbert_xy2d(unsigned long long n, unsigned x, unsigned y) {
-	unsigned long long d = 0;
-	unsigned long long rx, ry;
+static index_t hilbert_xy2d(index_t n, unsigned long long x, unsigned long long y) {
+	index_t d = 0;
+	index_t rx, ry;
 
-	for (unsigned long long s = n / 2; s > 0; s /= 2) {
+	for (index_t s = n / 2; s > 0; s /= 2) {
 		rx = (x & s) != 0;
 		ry = (y & s) != 0;
 
@@ -133,12 +135,12 @@ unsigned long long hilbert_xy2d(unsigned long long n, unsigned x, unsigned y) {
 	return d;
 }
 
-void hilbert_d2xy(unsigned long long n, unsigned long long d, unsigned *x, unsigned *y) {
-	unsigned long long rx, ry;
-	unsigned long long t = d;
+static void hilbert_d2xy(index_t n, index_t d, unsigned long long *x, unsigned long long *y) {
+	index_t rx, ry;
+	index_t t = d;
 
 	*x = *y = 0;
-	for (unsigned long long s = 1; s < n; s *= 2) {
+	for (index_t s = 1; s < n; s *= 2) {
 		rx = 1 & (t / 2);
 		ry = 1 & (t ^ rx);
 		hilbert_rot(s, x, y, rx, ry);
@@ -148,22 +150,22 @@ void hilbert_d2xy(unsigned long long n, unsigned long long d, unsigned *x, unsig
 	}
 }
 
-unsigned long long encode_hilbert(unsigned int wx, unsigned int wy) {
-	return hilbert_xy2d(1LL << 32, wx, wy);
+index_t encode_hilbert(unsigned long long wx, unsigned long long wy) {
+	return hilbert_xy2d((index_t) 1 << 64, wx, wy);
 }
 
-void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy) {
-	hilbert_d2xy(1LL << 32, index, wx, wy);
+void decode_hilbert(index_t index, unsigned long long *wx, unsigned long long *wy) {
+	hilbert_d2xy((index_t) 1 << 64, index, wx, wy);
 }
 
-unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
-	unsigned long long out = 0;
+index_t encode_quadkey(unsigned long long wx, unsigned long long wy) {
+	index_t out = 0;
 
 	int i;
-	for (i = 0; i < 32; i++) {
-		unsigned long long v = ((wx >> (32 - (i + 1))) & 1) << 1;
-		v |= (wy >> (32 - (i + 1))) & 1;
-		v = v << (64 - 2 * (i + 1));
+	for (i = 0; i < 64; i++) {
+		index_t v = ((wx >> (64 - (i + 1))) & 1) << 1;
+		v |= (wy >> (64 - (i + 1))) & 1;
+		v = v << (128 - 2 * (i + 1));
 
 		out |= v;
 	}
@@ -174,15 +176,15 @@ unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
 static std::atomic<unsigned char> decodex[256];
 static std::atomic<unsigned char> decodey[256];
 
-void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
+void decode_quadkey(index_t index, unsigned long long *wx, unsigned long long *wy) {
 	static std::atomic<int> initialized(0);
 	if (!initialized) {
 		for (size_t ix = 0; ix < 256; ix++) {
 			size_t xx = 0, yy = 0;
 
-			for (size_t i = 0; i < 32; i++) {
-				xx |= ((ix >> (64 - 2 * (i + 1) + 1)) & 1) << (32 - (i + 1));
-				yy |= ((ix >> (64 - 2 * (i + 1) + 0)) & 1) << (32 - (i + 1));
+			for (size_t i = 0; i < UINT_BITS; i++) {
+				xx |= ((ix >> (64 - 2 * (i + 1) + 1)) & 1) << (UINT_BITS - (i + 1));
+				yy |= ((ix >> (64 - 2 * (i + 1) + 0)) & 1) << (UINT_BITS - (i + 1));
 			}
 
 			decodex[ix] = xx;
@@ -194,10 +196,18 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy) {
 
 	*wx = *wy = 0;
 
-	for (size_t i = 0; i < 8; i++) {
-		*wx |= ((unsigned) decodex[(index >> (8 * i)) & 0xFF]) << (4 * i);
-		*wy |= ((unsigned) decodey[(index >> (8 * i)) & 0xFF]) << (4 * i);
+	for (size_t i = 0; i < 16; i++) {
+		*wx |= ((index_t) decodex[(index >> (8 * i)) & 0xFF]) << (4 * i);
+		*wy |= ((index_t) decodey[(index >> (8 * i)) & 0xFF]) << (4 * i);
 	}
+}
+
+unsigned coordinate_to_encodable(long long coord) {
+	return (unsigned) (coord / (1LL << (GLOBAL_DETAIL - UINT_BITS)));
+}
+
+long long decoded_to_coordinate(unsigned coord) {
+	return ((long long) coord) * (1LL << (GLOBAL_DETAIL - UINT_BITS));
 }
 
 void set_projection_or_exit(const char *optarg) {
