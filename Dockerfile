@@ -1,7 +1,7 @@
 FROM ubuntu:22.04 AS tippecanoe-builder
 
 RUN apt-get update \
-  && apt-get -y install build-essential libsqlite3-dev zlib1g-dev
+  && apt-get -y install make gcc g++ libsqlite3-dev zlib1g-dev
 
 COPY . /tmp/tippecanoe-src
 WORKDIR /tmp/tippecanoe-src
