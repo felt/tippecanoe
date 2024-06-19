@@ -76,13 +76,13 @@ drawvec readGeometry(const FlatGeobuf::Geometry *geometry, FlatGeobuf::GeometryT
 
 	if (geometry_type == FlatGeobuf::GeometryType_Point) {
 		return readPoints(geometry);
-	} if (geometry_type == FlatGeobuf::GeometryType_MultiPoint) {
+	} else if (geometry_type == FlatGeobuf::GeometryType_MultiPoint) {
 		return readPoints(geometry);	
-	} if (geometry_type == FlatGeobuf::GeometryType_LineString) {
+	} else if (geometry_type == FlatGeobuf::GeometryType_LineString) {
 		return readLinePart(geometry);
-	} else if (h_geometry_type == FlatGeobuf::GeometryType_MultiLineString) {
+	} else if (geometry_type == FlatGeobuf::GeometryType_MultiLineString) {
 		return readLinePart(geometry);
-	} if (geometry_type == FlatGeobuf::GeometryType_Polygon) {
+	} else if (geometry_type == FlatGeobuf::GeometryType_Polygon) {
 		return readLinePart(geometry);
 	} else if (geometry_type == FlatGeobuf::GeometryType_MultiPolygon) {
 	// if it is a GeometryCollection, parse Parts, ignore XY
