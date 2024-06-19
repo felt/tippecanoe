@@ -10,7 +10,6 @@ extern const char *geometry_names[GEOM_TYPES];
 extern int geometry_within[GEOM_TYPES];
 extern int mb_geometry[GEOM_TYPES];
 
-void json_context(json_object *j);
+void json_context(const json_object *j);
 void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fname, int line, json_object *feature);
-
-serial_val stringify_value(json_object *value, const char *reading, int line, json_object *feature);
+serial_val stringify_value(json_object const *, char const *, int, json_object const *);

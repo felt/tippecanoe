@@ -42,7 +42,7 @@ int mb_geometry[GEOM_TYPES] = {
 	VT_POLYGON,
 };
 
-void json_context(json_object *j) {
+void json_context(const json_object *j) {
 	char *s = json_stringify(j);
 
 	if (strlen(s) >= 500) {
@@ -121,7 +121,7 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 // type and stringified value. All numeric values, even if they are integers,
 // even integers that are too large to fit in a double but will still be
 // stringified with their original precision, are recorded here as mvt_double.
-serial_val stringify_value(json_object *value, const char *reading, int line, json_object *feature) {
+serial_val stringify_value(json_object const *value, char const *reading, int line, json_object const *feature) {
 	serial_val sv;
 
 	if (value != NULL) {

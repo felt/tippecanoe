@@ -1,0 +1,35 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "11", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 6173331, "properties": { "NAME": "Vancouver", "NAME_FR": "Vancouver", "SCALERANK": 1, "NAME_RU": "Ванкувер" }, "geometry": { "type": "Point", "coordinates": [ -123.134766, 49.267805 ] } }
+,
+{ "type": "Feature", "id": 1690681, "properties": { "NAME": "San Salvador", "NAME_FR": "San Salvador", "SCALERANK": 3, "NAME_RU": "Сан-Сальвадор" }, "geometry": { "type": "Point", "coordinates": [ -89.208984, 13.667338 ] } }
+,
+{ "type": "Feature", "id": 3579925, "properties": { "NAME": "Saint George's", "NAME_FR": "Saint-Georges", "SCALERANK": 4, "NAME_RU": "Сент-Джорджес" }, "geometry": { "type": "Point", "coordinates": [ -61.699219, 12.039321 ] } }
+,
+{ "type": "Feature", "id": 2422465, "properties": { "NAME": "Conakry", "NAME_FR": "Conakry", "SCALERANK": 3, "NAME_RU": "Конакри" }, "geometry": { "type": "Point", "coordinates": [ -13.710938, 9.535749 ] } }
+,
+{ "type": "Feature", "id": 3652462, "properties": { "NAME": "Quito", "NAME_FR": "Quito", "SCALERANK": 3, "NAME_RU": "Кито" }, "geometry": { "type": "Point", "coordinates": [ -78.486328, -0.175781 ] } }
+,
+{ "type": "Feature", "id": 2660646, "properties": { "NAME": "Geneva", "NAME_FR": "Genève", "SCALERANK": 1, "NAME_RU": "Женева" }, "geometry": { "type": "Point", "coordinates": [ 6.152344, 46.195042 ] } }
+,
+{ "type": "Feature", "id": 6691831, "properties": { "NAME": "Vatican City", "NAME_FR": "Cité du Vatican", "SCALERANK": 8, "NAME_RU": "Ватикан" }, "geometry": { "type": "Point", "coordinates": [ 12.480469, 41.902277 ] } }
+,
+{ "type": "Feature", "id": 618426, "properties": { "NAME": "Chișinău", "NAME_FR": "Chișinău", "SCALERANK": 3, "NAME_RU": "Кишинёв" }, "geometry": { "type": "Point", "coordinates": [ 28.828125, 46.980252 ] } }
+,
+{ "type": "Feature", "id": 2309527, "properties": { "NAME": "Malabo", "NAME_FR": "Malabo", "SCALERANK": 3, "NAME_RU": "Малабо" }, "geometry": { "type": "Point", "coordinates": [ 8.789062, 3.776559 ] } }
+,
+{ "type": "Feature", "id": 373303, "properties": { "NAME": "Juba", "NAME_FR": "Djouba", "SCALERANK": 4, "NAME_RU": "Джуба" }, "geometry": { "type": "Point", "coordinates": [ 31.552734, 4.828260 ] } }
+,
+{ "type": "Feature", "id": 285787, "properties": { "NAME": "Kuwait City", "NAME_FR": "Koweït", "SCALERANK": 2, "NAME_RU": "Эль-Кувейт" }, "geometry": { "type": "Point", "coordinates": [ 47.988281, 29.382175 ] } }
+,
+{ "type": "Feature", "id": 1238992, "properties": { "NAME": "Sri Jayawardenepura Kotte", "NAME_FR": "Sri Jayawardenapura", "SCALERANK": 4, "NAME_RU": "Шри-Джаяварденепура-Котте" }, "geometry": { "type": "Point", "coordinates": [ 79.980469, 6.926427 ] } }
+,
+{ "type": "Feature", "id": 1735161, "properties": { "NAME": "Kuala Lumpur", "NAME_FR": "Kuala Lumpur", "SCALERANK": 2, "NAME_RU": "Куала-Лумпур" }, "geometry": { "type": "Point", "coordinates": [ 101.689453, 3.162456 ] } }
+,
+{ "type": "Feature", "id": 2314302, "properties": { "NAME": "Kinshasa", "NAME_FR": "Kinshasa", "SCALERANK": 1, "NAME_RU": "Киншаса" }, "geometry": { "type": "Point", "coordinates": [ 15.292969, -4.302591 ] } }
+,
+{ "type": "Feature", "id": 921772, "properties": { "NAME": "Moroni", "NAME_FR": "Moroni", "SCALERANK": 6, "NAME_RU": "Морони" }, "geometry": { "type": "Point", "coordinates": [ 43.242188, -11.695273 ] } }
+,
+{ "type": "Feature", "id": 2108502, "properties": { "NAME": "Honiara", "NAME_FR": "Honiara", "SCALERANK": 3, "NAME_RU": "Хониара" }, "geometry": { "type": "Point", "coordinates": [ 159.960938, -9.449062 ] } }
+] }
+] }

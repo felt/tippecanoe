@@ -89,7 +89,7 @@ void json_disconnect(json_object *j);
 
 json_object *json_hash_get(json_object *o, const char *s);
 
-char *json_stringify(json_object *o);
+char *json_stringify(const json_object *o);
 
 #ifdef __cplusplus
 }
