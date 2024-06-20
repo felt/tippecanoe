@@ -437,8 +437,29 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 	return out;
 }
 
+void prune_children(std::atomic<long long> *geompos, long long start_geompos[], compressor *geomfile[], size_t child_shards) {
+	// printf("prune %zu\n", child_shards);
+	for (size_t i = 0; i < child_shards; i++) {
+		if (start_geompos[i] >= 0) {
+			// printf("truncating %zu at %lld\n", i, start_geompos[i]);
+
+			if (fseek(geomfile[i]->fp, start_geompos[i], SEEK_SET) != 0) {
+				fprintf(stderr, "Couldn't seek child tile output to %lld: %s\n", start_geompos[i], strerror(errno));
+				exit(EXIT_WRITE);
+			}
+
+			if (ftruncate(fileno(geomfile[i]->fp), start_geompos[i]) != 0) {
+				fprintf(stderr, "Couldn't truncate child tile output to %lld: %s\n", start_geompos[i], strerror(errno));
+				exit(EXIT_WRITE);
+			}
+
+			geompos[i] = start_geompos[i];
+		}
+	}
+}
+
 // Write out copies of a feature into the temporary files for the next zoom level
-static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, std::atomic<long long> within[], std::atomic<long long> *geompos, compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, std::atomic<bool> within[], std::atomic<long long> *geompos, long long start_geompos[], compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
 	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
@@ -507,8 +528,9 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 					(child_shards - 1);
 
 				{
-					if (within[j] < 0) {
-						within[j] = (long long) geompos[j];  // no competition between threads
+					if (!within[j]) {
+						within[j] = true;
+						start_geompos[j] = geompos[j];	// no competition between threads
 						serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, tx * span + xo, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, ty * span + yo, &geompos[j], fname);
@@ -1004,7 +1026,7 @@ struct multiplier_state {
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<long long> *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex) {
 	while (1) {
 		serial_feature sf;
 		long long len;
@@ -1081,7 +1103,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
-				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
+				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, start_geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
 			}
 		}
 
@@ -1219,9 +1241,10 @@ struct run_prefilter_args {
 	std::atomic<long long> *along = 0;
 	long long alongminus = 0;
 	int buffer = 0;
-	std::atomic<long long> *within = NULL;
+	std::atomic<bool> *within = NULL;
 	compressor **geomfile = NULL;
 	std::atomic<long long> *geompos = NULL;
+	long long *start_geompos = NULL;
 	std::atomic<double> *oprogress = NULL;
 	double todo = 0;
 	const char *fname = 0;
@@ -1244,7 +1267,7 @@ void *run_prefilter(void *v) {
 	unsigned long long previndex = 0;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), previndex);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), previndex);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1527,7 +1550,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 		// XXX special case for points below basezoom
 
-		first_detail = 30;
+		first_detail = 30 - z;
 		second_detail = detail;
 		trying_to_stop_early = true;
 	}
@@ -1574,9 +1597,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t lead_features_count = 0;			     // of the tile so far
 		size_t other_multiplier_cluster_features_count = 0;  // of the tile so far
 
-		std::atomic<long long> within[child_shards];
+		std::atomic<bool> within[child_shards];
+		long long start_geompos[child_shards];
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
-			within[i] = -1;
+			within[i] = false;
+			start_geompos[i] = -1;
 		}
 
 		std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
@@ -1641,6 +1666,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.within = within;
 			rpa.geomfile = geomfile;
 			rpa.geompos = geompos;
+			rpa.start_geompos = start_geompos;
 			rpa.oprogress = &oprogress;
 			rpa.todo = todo;
 			rpa.fname = fname;
@@ -1680,7 +1706,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_previndex);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_previndex);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -2017,10 +2043,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		for (int j = 0; j < child_shards; j++) {
-			if (within[j] >= 0) {
+			if (within[j]) {
 				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
-				within[j] = -1;
+				within[j] = false;
 			}
 		}
 
@@ -2566,6 +2592,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (pthread_mutex_unlock(&db_lock) != 0) {
 					perror("pthread_mutex_unlock");
 					exit(EXIT_PTHREAD);
+				}
+
+				if (trying_to_stop_early && line_detail == first_detail) {
+					// We succeeded in stopping early.
+					// Prune the child tiles.
+
+					prune_children(geompos, start_geompos, geomfile, child_shards);
 				}
 
 				return count;
