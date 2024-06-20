@@ -1520,11 +1520,26 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	// only for -K
 	unsigned long long cluster_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
 
+	int first_detail = detail, second_detail = detail - 1;
+	bool trying_to_stop_early = false;
+	if (additional[A_STOP_EARLY]) {
+		// If we are trying to stop early, there is an extra first pass with full+extra detail,
+		// and which loops if everything doesn't fit rather than trying to drop or union features.
+		// XXX special case for points below basezoom
+
+		first_detail = 30;
+		second_detail = detail;
+		trying_to_stop_early = true;
+	}
+
 	bool first_time = true;
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
-	int line_detail;
-	for (line_detail = detail; line_detail >= min_detail || line_detail == detail; line_detail--, oprogress = 0) {
+	for (int line_detail = first_detail;
+	     line_detail >= min_detail || line_detail == detail;
+	     line_detail = line_detail == first_detail ? second_detail : line_detail - 1) {
+		oprogress = 0;
+
 		long long count = 0;
 		double accum_area = 0;
 
@@ -2357,6 +2372,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, totalsize, max_tile_features);
 				}
 
+				if (trying_to_stop_early && line_detail == first_detail) {
+					// didn't work, try a lower detail
+					continue;
+				}
+
 				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
 					if (gamma < 1) {
 						gamma = 1;
@@ -2458,6 +2478,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					} else {
 						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, scaled_max_tile_size);
 					}
+				}
+
+				if (trying_to_stop_early && line_detail == first_detail) {
+					// didn't work, try a lower detail
+					continue;
 				}
 
 				if (additional[A_INCREASE_GAMMA_AS_NEEDED] && gamma < 10) {
