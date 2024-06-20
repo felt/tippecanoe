@@ -1522,7 +1522,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
-	if (additional[A_STOP_EARLY]) {
+	if (additional[A_TRUNCATE_ZOOMS]) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 		// XXX special case for points below basezoom

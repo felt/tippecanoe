@@ -27,7 +27,6 @@
 #define A_VISVALINGAM ((int) 'v')
 #define A_GENERATE_POLYGON_LABEL_POINTS ((int) 'P')
 #define A_TRUNCATE_ZOOMS ((int) 't')
-#define A_STOP_EARLY ((int) 'x')
 
 #define P_SIMPLIFY ((int) 's')
 #define P_SIMPLIFY_LOW ((int) 'S')
