@@ -26,12 +26,17 @@ std::set<std::string> keep;
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s -o newtile.pbf.gz tile.pbf.gz oz/ox/oy nz/nx/ny\n", argv[0]);
 	fprintf(stderr, "to create tile nz/nx/ny from tile oz/ox/oy\n");
+	fprintf(stderr, "Usage: %s -o newtile.pbf.gz -t nz/nx/ny tile.pbf.gz oz/ox/oy tile2.pbf.gz oz2/ox2/oy2\n", argv[0]);
+	fprintf(stderr, "to create tile nz/nx/ny from tiles oz/ox/oy and oz2/ox2/oy2\n");
 	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char **argv) {
 	int i;
+	const char *outtile = NULL;
 	const char *outfile = NULL;
+
+	std::vector<input_tile> sources;
 
 	struct option long_options[] = {
 		{"include", required_argument, 0, 'y'},
@@ -43,6 +48,7 @@ int main(int argc, char **argv) {
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
 		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
+		{"source-tile", required_argument, 0, 't'},
 
 		{0, 0, 0, 0},
 	};
@@ -97,32 +103,71 @@ int main(int argc, char **argv) {
 			unidecode_data = read_unidecode(optarg);
 			break;
 
+		case 't':
+			outtile = optarg;
+			break;
+
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
 		}
 	}
 
-	if (argc - optind != 3) {
-		usage(argv);
-	}
-
-	if (outfile == NULL) {
-		usage(argv);
-	}
-
-	const char *infile = argv[optind + 0];
-
-	int oz, ox, oy;
-	if (sscanf(argv[optind + 1], "%d/%d/%d", &oz, &ox, &oy) != 3) {
-		fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 1]);
-		usage(argv);
-	}
-
+	std::vector<input_tile> its;
 	int nz, nx, ny;
-	if (sscanf(argv[optind + 2], "%d/%d/%d", &nz, &nx, &ny) != 3) {
-		fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 2]);
-		usage(argv);
+
+	if (outtile == NULL) {	// single input
+		if (argc - optind != 3) {
+			fprintf(stderr, "Wrong number of arguments\n");
+			usage(argv);
+		}
+
+		const char *infile = argv[optind + 0];
+
+		int oz, ox, oy;
+		if (sscanf(argv[optind + 1], "%d/%d/%d", &oz, &ox, &oy) != 3) {
+			fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 1]);
+			usage(argv);
+		}
+
+		if (sscanf(argv[optind + 2], "%d/%d/%d", &nz, &nx, &ny) != 3) {
+			fprintf(stderr, "%s: not in z/x/y form\n", argv[optind + 2]);
+			usage(argv);
+		}
+
+		input_tile s;
+		s.tile = infile;
+		s.z = oz;
+		s.x = ox;
+		s.y = oy;
+
+		sources.push_back(s);
+	} else {  // multiple inputs
+		if ((argc - optind) % 2 != 0) {
+			fprintf(stderr, "Unpaired arguments\n");
+			usage(argv);
+		}
+
+		if (sscanf(outtile, "%d/%d/%d", &nz, &nx, &ny) != 3) {
+			fprintf(stderr, "%s: not in z/x/y form\n", outtile);
+			usage(argv);
+		}
+
+		for (i = optind; i + 1 < argc; i += 2) {
+			int oz, ox, oy;
+			if (sscanf(argv[i + 1], "%d/%d/%d", &oz, &ox, &oy) != 3) {
+				fprintf(stderr, "%s: not in z/x/y form\n", argv[i + 1]);
+				usage(argv);
+			}
+
+			input_tile s;
+			s.tile = argv[i];
+			s.z = oz;
+			s.x = ox;
+			s.y = oy;
+
+			sources.push_back(s);
+		}
 	}
 
 	json_object *json_filter = NULL;
@@ -130,33 +175,28 @@ int main(int argc, char **argv) {
 		json_filter = parse_filter(filter.c_str());
 	}
 
-	std::string out;
-	{
-		FILE *fi = fopen(infile, "rb");
-		if (fi == NULL) {
-			perror(infile);
-			exit(EXIT_FAILURE);
-		}
-
+	for (auto const &s : sources) {
 		std::string tile;
 		char buf[1000];
 		int len;
 
-		while ((len = fread(buf, sizeof(char), 1000, fi)) > 0) {
+		FILE *f = fopen(s.tile.c_str(), "rb");
+		if (f == NULL) {
+			perror(s.tile.c_str());
+			exit(EXIT_FAILURE);
+		}
+
+		while ((len = fread(buf, sizeof(char), 1000, f)) > 0) {
 			tile.append(std::string(buf, len));
 		}
-		fclose(fi);
+		fclose(f);
 
-		std::vector<input_tile> tv;
-		input_tile t;
+		input_tile t = s;
 		t.tile = std::move(tile);
-		t.z = oz;
-		t.x = ox;
-		t.y = oy;
-		tv.push_back(std::move(t));
-
-		out = overzoom(tv, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
+		its.push_back(std::move(t));
 	}
+
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {
