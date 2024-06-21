@@ -991,9 +991,14 @@ to turn those into moderate detail tiles at high zoom levels, for the benefit of
 renderers that cannot internally overzoom high-resolution tiles without losing
 some of the precision. Running:
 
-    tippecanoe-overzoom -o out.mvt.gz inz/inx/iny outz/outx/outy in.mvt.gz
+    tippecanoe-overzoom -o out.mvt.gz in.mvt.gz inz/inx/iny outz/outx/outy
 
 reads tile `inz/inx/iny` of `in.mvt.gz` and produces tile `outz/outx/outy` of `out.mvt.gz`.
+
+    tippecanoe-overzoom -o out.mvt.gz -t outz/outx/outy in.mvt.gz inz/inx/iny in2.mvt.gz in2z/in2x/in2y in3.mvt.gz in3z/in3x/in3y
+
+reads tile `inz/inx/iny` of `in.mvt.gz`, tile `in2z/in2x/in2y` of `in2.mvt.gz`, and tile `in3z/in3x/in3y` of `in3.mvt.gz`,
+and produces tile `outz/outx/outy` of `out.mvt.gz` from them.
 
 ### Options
 
