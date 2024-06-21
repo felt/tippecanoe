@@ -125,33 +125,45 @@ int main(int argc, char **argv) {
 		usage(argv);
 	}
 
-	std::string tile;
-	char buf[1000];
-	int len;
-
-	FILE *f = fopen(infile, "rb");
-	if (f == NULL) {
-		perror(infile);
-		exit(EXIT_FAILURE);
-	}
-
-	while ((len = fread(buf, sizeof(char), 1000, f)) > 0) {
-		tile.append(std::string(buf, len));
-	}
-	fclose(f);
-
-	f = fopen(outfile, "wb");
-	if (f == NULL) {
-		perror(outfile);
-		exit(EXIT_FAILURE);
-	}
-
 	json_object *json_filter = NULL;
 	if (filter.size() > 0) {
 		json_filter = parse_filter(filter.c_str());
 	}
 
-	std::string out = overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
+	std::string out;
+	{
+		FILE *fi = fopen(infile, "rb");
+		if (fi == NULL) {
+			perror(infile);
+			exit(EXIT_FAILURE);
+		}
+
+		std::string tile;
+		char buf[1000];
+		int len;
+
+		while ((len = fread(buf, sizeof(char), 1000, fi)) > 0) {
+			tile.append(std::string(buf, len));
+		}
+		fclose(fi);
+
+		std::vector<input_tile> tv;
+		input_tile t;
+		t.tile = std::move(tile);
+		t.z = oz;
+		t.x = ox;
+		t.y = oy;
+		tv.push_back(std::move(t));
+
+		out = overzoom(tv, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
+	}
+
+	FILE *f = fopen(outfile, "wb");
+	if (f == NULL) {
+		perror(outfile);
+		exit(EXIT_FAILURE);
+	}
+
 	fwrite(out.c_str(), sizeof(char), out.size(), f);
 	fclose(f);
 

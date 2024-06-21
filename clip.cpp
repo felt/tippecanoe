@@ -755,24 +755,36 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	return out;
 }
 
-std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
-	mvt_tile tile;
+	std::vector<source_tile> decoded;
 
-	try {
-		bool was_compressed;
-		if (!tile.decode(s, was_compressed)) {
-			fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", oz, ox, oy);
-			exit(EXIT_MVT);
+	for (auto const &t : tiles) {
+		mvt_tile tile;
+
+		try {
+			bool was_compressed;
+			if (!tile.decode(t.tile, was_compressed)) {
+				fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", t.z, t.x, t.y);
+				exit(EXIT_MVT);
+			}
+		} catch (std::exception const &e) {
+			fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", t.z, t.x, t.y);
+			exit(EXIT_PROTOBUF);
 		}
-	} catch (std::exception const &e) {
-		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", oz, ox, oy);
-		exit(EXIT_PROTOBUF);
+
+		source_tile out;
+		out.tile = tile;
+		out.z = t.z;
+		out.x = t.x;
+		out.y = t.y;
+
+		decoded.push_back(out);
 	}
 
-	return overzoom(tile, oz, ox, oy, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
+	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
 }
 
 struct tile_feature {
@@ -870,165 +882,175 @@ static struct preservecmp {
 	}
 } preservecmp;
 
-std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int nx, int ny,
+std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
-	for (auto const &layer : tile.layers) {
-		mvt_layer outlayer = mvt_layer();
+	for (auto const &tile : tiles) {
+		for (auto const &layer : tile.tile.layers) {
+			mvt_layer *outlayer = NULL;
 
-		int det = detail;
-		if (det <= 0) {
-			det = std::round(log(layer.extent) / log(2));
-		}
+			int det = detail;
+			if (det <= 0) {
+				det = std::round(log(layer.extent) / log(2));
+			}
 
-		outlayer.name = layer.name;
-		outlayer.version = layer.version;
-		outlayer.extent = 1LL << det;
+			for (size_t i = 0; i < outtile.layers.size(); i++) {
+				if (outtile.layers[i].name == layer.name) {
+					outlayer = &outtile.layers[i];
+				}
+			}
 
-		std::vector<tile_feature> pending_tile_features;
+			if (outlayer == NULL) {
+				mvt_layer newlayer = mvt_layer();
 
-		static const std::string retain_points_multiplier_first = "tippecanoe:retain_points_multiplier_first";
-		static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
+				newlayer.name = layer.name;
+				newlayer.version = layer.version;
+				newlayer.extent = 1LL << det;
 
-		for (auto feature : layer.features) {
-			bool flush_multiplier_cluster = false;
-			if (demultiply) {
-				for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
-					if (layer.keys[feature.tags[i]] == retain_points_multiplier_first) {
-						mvt_value v = layer.values[feature.tags[i + 1]];
-						if (v.type == mvt_bool && v.numeric_value.bool_value) {
-							flush_multiplier_cluster = true;
+				outtile.layers.push_back(newlayer);
+				outlayer = &outtile.layers.back();
+			}
+
+			std::vector<tile_feature> pending_tile_features;
+
+			static const std::string retain_points_multiplier_first = "tippecanoe:retain_points_multiplier_first";
+			static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
+
+			for (auto feature : layer.features) {
+				bool flush_multiplier_cluster = false;
+				if (demultiply) {
+					for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
+						if (layer.keys[feature.tags[i]] == retain_points_multiplier_first) {
+							mvt_value v = layer.values[feature.tags[i + 1]];
+							if (v.type == mvt_bool && v.numeric_value.bool_value) {
+								flush_multiplier_cluster = true;
+								feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
+							}
+						} else if (i < (ssize_t) feature.tags.size() && layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
+							mvt_value v = layer.values[feature.tags[i + 1]];
+							feature.seq = mvt_value_to_long_long(v);
 							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
 						}
-					} else if (i < (ssize_t) feature.tags.size() && layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
-						mvt_value v = layer.values[feature.tags[i + 1]];
-						feature.seq = mvt_value_to_long_long(v);
-						feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
 					}
-				}
-			} else {
-				flush_multiplier_cluster = true;
-			}
-
-			if (flush_multiplier_cluster) {
-				if (pending_tile_features.size() > 0) {
-					feature_out(pending_tile_features, outlayer, keep, attribute_accum, tile_stringpool);
-					pending_tile_features.clear();
-				}
-			}
-
-			std::set<std::string> exclude_attributes;
-			if (filter != NULL && !evaluate(feature, layer, filter, exclude_attributes, nz, unidecode_data)) {
-				continue;
-			}
-
-			drawvec geom;
-			int t = feature.type;
-
-			// Convert feature geometry to world coordinates
-
-			long long tilesize = 1LL << (32 - oz);	// source tile size in world coordinates
-			draw ring_closure(0, 0, 0);
-			bool sametile = (nz == oz && nx == ox && ny == oy && outlayer.extent >= layer.extent);
-
-			for (auto const &g : feature.geometry) {
-				if (g.op == mvt_closepath) {
-					geom.push_back(ring_closure);
 				} else {
-					geom.emplace_back(g.op,
-							  g.x * tilesize / layer.extent + ox * tilesize,
-							  g.y * tilesize / layer.extent + oy * tilesize);
+					flush_multiplier_cluster = true;
+				}
 
-					if (g.op == mvt_moveto) {
-						ring_closure = geom.back();
-						ring_closure.op = mvt_lineto;
+				if (flush_multiplier_cluster) {
+					if (pending_tile_features.size() > 0) {
+						feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool);
+						pending_tile_features.clear();
 					}
 				}
-			}
 
-			// Now offset from world coordinates to output tile coordinates,
-			// but retain world scale, because that is what tippecanoe clipping expects
-
-			long long outtilesize = 1LL << (32 - nz);  // destination tile size in world coordinates
-			for (auto &g : geom) {
-				g.x -= nx * outtilesize;
-				g.y -= ny * outtilesize;
-			}
-
-			if (!sametile) {
-				// Clip to output tile
-
-				long long xmin = LLONG_MAX;
-				long long ymin = LLONG_MAX;
-				long long xmax = LLONG_MIN;
-				long long ymax = LLONG_MIN;
-
-				for (auto const &g : geom) {
-					xmin = std::min(xmin, g.x);
-					ymin = std::min(ymin, g.y);
-					xmax = std::max(xmax, g.x);
-					ymax = std::max(ymax, g.y);
-				}
-
-				long long b = outtilesize * buffer / 256;
-				if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
+				std::set<std::string> exclude_attributes;
+				if (filter != NULL && !evaluate(feature, layer, filter, exclude_attributes, nz, unidecode_data)) {
 					continue;
 				}
 
-				if (t == VT_LINE) {
-					geom = clip_lines(geom, nz, buffer);
-				} else if (t == VT_POLYGON) {
-					drawvec dv;
-					geom = simple_clip_poly(geom, nz, buffer, dv, false);
-				} else if (t == VT_POINT) {
-					geom = clip_point(geom, nz, buffer);
+				drawvec geom;
+				int t = feature.type;
+
+				// Convert feature geometry to world coordinates
+
+				long long tilesize = 1LL << (32 - tile.z);  // source tile size in world coordinates
+				draw ring_closure(0, 0, 0);
+				bool sametile = (nz == tile.z && nx == tile.x && ny == tile.y && outlayer->extent >= layer.extent);
+
+				for (auto const &g : feature.geometry) {
+					if (g.op == mvt_closepath) {
+						geom.push_back(ring_closure);
+					} else {
+						geom.emplace_back(g.op,
+								  g.x * tilesize / layer.extent + tile.x * tilesize,
+								  g.y * tilesize / layer.extent + tile.y * tilesize);
+						if (g.op == mvt_moveto) {
+							ring_closure = geom.back();
+							ring_closure.op = mvt_lineto;
+						}
+					}
 				}
-			}
 
-			// Scale to output tile extent
+				// Now offset from world coordinates to output tile coordinates,
+				// but retain world scale, because that is what tippecanoe clipping expects
 
-			to_tile_scale(geom, nz, det);
+				long long outtilesize = 1LL << (32 - nz);  // destination tile size in world coordinates
+				for (auto &g : geom) {
+					g.x -= nx * outtilesize;
+					g.y -= ny * outtilesize;
+				}
 
-			if (!sametile) {
-				// Clean geometries
+				if (!sametile) {
+					// Clip to output tile
 
-				geom = remove_noop(geom, t, 0);
+					long long xmin = LLONG_MAX;
+					long long ymin = LLONG_MAX;
+					long long xmax = LLONG_MIN;
+					long long ymax = LLONG_MIN;
+
+					for (auto const &g : geom) {
+						xmin = std::min(xmin, g.x);
+						ymin = std::min(ymin, g.y);
+						xmax = std::max(xmax, g.x);
+						ymax = std::max(ymax, g.y);
+					}
+
+					long long b = outtilesize * buffer / 256;
+					if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
+						continue;
+					}
+
+					if (t == VT_LINE) {
+						geom = clip_lines(geom, nz, buffer);
+					} else if (t == VT_POLYGON) {
+						drawvec dv;
+						geom = simple_clip_poly(geom, nz, buffer, dv, false);
+					} else if (t == VT_POINT) {
+						geom = clip_point(geom, nz, buffer);
+					}
+				}
+
+				// Scale to output tile extent
+
+				to_tile_scale(geom, nz, det);
+
+				if (!sametile) {
+					// Clean geometries
+
+					geom = remove_noop(geom, t, 0);
+					if (t == VT_POLYGON) {
+						geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					}
+				}
+
 				if (t == VT_POLYGON) {
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					geom = close_poly(geom);
 				}
+
+				tile_feature tf;
+				tf.geom = std::move(geom);
+				tf.t = t;
+				tf.has_id = feature.has_id;
+				tf.id = feature.id;
+				tf.tags = std::move(feature.tags);
+				tf.layer = &layer;
+				tf.seq = feature.seq;
+
+				pending_tile_features.push_back(tf);
 			}
 
-			if (t == VT_POLYGON) {
-				geom = close_poly(geom);
+			if (pending_tile_features.size() > 0) {
+				feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool);
+				pending_tile_features.clear();
 			}
 
-			tile_feature tf;
-			tf.geom = std::move(geom);
-			tf.t = t;
-			tf.has_id = feature.has_id;
-			tf.id = feature.id;
-			tf.tags = std::move(feature.tags);
-			tf.layer = &layer;
-			tf.seq = feature.seq;
-
-			pending_tile_features.push_back(tf);
-		}
-
-		if (pending_tile_features.size() > 0) {
-			feature_out(pending_tile_features, outlayer, keep, attribute_accum, tile_stringpool);
-			pending_tile_features.clear();
-		}
-
-		if (preserve_input_order) {
-			std::stable_sort(outlayer.features.begin(), outlayer.features.end(), preservecmp);
-		}
-
-		if (outlayer.features.size() > 0) {
-			outtile.layers.push_back(std::move(outlayer));
+			if (preserve_input_order) {
+				std::stable_sort(outlayer->features.begin(), outlayer->features.end(), preservecmp);
+			}
 		}
 	}
 
@@ -1043,7 +1065,16 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 		if (outtile.layers.size() > 0) {
 			for (size_t x = 0; x < 2; x++) {
 				for (size_t y = 0; y < 2; y++) {
-					std::string child = overzoom(outtile, nz, nx, ny,
+					source_tile st;
+					st.tile = outtile;
+					st.z = nz;
+					st.x = nx;
+					st.y = ny;
+
+					std::vector<source_tile> sts;
+					sts.push_back(st);
+
+					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
@@ -1052,6 +1083,12 @@ std::string overzoom(const mvt_tile &tile, int oz, int ox, int oy, int nz, int n
 					}
 				}
 			}
+		}
+	}
+
+	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
+		if (outtile.layers[i].features.size() == 0) {
+			outtile.layers.erase(outtile.layers.begin() + i);
 		}
 	}
 
