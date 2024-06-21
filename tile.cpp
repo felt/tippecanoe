@@ -1545,6 +1545,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
+	bool can_stop_early = true;
 	if (additional[A_TRUNCATE_ZOOMS]) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
@@ -2288,10 +2289,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
 				if (layer_features.size() > limit_tile_feature_count_at_maxzoom) {
+					can_stop_early = false;
 					layer_features.resize(limit_tile_feature_count_at_maxzoom);
 				}
 			} else if (limit_tile_feature_count != 0) {
 				if (layer_features.size() > limit_tile_feature_count) {
+					can_stop_early = false;
 					layer_features.resize(limit_tile_feature_count);
 				}
 			}
@@ -2386,6 +2389,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				logger.progress_tile(progress);
 			}
 			oprogress = progress;
+		}
+
+		if (trying_to_stop_early && line_detail == first_detail && !can_stop_early) {
+			// didn't work, try a lower detail
+			continue;
 		}
 
 		if (totalsize > 0 && tile.layers.size() > 0) {
