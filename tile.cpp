@@ -531,6 +531,9 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 					if (!within[j]) {
 						within[j] = true;
 						start_geompos[j] = geompos[j];	// no competition between threads
+
+						long long vertex_count = 0;
+						fwrite_check(&vertex_count, sizeof(vertex_count), 1, geomfile[j]->fp, &geompos[j], fname);
 						serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, tx * span + xo, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, ty * span + yo, &geompos[j], fname);
@@ -2669,6 +2672,10 @@ void *run_thread(void *vargs) {
 			// These z/x/y are uncompressed so we can seek to the start of the
 			// compressed feature data that immediately follows.
 
+			long long vertex_count;
+			if (dc.fread(&vertex_count, sizeof(vertex_count), 1, &geompos) != 1) {
+				break;
+			}
 			if (!dc.deserialize_int(&z, &geompos)) {
 				break;
 			}
