@@ -1,3 +1,4 @@
+#include <stack>
 #include <stdlib.h>
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
@@ -755,10 +756,274 @@ static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<d
 	return out;
 }
 
+double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
+	long long p2x = segB_x - segA_x;
+	long long p2y = segB_y - segA_y;
+
+	// These calculations must be made in integers instead of floating point
+	// to make them consistent between x86 and arm floating point implementations.
+	//
+	// Coordinates may be up to 34 bits, so their product is up to 68 bits,
+	// making their sum up to 69 bits. Downshift before multiplying to keep them in range.
+	double something = ((p2x / 4) * (p2x / 8) + (p2y / 4) * (p2y / 8)) * 32.0;
+	// likewise
+	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 * (p2x / 8) + (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
+
+	if (u >= 1) {
+		u = 1;
+	} else if (u <= 0) {
+		u = 0;
+	}
+
+	double x = segA_x + u * p2x;
+	double y = segA_y + u * p2y;
+
+	double dx = x - point_x;
+	double dy = y - point_y;
+
+	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
+	return out;
+}
+
+// https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
+void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, bool prevent_simplify_shared_nodes) {
+	std::stack<int> recursion_stack;
+
+	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
+		fprintf(stderr, "endpoints not marked necessary\n");
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	int prev = 0;
+	for (int here = 1; here < n; here++) {
+		if (geom[start + here].necessary) {
+			recursion_stack.push(prev);
+			recursion_stack.push(here);
+			prev = here;
+
+			if (prevent_simplify_shared_nodes) {
+				if (retain > 0) {
+					retain--;
+				}
+			}
+		}
+	}
+	// These segments are put on the stack from start to end,
+	// independent of winding, so note that anything that uses
+	// "retain" to force it to keep at least N points will
+	// keep a different set of points when wound one way than
+	// when wound the other way.
+
+	while (!recursion_stack.empty()) {
+		// pop next element
+		int second = recursion_stack.top();
+		recursion_stack.pop();
+		int first = recursion_stack.top();
+		recursion_stack.pop();
+
+		double max_distance = -1;
+		int farthest_element_index;
+
+		// find index idx of element with max_distance
+		int i;
+		if (geom[start + first] < geom[start + second]) {
+			farthest_element_index = first;
+			for (i = first + 1; i < second; i++) {
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+
+				double distance = std::fabs(temp_dist);
+
+				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
+			}
+		} else {
+			farthest_element_index = second;
+			for (i = second - 1; i > first; i--) {
+				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
+
+				double distance = std::fabs(temp_dist);
+
+				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
+					farthest_element_index = i;
+					max_distance = distance;
+				}
+			}
+		}
+
+		if (max_distance >= 0) {
+			// mark idx as necessary
+			geom[start + farthest_element_index].necessary = 1;
+			kept++;
+
+			if (geom[start + first] < geom[start + second]) {
+				if (1 < farthest_element_index - first) {
+					recursion_stack.push(first);
+					recursion_stack.push(farthest_element_index);
+				}
+				if (1 < second - farthest_element_index) {
+					recursion_stack.push(farthest_element_index);
+					recursion_stack.push(second);
+				}
+			} else {
+				if (1 < second - farthest_element_index) {
+					recursion_stack.push(farthest_element_index);
+					recursion_stack.push(second);
+				}
+				if (1 < farthest_element_index - first) {
+					recursion_stack.push(first);
+					recursion_stack.push(farthest_element_index);
+				}
+			}
+		}
+	}
+}
+
+// cut-down version of simplify_lines(), not dealing with shared node preservation
+static drawvec simplify_lines_basic(drawvec &geom, int z, int detail, double simplification, size_t retain) {
+	int res = 1 << (32 - detail - z);
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			geom[i].necessary = 1;
+		} else if (geom[i].op == VT_LINETO) {
+			geom[i].necessary = 0;
+			// if this is actually the endpoint, not an intermediate point,
+			// it will be marked as necessary below
+		} else {
+			geom[i].necessary = 1;
+		}
+	}
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			geom[i].necessary = 1;
+			geom[j - 1].necessary = 1;
+
+			if (j - i > 1) {
+				douglas_peucker(geom, i, j - i, res * simplification, 2, retain, false);
+			}
+			i = j - 1;
+		}
+	}
+
+	size_t out = 0;
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].necessary) {
+			geom[out++] = geom[i];
+		}
+	}
+	geom.resize(out);
+	return geom;
+}
+
+drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, double tiny_polygon_size) {
+	drawvec out;
+	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
+
+	bool included_last_outer = false;
+	*still_needs_simplification = false;
+	*reduced_away = false;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			double area = get_area(geom, i, j);
+
+			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
+			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
+			// that these subsequent holes are somehow being subtracted from. I hope that if a polygon
+			// was simplified down to nothing, its holes also became nothing.
+
+			if (area != 0) {
+				// These are pixel coordinates, so area > 0 for the outer ring.
+				// If the outer ring of a polygon was reduced to a pixel, its
+				// inner rings must just have their area de-accumulated rather
+				// than being drawn since we don't really know where they are.
+
+				// i.e., this outer ring is small enough that we are including it
+				// in a tiny polygon rather than letting it represent itself,
+				// OR it is an inner ring and we haven't output an outer ring for it to be
+				// cut out of, so we are just subtracting its area from the tiny polygon
+				// rather than trying to deal with it geometrically
+				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
+					*accum_area += area;
+					*reduced_away = true;
+
+					if (area > 0 && *accum_area > pixel * pixel) {
+						// XXX use centroid;
+
+						out.emplace_back(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
+
+						*accum_area -= pixel * pixel;
+					}
+
+					if (area > 0) {
+						included_last_outer = false;
+					}
+				}
+				// i.e., this ring is large enough that it gets to represent itself
+				// or it is a tiny hole out of a real polygon, which we are still treating
+				// as a real geometry because otherwise we can accumulate enough tiny holes
+				// that we will drop the next several outer rings getting back up to 0.
+				else {
+					for (size_t k = i; k < j && k < geom.size(); k++) {
+						out.push_back(geom[k]);
+					}
+
+					// which means that the overall polygon has a real geometry,
+					// which means that it gets to be simplified.
+					*still_needs_simplification = true;
+
+					if (area > 0) {
+						included_last_outer = true;
+					}
+				}
+			} else {
+				// area is 0: doesn't count as either having been reduced away,
+				// since it was probably just degenerate from having been clipped,
+				// or as needing simplification, since it produces no output.
+			}
+
+			i = j - 1;
+		} else {
+			fprintf(stderr, "how did we get here with %d in %d?\n", geom[i].op, (int) geom.size());
+
+			for (size_t n = 0; n < geom.size(); n++) {
+				fprintf(stderr, "%d/%lld/%lld ", geom[n].op, geom[n].x, geom[n].y);
+			}
+			fprintf(stderr, "\n");
+
+			out.push_back(geom[i]);
+		}
+	}
+
+	return out;
+}
+
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -784,7 +1049,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
+	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
 }
 
 struct tile_feature {
@@ -885,7 +1150,8 @@ static struct preservecmp {
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data) {
+		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -916,6 +1182,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			std::vector<tile_feature> pending_tile_features;
+			double accum_area = 0;
 
 			static const std::string retain_points_multiplier_first = "tippecanoe:retain_points_multiplier_first";
 			static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
@@ -1014,6 +1281,23 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					}
 				}
 
+				bool still_need_simplification_after_reduction = false;
+				if (t == VT_POLYGON && tiny_polygon_size > 0) {
+					bool simplified_away_by_reduction = false;
+
+					geom = reduce_tiny_poly(geom, nz, detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
+				} else {
+					still_need_simplification_after_reduction = true;
+				}
+
+				if (simplification > 0 && still_need_simplification_after_reduction) {
+					if (t == VT_POLYGON) {
+						geom = simplify_lines_basic(geom, nz, detail, simplification, 4);
+					} else if (t == VT_LINE) {
+						geom = simplify_lines_basic(geom, nz, detail, simplification, 0);
+					}
+				}
+
 				// Scale to output tile extent
 
 				to_tile_scale(geom, nz, det);
@@ -1077,7 +1361,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data);
+								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}

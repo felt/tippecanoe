@@ -35,6 +35,8 @@ int main(int argc, char **argv) {
 	int i;
 	const char *outtile = NULL;
 	const char *outfile = NULL;
+	double simplification = 0;
+	double tiny_polygon_size = 0;
 
 	std::vector<input_tile> sources;
 
@@ -48,6 +50,8 @@ int main(int argc, char **argv) {
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
 		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
+		{"line-simplification", required_argument, 0, 'S'},
+		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
 
 		{0, 0, 0, 0},
@@ -105,6 +109,14 @@ int main(int argc, char **argv) {
 
 		case 't':
 			outtile = optarg;
+			break;
+
+		case 's' & 0x1F:
+			tiny_polygon_size = atof(optarg);
+			break;
+
+		case 'S':
+			simplification = atof(optarg);
 			break;
 
 		default:
@@ -196,7 +208,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

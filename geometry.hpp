@@ -74,7 +74,7 @@ drawvec remove_noop(drawvec geom, int type, int shift);
 drawvec clip_point(drawvec &geom, int z, long long buffer);
 drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
 drawvec close_poly(drawvec &geom);
-drawvec reduce_tiny_poly(const drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area);
+drawvec reduce_tiny_poly(const drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, double tiny_polygon_size);
 int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax);
 drawvec clip_lines(drawvec &geom, int z, long long buffer);
 drawvec stairstep(drawvec &geom, int z, int detail);
@@ -119,14 +119,16 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
-		     std::vector<std::string> const &unidecode_data);
+		     std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
-		     std::vector<std::string> const &unidecode_data);
+		     std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size);
 
 draw center_of_mass_mp(const drawvec &dv);
 

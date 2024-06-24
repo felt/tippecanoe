@@ -1923,7 +1923,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
 						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
 				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area);
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
 					if (simplified_away_by_reduction) {
 						strategy->tiny_polygons++;
 					}

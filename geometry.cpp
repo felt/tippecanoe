@@ -168,100 +168,6 @@ void check_polygon(drawvec &geom) {
 	}
 }
 
-drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area) {
-	drawvec out;
-	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
-
-	bool included_last_outer = false;
-	*still_needs_simplification = false;
-	*reduced_away = false;
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			double area = get_area(geom, i, j);
-
-			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
-			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
-			// that these subsequent holes are somehow being subtracted from. I hope that if a polygon
-			// was simplified down to nothing, its holes also became nothing.
-
-			if (area != 0) {
-				// These are pixel coordinates, so area > 0 for the outer ring.
-				// If the outer ring of a polygon was reduced to a pixel, its
-				// inner rings must just have their area de-accumulated rather
-				// than being drawn since we don't really know where they are.
-
-				// i.e., this outer ring is small enough that we are including it
-				// in a tiny polygon rather than letting it represent itself,
-				// OR it is an inner ring and we haven't output an outer ring for it to be
-				// cut out of, so we are just subtracting its area from the tiny polygon
-				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
-					*accum_area += area;
-					*reduced_away = true;
-
-					if (area > 0 && *accum_area > pixel * pixel) {
-						// XXX use centroid;
-
-						out.emplace_back(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
-
-						*accum_area -= pixel * pixel;
-					}
-
-					if (area > 0) {
-						included_last_outer = false;
-					}
-				}
-				// i.e., this ring is large enough that it gets to represent itself
-				// or it is a tiny hole out of a real polygon, which we are still treating
-				// as a real geometry because otherwise we can accumulate enough tiny holes
-				// that we will drop the next several outer rings getting back up to 0.
-				else {
-					for (size_t k = i; k < j && k < geom.size(); k++) {
-						out.push_back(geom[k]);
-					}
-
-					// which means that the overall polygon has a real geometry,
-					// which means that it gets to be simplified.
-					*still_needs_simplification = true;
-
-					if (area > 0) {
-						included_last_outer = true;
-					}
-				}
-			} else {
-				// area is 0: doesn't count as either having been reduced away,
-				// since it was probably just degenerate from having been clipped,
-				// or as needing simplification, since it produces no output.
-			}
-
-			i = j - 1;
-		} else {
-			fprintf(stderr, "how did we get here with %d in %d?\n", geom[i].op, (int) geom.size());
-
-			for (size_t n = 0; n < geom.size(); n++) {
-				fprintf(stderr, "%d/%lld/%lld ", geom[n].op, geom[n].x, geom[n].y);
-			}
-			fprintf(stderr, "\n");
-
-			out.push_back(geom[i]);
-		}
-	}
-
-	return out;
-}
-
 int quick_check(const long long *bbox, int z, long long buffer) {
 	long long min = 0;
 	long long area = 1LL << (32 - z);
@@ -298,35 +204,6 @@ bool point_within_tile(long long x, long long y, int z) {
 	long long area = 1LL << (32 - z);
 
 	return x >= 0 && y >= 0 && x < area && y < area;
-}
-
-double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
-	long long p2x = segB_x - segA_x;
-	long long p2y = segB_y - segA_y;
-
-	// These calculations must be made in integers instead of floating point
-	// to make them consistent between x86 and arm floating point implementations.
-	//
-	// Coordinates may be up to 34 bits, so their product is up to 68 bits,
-	// making their sum up to 69 bits. Downshift before multiplying to keep them in range.
-	double something = ((p2x / 4) * (p2x / 8) + (p2y / 4) * (p2y / 8)) * 32.0;
-	// likewise
-	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 * (p2x / 8) + (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
-
-	if (u >= 1) {
-		u = 1;
-	} else if (u <= 0) {
-		u = 0;
-	}
-
-	double x = segA_x + u * p2x;
-	double y = segA_y + u * p2y;
-
-	double dx = x - point_x;
-	double dy = y - point_y;
-
-	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
-	return out;
 }
 
 // https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
