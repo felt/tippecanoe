@@ -1558,7 +1558,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// only try to make an overzoomable final tile if it seems like it might work
 		long long estimated_output_tile_size = 0.6693 * estimated_complexity - 3.36e+04;
 
-		if (estimated_output_tile_size < (long long) (2 * max_tile_size)) {
+		if (estimated_output_tile_size < (long long) (0.9 * max_tile_size)) {
 			first_detail = 30 - z;
 			second_detail = detail;
 			trying_to_stop_early = true;
