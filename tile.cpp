@@ -557,6 +557,7 @@ struct simplification_worker_arg {
 	std::vector<serial_feature> *features = NULL;
 	int task = 0;
 	int tasks = 0;
+	bool trying_to_stop_early = false;
 
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
@@ -689,7 +690,10 @@ static void *simplification_worker(void *v) {
 	std::vector<serial_feature> *features = a->features;
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
-		double area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+		double area = 0;
+		if (!a->trying_to_stop_early) {
+			area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+		}
 
 		signed char t = (*features)[i].t;
 		int z = (*features)[i].z;
@@ -703,18 +707,21 @@ static void *simplification_worker(void *v) {
 			// Give Clipper a chance to try to fix it.
 			{
 				drawvec before = geom;
-				// we can try scaling up because this is now tile scale
-				geom = clean_or_clip_poly(geom, 0, 0, false, true);
-				if (additional[A_DEBUG_POLYGON]) {
-					check_polygon(geom);
-				}
 
-				if (geom.size() < 3) {
-					if (area > 0) {
-						// area is in world coordinates, calculated before scaling down
-						geom = revive_polygon(before, area, z, out_detail);
-					} else {
-						geom.clear();
+				if (!a->trying_to_stop_early) {
+					// we can try scaling up because this is now tile scale
+					geom = clean_or_clip_poly(geom, 0, 0, false, true);
+					if (additional[A_DEBUG_POLYGON]) {
+						check_polygon(geom);
+					}
+
+					if (geom.size() < 3) {
+						if (area > 0) {
+							// area is in world coordinates, calculated before scaling down
+							geom = revive_polygon(before, area, z, out_detail);
+						} else {
+							geom.clear();
+						}
 					}
 				}
 			}
@@ -2191,6 +2198,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					args[i].shared_nodes = &shared_nodes;
 					args[i].shared_nodes_map = shared_nodes_map;
 					args[i].nodepos = nodepos;
+					args[i].trying_to_stop_early = trying_to_stop_early;
 
 					if (tasks > 1) {
 						if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
