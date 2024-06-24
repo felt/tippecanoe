@@ -532,8 +532,8 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 						within[j] = true;
 						start_geompos[j] = geompos[j];	// no competition between threads
 
-						long long vertex_count = 0;
-						fwrite_check(&vertex_count, sizeof(vertex_count), 1, geomfile[j]->fp, &geompos[j], fname);
+						long long estimated_complexity = 0;  // placeholder, to be filled in later
+						fwrite_check(&estimated_complexity, sizeof(estimated_complexity), 1, geomfile[j]->fp, &geompos[j], fname);
 						serialize_int(geomfile[j]->fp, nextzoom, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, tx * span + xo, &geompos[j], fname);
 						serialize_uint(geomfile[j]->fp, ty * span + yo, &geompos[j], fname);
@@ -1514,7 +1514,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 	return false;  // did not drop because nothing could be found to accumulate attributes onto
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data, long long estimated_complexity) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1554,9 +1554,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 		// XXX special case for points below basezoom
 
-		first_detail = 30 - z;
-		second_detail = detail;
-		trying_to_stop_early = true;
+		// empirical estimate from ne_10m_admin_0_countries, CPAD units, Cal fires.
+		// only try to make an overzoomable final tile if it seems like it might work
+		long long estimated_output_tile_size = 0.6693 * estimated_complexity - 3.36e+04;
+
+		if (estimated_output_tile_size < (long long) (2 * max_tile_size)) {
+			first_detail = 30 - z;
+			second_detail = detail;
+			trying_to_stop_early = true;
+		}
 	}
 
 	bool first_time = true;
@@ -2048,9 +2054,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		for (int j = 0; j < child_shards; j++) {
 			if (within[j]) {
+				long long estimated_complexity_out = geompos[j] - start_geompos[j];
+
 				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
 				within[j] = false;
+
+				if (additional[A_TRUNCATE_ZOOMS]) {
+					pwrite(fileno(geomfile[j]->fp), &estimated_complexity_out, sizeof(estimated_complexity_out), start_geompos[j]);
+				}
 			}
 		}
 
@@ -2498,6 +2510,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				compressed = pbf;
 			}
 
+			if (trying_to_stop_early && line_detail == first_detail) {
+				// printf("%lld %zu\n", estimated_complexity, compressed.size());
+			}
+
 			if (compressed.size() > scaled_max_tile_size && !prevent[P_KILOBYTE_LIMIT]) {
 				// Estimate how big it really should have been compressed
 				// from how many features were kept vs skipped for already being
@@ -2672,8 +2688,8 @@ void *run_thread(void *vargs) {
 			// These z/x/y are uncompressed so we can seek to the start of the
 			// compressed feature data that immediately follows.
 
-			long long vertex_count;
-			if (dc.fread(&vertex_count, sizeof(vertex_count), 1, &geompos) != 1) {
+			long long estimated_complexity;
+			if (dc.fread(&estimated_complexity, sizeof(estimated_complexity), 1, &geompos) != 1) {
 				break;
 			}
 			if (!dc.deserialize_int(&z, &geompos)) {
@@ -2697,7 +2713,7 @@ exit(EXIT_IMPOSSIBLE);
 
 			// fprintf(stderr, "%d/%u/%u\n", z, x, y);
 
-			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, (*arg->unidecode_data));
+			long long len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, (*arg->unidecode_data), estimated_complexity);
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
 				perror("pthread_mutex_lock");

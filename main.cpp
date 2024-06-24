@@ -2219,8 +2219,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<long long> geompos(0);
 
 	/* initial tile is normally 0/0/0 but can be iz/ix/iy if limited to one tile */
-	long long vertex_count = 0;
-	fwrite_check(&vertex_count, sizeof(vertex_count), 1, geomfile, &geompos, fname);
+	long long estimated_complexity = 0;  // to be replaced after writing the data
+	fwrite_check(&estimated_complexity, sizeof(estimated_complexity), 1, geomfile, &geompos, fname);
 	serialize_int(geomfile, iz, &geompos, fname);
 	serialize_uint(geomfile, ix, &geompos, fname);
 	serialize_uint(geomfile, iy, &geompos, fname);
@@ -2229,6 +2229,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	/* end of tile */
 	serialize_ulong_long(geomfile, 0, &geompos, fname);  // EOF
+
+	estimated_complexity = geompos;
+	pwrite(fileno(geomfile), &estimated_complexity, sizeof(estimated_complexity), 0);
 
 	if (fclose(geomfile) != 0) {
 		perror("fclose geom");
