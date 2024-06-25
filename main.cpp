@@ -2231,6 +2231,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	serialize_ulong_long(geomfile, 0, &geompos, fname);  // EOF
 
 	estimated_complexity = geompos;
+	fflush(geomfile);
 	pwrite(fileno(geomfile), &estimated_complexity, sizeof(estimated_complexity), 0);
 
 	if (fclose(geomfile) != 0) {
