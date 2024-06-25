@@ -1759,12 +1759,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				drop_sequence = calculate_drop_sequence(sf);
 			}
 
+			if (sf.feature_minzoom > z + 1) {
+				// if there is a feature whose first appearance is beyond the next zoom,
+				// prevent stopping early at the next zoom
+				dropping_by_rate = true;
+			}
+
 			if (sf.dropped == FEATURE_KEPT) {
 				// this is a new multiplier cluster, so stop dropping features
 				// that were dropped because the previous lead feature was dropped
 				drop_rest = false;
 			} else {
-				dropping_by_rate = true;
+				can_stop_early = false;
 
 				if (sf.dropped != FEATURE_DROPPED) {
 					// Does the current multiplier cluster already have too many features?
@@ -1782,6 +1788,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy->dropped_by_rate++;
+					can_stop_early = false;
 					continue;
 				}
 			} else {
@@ -1797,6 +1804,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->dropped_by_gamma++;
 						drop_rest = true;
+						can_stop_early = false;
 						continue;
 					}
 				}
@@ -1824,12 +1832,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->coalesced_as_needed++;
 						drop_rest = true;
+						can_stop_early = false;
 						continue;
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+							can_stop_early = false;
 							continue;
 						}
 					}
@@ -1865,6 +1875,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->coalesced_as_needed++;
 						drop_rest = true;
+						can_stop_early = false;
 						continue;
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
@@ -1873,6 +1884,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+							can_stop_early = false;
 							continue;
 						}
 					}
@@ -1885,6 +1897,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->coalesced_as_needed++;
 						drop_rest = true;
+						can_stop_early = false;
 						continue;
 					}
 				} else if (additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
@@ -1893,6 +1906,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+							can_stop_early = false;
 							continue;
 						}
 					}
@@ -1904,6 +1918,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy->coalesced_as_needed++;
 						drop_rest = true;
+						can_stop_early = false;
 						continue;
 					}
 				}
