@@ -1716,6 +1716,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		struct multiplier_state multiplier_state;
 		size_t multiplier_seq = retain_points_multiplier - 1;
 		bool drop_rest = false;	 // are we dropping the remainder of a multiplier cluster whose first point was dropped?
+		bool dropping_by_rate = false;	// are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
 		unsigned long long next_feature_previndex = 0;
 
 		for (size_t seq = 0;; seq++) {
@@ -1762,12 +1763,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// this is a new multiplier cluster, so stop dropping features
 				// that were dropped because the previous lead feature was dropped
 				drop_rest = false;
-			} else if (sf.dropped != FEATURE_DROPPED) {
-				// Does the current multiplier cluster already have too many features?
-				// If so, we have to drop this one, even if it would potentially qualify
-				// as a secondary feature to be exposed by filtering
-				if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) {
-					sf.dropped = FEATURE_DROPPED;
+			} else {
+				dropping_by_rate = true;
+
+				if (sf.dropped != FEATURE_DROPPED) {
+					// Does the current multiplier cluster already have too many features?
+					// If so, we have to drop this one, even if it would potentially qualify
+					// as a secondary feature to be exposed by filtering
+					if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) {
+						sf.dropped = FEATURE_DROPPED;
+					}
 				}
 			}
 
@@ -2063,11 +2068,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (within[j]) {
 				long long estimated_complexity_out = geompos[j] - start_geompos[j];
 
+				if (dropping_by_rate) {
+					// large enough to make it not try to stop early
+					estimated_complexity_out = 1LL << 32;
+				}
+
 				geomfile[j]->serialize_long_long(0, &geompos[j], fname);  // EOF
 				geomfile[j]->end(&geompos[j], fname);
 				within[j] = false;
 
 				if (additional[A_TRUNCATE_ZOOMS]) {
+					fflush(geomfile[j]->fp);
 					pwrite(fileno(geomfile[j]->fp), &estimated_complexity_out, sizeof(estimated_complexity_out), start_geompos[j]);
 				}
 			}
