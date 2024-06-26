@@ -2094,7 +2094,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (additional[A_TRUNCATE_ZOOMS]) {
 					fflush(geomfile[j]->fp);
-					if (pwrite(fileno(geomfile[j]->fp), &estimated_complexity_out, sizeof(estimated_complexity_out), start_geompos[j]) != 0) {
+					if (pwrite(fileno(geomfile[j]->fp), &estimated_complexity_out, sizeof(estimated_complexity_out), start_geompos[j]) != sizeof(estimated_complexity_out)) {
 						perror("pwrite complexity");
 						exit(EXIT_WRITE);
 					}
