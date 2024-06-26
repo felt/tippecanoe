@@ -196,7 +196,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 								}
 
 								if (e1.first == e1.second || e2.first == e2.second) {
-									fprintf(stderr, "Internal error: polygon edge lookup failed for %lld,%lld to %lld,%lld or %lld,%lld to %lld,%lld\n", left[0].x, left[0].y, left[1].x, left[1].y, right[0].x, right[0].y, right[1].x, right[1].y);
+									fprintf(stderr, "Internal error: polygon edge lookup failed for %lld,%lld to %lld,%lld or %lld,%lld to %lld,%lld\n", (long long) left[0].x, (long long) left[0].y, (long long) left[1].x, (long long) left[1].y, (long long) right[0].x, (long long) right[0].y, (long long) right[1].x, (long long) right[1].y);
 									exit(EXIT_IMPOSSIBLE);
 								}
 

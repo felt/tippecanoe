@@ -159,7 +159,7 @@ void check_polygon(drawvec &geom) {
 						}
 
 						if (!on_edge) {
-							fprintf(stderr, "%lld,%lld at %lld not in outer ring (%lld to %lld)\n", geom[k].x, geom[k].y, (long long) k, (long long) outer_start, (long long) (outer_start + outer_len));
+							fprintf(stderr, "%lld,%lld at %lld not in outer ring (%lld to %lld)\n", (long long) geom[k].x, (long long) geom[k].y, (long long) k, (long long) outer_start, (long long) (outer_start + outer_len));
 						}
 					}
 				}

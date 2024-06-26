@@ -131,12 +131,12 @@ void deserialize_ulong_long(const char **f, unsigned long long *zigzag) {
 
 	while (1) {
 		if ((**f & 0x80) == 0) {
-			*zigzag |= ((const unsigned long long) **f) << shift;
+			*zigzag |= ((unsigned long long) **f) << shift;
 			*f += 1;
 			shift += 7;
 			break;
 		} else {
-			*zigzag |= ((const unsigned long long) (**f & 0x7F)) << shift;
+			*zigzag |= ((unsigned long long) (**f & 0x7F)) << shift;
 			*f += 1;
 			shift += 7;
 		}

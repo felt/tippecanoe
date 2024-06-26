@@ -341,7 +341,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 							if (k != i) {
 								fprintf(f, ",");
 							}
-							fprintf(f, "[%lld,%lld]", geom[k].x, geom[k].y);
+							fprintf(f, "[%lld,%lld]", (long long) geom[k].x, (long long) geom[k].y);
 						}
 
 						fprintf(f, "]");
@@ -1008,7 +1008,7 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 			fprintf(stderr, "how did we get here with %d in %d?\n", geom[i].op, (int) geom.size());
 
 			for (size_t n = 0; n < geom.size(); n++) {
-				fprintf(stderr, "%d/%lld/%lld ", geom[n].op, geom[n].x, geom[n].y);
+				fprintf(stderr, "%d/%lld/%lld ", geom[n].op, (long long) geom[n].x, (long long) geom[n].y);
 			}
 			fprintf(stderr, "\n");
 

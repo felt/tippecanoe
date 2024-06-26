@@ -2232,7 +2232,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	estimated_complexity = geompos;
 	fflush(geomfile);
-	pwrite(fileno(geomfile), &estimated_complexity, sizeof(estimated_complexity), 0);
+	if (pwrite(fileno(geomfile), &estimated_complexity, sizeof(estimated_complexity), 0) != 0) {
+		perror("pwrite estimated complexity");
+		exit(EXIT_WRITE);
+	}
 
 	if (fclose(geomfile) != 0) {
 		perror("fclose geom");
