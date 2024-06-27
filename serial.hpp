@@ -66,6 +66,7 @@ struct serial_feature {
 	int tippecanoe_maxzoom = -1;
 
 	drawvec geometry = drawvec();
+	unsigned long long previndex = 0;  // filled in during z0
 	unsigned long long index = 0;
 	unsigned long long label_point = 0;
 	long long extent = 0;
