@@ -673,7 +673,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	unsigned long long bbox_index;
 	long long midx, midy;
 
-	if (sf.t == VT_POINT) {
+	if (sf.t == VT_POINT || additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED]) {
 		// keep old behavior, which loses one bit of precision at the bottom
 		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
 		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
