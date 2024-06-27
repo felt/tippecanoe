@@ -740,48 +740,16 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 }
 
 // This function is called to choose the new gap threshold for --drop-densest-as-needed
-// and --coalesce-densest-as-needed. The list that is passed in is the list of indices
-// of features that survived the previous gap-choosing, so it first needs to calculate
-// and sort the gaps between them before deciding which new gap threshold will satisfy
-// the need to keep only the requested fraction of features.
-static unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
-	unsigned long long bot = ULLONG_MAX;
-	unsigned long long top = 0;
+// and --coalesce-densest-as-needed.
+static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, double f, unsigned long long existing_gap) {
+	std::stable_sort(gaps.begin(), gaps.end());
 
-	for (size_t i = 0; i < indices.size(); i++) {
-		if (i > 0 && indices[i] >= indices[i - 1]) {
-			if (indices[i] - indices[i - 1] > top) {
-				top = indices[i] - indices[i - 1];
-			}
-			if (indices[i] - indices[i - 1] < bot) {
-				bot = indices[i] - indices[i - 1];
-			}
-		}
+	size_t ix = (gaps.size() - 1) * (1 - f);
+	while (ix + 1 < gaps.size() && gaps[ix] == existing_gap) {
+		ix++;
 	}
 
-	size_t want = indices.size() * f;
-	while (top - bot > 2) {
-		unsigned long long guess = bot / 2 + top / 2;
-		size_t count = 0;
-		unsigned long long prev = 0;
-
-		for (size_t i = 0; i < indices.size(); i++) {
-			if (indices[i] - prev >= guess) {
-				count++;
-				prev = indices[i];
-			}
-		}
-
-		if (count > want) {
-			bot = guess;
-		} else if (count < want) {
-			top = guess;
-		} else {
-			return guess;
-		}
-	}
-
-	return top;
+	return gaps[ix];
 }
 
 // This function is called to choose the new "extent" threshold to try when a tile exceeds the
@@ -1548,7 +1516,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		std::map<std::string, layer_features> layers;
 
-		std::vector<unsigned long long> indices;
+		std::vector<unsigned long long> gaps;
+		size_t gaps_increment = 1;
 		std::vector<long long> extents;
 		size_t extents_increment = 1;
 		std::vector<unsigned long long> drop_sequences;
@@ -1747,18 +1716,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				}
 
-				// Cap the indices, rather than sampling them like extents (areas),
-				// because choose_mingap cares about the distance between *surviving*
-				// features, not between *original* features, so we can't just store
-				// gaps rather than indices to be able to downsample them fairly.
-				// Hopefully the first 100K features in the tile are reasonably
-				// representative of the other features in the tile.
-				const size_t MAX_INDICES = 100000;
-
 				if (z <= cluster_maxzoom && cluster_distance != 0) {
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
-					}
+					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
 					// This still uses merge_previndex instead of sf.previndex
 					// because the cluster size in -K is expecting to specify
 					// distances between points that are subject to dot-dropping,
@@ -1784,10 +1743,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
-					}
-					if (sf.index - merge_previndex < mingap) {
+					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
+					if (sf.index - sf.previndex < mingap) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
@@ -1795,10 +1752,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					// this is now just like coalesce-densest, except that instead of unioning the geometry,
 					// it averages the point locations
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
-					}
-					if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
+					if (sf.index - sf.previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						features[which_serial_feature].clustered++;
 
 						if (features[which_serial_feature].t == VT_POINT &&
@@ -1818,10 +1773,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
-					}
-					if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
+					if (sf.index - sf.previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
@@ -2402,7 +2355,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
+					unsigned long long mg = choose_mingap(gaps, mingap_fraction, mingap);
 					if (mg <= mingap) {
 						mg = (mingap + 1) * 1.5;
 
@@ -2509,7 +2462,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
+					unsigned long long mg = choose_mingap(gaps, mingap_fraction, mingap);
 					if (mg <= mingap) {
 						double nmg = (mingap + 1) * 1.5;
 
