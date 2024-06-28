@@ -8,6 +8,8 @@ This is the official home of Tippecanoe, developed and actively maintained by [E
 
 Version 2.0.0 is equivalent to [1.36.0](https://github.com/mapbox/tippecanoe/tree/1.36.0) in the original repository. Thank you Mapbox for the many years of early support.
 
+Interested in an API-driven, self-hosted version of this? Reach out to us at [sales@felt.com](mailto:sales@felt.com).
+
 Intent
 ------
 
