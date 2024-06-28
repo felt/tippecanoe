@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-M5000_-as.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":4080,\"dropped_as_needed\":480,\"tile_size_desired\":10887},{\"dropped_by_rate\":2974,\"dropped_as_needed\":1344,\"tile_size_desired\":10721},{\"dropped_as_needed\":3059,\"tile_size_desired\":9664}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":4080,\"dropped_as_needed\":480,\"tile_size_desired\":10887},{\"dropped_by_rate\":2974,\"dropped_as_needed\":1345,\"tile_size_desired\":10721},{\"dropped_as_needed\":3058,\"tile_size_desired\":9664}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
@@ -1422,8 +1422,6 @@
 { "type": "Feature", "properties": { "name": "Van Ness Ave & Sutter St" }, "geometry": { "type": "Point", "coordinates": [ -122.421663, 37.787827 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Geary Blvd & Franklin St" }, "geometry": { "type": "Point", "coordinates": [ -122.422886, 37.785572 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Mcallister St & Gough St" }, "geometry": { "type": "Point", "coordinates": [ -122.423851, 37.779687 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Van Ness Ave & Eddy St" }, "geometry": { "type": "Point", "coordinates": [ -122.420719, 37.783197 ] } }
 ,
@@ -4465,6 +4463,8 @@
 ,
 { "type": "Feature", "properties": { "name": "University St & Bacon St" }, "geometry": { "type": "Point", "coordinates": [ -122.413541, 37.725142 ] } }
 ,
+{ "type": "Feature", "properties": { "name": "University St & Wayland St" }, "geometry": { "type": "Point", "coordinates": [ -122.413069, 37.723928 ] } }
+,
 { "type": "Feature", "properties": { "name": "Woolsey St & Colby St" }, "geometry": { "type": "Point", "coordinates": [ -122.411449, 37.722944 ] } }
 ,
 { "type": "Feature", "properties": { "name": "University St & Woolsey St" }, "geometry": { "type": "Point", "coordinates": [ -122.412533, 37.722732 ] } }
@@ -5051,6 +5051,8 @@
 ,
 { "type": "Feature", "properties": { "name": "Bryant St & 18th St" }, "geometry": { "type": "Point", "coordinates": [ -122.410204, 37.761869 ] } }
 ,
+{ "type": "Feature", "properties": { "name": "Bryant St & 19th St" }, "geometry": { "type": "Point", "coordinates": [ -122.410076, 37.760579 ] } }
+,
 { "type": "Feature", "properties": { "name": "Folsom St & 22nd St" }, "geometry": { "type": "Point", "coordinates": [ -122.414335, 37.755948 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Powell St & Geary Blvd" }, "geometry": { "type": "Point", "coordinates": [ -122.408327, 37.787462 ] } }
@@ -5188,8 +5190,6 @@
 { "type": "Feature", "properties": { "name": "Mission Bay North & 3rd St" }, "geometry": { "type": "Point", "coordinates": [ -122.389616, 37.771164 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Potrero Ave & Alameda St" }, "geometry": { "type": "Point", "coordinates": [ -122.407919, 37.768442 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Potrero Ave & 16th St" }, "geometry": { "type": "Point", "coordinates": [ -122.408198, 37.766347 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Potrero Ave & 17th St" }, "geometry": { "type": "Point", "coordinates": [ -122.407351, 37.764736 ] } }
 ,

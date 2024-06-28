@@ -1049,16 +1049,21 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (sf.gap == 0) {
 			if (sf.index != previndex) {
+				long long ox = (1LL << (32 - z)) * tx;
+				long long oy = (1LL << (32 - z)) * ty;
+
 				unsigned wx1, wy1;
-				decode_index(sf.index, &wx1, &wy1);
+				decode_index(previndex, &wx1, &wy1);
 
-				unsigned wx2, wy2;
-				decode_index(previndex, &wx2, &wy2);
+				for (auto const &g : sf.geometry) {
+					long long dx = (long long) wx1 - (g.x + ox);
+					long long dy = (long long) wy1 - (g.y + oy);
 
-				long long dx = (long long) wx1 - wx2;
-				long long dy = (long long) wy1 - wy2;
-
-				sf.gap = dx * dx + dy * dy;
+					unsigned long long d = dx * dx + dy * dy;
+					if (d > sf.gap) {
+						sf.gap = d;
+					}
+				}
 			}
 		}
 		previndex = sf.index;
