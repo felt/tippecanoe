@@ -634,6 +634,13 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 				// continues to simplify to line_detail even if we have extra detail
 				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
 
+				if (p->coalesced && prevent[P_SIMPLIFY_SHARED_NODES]) {
+					// do another simplification to eliminate collinearities
+					// that were left behind at the former corners between
+					// coalesced geometries
+					ngeom = simplify_lines(ngeom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), 0.1, t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+				}
+
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
 					geom = ngeom;
 				}
@@ -2355,7 +2362,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.90;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
-					printf("was %llu, now %llu\n", mingap, m);
 					if (m != mingap) {
 						mingap = m;
 						if (mingap > arg->mingap_out) {
@@ -2458,7 +2464,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.90;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
-					printf("was %llu, now %llu\n", mingap, m);
 					if (m != mingap) {
 						mingap = m;
 						if (mingap > arg->mingap_out) {
@@ -2466,7 +2471,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							arg->still_dropping = true;
 						}
 						if (!quiet) {
-							fprintf(stderr, "Going to try keeping the sparsest  %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
+							fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
 						}
 						line_detail++;
 						continue;

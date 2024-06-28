@@ -771,7 +771,7 @@ void *join_worker(void *v) {
 			}
 
 			if (!pk && compressed.size() > 500000) {
-				fprintf(stderr, "Tile %lld/%lld/%lld size is %lld, >500000. Skipping this tile\n.", ai->first.z, ai->first.x, ai->first.y, (long long) compressed.size());
+				fprintf(stderr, "Tile %lld/%lld/%lld size is %lld, >500000. Skipping this tile.\n", ai->first.z, ai->first.x, ai->first.y, (long long) compressed.size());
 			} else {
 				a->outputs.insert(std::pair<zxy, std::string>(ai->first, compressed));
 			}
