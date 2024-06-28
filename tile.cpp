@@ -1047,19 +1047,19 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		(*original_features)++;
 
-		if (sf.previndex == 0) {
-			sf.previndex = previndex;
+		if (sf.gap == 0) {
+			if (sf.index != previndex) {
+				unsigned wx1, wy1;
+				decode_index(sf.index, &wx1, &wy1);
 
-			unsigned wx1, wy1;
-			decode_index(sf.index, &wx1, &wy1);
+				unsigned wx2, wy2;
+				decode_index(previndex, &wx2, &wy2);
 
-			unsigned wx2, wy2;
-			decode_index(sf.previndex, &wx2, &wy2);
+				long long dx = (long long) wx1 - wx2;
+				long long dy = (long long) wy1 - wy2;
 
-			long long dx = (long long) wx1 - wx2;
-			long long dy = (long long) wy1 - wy2;
-
-			sf.gap = dx * dx + dy * dy;
+				sf.gap = dx * dx + dy * dy;
+			}
 		}
 		previndex = sf.index;
 
@@ -1735,7 +1735,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (z <= cluster_maxzoom && cluster_distance != 0) {
-					// This still uses merge_previndex instead of sf.previndex
+					// This still uses merge_previndex instead of sf.gap
 					// because the cluster size in -K is expecting to specify
 					// distances between points that are subject to dot-dropping,
 					// rather than wanting each feature to have a consistent

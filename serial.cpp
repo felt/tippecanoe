@@ -210,7 +210,6 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
-		serialize_ulong_long(s, sf->previndex);
 		serialize_ulong_long(s, sf->gap);
 	}
 	if (sf->label_point != 0) {
@@ -260,7 +259,6 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	deserialize_int(&cp, &sf.segment);
 
 	sf.index = 0;
-	sf.previndex = 0;
 	sf.gap = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
@@ -269,7 +267,6 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
-		deserialize_ulong_long(&cp, &sf.previndex);
 		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
