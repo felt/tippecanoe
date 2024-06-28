@@ -1049,6 +1049,17 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (sf.previndex == 0) {
 			sf.previndex = previndex;
+
+			unsigned wx1, wy1;
+			decode_index(sf.index, &wx1, &wy1);
+
+			unsigned wx2, wy2;
+			decode_index(sf.previndex, &wx2, &wy2);
+
+			long long dx = (long long) wx1 - wx2;
+			long long dy = (long long) wy1 - wy2;
+
+			sf.gap = dx * dx + dy * dy;
 		}
 		previndex = sf.index;
 
@@ -1749,8 +1760,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
-					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
-					if (sf.index - sf.previndex < mingap) {
+					add_sample_to(gaps, sf.gap, gaps_increment, seq);
+					if (sf.gap < mingap) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
@@ -1758,8 +1769,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					// this is now just like coalesce-densest, except that instead of unioning the geometry,
 					// it averages the point locations
-					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
-					if (sf.index - sf.previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					add_sample_to(gaps, sf.gap, gaps_increment, seq);
+					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						features[which_serial_feature].clustered++;
 
 						if (features[which_serial_feature].t == VT_POINT &&
@@ -1779,8 +1790,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
-					add_sample_to(gaps, sf.index - sf.previndex, gaps_increment, seq);
-					if (sf.index - sf.previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					add_sample_to(gaps, sf.gap, gaps_increment, seq);
+					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;

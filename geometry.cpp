@@ -984,6 +984,41 @@ draw centerOfMass(const drawvec &dv, size_t start, size_t end, draw centre) {
 	}
 }
 
+draw center_of_mass_mp(const drawvec &dv) {
+	double ringx = 0, ringy = 0;
+	size_t ringcount = 0;
+
+	for (size_t i = 0; i < dv.size(); i++) {
+		if (dv[i].op == VT_MOVETO) {
+			double xsum = dv[i].x, ysum = dv[i].y;
+			ssize_t count = 1;
+			size_t j;
+			for (j = i + 1; j < dv.size(); j++) {
+				if (dv[j].op != VT_LINETO) {
+					break;
+				} else {
+					xsum += dv[j].x;
+					ysum += dv[j].y;
+					count++;
+				}
+			}
+
+			double area = get_area(dv, i, j);
+			draw centroid(VT_MOVETO, std::llround(xsum / count), std::llround(ysum / count));
+
+			draw center = centerOfMass(dv, i, j, centroid);
+			ringx += center.x * area;
+			ringy += center.y * area;
+			ringcount += area;
+
+			i = j - 1;
+		}
+	}
+
+	draw center(VT_MOVETO, ringx / ringcount, ringy / ringcount);
+	return center;
+}
+
 double label_goodness(const drawvec &dv, long long x, long long y) {
 	int nesting = 0;
 

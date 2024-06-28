@@ -211,6 +211,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
 		serialize_ulong_long(s, sf->previndex);
+		serialize_ulong_long(s, sf->gap);
 	}
 	if (sf->label_point != 0) {
 		serialize_ulong_long(s, sf->label_point);
@@ -260,6 +261,7 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	sf.index = 0;
 	sf.previndex = 0;
+	sf.gap = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
 
@@ -268,6 +270,7 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
 		deserialize_ulong_long(&cp, &sf.previndex);
+		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
 		deserialize_ulong_long(&cp, &sf.label_point);
@@ -673,10 +676,14 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	unsigned long long bbox_index;
 	long long midx, midy;
 
-	if (sf.t == VT_POINT || additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED]) {
+	if (sf.t == VT_POINT) {
 		// keep old behavior, which loses one bit of precision at the bottom
 		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
 		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+	} else if ((additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED]) && sf.t == VT_POLYGON) {
+		draw scaled_center = center_of_mass_mp(scaled_geometry);
+		midx = SHIFT_LEFT(scaled_center.x) & ((1LL << 32) - 1);
+		midy = SHIFT_LEFT(scaled_center.y) & ((1LL << 32) - 1);
 	} else {
 		// To reduce the chances of giving multiple polygons or linestrings
 		// the same index, use an arbitrary but predictable point from the
