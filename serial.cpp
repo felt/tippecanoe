@@ -678,6 +678,9 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
 		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
 	} else if ((additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED]) && sf.t == VT_POLYGON) {
+		// This probably should really apply to all polygons,
+		// but I hate to change the feature sequence in all the
+		// test fixtures again
 		draw scaled_center = center_of_mass_mp(scaled_geometry);
 		midx = SHIFT_LEFT(scaled_center.x) & ((1LL << 32) - 1);
 		midy = SHIFT_LEFT(scaled_center.y) & ((1LL << 32) - 1);
