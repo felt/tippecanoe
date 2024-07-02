@@ -6,7 +6,10 @@ Builds [vector tilesets](https://github.com/mapbox/vector-tile-spec/) from large
 
 This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com). 
 
+For a self-hosted, API driven version of Tippecanoe, contact a technical sales engineer at sales@felt.com. Felt produces highly performant, automatically projected versions of your data, and utilizes a rendering engine, built on top of [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js), to style vector and raster data.
+
 Version 2.0.0 is equivalent to [1.36.0](https://github.com/mapbox/tippecanoe/tree/1.36.0) in the original repository. Thank you Mapbox for the many years of early support.
+
 
 Intent
 ------
