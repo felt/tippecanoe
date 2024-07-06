@@ -25,7 +25,7 @@
 #include "errors.hpp"
 
 // Offset coordinates to keep them positive
-#define COORD_OFFSET (4LL << 32)
+#define COORD_OFFSET (4LL << GLOBAL_DETAIL)
 #define SHIFT_RIGHT(a) ((long long) std::round((double) (a) / (1LL << geometry_scale)))
 #define SHIFT_LEFT(a) ((((a) + (COORD_OFFSET >> geometry_scale)) << geometry_scale) - COORD_OFFSET)
 
@@ -92,6 +92,11 @@ void serialize_ulong_long(std::string &out, unsigned long long zigzag) {
 	out.append(buf, s - buf);
 }
 
+void serialize_index(std::string &out, index_t zigzag) {
+	serialize_ulong_long(out, zigzag);
+	serialize_ulong_long(out, ((__uint128_t) zigzag) >> 64);
+}
+
 void serialize_long_long(std::string &out, long long n) {
 	unsigned long long zigzag = protozero::encode_zigzag64(n);
 
@@ -142,6 +147,16 @@ void deserialize_ulong_long(const char **f, unsigned long long *zigzag) {
 	}
 }
 
+void deserialize_index(const char **f, index_t *zigzag) {
+	unsigned long long bottom;
+	unsigned long long top;
+
+	deserialize_ulong_long(f, &bottom);
+	deserialize_ulong_long(f, &top);
+
+	*zigzag = (((__uint128_t) top) << 64) | bottom;
+}
+
 void deserialize_uint(const char **f, unsigned *n) {
 	unsigned long long v;
 	deserialize_ulong_long(f, &v);
@@ -172,6 +187,8 @@ static void write_geometry(drawvec const &dv, std::string &out, long long wx, lo
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	std::string s;
 
+	// index comes first so the sort can find it easily
+	serialize_index(s, sf->index);
 	serialize_byte(s, sf->t);
 
 #define FLAG_LAYER 7
@@ -208,11 +225,8 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	write_geometry(sf->geometry, s, wx, wy);
 
-	if (sf->index != 0) {
-		serialize_ulong_long(s, sf->index);
-	}
 	if (sf->label_point != 0) {
-		serialize_ulong_long(s, sf->label_point);
+		serialize_index(s, sf->label_point);
 	}
 	if (sf->extent != 0) {
 		serialize_long_long(s, sf->extent);
@@ -230,9 +244,12 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	return s;
 }
 
-serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y) {
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, long long *initial_x, long long *initial_y) {
 	serial_feature sf;
 	const char *cp = geoms.c_str();
+
+	// index comes first so the sort can find it easily
+	deserialize_index(&cp, &sf.index);
 
 	deserialize_byte(&cp, &sf.t);
 	deserialize_long_long(&cp, &sf.layer);
@@ -257,17 +274,13 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	deserialize_int(&cp, &sf.segment);
 
-	sf.index = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
 
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
-	if (sf.layer & (1 << FLAG_INDEX)) {
-		deserialize_ulong_long(&cp, &sf.index);
-	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		deserialize_ulong_long(&cp, &sf.label_point);
+		deserialize_index(&cp, &sf.label_point);
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
 		deserialize_long_long(&cp, &sf.extent);
@@ -315,12 +328,12 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 						// jumps at least 180° but not exactly 360°,
 						// which in some data sets is an intentional
 						// line across the world
-						if (x - prev > (1LL << 31) && x - prev != (1LL << 32)) {
-							offset -= 1LL << 32;
-							x -= 1LL << 32;
-						} else if (prev - x > (1LL << 31) && prev - x != (1LL << 32)) {
-							offset += 1LL << 32;
-							x += 1LL << 32;
+						if (x - prev > (1LL << (GLOBAL_DETAIL - 1)) && x - prev != (1LL << GLOBAL_DETAIL)) {
+							offset -= 1LL << GLOBAL_DETAIL;
+							x -= 1LL << GLOBAL_DETAIL;
+						} else if (prev - x > (1LL << (GLOBAL_DETAIL - 1)) && prev - x != (1LL << GLOBAL_DETAIL)) {
+							offset += 1LL << GLOBAL_DETAIL;
+							x += 1LL << GLOBAL_DETAIL;
 						}
 					}
 
@@ -345,11 +358,17 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 				bbox[3] = y;
 			}
 
+			// if the geometry offset is not yet initialized, initialize it
 			if (!*(sst->initialized)) {
-				if (x < 0 || x >= (1LL << 32) || y < 0 || y >= (1LL << 32)) {
-					*(sst->initial_x) = 1LL << 31;
-					*(sst->initial_y) = 1LL << 31;
+				if (x < 0 || x >= (1LL << GLOBAL_DETAIL) || y < 0 || y >= (1LL << GLOBAL_DETAIL)) {
+					// if the first point is off the edge of the world plane,
+					// use null island
+
+					*(sst->initial_x) = 1LL << (GLOBAL_DETAIL - 1);
+					*(sst->initial_y) = 1LL << (GLOBAL_DETAIL - 1);
 				} else {
+					// otherwise use the actual first point (rounded to the geometry_scale)
+
 					*(sst->initial_x) = SHIFT_LEFT(SHIFT_RIGHT(x));
 					*(sst->initial_y) = SHIFT_LEFT(SHIFT_RIGHT(y));
 				}
@@ -364,6 +383,15 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 
 				geom[i].x = std::round(x * scale);
 				geom[i].y = std::round(y * scale);
+			} else if (geometry_scale >= GLOBAL_DETAIL - 32) {
+				// this is silly, but rounding coordinates to what they would have been
+				// with a 32-bit world extent helps make test expectations not change
+
+				x = std::llround((double) x / (1LL << (GLOBAL_DETAIL - 32))) * (1LL << (GLOBAL_DETAIL - 32));
+				y = std::llround((double) y / (1LL << (GLOBAL_DETAIL - 32))) * (1LL << (GLOBAL_DETAIL - 32));
+
+				geom[i].x = SHIFT_RIGHT(x);
+				geom[i].y = SHIFT_RIGHT(y);
 			} else {
 				geom[i].x = SHIFT_RIGHT(x);
 				geom[i].y = SHIFT_RIGHT(y);
@@ -403,7 +431,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 	long long y = SHIFT_LEFT(g.y);
 
 	struct node n;
-	n.index = encode_quadkey((unsigned) x, (unsigned) y);
+	n.index = encode_quadkey(coordinate_to_encodable(x), coordinate_to_encodable(y));
 
 	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
 }
@@ -419,11 +447,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 	for (size_t i = 0; i < sf.geometry.size(); i++) {
 		if (sf.geometry[i].op == VT_MOVETO || sf.geometry[i].op == VT_LINETO) {
-			if (sf.geometry[i].y > 0 && sf.geometry[i].y < 0xFFFFFFFF) {
+			if (sf.geometry[i].y > 0 && sf.geometry[i].y < (1LL << GLOBAL_DETAIL) - 1) {
 				// standard -180 to 180 world plane
 
-				long long x = sf.geometry[i].x & 0xFFFFFFFF;
-				long long y = sf.geometry[i].y & 0xFFFFFFFF;
+				long long x = sf.geometry[i].x & ((1LL << GLOBAL_DETAIL) - 1);
+				long long y = sf.geometry[i].y & ((1LL << GLOBAL_DETAIL) - 1);
 
 				r->file_bbox1[0] = std::min(r->file_bbox1[0], x);
 				r->file_bbox1[1] = std::min(r->file_bbox1[1], y);
@@ -433,8 +461,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 				// printf("%llx,%llx  %llx,%llx %llx,%llx  ", x, y, r->file_bbox1[0], r->file_bbox1[1], r->file_bbox1[2], r->file_bbox1[3]);
 
 				// shift the western hemisphere 360 degrees to the east
-				if (x < 0x80000000) {  // prime meridian
-					x += 0x100000000;
+				if (x < 1LL << (GLOBAL_DETAIL - 1)) {  // prime meridian
+					x += 1LL << GLOBAL_DETAIL;
 				}
 
 				r->file_bbox2[0] = std::min(r->file_bbox2[0], x);
@@ -667,13 +695,13 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		*(sst->area_sum) += extent;
 	}
 
-	unsigned long long bbox_index;
+	index_t bbox_index;
 	long long midx, midy;
 
 	if (sf.t == VT_POINT) {
 		// keep old behavior, which loses one bit of precision at the bottom
-		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
-		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << GLOBAL_DETAIL) - 1);
+		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << GLOBAL_DETAIL) - 1);
 	} else {
 		// To reduce the chances of giving multiple polygons or linestrings
 		// the same index, use an arbitrary but predictable point from the
@@ -694,18 +722,19 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 
 		// If off the edge of the plane, mask to bring it back into the addressable area
-		midx = SHIFT_LEFT(scaled_geometry[ix].x) & ((1LL << 32) - 1);
-		midy = SHIFT_LEFT(scaled_geometry[ix].y) & ((1LL << 32) - 1);
+		midx = SHIFT_LEFT(scaled_geometry[ix].x) & ((1LL << GLOBAL_DETAIL) - 1);
+		midy = SHIFT_LEFT(scaled_geometry[ix].y) & ((1LL << GLOBAL_DETAIL) - 1);
 	}
 
-	bbox_index = encode_index(midx, midy);
+	bbox_index = encode_index(coordinate_to_encodable(midx), coordinate_to_encodable(midy));
 
 	if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 		drawvec dv = polygon_to_anchor(scaled_geometry);
 		if (dv.size() > 0) {
-			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << 32) - 1);
-			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << 32) - 1);
-			sf.label_point = encode_index(dv[0].x, dv[0].y);
+			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << GLOBAL_DETAIL) - 1);
+			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << GLOBAL_DETAIL) - 1);
+			// this could just be serialized as numbers instead of encoding and decoding
+			sf.label_point = encode_index(coordinate_to_encodable(dv[0].x), coordinate_to_encodable(dv[0].y));
 		}
 	}
 

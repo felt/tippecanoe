@@ -283,13 +283,13 @@ static void insert(struct mergelist *m, struct mergelist **head, unsigned char *
 
 struct drop_state {
 	double gap;
-	unsigned long long previndex;
+	index_t previndex;
 	double interval;
 	double seq;  // floating point because interval is
 };
 
 struct drop_densest {
-	unsigned long long gap;
+	index_t gap;
 	size_t seq;
 
 	bool operator<(const drop_densest &o) const {
@@ -333,7 +333,7 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 
 		if (preserve_point_density_threshold > 0) {
 			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
-				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
+				if (ix->ix - ds[i].previndex > ((1LL << (GLOBAL_DETAIL - i)) / preserve_point_density_threshold) * ((1LL << (GLOBAL_DETAIL - i)) / preserve_point_density_threshold)) {
 					feature_minzoom = i;
 
 					for (ssize_t j = i; j <= maxzoom; j++) {
@@ -450,7 +450,7 @@ void *run_sort(void *v) {
 	return NULL;
 }
 
-void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, long long *initial_x, long long *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	long long segs[CPUS + 1];
 	segs[0] = 0;
 	segs[CPUS] = len;
@@ -647,8 +647,8 @@ struct read_parallel_arg {
 	int source = 0;
 	std::vector<std::map<std::string, layermap_entry> > *layermaps = NULL;
 	int *initialized = NULL;
-	unsigned *initial_x = NULL;
-	unsigned *initial_y = NULL;
+	long long *initial_x = NULL;
+	long long *initial_y = NULL;
 	std::string layername = "";
 	bool uses_gamma = false;
 	std::unordered_map<std::string, int> const *attribute_types = NULL;
@@ -695,7 +695,7 @@ void *run_read_parallel(void *v) {
 	return NULL;
 }
 
-void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
+void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::atomic<int> *is_parsing, pthread_t *parallel_parser, bool &parser_created, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > &layermaps, int *initialized, long long *initial_x, long long *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
 	// This has to kick off an intermediate thread to start the parser threads,
 	// so the main thread can get back to reading the next input stage while
 	// the intermediate thread waits for the completion of the parser threads.
@@ -822,9 +822,20 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 			for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 				struct index ix = indexmap[a];
-				unsigned long long which = (ix.ix << prefix) >> (64 - splitbits);
-				long long pos = sub_geompos[which];
 
+				// I think what is going on here is that `prefix` represents the top bits
+				// of the index, which we have already sorted on, so we are shifting up
+				// to mask off those bits (which previously fell off the top of the word)
+				// and then shifting back down to bring the top `splitbits` of what remains
+				// down to be the new partitions.
+				index_t ixmask = (((__int128_t) 1) << (2 * GLOBAL_DETAIL)) - 1;
+				index_t which = ((ix.ix << prefix) & ixmask) >> (2 * GLOBAL_DETAIL - splitbits);
+				if ((int) which >= splits) {
+					fprintf(stderr, "splits off the edge! segment %d of %d\n", (int) which, splits);
+					exit(EXIT_IMPOSSIBLE);
+				}
+
+				long long pos = sub_geompos[which];
 				fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfiles[which], &sub_geompos[which], "geom");
 
 				// Count this as a 25%-accomplishment, since we will copy again
@@ -897,17 +908,12 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
-				int page = sysconf(_SC_PAGESIZE);
 				// Don't try to sort more than 2GB at once,
 				// which used to crash Macs and may still
-				long long max_unit = 2LL * 1024 * 1024 * 1024;
+				long long max_unit = ((2LL * 1024 * 1024 * 1024) / bytes) * bytes;
 				long long unit = ((indexpos / CPUS + bytes - 1) / bytes) * bytes;
 				if (unit > max_unit) {
 					unit = max_unit;
-				}
-				unit = ((unit + page - 1) / page) * page;
-				if (unit < page) {
-					unit = page;
 				}
 
 				size_t nmerges = (indexpos + unit - 1) / unit;
@@ -975,7 +981,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					perror("unmap geom");
 					exit(EXIT_MEMORY);
 				}
-			} else if (indexst.st_size == sizeof(struct index) || prefix + splitbits >= 64) {
+			} else if (indexst.st_size == sizeof(struct index) || prefix + splitbits >= 2 * GLOBAL_DETAIL) {
 				struct index *indexmap = (struct index *) mmap(NULL, indexst.st_size, PROT_READ, MAP_PRIVATE, indexfds[i], 0);
 				if (indexmap == MAP_FAILED) {
 					fprintf(stderr, "fd %lld, len %lld\n", (long long) indexfds[i], (long long) indexst.st_size);
@@ -1181,21 +1187,21 @@ void choose_first_zoom(long long *file_bbox, long long *file_bbox1, long long *f
 	// bounding box is the whole world.
 	if (file_bbox[0] < 0) {
 		file_bbox[0] = 0;
-		file_bbox[2] = (1LL << 32) - 1;
+		file_bbox[2] = (1LL << GLOBAL_DETAIL) - 1;
 	}
-	if (file_bbox[2] > (1LL << 32) - 1) {
+	if (file_bbox[2] > (1LL << GLOBAL_DETAIL) - 1) {
 		file_bbox[0] = 0;
-		file_bbox[2] = (1LL << 32) - 1;
+		file_bbox[2] = (1LL << GLOBAL_DETAIL) - 1;
 	}
 	if (file_bbox[1] < 0) {
 		file_bbox[1] = 0;
 	}
-	if (file_bbox[3] > (1LL << 32) - 1) {
-		file_bbox[3] = (1LL << 32) - 1;
+	if (file_bbox[3] > (1LL << GLOBAL_DETAIL) - 1) {
+		file_bbox[3] = (1LL << GLOBAL_DETAIL) - 1;
 	}
 
 	for (ssize_t z = minzoom; z >= 0; z--) {
-		long long shift = 1LL << (32 - z);
+		long long shift = 1LL << (GLOBAL_DETAIL - z);
 
 		long long left = (file_bbox[0] - buffer * shift / 256) / shift;
 		long long top = (file_bbox[1] - buffer * shift / 256) / shift;
@@ -1341,7 +1347,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			memfile_write(r->treefile, &p, sizeof(struct stringpool), in_memory);
 		}
 
-		r->file_bbox[0] = r->file_bbox[1] = UINT_MAX;
+		r->file_bbox[0] = r->file_bbox[1] = (1LL << GLOBAL_DETAIL) - 1;
 		r->file_bbox[2] = r->file_bbox[3] = 0;
 	}
 
@@ -1358,7 +1364,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	// 2 * CPUS: One per reader thread, one per tiling thread
 	int initialized[2 * CPUS];
-	unsigned initial_x[2 * CPUS], initial_y[2 * CPUS];
+	long long initial_x[2 * CPUS], initial_y[2 * CPUS];
 	for (size_t i = 0; i < 2 * CPUS; i++) {
 		initialized[i] = initial_x[i] = initial_y[i] = 0;
 	}
@@ -2064,12 +2070,12 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 #if 0
 				double lon, lat;
-				tile2lonlat(x, y, 32, &lon, &lat);
+				tile2lonlat(x, y, GLOBAL_DETAIL, &lon, &lat);
 				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
 #endif
 
 				struct node n;
-				n.index = encode_quadkey((unsigned) x, (unsigned) y);
+				n.index = encode_quadkey(coordinate_to_encodable(x), coordinate_to_encodable(y));
 
 				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
 			}
@@ -2152,7 +2158,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				unsigned wx, wy;
 				decode_quadkey(here.index, &wx, &wy);
 				double lon, lat;
-				tile2lonlat(wx, wy, 32, &lon, &lat);
+				tile2lonlat(decoded_to_coordinate(wx), decoded_to_coordinate(wy), GLOBAL_DETAIL, &lon, &lat);
 				printf("{\"type\":\"Feature\", \"properties\":{}, \"geometry\":{\"type\":\"Point\", \"coordinates\":[%f,%f]}}\n", lon, lat);
 #endif
 			}
@@ -2357,11 +2363,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (maxzoom < 0) {
 				maxzoom = 0;
 			}
-			if (maxzoom > 32 - full_detail) {
-				maxzoom = 32 - full_detail;
+			if (maxzoom > GLOBAL_DETAIL - full_detail) {
+				maxzoom = GLOBAL_DETAIL - full_detail;
 			}
-			if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-				maxzoom = 33 - low_detail;
+			if (maxzoom - 1 > GLOBAL_DETAIL - low_detail) {
+				maxzoom = GLOBAL_DETAIL + 1 - low_detail;
 			}
 
 			if (!quiet) {
@@ -2374,8 +2380,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			}
 
 			bool changed = false;
-			while (maxzoom < 32 - full_detail && maxzoom < 33 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
-				unsigned long long zoom_mingap = ((1LL << (32 - maxzoom)) / 256 * cluster_distance) * ((1LL << (32 - maxzoom)) / 256 * cluster_distance);
+			while (maxzoom < GLOBAL_DETAIL - full_detail && maxzoom < GLOBAL_DETAIL + 1 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
+				index_t zoom_mingap = ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance) * ((1LL << (GLOBAL_DETAIL - maxzoom)) / 256 * cluster_distance);
 				if (avg > zoom_mingap) {
 					break;
 				}
@@ -2414,11 +2420,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (mz < 0) {
 				mz = 0;
 			}
-			if (mz > 32 - full_detail) {
-				mz = 32 - full_detail;
+			if (mz > GLOBAL_DETAIL - full_detail) {
+				mz = GLOBAL_DETAIL - full_detail;
 			}
-			if (mz > 33 - low_detail) {  // that is, mz - 1 > 32 - low_detail
-				mz = 33 - low_detail;
+			if (mz - 1 > GLOBAL_DETAIL - low_detail) {
+				mz = GLOBAL_DETAIL + 1 - low_detail;
 			}
 
 			if (mz > maxzoom || count <= 0) {
@@ -2431,7 +2437,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		double total_tile_count = 0;
 		for (int i = 1; i <= maxzoom; i++) {
-			double tile_count = ceil(area_sum / ((1LL << (32 - i)) * (1LL << (32 - i))));
+			double tile_count = ceil(area_sum / ((__int128) (1LL << (GLOBAL_DETAIL - i)) * (__int128) (1LL << (GLOBAL_DETAIL - i))));
 			total_tile_count += tile_count;
 
 			// 2M tiles is an arbitrary limit, chosen to make tiling jobs
@@ -2487,7 +2493,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			long long count;
 			long long fullcount;
 			double gap;
-			unsigned long long previndex;
+			index_t previndex;
 		} tile[MAX_ZOOM + 1], max[MAX_ZOOM + 1];
 
 		{
@@ -2502,8 +2508,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		long long ip;
 		for (ip = 0; ip < indices; ip++) {
-			unsigned xx, yy;
+			unsigned long long xx, yy;
 			decode_index(map[ip].ix, &xx, &yy);
+
+			long long gxx = decoded_to_coordinate(xx);
+			long long gyy = decoded_to_coordinate(yy);
 
 			long long nprogress = 100 * ip / indices;
 			if (nprogress != progress) {
@@ -2520,8 +2529,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (z != 0) {
 					// These are tile numbers, not pixels,
 					// so shift, not round
-					xxx = xx >> (32 - z);
-					yyy = yy >> (32 - z);
+					xxx = gxx >> (GLOBAL_DETAIL - z);
+					yyy = gyy >> (GLOBAL_DETAIL - z);
 				}
 
 				double scale = (double) (1LL << (64 - 2 * (z + 8)));
@@ -2684,7 +2693,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
-			unsigned long long previndex = 0;
+			index_t previndex = 0;
 
 			for (long long ip = 0; ip < indices; ip++) {
 				if (map[ip].t == VT_POINT ||
@@ -2794,8 +2803,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	midlat = (maxlat + minlat) / 2;
 	midlon = (maxlon + minlon) / 2;
 
-	tile2lonlat(file_bbox[0], file_bbox[1], 32, &minlon, &maxlat);
-	tile2lonlat(file_bbox[2], file_bbox[3], 32, &maxlon, &minlat);
+	tile2lonlat(file_bbox[0], file_bbox[1], GLOBAL_DETAIL, &minlon, &maxlat);
+	tile2lonlat(file_bbox[2], file_bbox[3], GLOBAL_DETAIL, &maxlon, &minlat);
 
 	if (midlat < minlat) {
 		midlat = minlat;
@@ -2814,11 +2823,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	double minlat2 = 0, minlon2 = 0, maxlat2 = 0, maxlon2 = 0;
 	// choose whichever of the two calculated bboxes is narrower
 	if (file_bbox2[2] - file_bbox2[0] < file_bbox1[2] - file_bbox1[0]) {
-		tile2lonlat(file_bbox2[0], file_bbox2[1], 32, &minlon2, &maxlat2);
-		tile2lonlat(file_bbox2[2], file_bbox2[3], 32, &maxlon2, &minlat2);
+		tile2lonlat(file_bbox2[0], file_bbox2[1], GLOBAL_DETAIL, &minlon2, &maxlat2);
+		tile2lonlat(file_bbox2[2], file_bbox2[3], GLOBAL_DETAIL, &maxlon2, &minlat2);
 	} else {
-		tile2lonlat(file_bbox1[0], file_bbox1[1], 32, &minlon2, &maxlat2);
-		tile2lonlat(file_bbox1[2], file_bbox1[3], 32, &maxlon2, &minlat2);
+		tile2lonlat(file_bbox1[0], file_bbox1[1], GLOBAL_DETAIL, &minlon2, &maxlat2);
+		tile2lonlat(file_bbox1[2], file_bbox1[3], GLOBAL_DETAIL, &maxlon2, &minlat2);
 	}
 
 	std::map<std::string, layermap_entry> merged_lm = merge_layermaps(layermaps);
@@ -3681,8 +3690,8 @@ int main(int argc, char **argv) {
 	// the same no matter what order the projection and bounding box are
 	// specified in
 	for (auto &c : clipbboxes) {
-		projection->project(c.lon1, c.lat1, 32, &c.minx, &c.maxy);
-		projection->project(c.lon2, c.lat2, 32, &c.maxx, &c.miny);
+		projection->project(c.lon1, c.lat1, GLOBAL_DETAIL, &c.minx, &c.maxy);
+		projection->project(c.lon2, c.lat2, GLOBAL_DETAIL, &c.maxx, &c.miny);
 	}
 
 	if (max_tilestats_sample_values < max_tilestats_values) {
@@ -3721,12 +3730,12 @@ int main(int argc, char **argv) {
 	// This previously dropped the maxzoom rather than the detail when they were in conflict,
 	// which proved to be annoying.
 	if (!guess_maxzoom) {
-		if (maxzoom > 32 - full_detail) {
-			full_detail = 32 - maxzoom;
+		if (maxzoom > GLOBAL_DETAIL - full_detail) {
+			full_detail = GLOBAL_DETAIL - maxzoom;
 			fprintf(stderr, "Highest supported detail with maxzoom %d is %d\n", maxzoom, full_detail);
 		}
-		if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-			low_detail = 33 - maxzoom;
+		if (maxzoom - 1 > GLOBAL_DETAIL - low_detail) {
+			low_detail = GLOBAL_DETAIL + 1 - maxzoom;
 			fprintf(stderr, "Highest supported low detail with maxzoom %d is %d\n", maxzoom, low_detail);
 		}
 	}
@@ -3754,12 +3763,12 @@ int main(int argc, char **argv) {
 	if (extra_detail >= 0 || prevent[P_SIMPLIFY_SHARED_NODES] || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) {
 		geometry_scale = 0;
 	} else {
-		geometry_scale = 32 - (full_detail + maxzoom);
+		geometry_scale = GLOBAL_DETAIL - (full_detail + maxzoom);
 		if (geometry_scale < 0) {
 			geometry_scale = 0;
 			if (!guess_maxzoom) {
 				// This shouldn't be able to happen any more. Can it still?
-				fprintf(stderr, "Full detail + maxzoom > 32, so you are asking for more detail than is available.\n");
+				fprintf(stderr, "Full detail + maxzoom > %d, so you are asking for more detail than is available.\n", GLOBAL_DETAIL);
 			}
 		}
 	}
@@ -3818,10 +3827,10 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	long long file_bbox[4] = {UINT_MAX, UINT_MAX, 0, 0};
+	long long file_bbox[4] = {(1LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 0, 0};
 
-	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};	      // standard -180 to 180 world plane
-	long long file_bbox2[4] = {0x1FFFFFFFF, 0xFFFFFFFF, 0x100000000, 0};  // 0 to 360 world plane
+	long long file_bbox1[4] = {(1LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 0, 0};		      // standard -180 to 180 world plane
+	long long file_bbox2[4] = {(2LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 1LL << GLOBAL_DETAIL, 0};  // 0 to 360 world plane
 
 	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
 								       : out_dir,

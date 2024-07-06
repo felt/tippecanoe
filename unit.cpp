@@ -3,6 +3,7 @@
 #include "text.hpp"
 #include "sort.hpp"
 #include "tile-cache.hpp"
+#include "projection.hpp"
 #include <unistd.h>
 #include <limits.h>
 
@@ -104,4 +105,48 @@ TEST_CASE("Bit reversal", "bit reversal") {
 	REQUIRE(bit_reverse(1) == 0x8000000000000000);
 	REQUIRE(bit_reverse(0x1234567812489BCF) == 0xF3D912481E6A2C48);
 	REQUIRE(bit_reverse(0xF3D912481E6A2C48) == 0x1234567812489BCF);
+}
+
+TEST_CASE("Projection", "projection") {
+	// troublesome point from tests/accumulate/in.json
+	long long wx36, wy36;
+	lonlat2tile(-123.948513, -81.873970, 36, &wx36, &wy36);
+	REQUIRE(wx36 == 0x27dbdc9fb);
+	REQUIRE(wy36 == 0xebc06c629);
+
+	long long wx32, wy32;
+	lonlat2tile(-123.948513, -81.873970, 32, &wx32, &wy32);
+	REQUIRE(wx32 == 0x27dbdca0);
+	REQUIRE(wy32 == 0xebc06c63);
+
+	REQUIRE(std::llround(wx36 / 16.0) == wx32);
+	REQUIRE(std::llround(wy36 / 16.0) == wy32);
+}
+
+TEST_CASE("Quadkey index", "quadkey index") {
+	unsigned long long a = (unsigned) 1234567890;
+	unsigned long long b = (unsigned) 3210987654;
+
+	unsigned long long x = (b << 32) | a;
+	unsigned long long y = (a << 32) | b;
+	index_t encoded;
+	unsigned long long nx, ny;
+
+	encoded = encode_quadkey(x, y);
+	// the *bottom* 64 bits of the 128-bit encoding
+	// are the same as the 64-bit encoding of a, b
+	REQUIRE((unsigned long long) encoded == 7338499239188161052ULL);
+	REQUIRE((unsigned long long) (encoded >> 64) == 11163131681630900524ULL);
+	decode_quadkey(encoded, &nx, &ny);
+	REQUIRE(nx == x);
+	REQUIRE(ny == y);
+
+	encoded = encode_hilbert(y, x);
+	// the *top* 64 bits of the 128-bit encoding
+	// of the 64-bit encoding of a, b
+	REQUIRE((unsigned long long) (encoded >> 64) == 8447864191955811122ULL);
+	REQUIRE((unsigned long long) encoded == 16122461378071376152ULL);
+	decode_hilbert(encoded, &ny, &nx);
+	REQUIRE(nx == x);
+	REQUIRE(ny == y);
 }

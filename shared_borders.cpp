@@ -367,7 +367,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 
 	struct merge_order {
 		ssize_t edge = 0;
-		unsigned long long gap = 0;
+		index_t gap = 0;
 		size_t p1 = 0;
 		size_t p2 = 0;
 

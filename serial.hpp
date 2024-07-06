@@ -10,6 +10,7 @@
 #include "geometry.hpp"
 #include "mbtiles.hpp"
 #include "jsonpull/jsonpull.h"
+#include "projection.hpp"
 
 size_t fwrite_check(const void *ptr, size_t size, size_t nitems, FILE *stream, std::atomic<long long> *fpos, const char *fname);
 
@@ -66,8 +67,8 @@ struct serial_feature {
 	int tippecanoe_maxzoom = -1;
 
 	drawvec geometry = drawvec();
-	unsigned long long index = 0;
-	unsigned long long label_point = 0;
+	index_t index = 0;
+	index_t label_point = 0;
 	long long extent = 0;
 
 	// These fields are not directly serialized, but are used
@@ -120,7 +121,7 @@ struct serial_feature {
 };
 
 std::string serialize_feature(serial_feature *sf, long long wx, long long wy);
-serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y);
+serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigned tx, unsigned ty, long long *initial_x, long long *initial_y);
 
 struct reader {
 	int poolfd = -1;
@@ -143,8 +144,8 @@ struct reader {
 	std::atomic<long long> nodepos;
 
 	long long file_bbox[4] = {0, 0, 0, 0};
-	long long file_bbox1[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0, 0};	      // standard -180 to 180 world plane
-	long long file_bbox2[4] = {0x1FFFFFFFF, 0xFFFFFFFF, 0x100000000, 0};  // 0 to 360 world plane
+	long long file_bbox1[4] = {(1LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 0, 0};		      // standard -180 to 180 world plane
+	long long file_bbox2[4] = {(2LL << GLOBAL_DETAIL) - 1, (1LL << GLOBAL_DETAIL) - 1, 1LL << GLOBAL_DETAIL, 0};  // 0 to 360 world plane
 
 	struct stat geomst {};
 	char *geom_map = NULL;
@@ -201,8 +202,8 @@ struct serialization_state {
 	std::vector<struct reader> *readers = NULL;  // array of data for each input thread
 	int segment = 0;			     // the current input thread
 
-	unsigned *initial_x = NULL;  // relative offset of all geometries
-	unsigned *initial_y = NULL;
+	long long *initial_x = NULL;  // relative offset of all geometries
+	long long *initial_y = NULL;
 	int *initialized = NULL;
 
 	double *dist_sum = NULL;  // running tally for calculation of resolution within features

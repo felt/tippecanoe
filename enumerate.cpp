@@ -4,6 +4,8 @@
 #include <sqlite3.h>
 #include "errors.hpp"
 
+#define MAX_MAXZOOM 32
+
 void enumerate(char *fname) {
 	sqlite3 *db;
 
@@ -31,7 +33,7 @@ void enumerate(char *fname) {
 		long long x = sqlite3_column_int(stmt, 1);
 		long long y = sqlite3_column_int(stmt, 2);
 
-		if (zoom < 0 || zoom > 31) {
+		if (zoom < 0 || zoom > MAX_MAXZOOM) {
 			fprintf(stderr, "Corrupt mbtiles file: impossible zoom level %lld\n", zoom);
 			exit(EXIT_IMPOSSIBLE);
 		}

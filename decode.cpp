@@ -25,8 +25,10 @@
 #include "pmtiles_file.hpp"
 #include "errors.hpp"
 
+#define MAX_MAXZOOM 32	// should this be higher?
+
 int minzoom = 0;
-int maxzoom = 32;
+int maxzoom = MAX_MAXZOOM;
 bool force = false;
 
 bool progress_time() {
@@ -456,7 +458,7 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 				int tx = sqlite3_column_int(stmt, 2);
 				int ty = sqlite3_column_int(stmt, 3);
 
-				if (tz < 0 || tz >= 32) {
+				if (tz < 0 || tz >= MAX_MAXZOOM) {
 					fprintf(stderr, "Impossible zoom level %d in mbtiles\n", tz);
 					exit(EXIT_IMPOSSIBLE);
 				}

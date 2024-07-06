@@ -10,6 +10,7 @@
 #include <mvt.hpp>
 #include "jsonpull/jsonpull.h"
 #include "attribute.hpp"
+#include "projection.hpp"
 
 #define VT_POINT 1
 #define VT_LINE 2
@@ -24,9 +25,9 @@
 // at the cost, apparently, of a 0.7% increase in running time
 // for packing and unpacking.
 struct draw {
-	long long x : 40;
+	long long x : GLOBAL_DETAIL + 3;
 	signed char op;
-	long long y : 40;
+	long long y : GLOBAL_DETAIL + 3;
 	signed char necessary;
 
 	draw(int nop, long long nx, long long ny)
@@ -67,7 +68,7 @@ struct draw {
 typedef std::vector<draw> drawvec;
 struct serial_feature;
 
-drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y);
+drawvec decode_geometry(const char **meta, int z, long long tx, long long ty, long long *bbox, long long initial_x, long long initial_y);
 void to_tile_scale(drawvec &geom, int z, int detail);
 drawvec from_tile_scale(drawvec const &geom, int z, int detail);
 drawvec remove_noop(drawvec geom, int type, int shift);
