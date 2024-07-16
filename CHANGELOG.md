@@ -1,3 +1,8 @@
+# 2.56.0
+
+* Rework --coalesce-densest-as-needed and --drop-densest-as-needed to look better
+* Add --maximum-string-attribute-length option
+
 # 2.55.0
 
 * Fix hash collisions in the string pool
