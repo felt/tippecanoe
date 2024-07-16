@@ -67,6 +67,7 @@ struct serial_feature {
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
+	unsigned long long gap = 0;  // filled in during z0. square of planar distance
 	unsigned long long label_point = 0;
 	long long extent = 0;
 

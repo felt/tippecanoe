@@ -23,6 +23,7 @@
 #include "evaluator.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "text.hpp"
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
@@ -210,6 +211,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
+		serialize_ulong_long(s, sf->gap);
 	}
 	if (sf->label_point != 0) {
 		serialize_ulong_long(s, sf->label_point);
@@ -258,6 +260,7 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	deserialize_int(&cp, &sf.segment);
 
 	sf.index = 0;
+	sf.gap = 0;
 	sf.label_point = 0;
 	sf.extent = 0;
 
@@ -265,6 +268,7 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
+		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
 		deserialize_ulong_long(&cp, &sf.label_point);
@@ -674,6 +678,13 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		// keep old behavior, which loses one bit of precision at the bottom
 		midx = (sf.bbox[0] / 2 + sf.bbox[2] / 2) & ((1LL << 32) - 1);
 		midy = (sf.bbox[1] / 2 + sf.bbox[3] / 2) & ((1LL << 32) - 1);
+	} else if ((additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED]) && sf.t == VT_POLYGON) {
+		// This probably should really apply to all polygons,
+		// but I hate to change the feature sequence in all the
+		// test fixtures again
+		draw scaled_center = center_of_mass_mp(scaled_geometry);
+		midx = SHIFT_LEFT(scaled_center.x) & ((1LL << 32) - 1);
+		midy = SHIFT_LEFT(scaled_center.y) & ((1LL << 32) - 1);
 	} else {
 		// To reduce the chances of giving multiple polygons or linestrings
 		// the same index, use an arbitrary but predictable point from the
@@ -832,6 +843,14 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		for (size_t i = 0; i < sf.full_keys.size(); i++) {
 			auto ts = sst->layermap->find(layername);
 			add_to_tilestats(ts->second.tilestats, sf.full_keys[i], sf.full_values[i]);
+		}
+	}
+
+	if (maximum_string_attribute_length > 0) {
+		for (size_t i = 0; i < sf.full_keys.size(); i++) {
+			if (sf.full_values[i].type == mvt_string && sf.full_values[i].s.size() > maximum_string_attribute_length) {
+				sf.full_values[i].s = truncate_string(sf.full_values[i].s, maximum_string_attribute_length);
+			}
 		}
 	}
 

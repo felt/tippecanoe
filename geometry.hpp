@@ -114,4 +114,6 @@ std::string overzoom(const std::string &s, int oz, int ox, int oy, int nz, int n
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data);
 
+draw center_of_mass_mp(const drawvec &dv);
+
 #endif

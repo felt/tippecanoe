@@ -634,6 +634,13 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 				// continues to simplify to line_detail even if we have extra detail
 				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
 
+				if (p->coalesced && prevent[P_SIMPLIFY_SHARED_NODES]) {
+					// do another simplification to eliminate collinearities
+					// that were left behind at the former corners between
+					// coalesced geometries
+					ngeom = simplify_lines(ngeom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), 0.1, t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+				}
+
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
 					geom = ngeom;
 				}
@@ -740,48 +747,16 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 }
 
 // This function is called to choose the new gap threshold for --drop-densest-as-needed
-// and --coalesce-densest-as-needed. The list that is passed in is the list of indices
-// of features that survived the previous gap-choosing, so it first needs to calculate
-// and sort the gaps between them before deciding which new gap threshold will satisfy
-// the need to keep only the requested fraction of features.
-static unsigned long long choose_mingap(std::vector<unsigned long long> const &indices, double f) {
-	unsigned long long bot = ULLONG_MAX;
-	unsigned long long top = 0;
+// and --coalesce-densest-as-needed.
+static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, double f, unsigned long long existing_gap) {
+	std::stable_sort(gaps.begin(), gaps.end());
 
-	for (size_t i = 0; i < indices.size(); i++) {
-		if (i > 0 && indices[i] >= indices[i - 1]) {
-			if (indices[i] - indices[i - 1] > top) {
-				top = indices[i] - indices[i - 1];
-			}
-			if (indices[i] - indices[i - 1] < bot) {
-				bot = indices[i] - indices[i - 1];
-			}
-		}
+	size_t ix = (gaps.size() - 1) * (1 - f);
+	while (ix + 1 < gaps.size() && gaps[ix] == existing_gap) {
+		ix++;
 	}
 
-	size_t want = indices.size() * f;
-	while (top - bot > 2) {
-		unsigned long long guess = bot / 2 + top / 2;
-		size_t count = 0;
-		unsigned long long prev = 0;
-
-		for (size_t i = 0; i < indices.size(); i++) {
-			if (indices[i] - prev >= guess) {
-				count++;
-				prev = indices[i];
-			}
-		}
-
-		if (count > want) {
-			bot = guess;
-		} else if (count < want) {
-			top = guess;
-		} else {
-			return guess;
-		}
-	}
-
-	return top;
+	return gaps[ix];
 }
 
 // This function is called to choose the new "extent" threshold to try when a tile exceeds the
@@ -1028,7 +1003,7 @@ struct multiplier_state {
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, int *within, compressor **geomfile, std::atomic<long long> *geompos, std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex) {
 	while (1) {
 		serial_feature sf;
 		long long len;
@@ -1071,6 +1046,27 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 
 		(*original_features)++;
+
+		if (sf.gap == 0) {
+			if (sf.index != previndex) {
+				long long ox = (1LL << (32 - z)) * tx;
+				long long oy = (1LL << (32 - z)) * ty;
+
+				unsigned wx1, wy1;
+				decode_index(previndex, &wx1, &wy1);
+
+				for (auto const &g : sf.geometry) {
+					long long dx = (long long) wx1 - (g.x + ox);
+					long long dy = (long long) wy1 - (g.y + oy);
+
+					unsigned long long d = dx * dx + dy * dy;
+					if (d > sf.gap) {
+						sf.gap = d;
+					}
+				}
+			}
+		}
+		previndex = sf.index;
 
 		if (clip_to_tile(sf, z, buffer)) {
 			continue;
@@ -1244,9 +1240,10 @@ void *run_prefilter(void *v) {
 	json_writer state(rpa->prefilter_fp);
 	struct multiplier_state multiplier_state;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
+	unsigned long long previndex = 0;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data));
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), previndex);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1519,6 +1516,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 	}
 
+	// only for -K
+	unsigned long long cluster_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
+
 	bool first_time = true;
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
@@ -1538,7 +1538,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		std::map<std::string, layer_features> layers;
 
-		std::vector<unsigned long long> indices;
+		std::vector<unsigned long long> gaps;
+		size_t gaps_increment = 1;
 		std::vector<long long> extents;
 		size_t extents_increment = 1;
 		std::vector<unsigned long long> drop_sequences;
@@ -1658,13 +1659,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		struct multiplier_state multiplier_state;
 		size_t multiplier_seq = retain_points_multiplier - 1;
 		bool drop_rest = false;	 // are we dropping the remainder of a multiplier cluster whose first point was dropped?
+		unsigned long long next_feature_previndex = 0;
 
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_previndex);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -1737,19 +1739,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				}
 
-				// Cap the indices, rather than sampling them like extents (areas),
-				// because choose_mingap cares about the distance between *surviving*
-				// features, not between *original* features, so we can't just store
-				// gaps rather than indices to be able to downsample them fairly.
-				// Hopefully the first 100K features in the tile are reasonably
-				// representative of the other features in the tile.
-				const size_t MAX_INDICES = 100000;
-
-				if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED] || cluster_distance != 0)) {
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
-					}
-					if ((sf.index < merge_previndex || sf.index - merge_previndex < mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+				if (z <= cluster_maxzoom && cluster_distance != 0) {
+					// This still uses merge_previndex instead of sf.gap
+					// because the cluster size in -K is expecting to specify
+					// distances between points that are subject to dot-dropping,
+					// rather than wanting each feature to have a consistent
+					// idea of density between zooms.
+					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						features[which_serial_feature].clustered++;
 
 						if (features[which_serial_feature].t == VT_POINT &&
@@ -1769,20 +1765,38 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
-					}
-					if (sf.index - merge_previndex < mingap) {
+					add_sample_to(gaps, sf.gap, gaps_increment, seq);
+					if (sf.gap < mingap) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
+				} else if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
+					// this is now just like coalesce-densest, except that instead of unioning the geometry,
+					// it averages the point locations
+					add_sample_to(gaps, sf.gap, gaps_increment, seq);
+					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+						features[which_serial_feature].clustered++;
 
-				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
-					if (indices.size() < MAX_INDICES) {
-						indices.push_back(sf.index);
+						if (features[which_serial_feature].t == VT_POINT &&
+						    features[which_serial_feature].geometry.size() == 1 &&
+						    sf.geometry.size() == 1) {
+							double x = (double) features[which_serial_feature].geometry[0].x * features[which_serial_feature].clustered;
+							double y = (double) features[which_serial_feature].geometry[0].y * features[which_serial_feature].clustered;
+							x += sf.geometry[0].x;
+							y += sf.geometry[0].y;
+							features[which_serial_feature].geometry[0].x = x / (features[which_serial_feature].clustered + 1);
+							features[which_serial_feature].geometry[0].y = y / (features[which_serial_feature].clustered + 1);
+						}
+
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						strategy->coalesced_as_needed++;
+						drop_rest = true;
+						continue;
 					}
-					if (sf.index - merge_previndex < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
+					add_sample_to(gaps, sf.gap, gaps_increment, seq);
+					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
@@ -2363,24 +2377,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
-					if (mg <= mingap) {
-						mg = (mingap + 1) * 1.5;
-
-						if (mg <= mingap) {
-							mg = ULONG_MAX;
+					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
+					if (m != mingap) {
+						mingap = m;
+						if (mingap > arg->mingap_out) {
+							arg->mingap_out = mingap;
+							arg->still_dropping = true;
 						}
+						if (!quiet) {
+							fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
+						}
+						line_detail++;
+						continue;
 					}
-					mingap = mg;
-					if (mingap > arg->mingap_out) {
-						arg->mingap_out = mingap;
-						arg->still_dropping = true;
-					}
-					if (!quiet) {
-						fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
-					}
-					line_detail++;
-					continue;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * max_tile_features / totalsize * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
@@ -2470,29 +2479,19 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.90;
-					unsigned long long mg = choose_mingap(indices, mingap_fraction);
-					if (mg <= mingap) {
-						double nmg = (mingap + 1) * 1.5;
-
-						if (nmg <= mingap || nmg > ULONG_MAX) {
-							mg = ULONG_MAX;
-						} else {
-							mg = nmg;
-
-							if (mg <= mingap) {
-								mg = ULONG_MAX;
-							}
+					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
+					if (m != mingap) {
+						mingap = m;
+						if (mingap > arg->mingap_out) {
+							arg->mingap_out = mingap;
+							arg->still_dropping = true;
 						}
+						if (!quiet) {
+							fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
+						}
+						line_detail++;
+						continue;
 					}
-					mingap = mg;
-					if (mingap > arg->mingap_out) {
-						arg->mingap_out = mingap;
-						arg->still_dropping = true;
-					}
-					if (!quiet) {
-						fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
-					}
-					line_detail++;
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
@@ -2826,7 +2825,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		int err = INT_MAX;
 
 		double zoom_gamma = gamma;
-		unsigned long long zoom_mingap = ((1LL << (32 - z)) / 256 * cluster_distance) * ((1LL << (32 - z)) / 256 * cluster_distance);
+		unsigned long long zoom_mingap = 0;
 		long long zoom_minextent = 0;
 		unsigned long long zoom_mindrop_sequence = 0;
 		size_t zoom_tile_size = 0;

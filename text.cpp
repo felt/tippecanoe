@@ -325,3 +325,19 @@ unsigned long long bit_reverse(unsigned long long v) {
 	v = ((v & 0x5555555555555555) << 1) | ((v & 0xAAAAAAAAAAAAAAAA) >> 1);
 	return v;
 }
+
+std::string truncate_string(std::string const &s, size_t len) {
+	if (s.length() <= len) {
+		return s;
+	}
+
+	// find the initial byte of a UTF-8 character
+	ssize_t i;
+	for (i = len; i > 0; i--) {
+		if ((s[i] & 0x80) == 0 || (s[i] & 0xC0) == 0xC0) {
+			break;
+		}
+	}
+
+	return s.substr(0, i);
+}

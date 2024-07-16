@@ -63,6 +63,7 @@ extern size_t limit_tile_feature_count_at_maxzoom;
 extern std::map<std::string, serial_val> set_attributes;
 extern long long extend_zooms_max;
 extern int retain_points_multiplier;
+extern size_t maximum_string_attribute_length;
 
 struct order_field {
 	std::string name;
