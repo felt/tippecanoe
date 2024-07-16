@@ -5,6 +5,8 @@ like these \[la]MADE_WITH.md\[ra]\&.
 .PP
 This is the official home of Tippecanoe, developed and actively maintained by Erica Fischer \[la]https://github.com/e-n-f\[ra] at Felt \[la]https://felt.com\[ra]\&. 
 .PP
+For a self\-hosted, API driven version of Tippecanoe, contact a technical sales engineer at \[la]sales@felt.com\[ra]\&. Felt produces highly performant, automatically projected versions of your data, and utilizes a rendering engine, built on top of MapLibre GL JS \[la]https://github.com/maplibre/maplibre-gl-js\[ra], to style vector and raster data.
+.PP
 Version 2.0.0 is equivalent to 1.36.0 \[la]https://github.com/mapbox/tippecanoe/tree/1.36.0\[ra] in the original repository. Thank you Mapbox for the many years of early support.
 .SH Intent
 .PP
@@ -471,8 +473,8 @@ zoom level	precision (ft)	precision (m)	map scale
 \fB\fC\-z18\fR	1.5 in	4 cm	1:1250
 \fB\fC\-z19\fR	0.8 in	2 cm	1:600
 \fB\fC\-z20\fR	0.4 in	1 cm	1:300
-\fB\fC\-z21\fR	0.2 in	0.5 cm	1:150
-\fB\fC\-z22\fR	0.1 in	0.25 cm	1:75
+\fB\fC\-z21\fR	0.4 in	1 cm	1:300
+\fB\fC\-z22\fR	0.4 in	1 cm	1:300
 .TE
 .SS Tile resolution
 .RS
@@ -526,6 +528,8 @@ The attributes and values may also be specified as JSON keys and values: \fB\fC\
 \fB\fC\-\-use\-attribute\-for\-id=\fR\fIname\fP: Use the attribute with the specified \fIname\fP as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use \fB\fC\-aI\fR to convert it to a number.)
 .IP \(bu 2
 \fB\fC\-pN\fR or \fB\fC\-\-single\-precision\fR: Write double\-precision numeric attribute values to tiles as single\-precision to reduce tile size.
+.IP \(bu 2
+\fB\fC\-\-maximum\-string\-attribute\-length\fR=\fIlength\fP: Truncate string attributes that exceed the specified length in bytes.
 .RE
 .SS Filtering features by attributes
 .RS

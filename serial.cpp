@@ -23,6 +23,7 @@
 #include "evaluator.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "text.hpp"
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
@@ -842,6 +843,14 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		for (size_t i = 0; i < sf.full_keys.size(); i++) {
 			auto ts = sst->layermap->find(layername);
 			add_to_tilestats(ts->second.tilestats, sf.full_keys[i], sf.full_values[i]);
+		}
+	}
+
+	if (maximum_string_attribute_length > 0) {
+		for (size_t i = 0; i < sf.full_keys.size(); i++) {
+			if (sf.full_values[i].type == mvt_string && sf.full_values[i].s.size() > maximum_string_attribute_length) {
+				sf.full_values[i].s = truncate_string(sf.full_values[i].s, maximum_string_attribute_length);
+			}
 		}
 	}
 

@@ -423,6 +423,7 @@ be reduced to the maximum that can be used with the specified _maxzoom_.
  * `-aI` or `--convert-stringified-ids-to-numbers`: If a feature ID is the string representation of a number, convert it to a plain number to use as the feature ID.
  * `--use-attribute-for-id=`*name*: Use the attribute with the specified *name* as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use `-aI` to convert it to a number.)
  * `-pN` or `--single-precision`: Write double-precision numeric attribute values to tiles as single-precision to reduce tile size.
+ * `--maximum-string-attribute-length`=_length_: Truncate string attributes that exceed the specified length in bytes.
 
 ### Filtering features by attributes
 

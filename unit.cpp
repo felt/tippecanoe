@@ -21,6 +21,19 @@ TEST_CASE("UTF-8 truncation", "[trunc]") {
 	REQUIRE(truncate16("0123456789😀😬😁😂😃😄😅😆", 16) == std::string("0123456789😀😬😁"));
 	REQUIRE(truncate16("0123456789😀😬😁😂😃😄😅😆", 17) == std::string("0123456789😀😬😁"));
 	REQUIRE(truncate16("0123456789あいうえおかきくけこさ", 16) == std::string("0123456789あいうえおか"));
+
+	REQUIRE(truncate_string("789éîôüéîôüç", 3) == std::string("789"));
+	REQUIRE(truncate_string("789éîôüéîôüç", 4) == std::string("789"));
+	REQUIRE(truncate_string("789éîôüéîôüç", 5) == std::string("789é"));
+	REQUIRE(truncate_string("789éîôüéîôüç", 6) == std::string("789é"));
+	REQUIRE(truncate_string("789éîôüéîôüç", 7) == std::string("789éî"));
+	REQUIRE(truncate_string("789éîôüéîôüç", 8) == std::string("789éî"));
+
+	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 10) == std::string("0123456789"));
+	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 11) == std::string("0123456789"));
+	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 12) == std::string("0123456789"));
+	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 13) == std::string("0123456789"));
+	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 14) == std::string("0123456789😀"));
 }
 
 int intcmp(const void *v1, const void *v2) {

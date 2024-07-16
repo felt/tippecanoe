@@ -97,6 +97,7 @@ unsigned long long preserve_point_density_threshold = 0;
 long long extend_zooms_max = 0;
 int retain_points_multiplier = 1;
 std::vector<std::string> unidecode_data;
+size_t maximum_string_attribute_length = 0;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -3071,6 +3072,7 @@ int main(int argc, char **argv) {
 		{"use-attribute-for-id", required_argument, 0, '~'},
 		{"single-precision", no_argument, &prevent[P_SINGLE_PRECISION], 1},
 		{"set-attribute", required_argument, 0, '~'},
+		{"maximum-string-attribute-length", required_argument, 0, '~'},
 
 		{"Filtering features by attributes", 0, 0, 0},
 		{"feature-filter-file", required_argument, 0, 'J'},
@@ -3304,6 +3306,8 @@ int main(int argc, char **argv) {
 				retain_points_multiplier = atoll_require(optarg, "Multiply the fraction of points retained by zoom level");
 			} else if (strcmp(opt, "unidecode-data") == 0) {
 				unidecode_data = read_unidecode(optarg);
+			} else if (strcmp(opt, "maximum-string-attribute-length") == 0) {
+				maximum_string_attribute_length = atoll_require(optarg, "Maximum string attribute length");
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
