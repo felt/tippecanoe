@@ -34,6 +34,12 @@ TEST_CASE("UTF-8 truncation", "[trunc]") {
 	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 12) == std::string("0123456789"));
 	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 13) == std::string("0123456789"));
 	REQUIRE(truncate_string("0123456789😀😬😁😂😃😄😅😆", 14) == std::string("0123456789😀"));
+
+	REQUIRE(truncate_string("😀", 4) == std::string("😀"));
+	REQUIRE(truncate_string("😀", 3) == std::string(""));
+	REQUIRE(truncate_string("😀", 2) == std::string(""));
+	REQUIRE(truncate_string("😀", 1) == std::string(""));
+	REQUIRE(truncate_string("😀", 0) == std::string(""));
 }
 
 int intcmp(const void *v1, const void *v2) {
