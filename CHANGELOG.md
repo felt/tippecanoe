@@ -1,3 +1,7 @@
+# 2.57.0
+
+* Add multi-tile input to tippecanoe-overzoom
+
 # 2.56.0
 
 * Rework --coalesce-densest-as-needed and --drop-densest-as-needed to look better
