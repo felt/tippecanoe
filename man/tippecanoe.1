@@ -1257,11 +1257,20 @@ some of the precision. Running:
 .PP
 .RS
 .nf
-tippecanoe\-overzoom \-o out.mvt.gz inz/inx/iny outz/outx/outy in.mvt.gz
+tippecanoe\-overzoom \-o out.mvt.gz in.mvt.gz inz/inx/iny outz/outx/outy
 .fi
 .RE
 .PP
 reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR and produces tile \fB\fCoutz/outx/outy\fR of \fB\fCout.mvt.gz\fR\&.
+.PP
+.RS
+.nf
+tippecanoe\-overzoom \-o out.mvt.gz \-t outz/outx/outy in.mvt.gz inz/inx/iny in2.mvt.gz in2z/in2x/in2y in3.mvt.gz in3z/in3x/in3y
+.fi
+.RE
+.PP
+reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR, tile \fB\fCin2z/in2x/in2y\fR of \fB\fCin2.mvt.gz\fR, and tile \fB\fCin3z/in3x/in3y\fR of \fB\fCin3.mvt.gz\fR,
+and produces tile \fB\fCoutz/outx/outy\fR of \fB\fCout.mvt.gz\fR from them.
 .SS Options
 .RS
 .IP \(bu 2

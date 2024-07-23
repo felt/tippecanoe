@@ -704,7 +704,15 @@ struct tileset_reader {
 		}
 
 		if (source.layers.size() != 0) {
-			std::string ret = overzoom(source, parent_tile.z, parent_tile.x, parent_tile.y, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data);
+			std::vector<source_tile> tv;
+			source_tile t;
+			t.tile = std::move(source);
+			t.z = parent_tile.z;
+			t.x = parent_tile.x;
+			t.y = parent_tile.y;
+			tv.push_back(std::move(t));
+
+			std::string ret = overzoom(tv, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data);
 			return ret;
 		}
 
