@@ -1715,7 +1715,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		struct multiplier_state multiplier_state;
 		size_t multiplier_seq = retain_points_multiplier - 1;
-		bool drop_rest = false;	 // are we dropping the remainder of a multiplier cluster whose first point was dropped?
+		bool drop_rest = false;		// are we dropping the remainder of a multiplier cluster whose first point was dropped?
 		bool dropping_by_rate = false;	// are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
 		unsigned long long next_feature_previndex = 0;
 

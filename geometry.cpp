@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <stack>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -206,101 +205,6 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-// https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
-static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
-	std::stack<int> recursion_stack;
-
-	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
-		fprintf(stderr, "endpoints not marked necessary\n");
-		exit(EXIT_IMPOSSIBLE);
-	}
-
-	int prev = 0;
-	for (int here = 1; here < n; here++) {
-		if (geom[start + here].necessary) {
-			recursion_stack.push(prev);
-			recursion_stack.push(here);
-			prev = here;
-
-			if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-				if (retain > 0) {
-					retain--;
-				}
-			}
-		}
-	}
-	// These segments are put on the stack from start to end,
-	// independent of winding, so note that anything that uses
-	// "retain" to force it to keep at least N points will
-	// keep a different set of points when wound one way than
-	// when wound the other way.
-
-	while (!recursion_stack.empty()) {
-		// pop next element
-		int second = recursion_stack.top();
-		recursion_stack.pop();
-		int first = recursion_stack.top();
-		recursion_stack.pop();
-
-		double max_distance = -1;
-		int farthest_element_index;
-
-		// find index idx of element with max_distance
-		int i;
-		if (geom[start + first] < geom[start + second]) {
-			farthest_element_index = first;
-			for (i = first + 1; i < second; i++) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
-
-				double distance = std::fabs(temp_dist);
-
-				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
-					farthest_element_index = i;
-					max_distance = distance;
-				}
-			}
-		} else {
-			farthest_element_index = second;
-			for (i = second - 1; i > first; i--) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
-
-				double distance = std::fabs(temp_dist);
-
-				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
-					farthest_element_index = i;
-					max_distance = distance;
-				}
-			}
-		}
-
-		if (max_distance >= 0) {
-			// mark idx as necessary
-			geom[start + farthest_element_index].necessary = 1;
-			kept++;
-
-			if (geom[start + first] < geom[start + second]) {
-				if (1 < farthest_element_index - first) {
-					recursion_stack.push(first);
-					recursion_stack.push(farthest_element_index);
-				}
-				if (1 < second - farthest_element_index) {
-					recursion_stack.push(farthest_element_index);
-					recursion_stack.push(second);
-				}
-			} else {
-				if (1 < second - farthest_element_index) {
-					recursion_stack.push(farthest_element_index);
-					recursion_stack.push(second);
-				}
-				if (1 < farthest_element_index - first) {
-					recursion_stack.push(first);
-					recursion_stack.push(farthest_element_index);
-				}
-			}
-		}
-	}
-}
-
 // If any line segment crosses a tile boundary, add a node there
 // that cannot be simplified away, to prevent the edge of any
 // feature from jumping abruptly at the tile boundary.
@@ -410,7 +314,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				if (additional[A_VISVALINGAM]) {
 					visvalingam(geom, i, j, scale, retain);
 				} else {
-					douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
+					douglas_peucker(geom, i, j - i, res * simplification, 2, retain, prevent[P_SIMPLIFY_SHARED_NODES]);
 				}
 			}
 			i = j - 1;
