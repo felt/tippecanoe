@@ -2497,7 +2497,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.90;
+					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m != mingap) {
 						mingap = m;
@@ -2608,7 +2608,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.90;
+					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m != mingap) {
 						mingap = m;
