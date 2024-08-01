@@ -27,6 +27,8 @@ struct atomic_strategy {
 	      detail_reduced(0),
 	      tiny_polygons(0) {
 	}
+
+	void add_from(struct strategy const &src);
 };
 
 struct strategy {
@@ -35,9 +37,10 @@ struct strategy {
 	size_t dropped_as_needed = 0;
 	size_t coalesced_as_needed = 0;
 	size_t detail_reduced = 0;
+	size_t tiny_polygons = 0;
+
 	size_t tile_size = 0;
 	size_t feature_count = 0;
-	size_t tiny_polygons = 0;
 
 	strategy(const atomic_strategy &s, size_t ts, size_t fc) {
 		dropped_by_rate = s.dropped_by_rate;

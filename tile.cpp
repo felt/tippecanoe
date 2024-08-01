@@ -1508,7 +1508,7 @@ struct layer_features {
 	size_t multiplier_cluster_size = 0;    // The feature count of the current multiplier cluster
 };
 
-bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, size_t &multiplier_seq, atomic_strategy *strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
+bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, size_t &multiplier_seq, strategy &strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
 	ssize_t which_serial_feature;
 
 	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
@@ -1519,7 +1519,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 			return false;  // converted rather than dropped
 		} else {
 			preserve_attributes(attribute_accum, sf, layer.features[which_serial_feature]);
-			strategy->dropped_as_needed++;
+			strategy.dropped_as_needed++;
 			drop_rest = true;
 			return true;  // dropped
 		}
@@ -1534,7 +1534,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1585,6 +1585,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 	}
 
+	size_t detail_reduced = 0;
 	bool first_time = true;
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
@@ -1732,6 +1733,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		bool dropping_by_rate = false;	// are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
 		unsigned long long next_feature_previndex = 0;
 
+		strategy strategy;
+		strategy.detail_reduced = detail_reduced;
+
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
@@ -1800,7 +1804,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-					strategy->dropped_by_rate++;
+					strategy.dropped_by_rate++;
 					can_stop_early = false;
 					continue;
 				}
@@ -1815,7 +1819,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (gamma > 0) {
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-						strategy->dropped_by_gamma++;
+						strategy.dropped_by_gamma++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
@@ -1843,7 +1847,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-						strategy->coalesced_as_needed++;
+						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
@@ -1875,7 +1879,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-						strategy->coalesced_as_needed++;
+						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						continue;
 					}
@@ -1886,7 +1890,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-						strategy->coalesced_as_needed++;
+						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
@@ -1908,7 +1912,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-						strategy->coalesced_as_needed++;
+						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
@@ -1929,7 +1933,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
-						strategy->coalesced_as_needed++;
+						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
@@ -1958,7 +1962,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
 					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
 					if (simplified_away_by_reduction) {
-						strategy->tiny_polygons++;
+						strategy.tiny_polygons++;
 					}
 					if (sf.geometry.size() == 0) {
 						continue;
@@ -2652,7 +2656,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else {
-					strategy->detail_reduced++;
+					detail_reduced++;
 				}
 			} else {
 				if (pthread_mutex_lock(&db_lock) != 0) {
@@ -2678,9 +2682,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					skip_children_out.insert(zxy(z, tx, ty));
 				}
 
+				strategy_out->add_from(strategy);
 				return count;
 			}
 		} else {
+			strategy_out->add_from(strategy);
 			return count;
 		}
 	}
@@ -3179,4 +3185,13 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		fprintf(stderr, "\n");
 	}
 	return maxzoom;
+}
+
+void atomic_strategy::add_from(struct strategy const &src) {
+	dropped_by_rate += src.dropped_by_rate;
+	dropped_by_gamma += src.dropped_by_gamma;
+	dropped_as_needed += src.dropped_as_needed;
+	coalesced_as_needed += src.coalesced_as_needed;
+	detail_reduced += src.detail_reduced;
+	tiny_polygons += src.tiny_polygons;
 }
