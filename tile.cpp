@@ -1572,7 +1572,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	if (additional[A_TRUNCATE_ZOOMS]) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
-		// XXX special case for points below basezoom
 
 		// empirical estimate from ne_10m_admin_0_countries, CPAD units, Cal fires.
 		// only try to make an overzoomable final tile if it seems like it might work
