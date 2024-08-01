@@ -2125,6 +2125,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		if (lead_features_count > 0) {
 			scaled_max_tile_size *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
 		}
+		size_t scaled_max_tile_features = max_tile_features;
+		if (lead_features_count > 0) {
+			scaled_max_tile_features *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+		}
 
 		// Operations on the features within each layer:
 		//
@@ -2465,13 +2469,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		if (totalsize > 0 && tile.layers.size() > 0) {
-			if (totalsize > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+			if (totalsize > scaled_max_tile_features && !prevent[P_FEATURE_LIMIT]) {
 				if (totalsize > arg->feature_count_out) {
 					arg->feature_count_out = totalsize;
 				}
 
 				if (!quiet) {
-					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, totalsize, max_tile_features);
+					fprintf(stderr, "tile %d/%u/%u has %zu features, >%zu    \n", z, tx, ty, totalsize, scaled_max_tile_features);
 				}
 
 				if (trying_to_stop_early && line_detail == first_detail) {
@@ -2497,7 +2501,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * max_tile_features / totalsize * 0.80;
+					mingap_fraction = mingap_fraction * scaled_max_tile_features / totalsize * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m != mingap) {
 						mingap = m;
@@ -2512,7 +2516,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * max_tile_features / totalsize * 0.75;
+					minextent_fraction = minextent_fraction * scaled_max_tile_features / totalsize * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m != minextent) {
 						minextent = m;
@@ -2530,7 +2534,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					mindrop_sequence_fraction = mindrop_sequence_fraction * max_tile_features / totalsize * 0.95;
+					mindrop_sequence_fraction = mindrop_sequence_fraction * scaled_max_tile_features / totalsize * 0.95;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m != mindrop_sequence) {
 						mindrop_sequence = m;
