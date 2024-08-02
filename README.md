@@ -500,7 +500,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-ps` or `--no-line-simplification`: Don't simplify lines and polygons
  * `-pS` or `--simplify-only-low-zooms`: Don't simplify lines and polygons at maxzoom (but do simplify at lower zooms)
  * `--simplification-at-maximum-zoom=`_scale_: Use the specified _scale_ at maxzoom instead of the standard simplification scale (which still applies at lower zooms)
- * `-pn` or `--no-simplification-of-shared-nodes`: Don't simplify away nodes at which LineStrings or Polygon rings converge, diverge, or cross. (This will not be effective if you also use `--coalesce`.) In between intersection nodes, LineString segments or polygon edges will be simplified identically in each feature if possible. Use this instead of `--detect-shared-borders`.
+ * `-pn` or `--no-simplification-of-shared-nodes`: Don't simplify away nodes at which LineStrings or Polygon rings converge, diverge, or cross. (This will not be effective if you also use `--coalesce`.) In between intersection nodes, LineString segments or polygon edges will be simplified identically in each feature if possible.
  * `-pt` or `--no-tiny-polygon-reduction`: Don't combine the area of very small polygons into small squares that represent their combined area.
  * `-pT` or `--no-tiny-polygon-reduction-at-maximum-zoom`: Combine the area of very small polygons into small squares that represent their combined area only at zoom levels below the maximum.
  * `--tiny-polygon-size=`_size_: Use the specified _size_ for tiny polygons instead of the default 2. Anything above 6 or so will lead to visible artifacts with the default tile detail.
@@ -508,7 +508,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
 
 ### Attempts to improve shared polygon boundaries
 
- * `-ab` or `--detect-shared-borders`: DEPRECATED. In the manner of [TopoJSON](https://github.com/mbostock/topojson/wiki/Introduction), detect borders that are shared between multiple polygons and simplify them identically in each polygon. This takes more time and memory than considering each polygon individually. Use `no-simplification-of-shared-nodes` instead, which is faster and more correct.
+ * `-ab` or `--detect-shared-borders`: This is an alias for `--no-simplification-of-shared-nodes`.
  * `-aL` or `--grid-low-zooms`: At all zoom levels below _maxzoom_, snap all lines and polygons to a stairstep grid instead of allowing diagonals. You will also want to specify a tile resolution, probably `-D8`. This option provides a way to display continuous parcel, gridded, or binned data at low zooms without overwhelming the tiles with tiny polygons, since features will either get stretched out to the grid unit or lost entirely, depending on how they happened to be aligned in the original data. You probably don't want to use this.
 
 ### Controlling clipping to tile boundaries
