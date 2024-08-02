@@ -40,9 +40,11 @@ drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long
 
 		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
 			long long dx, dy;
+			signed char necessary;
 
 			deserialize_long_long(meta, &dx);
 			deserialize_long_long(meta, &dy);
+			deserialize_byte(meta, &necessary);
 
 			wx += dx * (1 << geometry_scale);
 			wy += dy * (1 << geometry_scale);
@@ -62,6 +64,7 @@ drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long
 
 			d.x = wwx;
 			d.y = wwy;
+			d.necessary = necessary;
 		}
 
 		out.push_back(d);
@@ -224,11 +227,11 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 			if (c > 1) {  // clipped
 				if (x1 != geom[i - 1].x || y1 != geom[i - 1].y) {
 					out.emplace_back(VT_LINETO, x1, y1);
-					out[out.size() - 1].necessary = 1;
+					out[out.size() - 1].necessary = 127;
 				}
 				if (x2 != geom[i - 0].x || y2 != geom[i - 0].y) {
 					out.emplace_back(VT_LINETO, x2, y2);
-					out[out.size() - 1].necessary = 1;
+					out[out.size() - 1].necessary = 127;
 				}
 			}
 		}
@@ -245,13 +248,13 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
-			geom[i].necessary = 1;
+			geom[i].necessary = 127;
 		} else if (geom[i].op == VT_LINETO) {
 			geom[i].necessary = 0;
 			// if this is actually the endpoint, not an intermediate point,
 			// it will be marked as necessary below
 		} else {
-			geom[i].necessary = 1;
+			geom[i].necessary = 127;
 		}
 
 		if (prevent[P_SIMPLIFY_SHARED_NODES]) {
@@ -265,7 +268,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
 			if (pt != shared_nodes.end() && *pt == geom[i]) {
-				geom[i].necessary = true;
+				geom[i].necessary = 127;
 			}
 
 			if (nodepos > 0) {
@@ -281,7 +284,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
 
 				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-					geom[i].necessary = true;
+					geom[i].necessary = 127;
 				}
 			}
 		}
@@ -300,8 +303,8 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				}
 			}
 
-			geom[i].necessary = 1;
-			geom[j - 1].necessary = 1;
+			geom[i].necessary = 127;
+			geom[j - 1].necessary = 127;
 
 			// empirical mapping from douglas-peucker simplifications
 			// to visvalingam simplifications that yield similar

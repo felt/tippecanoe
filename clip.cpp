@@ -895,13 +895,13 @@ static drawvec simplify_lines_basic(drawvec &geom, int z, int detail, double sim
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO) {
-			geom[i].necessary = 1;
+			geom[i].necessary = 127;
 		} else if (geom[i].op == VT_LINETO) {
 			geom[i].necessary = 0;
 			// if this is actually the endpoint, not an intermediate point,
 			// it will be marked as necessary below
 		} else {
-			geom[i].necessary = 1;
+			geom[i].necessary = 127;
 		}
 	}
 
@@ -914,8 +914,8 @@ static drawvec simplify_lines_basic(drawvec &geom, int z, int detail, double sim
 				}
 			}
 
-			geom[i].necessary = 1;
-			geom[j - 1].necessary = 1;
+			geom[i].necessary = 127;
+			geom[j - 1].necessary = 127;
 
 			if (j - i > 1) {
 				douglas_peucker(geom, i, j - i, res * simplification, 2, retain, false);

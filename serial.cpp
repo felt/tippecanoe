@@ -160,6 +160,7 @@ static void write_geometry(drawvec const &dv, std::string &out, long long wx, lo
 			serialize_byte(out, dv[i].op);
 			serialize_long_long(out, dv[i].x - wx);
 			serialize_long_long(out, dv[i].y - wy);
+			serialize_byte(out, dv[i].necessary);
 			wx = dv[i].x;
 			wy = dv[i].y;
 		} else {
