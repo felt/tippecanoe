@@ -829,9 +829,7 @@ void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, siz
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
-
-				double distance = std::fabs(temp_dist);
+				double distance = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -841,9 +839,7 @@ void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, siz
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
-
-				double distance = std::fabs(temp_dist);
+				double distance = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -854,7 +850,20 @@ void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, siz
 
 		if (max_distance >= 0) {
 			// mark idx as necessary
-			geom[start + farthest_element_index].necessary = 1;
+			signed char nec;
+			if (kept < retain) {
+				nec = 127;  // arbitrary N vertices that must be kept at every zoom to retain polygon validity
+			} else if (max_distance > 0.25) {
+				// These are quarter-zoom distances, so fractional simplifications are still meaningful.
+				nec = std::log2(std::ceil(max_distance * 4)) + 1;
+			} else {
+				nec = 1;  // smallest representable distance from the line
+			}
+			if (nec <= 0) {
+				fprintf(stderr, "can't happen: necessary %d for distance %f\n", nec, max_distance);
+				exit(EXIT_IMPOSSIBLE);
+			}
+			geom[start + farthest_element_index].necessary = nec;
 			kept++;
 
 			if (geom[start + first] < geom[start + second]) {
