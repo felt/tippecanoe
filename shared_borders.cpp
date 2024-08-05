@@ -357,7 +357,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 		}
 		if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]) || (z < maxzoom && additional[A_GRID_LOW_ZOOMS]))) {
 			// tx and ty are 0 here because we aren't trying to do anything with the shared_nodes_map
-			simplified_arcs[ai->second] = simplify_lines(dv, z, 0, 0, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec(), NULL, 0);
+			simplified_arcs[ai->second] = simplify_lines(dv, z, 0, 0, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, 4, drawvec(), NULL, 0, "");
 		} else {
 			simplified_arcs[ai->second] = dv;
 		}

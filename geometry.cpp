@@ -239,7 +239,7 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 	return out;
 }
 
-drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
+drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
 
@@ -276,12 +276,16 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 					d.y += ty * (1LL << (32 - z));
 				}
 
-				// to quadkey
 				struct node n;
-				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+				n.index = encode_vertex((unsigned) d.x, (unsigned) d.y);
+				size_t bloom_ix = n.index % (shared_nodes_bloom.size() * 8);
+				unsigned char bloom_mask = 1 << (bloom_ix & 7);
+				bloom_ix >>= 3;
 
-				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-					geom[i].necessary = true;
+				if (shared_nodes_bloom[bloom_ix] & bloom_mask) {
+					if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+						geom[i].necessary = true;
+					}
 				}
 			}
 		}

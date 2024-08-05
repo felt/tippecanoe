@@ -541,6 +541,7 @@ struct simplification_worker_arg {
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
 	size_t nodepos;
+	std::string const *shared_nodes_bloom;
 };
 
 // If a polygon has collapsed away to nothing during polygon cleaning,
@@ -590,7 +591,7 @@ static drawvec revive_polygon(drawvec &geom, double area, int z, int detail) {
 // This simplifies the geometry of one feature. It is generally called from the feature_simplification_worker
 // but is broken out here so that it can be called from earlier in write_tile if coalesced geometries build up
 // too much in memory.
-static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos) {
+static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	drawvec geom = p->geometry;
 	signed char t = p->t;
 	int z = p->z;
@@ -637,13 +638,13 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
-				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos);
+				drawvec ngeom = simplify_lines(geom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), p->simplification, t == VT_POLYGON ? 4 : 0, shared_nodes, shared_nodes_map, nodepos, shared_nodes_bloom);
 
 				if (p->coalesced && prevent[P_SIMPLIFY_SHARED_NODES]) {
 					// do another simplification to eliminate collinearities
 					// that were left behind at the former corners between
 					// coalesced geometries
-					ngeom = simplify_lines(ngeom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), 0.1, t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+					ngeom = simplify_lines(ngeom, z, p->tx, p->ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), 0.1, t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
 				}
 
 				if (t != VT_POLYGON || ngeom.size() >= 3) {
@@ -671,7 +672,7 @@ static void *simplification_worker(void *v) {
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
 		double area = 0;
 		if (!a->trying_to_stop_early) {
-			area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos);
+			area = simplify_feature(&((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
 		}
 
 		signed char t = (*features)[i].t;
@@ -896,6 +897,7 @@ struct write_tile_args {
 	bool compressed;
 	node *shared_nodes_map;
 	size_t nodepos;
+	std::string const *shared_nodes_bloom;
 	std::set<zxy> const *skip_children;  // what is being skipped at this zoom
 	std::set<zxy> skip_children_out;     // what will be skipped in the next zoom
 };
@@ -1534,7 +1536,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -2048,7 +2050,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// may not be very effective for reducing memory usage.
 
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
-							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos);
+							simplify_feature(&features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, shared_nodes_bloom);
 
 							if (features[simplified_geometry_through].t == VT_POLYGON) {
 								drawvec to_clean = features[simplified_geometry_through].geometry;
@@ -2247,6 +2249,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					args[i].shared_nodes = &shared_nodes;
 					args[i].shared_nodes_map = shared_nodes_map;
 					args[i].nodepos = nodepos;
+					args[i].shared_nodes_bloom = &shared_nodes_bloom;
 					args[i].trying_to_stop_early = trying_to_stop_early;
 
 					if (tasks > 1) {
@@ -2326,7 +2329,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
 							// XXX revisit: why does this not take zoom into account?
 							layer_features[x].geometry = simplify_lines(layer_features[x].geometry, 32, 0, 0, 0,
-												    !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0);
+												    !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x].t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
 						}
 					}
 
@@ -2777,7 +2780,7 @@ exit(EXIT_IMPOSSIBLE);
 				skip_tile(&dc, &geompos, arg->compressed);
 				len = 1;
 			} else {
-				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
+				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
 			}
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
@@ -2843,7 +2846,7 @@ exit(EXIT_IMPOSSIBLE);
 	return err_or_null;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, int basezoom, double droprate, std::vector<std::string> const &unidecode_data) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, int basezoom, double droprate, std::vector<std::string> const &unidecode_data) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -3060,6 +3063,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].compressed = (z != iz);
 				args[thread].shared_nodes_map = shared_nodes_map;
 				args[thread].nodepos = nodepos;
+				args[thread].shared_nodes_bloom = &shared_nodes_bloom;
 				args[thread].skip_children = &skip_children;
 				args[thread].skip_children_out.clear();
 

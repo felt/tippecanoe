@@ -217,3 +217,7 @@ void set_projection_or_exit(const char *optarg) {
 		exit(EXIT_ARGS);
 	}
 }
+
+unsigned long long encode_vertex(unsigned int wx, unsigned int wy) {
+	return (((unsigned long long) wx) << 32) | wy;
+}

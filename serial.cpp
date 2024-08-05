@@ -407,7 +407,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 	long long y = SHIFT_LEFT(g.y);
 
 	struct node n;
-	n.index = encode_quadkey((unsigned) x, (unsigned) y);
+	n.index = encode_vertex((unsigned) x, (unsigned) y);
 
 	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
 }

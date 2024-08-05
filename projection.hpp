@@ -26,4 +26,6 @@ void decode_quadkey(unsigned long long index, unsigned *wx, unsigned *wy);
 unsigned long long encode_hilbert(unsigned int wx, unsigned int wy);
 void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy);
 
+unsigned long long encode_vertex(unsigned int wx, unsigned int wy);
+
 #endif
