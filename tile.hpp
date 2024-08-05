@@ -18,6 +18,7 @@ struct atomic_strategy {
 	std::atomic<size_t> coalesced_as_needed;
 	std::atomic<size_t> detail_reduced;
 	std::atomic<size_t> tiny_polygons;
+	std::atomic<size_t> truncated_zooms;
 
 	atomic_strategy()
 	    : dropped_by_rate(0),
@@ -25,7 +26,8 @@ struct atomic_strategy {
 	      dropped_as_needed(0),
 	      coalesced_as_needed(0),
 	      detail_reduced(0),
-	      tiny_polygons(0) {
+	      tiny_polygons(0),
+	      truncated_zooms(0) {
 	}
 
 	void add_from(struct strategy const &src);
@@ -38,6 +40,7 @@ struct strategy {
 	size_t coalesced_as_needed = 0;
 	size_t detail_reduced = 0;
 	size_t tiny_polygons = 0;
+	size_t truncated_zooms = 0;
 
 	size_t tile_size = 0;
 	size_t feature_count = 0;
@@ -51,6 +54,7 @@ struct strategy {
 		tile_size = ts;
 		feature_count = fc;
 		tiny_polygons = s.tiny_polygons;
+		truncated_zooms = s.truncated_zooms;
 	}
 
 	strategy() = default;

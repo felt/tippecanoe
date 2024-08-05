@@ -9,7 +9,7 @@
 "maxzoom": "14",
 "minzoom": "12",
 "name": "tests/tl_2022_11_tract/out/-z14_-Z12_--coalesce-densest-as-needed_--truncate-zooms_-M25000.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{},{\"coalesced_as_needed\":87,\"tile_size_desired\":39190},{},{}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{},{\"coalesced_as_needed\":87,\"tile_size_desired\":39190,\"truncated_zooms\":3},{\"truncated_zooms\":18},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

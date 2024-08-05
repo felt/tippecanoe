@@ -877,6 +877,8 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 							(*st)[i].dropped_as_needed += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "coalesced_as_needed") == 0) {
 							(*st)[i].coalesced_as_needed += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "truncated_zooms") == 0) {
+							(*st)[i].truncated_zooms += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "detail_reduced") == 0) {
 							(*st)[i].detail_reduced += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "tiny_polygons") == 0) {

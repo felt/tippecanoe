@@ -2697,6 +2697,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// We succeeded in stopping early.
 					// Prune the child tiles.
 
+					strategy.truncated_zooms++;
 					skip_children_out.insert(zxy(z, tx, ty));
 				}
 
@@ -3206,4 +3207,5 @@ void atomic_strategy::add_from(struct strategy const &src) {
 	coalesced_as_needed += src.coalesced_as_needed;
 	detail_reduced += src.detail_reduced;
 	tiny_polygons += src.tiny_polygons;
+	truncated_zooms += src.truncated_zooms;
 }

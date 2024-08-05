@@ -9,6 +9,7 @@
 "maxzoom": "20",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places/out/-z20_-r1_--truncate-zooms_--limit-tile-feature-count_50.json.check.mbtiles",
+"strategies": "[{},{\"truncated_zooms\":2},{\"truncated_zooms\":2},{\"truncated_zooms\":8},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]",
 "tippecanoe_decisions": "{\"basezoom\":20,\"droprate\":1,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
