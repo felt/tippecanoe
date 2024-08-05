@@ -66,6 +66,7 @@ extern "C" {
 
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t task_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // convert serial feature geometry (drawvec) to output tile geometry (mvt_geometry)
 static std::vector<mvt_geometry> to_feature(drawvec const &geom) {
@@ -833,6 +834,10 @@ static unsigned long long calculate_drop_sequence(serial_feature const &sf) {
 	return ~out;					      // lowest numbered feature gets dropped first
 }
 
+struct task {
+	int fileno = 0;
+};
+
 // This is the block of parameters that are passed to write_tile() to read a tile
 // from the serialized form, do whatever needs to be done to it, and to write the
 // MVT-format output to the output tileset.
@@ -841,7 +846,8 @@ static unsigned long long calculate_drop_sequence(serial_feature const &sf) {
 // by the caller to determine whether the zoom level needs to be done over with
 // new thresholds.
 struct write_tile_args {
-	struct task *tasks = NULL;
+	int threadno;
+	std::vector<task *> *tasks;
 	char *global_stringpool = NULL;
 	int min_detail = 0;
 	sqlite3 *outdb = NULL;
@@ -2702,17 +2708,35 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	return -1;
 }
 
-struct task {
-	int fileno = 0;
-	struct task *next = NULL;
-};
-
 void *run_thread(void *vargs) {
 	write_tile_args *arg = (write_tile_args *) vargs;
-	struct task *task;
 	int *err_or_null = NULL;
 
-	for (task = arg->tasks; task != NULL; task = task->next) {
+	while (true) {
+		bool done = false;
+
+		if (pthread_mutex_lock(&task_lock) != 0) {
+			perror("pthread_mutex_lock");
+			exit(EXIT_PTHREAD);
+		}
+
+		struct task *task;
+		if (arg->tasks->size() == 0) {
+			done = true;
+		} else {
+			task = arg->tasks->back();
+			arg->tasks->pop_back();
+		}
+
+		if (pthread_mutex_unlock(&task_lock) != 0) {
+			perror("pthread_mutex_unlock");
+			exit(EXIT_PTHREAD);
+		}
+
+		if (done) {
+			break;
+		}
+
 		int j = task->fileno;
 
 		if (arg->geomfd[j] < 0) {
@@ -2939,24 +2963,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		std::vector<task> tasks;
 		tasks.resize(TEMP_FILES);
 
-		struct dispatch {
-			struct task *tasks = NULL;
-			long long todo = 0;
-			struct dispatch *next = NULL;
-		};
-		std::vector<dispatch> dispatches;
-		dispatches.resize(threads);
-
-		dispatch *dispatch_head = &dispatches[0];
-		for (size_t j = 0; j < threads; j++) {
-			dispatches[j].tasks = NULL;
-			dispatches[j].todo = 0;
-			if (j + 1 < threads) {
-				dispatches[j].next = &dispatches[j + 1];
-			} else {
-				dispatches[j].next = NULL;
-			}
-		}
+		std::vector<task *> dispatch;
 
 		for (size_t j = 0; j < TEMP_FILES; j++) {
 			if (geom_size[j] == 0) {
@@ -2964,22 +2971,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			}
 
 			tasks[j].fileno = j;
-			tasks[j].next = dispatch_head->tasks;
-			dispatch_head->tasks = &tasks[j];
-			dispatch_head->todo += geom_size[j];
-
-			dispatch *here = dispatch_head;
-			dispatch_head = dispatch_head->next;
-
-			dispatch **d;
-			for (d = &dispatch_head; *d != NULL; d = &((*d)->next)) {
-				if (here->todo < (*d)->todo) {
-					break;
-				}
-			}
-
-			here->next = *d;
-			*d = here;
+			dispatch.push_back(&tasks[j]);
 		}
 
 		int err = INT_MAX;
@@ -3001,7 +2993,11 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			atomic_strategy strategy;
 			skip_children_out.clear();
 
+			// must be recreate with each pass, since child threads consume it
+			std::vector<task *> pass_dispatch = dispatch;
+
 			for (size_t thread = 0; thread < threads; thread++) {
+				args[thread].threadno = thread;
 				args[thread].global_stringpool = global_stringpool;
 				args[thread].min_detail = min_detail;
 				args[thread].outdb = outdb;  // locked with db_lock
@@ -3053,7 +3049,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].filter = filter;
 				args[thread].unidecode_data = &unidecode_data;
 
-				args[thread].tasks = dispatches[thread].tasks;
+				args[thread].tasks = &pass_dispatch;
 				args[thread].running = &running;
 				args[thread].pass = pass;
 				args[thread].wrote_zoom = -1;
