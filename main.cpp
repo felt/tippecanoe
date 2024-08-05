@@ -2155,10 +2155,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				size_t bloom_ix = here.index % (shared_nodes_bloom.size() * 8);
 				unsigned char bloom_mask = 1 << (bloom_ix & 7);
 				bloom_ix >>= 3;
-
-				if (shared_nodes_bloom[bloom_ix] & bloom_mask) {
-					printf("collision at %lld : %zu/%d\n", nodepos / sizeof(here), bloom_ix, bloom_mask);
-				}
 				shared_nodes_bloom[bloom_ix] |= bloom_mask;
 
 #if 0
