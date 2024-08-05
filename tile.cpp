@@ -2592,6 +2592,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (trying_to_stop_early && line_detail == first_detail) {
 					// didn't work, try a lower detail
+					detail_reduced++;
 					continue;
 				}
 
