@@ -27,24 +27,20 @@ struct draw {
 	long long x : 40;
 	signed char op;
 	long long y : 40;
-
-	// 0:       not necessary
-	// 127:     always necessary
-	// other n: necessary at detail n/4
 	signed char necessary;
 
 	draw(int nop, long long nx, long long ny)
 	    : x(nx),
 	      op(nop),
 	      y(ny),
-	      necessary(127) {
+	      necessary(0) {
 	}
 
 	draw()
 	    : x(0),
 	      op(0),
 	      y(0),
-	      necessary(127) {
+	      necessary(0) {
 	}
 
 	bool operator<(draw const &s) const {
