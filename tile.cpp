@@ -836,6 +836,11 @@ static unsigned long long calculate_drop_sequence(serial_feature const &sf) {
 
 struct task {
 	int fileno = 0;
+	size_t todo;
+
+	bool operator<(const struct task &o) const {
+		return todo < o.todo;
+	}
 };
 
 // This is the block of parameters that are passed to write_tile() to read a tile
@@ -2971,8 +2976,11 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			}
 
 			tasks[j].fileno = j;
+			tasks[j].todo = geom_size[j];
 			dispatch.push_back(&tasks[j]);
 		}
+
+		std::sort(dispatch.begin(), dispatch.end());
 
 		int err = INT_MAX;
 
