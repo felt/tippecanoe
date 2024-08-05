@@ -47,6 +47,7 @@
 #include "protozero/varint.hpp"
 #include "attribute.hpp"
 #include "thread.hpp"
+#include "shared_borders.hpp"
 
 extern "C" {
 #include "jsonpull/jsonpull.h"
@@ -621,6 +622,9 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 			}
 
 			bool already_marked = false;
+			if (additional[A_DETECT_SHARED_BORDERS] && t == VT_POLYGON) {
+				already_marked = true;
+			}
 
 			if (!already_marked) {
 				if (p->coalesced && t == VT_POLYGON) {
@@ -1531,6 +1535,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 }
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
 	double mindrop_sequence_fraction = 1;
@@ -2037,7 +2042,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					features.push_back(std::move(sf));
 
 					unsimplified_geometry_size += features.back().geometry.size() * sizeof(draw);
-					if (unsimplified_geometry_size > 10 * 1024 * 1024) {
+					if (unsimplified_geometry_size > 10 * 1024 * 1024 && !additional[A_DETECT_SHARED_BORDERS]) {
 						// we should be safe to simplify here with P_SIMPLIFY_SHARED_NODES, since they will
 						// have been assembled globally, although that also means that simplification
 						// may not be very effective for reducing memory usage.
@@ -2220,6 +2225,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 					}
 				}
+			}
+
+			if (additional[A_DETECT_SHARED_BORDERS]) {
+				find_common_edges(features, z, line_detail, simplification, maxzoom, merge_fraction);
 			}
 
 			int tasks = ceil((double) CPUS / *running);

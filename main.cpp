@@ -3691,10 +3691,6 @@ int main(int argc, char **argv) {
 		decode_index = decode_quadkey;
 	}
 
-	if (additional[A_DETECT_SHARED_BORDERS]) {
-		prevent[P_SIMPLIFY_SHARED_NODES] = true;
-	}
-
 	// Wait until here to project the bounding box, so that the behavior is
 	// the same no matter what order the projection and bounding box are
 	// specified in
