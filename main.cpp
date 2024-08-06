@@ -3067,7 +3067,7 @@ int main(int argc, char **argv) {
 		{"smallest-maximum-zoom-guess", required_argument, 0, '~'},
 		{"extend-zooms-if-still-dropping", no_argument, &additional[A_EXTEND_ZOOMS], 1},
 		{"extend-zooms-if-still-dropping-maximum", required_argument, 0, '~'},
-		{"truncate-zooms", no_argument, &additional[A_TRUNCATE_ZOOMS], 1},
+		{"generate-variable-depth-tile-pyramid", no_argument, &additional[A_VARIABLE_DEPTH_PYRAMID], 1},
 		{"one-tile", required_argument, 0, 'R'},
 
 		{"Tile resolution", 0, 0, 0},

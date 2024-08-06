@@ -1,6 +1,6 @@
 # 2.58.0
 
-* Add --truncate-zooms option
+* Add --generate-variable-depth-tile-pyramid option
 * Add --line-simplification and --tiny-polygon-size options to tippecanoe-overzoom
 * Adjust tile feature limit for --retain-points-multiplier
 * Tune convergence rate for --coalesce-densest and --drop-densest

@@ -26,7 +26,7 @@
 #define A_HILBERT ((int) 'h')
 #define A_VISVALINGAM ((int) 'v')
 #define A_GENERATE_POLYGON_LABEL_POINTS ((int) 'P')
-#define A_TRUNCATE_ZOOMS ((int) 't')
+#define A_VARIABLE_DEPTH_PYRAMID ((int) 't')
 
 #define P_SIMPLIFY ((int) 's')
 #define P_SIMPLIFY_LOW ((int) 'S')

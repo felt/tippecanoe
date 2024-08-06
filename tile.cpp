@@ -1582,7 +1582,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
 	bool can_stop_early = true;
-	if (additional[A_TRUNCATE_ZOOMS]) {
+	if (additional[A_VARIABLE_DEPTH_PYRAMID]) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 
@@ -2121,7 +2121,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				geomfile[j]->end(&geompos[j], fname);
 				within[j] = false;
 
-				if (additional[A_TRUNCATE_ZOOMS]) {
+				if (additional[A_VARIABLE_DEPTH_PYRAMID]) {
 					fflush(geomfile[j]->fp);
 					if (pwrite(fileno(geomfile[j]->fp), &estimated_complexity_out, sizeof(estimated_complexity_out), start_geompos[j]) != sizeof(estimated_complexity_out)) {
 						perror("pwrite complexity");
