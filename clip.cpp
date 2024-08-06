@@ -789,14 +789,14 @@ double distance_from_line(long long point_x, long long point_y, long long segA_x
 void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, bool prevent_simplify_shared_nodes) {
 	std::stack<int> recursion_stack;
 
-	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
+	if (!(geom[start + 0].necessary > 0) || !(geom[start + n - 1].necessary > 0)) {
 		fprintf(stderr, "endpoints not marked necessary\n");
 		exit(EXIT_IMPOSSIBLE);
 	}
 
 	int prev = 0;
 	for (int here = 1; here < n; here++) {
-		if (geom[start + here].necessary) {
+		if (geom[start + here].necessary > 0) {
 			recursion_stack.push(prev);
 			recursion_stack.push(here);
 			prev = here;
@@ -829,9 +829,12 @@ void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, siz
 		if (geom[start + first] < geom[start + second]) {
 			farthest_element_index = first;
 			for (i = first + 1; i < second; i++) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
-
-				double distance = std::fabs(temp_dist);
+				double distance;
+				if (geom[start + i].necessary < 0) {
+					distance = 0;
+				} else {
+					distance = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
+				}
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -841,9 +844,12 @@ void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, siz
 		} else {
 			farthest_element_index = second;
 			for (i = second - 1; i > first; i--) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
-
-				double distance = std::fabs(temp_dist);
+				double distance;
+				if (geom[start + i].necessary < 0) {
+					distance = 0;
+				} else {
+					distance = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
+				}
 
 				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
 					farthest_element_index = i;
@@ -917,7 +923,7 @@ static drawvec simplify_lines_basic(drawvec &geom, int z, int detail, double sim
 
 	size_t out = 0;
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].necessary) {
+		if (geom[i].necessary > 0) {
 			geom[out++] = geom[i];
 		}
 	}

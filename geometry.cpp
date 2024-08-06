@@ -239,6 +239,48 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 	return out;
 }
 
+static void mark_unnecessary(drawvec &geom, size_t start, size_t end, double e) {
+	double ee = e * e;
+
+	if (geom[start] < geom[end]) {
+		size_t last = start;
+		for (size_t i = start + 1; i < end; i++) {
+			long long dx = geom[i].x - geom[last].x;
+			long long dy = geom[i].y - geom[last].y;
+			if (dx * dx + dy * dy < ee) {
+				geom[i].necessary = -1;
+			} else {
+				last = i;
+			}
+		}
+	} else {
+		size_t last = end;
+		for (size_t i = end - 1; i > start; i--) {
+			long long dx = geom[i].x - geom[last].x;
+			long long dy = geom[i].y - geom[last].y;
+			if (dx * dx + dy * dy < ee) {
+				geom[i].necessary = -1;
+			} else {
+				last = i;
+			}
+		}
+	}
+}
+
+static void mark_unnecessary(drawvec &geom, double e) {
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].necessary > 0) {
+			for (size_t j = i + 1; j < geom.size(); j++) {
+				if (geom[j].necessary > 0) {
+					mark_unnecessary(geom, i, j, e);
+					i = j - 1;
+					break;
+				}
+			}
+		}
+	}
+}
+
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
@@ -265,7 +307,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
 			if (pt != shared_nodes.end() && *pt == geom[i]) {
-				geom[i].necessary = true;
+				geom[i].necessary = 1;
 			}
 
 			if (nodepos > 0) {
@@ -284,7 +326,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 				if (shared_nodes_bloom[bloom_ix] & bloom_mask) {
 					if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-						geom[i].necessary = true;
+						geom[i].necessary = 1;
 					}
 				}
 			}
@@ -293,6 +335,10 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 	if (mark_tile_bounds) {
 		geom = impose_tile_boundaries(geom, area);
+	}
+
+	if (!additional[A_VISVALINGAM]) {
+		mark_unnecessary(geom, res * simplification);
 	}
 
 	for (size_t i = 0; i < geom.size(); i++) {
@@ -327,7 +373,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 
 	size_t out = 0;
 	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].necessary) {
+		if (geom[i].necessary > 0) {
 			geom[out++] = geom[i];
 		}
 	}
