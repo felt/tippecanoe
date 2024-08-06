@@ -2070,7 +2070,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 #endif
 
 				struct node n;
-				n.index = encode_quadkey((unsigned) x, (unsigned) y);
+				n.index = encode_vertex((unsigned) x, (unsigned) y);
 
 				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
 			}
@@ -2083,6 +2083,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	if (!quiet) {
 		fprintf(stderr, "Merging nodes                 \r");
 	}
+
+	std::string shared_nodes_bloom;
+	shared_nodes_bloom.resize(34567891);  // circa 34MB, size nowhere near a power of 2
 
 	// Sort nodes that can't be simplified away; scan the list to remove duplicates
 
@@ -2148,6 +2151,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (nodecmp((void *) &here, (void *) &written) != 0) {
 				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
 				written = here;
+
+				size_t bloom_ix = here.index % (shared_nodes_bloom.size() * 8);
+				unsigned char bloom_mask = 1 << (bloom_ix & 7);
+				bloom_ix >>= 3;
+				shared_nodes_bloom[bloom_ix] |= bloom_mask;
 
 #if 0
 				unsigned wx, wy;
@@ -2219,6 +2227,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<long long> geompos(0);
 
 	/* initial tile is normally 0/0/0 but can be iz/ix/iy if limited to one tile */
+	long long estimated_complexity = 0;  // to be replaced after writing the data
+	fwrite_check(&estimated_complexity, sizeof(estimated_complexity), 1, geomfile, &geompos, fname);
 	serialize_int(geomfile, iz, &geompos, fname);
 	serialize_uint(geomfile, ix, &geompos, fname);
 	serialize_uint(geomfile, iy, &geompos, fname);
@@ -2227,6 +2237,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	/* end of tile */
 	serialize_ulong_long(geomfile, 0, &geompos, fname);  // EOF
+
+	estimated_complexity = geompos;
+	fflush(geomfile);
+	if (pwrite(fileno(geomfile), &estimated_complexity, sizeof(estimated_complexity), 0) != sizeof(estimated_complexity)) {
+		perror("pwrite estimated complexity");
+		exit(EXIT_WRITE);
+	}
 
 	if (fclose(geomfile) != 0) {
 		perror("fclose geom");
@@ -2761,7 +2778,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, basezoom, droprate, unidecode_data);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -3050,6 +3067,7 @@ int main(int argc, char **argv) {
 		{"smallest-maximum-zoom-guess", required_argument, 0, '~'},
 		{"extend-zooms-if-still-dropping", no_argument, &additional[A_EXTEND_ZOOMS], 1},
 		{"extend-zooms-if-still-dropping-maximum", required_argument, 0, '~'},
+		{"generate-variable-depth-tile-pyramid", no_argument, &additional[A_VARIABLE_DEPTH_PYRAMID], 1},
 		{"one-tile", required_argument, 0, 'R'},
 
 		{"Tile resolution", 0, 0, 0},

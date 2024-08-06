@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <stack>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -159,107 +158,13 @@ void check_polygon(drawvec &geom) {
 						}
 
 						if (!on_edge) {
-							fprintf(stderr, "%lld,%lld at %lld not in outer ring (%lld to %lld)\n", geom[k].x, geom[k].y, (long long) k, (long long) outer_start, (long long) (outer_start + outer_len));
+							fprintf(stderr, "%lld,%lld at %lld not in outer ring (%lld to %lld)\n", (long long) geom[k].x, (long long) geom[k].y, (long long) k, (long long) outer_start, (long long) (outer_start + outer_len));
 						}
 					}
 				}
 			}
 		}
 	}
-}
-
-drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area) {
-	drawvec out;
-	const double pixel = (1LL << (32 - detail - z)) * (double) tiny_polygon_size;
-
-	bool included_last_outer = false;
-	*still_needs_simplification = false;
-	*reduced_away = false;
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-			}
-
-			double area = get_area(geom, i, j);
-
-			// XXX There is an ambiguity here: If the area of a ring is 0 and it is followed by holes,
-			// we don't know whether the area-0 ring was a hole too or whether it was the outer ring
-			// that these subsequent holes are somehow being subtracted from. I hope that if a polygon
-			// was simplified down to nothing, its holes also became nothing.
-
-			if (area != 0) {
-				// These are pixel coordinates, so area > 0 for the outer ring.
-				// If the outer ring of a polygon was reduced to a pixel, its
-				// inner rings must just have their area de-accumulated rather
-				// than being drawn since we don't really know where they are.
-
-				// i.e., this outer ring is small enough that we are including it
-				// in a tiny polygon rather than letting it represent itself,
-				// OR it is an inner ring and we haven't output an outer ring for it to be
-				// cut out of, so we are just subtracting its area from the tiny polygon
-				// rather than trying to deal with it geometrically
-				if ((area > 0 && area <= pixel * pixel) || (area < 0 && !included_last_outer)) {
-					*accum_area += area;
-					*reduced_away = true;
-
-					if (area > 0 && *accum_area > pixel * pixel) {
-						// XXX use centroid;
-
-						out.emplace_back(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
-
-						*accum_area -= pixel * pixel;
-					}
-
-					if (area > 0) {
-						included_last_outer = false;
-					}
-				}
-				// i.e., this ring is large enough that it gets to represent itself
-				// or it is a tiny hole out of a real polygon, which we are still treating
-				// as a real geometry because otherwise we can accumulate enough tiny holes
-				// that we will drop the next several outer rings getting back up to 0.
-				else {
-					for (size_t k = i; k < j && k < geom.size(); k++) {
-						out.push_back(geom[k]);
-					}
-
-					// which means that the overall polygon has a real geometry,
-					// which means that it gets to be simplified.
-					*still_needs_simplification = true;
-
-					if (area > 0) {
-						included_last_outer = true;
-					}
-				}
-			} else {
-				// area is 0: doesn't count as either having been reduced away,
-				// since it was probably just degenerate from having been clipped,
-				// or as needing simplification, since it produces no output.
-			}
-
-			i = j - 1;
-		} else {
-			fprintf(stderr, "how did we get here with %d in %d?\n", geom[i].op, (int) geom.size());
-
-			for (size_t n = 0; n < geom.size(); n++) {
-				fprintf(stderr, "%d/%lld/%lld ", geom[n].op, geom[n].x, geom[n].y);
-			}
-			fprintf(stderr, "\n");
-
-			out.push_back(geom[i]);
-		}
-	}
-
-	return out;
 }
 
 int quick_check(const long long *bbox, int z, long long buffer) {
@@ -300,130 +205,6 @@ bool point_within_tile(long long x, long long y, int z) {
 	return x >= 0 && y >= 0 && x < area && y < area;
 }
 
-double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y) {
-	long long p2x = segB_x - segA_x;
-	long long p2y = segB_y - segA_y;
-
-	// These calculations must be made in integers instead of floating point
-	// to make them consistent between x86 and arm floating point implementations.
-	//
-	// Coordinates may be up to 34 bits, so their product is up to 68 bits,
-	// making their sum up to 69 bits. Downshift before multiplying to keep them in range.
-	double something = ((p2x / 4) * (p2x / 8) + (p2y / 4) * (p2y / 8)) * 32.0;
-	// likewise
-	double u = (0 == something) ? 0 : ((point_x - segA_x) / 4 * (p2x / 8) + (point_y - segA_y) / 4 * (p2y / 8)) * 32.0 / (something);
-
-	if (u >= 1) {
-		u = 1;
-	} else if (u <= 0) {
-		u = 0;
-	}
-
-	double x = segA_x + u * p2x;
-	double y = segA_y + u * p2y;
-
-	double dx = x - point_x;
-	double dy = y - point_y;
-
-	double out = std::round(sqrt(dx * dx + dy * dy) * 16.0) / 16.0;
-	return out;
-}
-
-// https://github.com/Project-OSRM/osrm-backend/blob/733d1384a40f/Algorithms/DouglasePeucker.cpp
-static void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain) {
-	std::stack<int> recursion_stack;
-
-	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
-		fprintf(stderr, "endpoints not marked necessary\n");
-		exit(EXIT_IMPOSSIBLE);
-	}
-
-	int prev = 0;
-	for (int here = 1; here < n; here++) {
-		if (geom[start + here].necessary) {
-			recursion_stack.push(prev);
-			recursion_stack.push(here);
-			prev = here;
-
-			if (prevent[P_SIMPLIFY_SHARED_NODES]) {
-				if (retain > 0) {
-					retain--;
-				}
-			}
-		}
-	}
-	// These segments are put on the stack from start to end,
-	// independent of winding, so note that anything that uses
-	// "retain" to force it to keep at least N points will
-	// keep a different set of points when wound one way than
-	// when wound the other way.
-
-	while (!recursion_stack.empty()) {
-		// pop next element
-		int second = recursion_stack.top();
-		recursion_stack.pop();
-		int first = recursion_stack.top();
-		recursion_stack.pop();
-
-		double max_distance = -1;
-		int farthest_element_index;
-
-		// find index idx of element with max_distance
-		int i;
-		if (geom[start + first] < geom[start + second]) {
-			farthest_element_index = first;
-			for (i = first + 1; i < second; i++) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + first].x, geom[start + first].y, geom[start + second].x, geom[start + second].y);
-
-				double distance = std::fabs(temp_dist);
-
-				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
-					farthest_element_index = i;
-					max_distance = distance;
-				}
-			}
-		} else {
-			farthest_element_index = second;
-			for (i = second - 1; i > first; i--) {
-				double temp_dist = distance_from_line(geom[start + i].x, geom[start + i].y, geom[start + second].x, geom[start + second].y, geom[start + first].x, geom[start + first].y);
-
-				double distance = std::fabs(temp_dist);
-
-				if ((distance > e || kept < retain) && (distance > max_distance || (distance == max_distance && geom[start + i] < geom[start + farthest_element_index]))) {
-					farthest_element_index = i;
-					max_distance = distance;
-				}
-			}
-		}
-
-		if (max_distance >= 0) {
-			// mark idx as necessary
-			geom[start + farthest_element_index].necessary = 1;
-			kept++;
-
-			if (geom[start + first] < geom[start + second]) {
-				if (1 < farthest_element_index - first) {
-					recursion_stack.push(first);
-					recursion_stack.push(farthest_element_index);
-				}
-				if (1 < second - farthest_element_index) {
-					recursion_stack.push(farthest_element_index);
-					recursion_stack.push(second);
-				}
-			} else {
-				if (1 < second - farthest_element_index) {
-					recursion_stack.push(farthest_element_index);
-					recursion_stack.push(second);
-				}
-				if (1 < farthest_element_index - first) {
-					recursion_stack.push(first);
-					recursion_stack.push(farthest_element_index);
-				}
-			}
-		}
-	}
-}
-
 // If any line segment crosses a tile boundary, add a node there
 // that cannot be simplified away, to prevent the edge of any
 // feature from jumping abruptly at the tile boundary.
@@ -458,7 +239,7 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 	return out;
 }
 
-drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos) {
+drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
 
@@ -495,12 +276,16 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 					d.y += ty * (1LL << (32 - z));
 				}
 
-				// to quadkey
 				struct node n;
-				n.index = encode_quadkey((unsigned) d.x, (unsigned) d.y);
+				n.index = encode_vertex((unsigned) d.x, (unsigned) d.y);
+				size_t bloom_ix = n.index % (shared_nodes_bloom.size() * 8);
+				unsigned char bloom_mask = 1 << (bloom_ix & 7);
+				bloom_ix >>= 3;
 
-				if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-					geom[i].necessary = true;
+				if (shared_nodes_bloom[bloom_ix] & bloom_mask) {
+					if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+						geom[i].necessary = true;
+					}
 				}
 			}
 		}
@@ -533,7 +318,7 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				if (additional[A_VISVALINGAM]) {
 					visvalingam(geom, i, j, scale, retain);
 				} else {
-					douglas_peucker(geom, i, j - i, res * simplification, 2, retain);
+					douglas_peucker(geom, i, j - i, res * simplification, 2, retain, prevent[P_SIMPLIFY_SHARED_NODES]);
 				}
 			}
 			i = j - 1;

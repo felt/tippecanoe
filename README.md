@@ -352,6 +352,7 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
    specified maximum zoom and to any levels added beyond that.
  * `--extend-zooms-if-still-dropping-maximum=`_count_: Increase the maxzoom if features are still being dropped at that zoom level
    by up to _count_ zoom levels.
+ * `-at` or `--generate-variable-depth-tile-pyramid`: Don't produce child tiles for any tile that should be sufficient to be overzoomed to any higher zoom level. Such tiles will be produced with maximum detail and no simplification or polygon cleaning. Tiles with point features below the basezoom or where any features have to be dropped dynamically, or which contain too many features or bytes with full detail, will be written out with normal detail and split into child tiles. Tilesets generated with this option are suitable for use only with tile servers that will find the appropriate tile to overzoom from and will simplify and clean the geometries appropriately before serving the tile.
  * `-R` _zoom_`/`_x_`/`_y_ or `--one-tile=`_zoom_`/`_x_`/`_y_: Set the minzoom and maxzoom to _zoom_ and produce only
    the single specified tile at that zoom level.
 

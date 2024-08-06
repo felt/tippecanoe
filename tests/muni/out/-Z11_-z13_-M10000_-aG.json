@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-M10000_-aG.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":14925,\"dropped_by_gamma\":53,\"detail_reduced\":3,\"tile_size_desired\":10887},{\"dropped_by_rate\":6391,\"dropped_by_gamma\":190,\"detail_reduced\":3,\"tile_size_desired\":10721},{}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":4080,\"dropped_by_gamma\":17,\"detail_reduced\":3,\"tile_size_desired\":10887},{\"dropped_by_rate\":2974,\"dropped_by_gamma\":85,\"detail_reduced\":3,\"tile_size_desired\":10721},{}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

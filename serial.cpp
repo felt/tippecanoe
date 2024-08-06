@@ -131,12 +131,12 @@ void deserialize_ulong_long(const char **f, unsigned long long *zigzag) {
 
 	while (1) {
 		if ((**f & 0x80) == 0) {
-			*zigzag |= ((const unsigned long long) **f) << shift;
+			*zigzag |= ((unsigned long long) **f) << shift;
 			*f += 1;
 			shift += 7;
 			break;
 		} else {
-			*zigzag |= ((const unsigned long long) (**f & 0x7F)) << shift;
+			*zigzag |= ((unsigned long long) (**f & 0x7F)) << shift;
 			*f += 1;
 			shift += 7;
 		}
@@ -407,7 +407,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 	long long y = SHIFT_LEFT(g.y);
 
 	struct node n;
-	n.index = encode_quadkey((unsigned) x, (unsigned) y);
+	n.index = encode_vertex((unsigned) x, (unsigned) y);
 
 	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
 }

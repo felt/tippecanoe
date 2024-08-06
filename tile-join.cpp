@@ -64,12 +64,12 @@ bool progress_time() {
 }
 
 struct stats {
-	int minzoom;
-	int maxzoom;
-	double midlat, midlon;
-	double minlat, minlon, maxlat, maxlon;
-	double minlat2, minlon2, maxlat2, maxlon2;
-	std::vector<struct strategy> strategies;
+	int minzoom = 0;
+	int maxzoom = 0;
+	double midlat = 0, midlon = 0;
+	double minlat = 0, minlon = 0, maxlat = 0, maxlon = 0;
+	double minlat2 = 0, minlon2 = 0, maxlat2 = 0, maxlon2 = 0;
+	std::vector<struct strategy> strategies{};
 };
 
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
@@ -712,7 +712,7 @@ struct tileset_reader {
 			t.y = parent_tile.y;
 			tv.push_back(std::move(t));
 
-			std::string ret = overzoom(tv, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data);
+			std::string ret = overzoom(tv, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data, 0, 0);
 			return ret;
 		}
 
@@ -877,6 +877,8 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 							(*st)[i].dropped_as_needed += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "coalesced_as_needed") == 0) {
 							(*st)[i].coalesced_as_needed += v->value.number.number;
+						} else if (strcmp(k->value.string.string, "truncated_zooms") == 0) {
+							(*st)[i].truncated_zooms += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "detail_reduced") == 0) {
 							(*st)[i].detail_reduced += v->value.number.number;
 						} else if (strcmp(k->value.string.string, "tiny_polygons") == 0) {
@@ -1473,7 +1475,6 @@ int main(int argc, char **argv) {
 	}
 
 	struct stats st;
-	memset(&st, 0, sizeof(st));
 	st.minzoom = st.minlat = st.minlon = st.minlat2 = st.minlon2 = INT_MAX;
 	st.maxzoom = st.maxlat = st.maxlon = st.maxlat2 = st.maxlon2 = INT_MIN;
 
