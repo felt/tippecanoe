@@ -423,12 +423,15 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 	for (size_t i = 0; i < sf.geometry.size(); i++) {
 		if (sf.geometry[i].op == VT_MOVETO || sf.geometry[i].op == VT_LINETO) {
-			if (sf.geometry[i].y > 0 && sf.geometry[i].y < 0xFFFFFFFF) {
-				// standard -180 to 180 world plane
+			// standard -180 to 180 world plane
+			//
+			// mask X, since it wraps around
+			// pin Y, since it doesn't
 
-				long long x = sf.geometry[i].x & 0xFFFFFFFF;
-				long long y = sf.geometry[i].y & 0xFFFFFFFF;
+			long long x = sf.geometry[i].x & 0xFFFFFFFF;
+			long long y = std::max(std::min(sf.geometry[i].y, 0xFFFFFFFFLL), 0LL);
 
+			{
 				r->file_bbox1[0] = std::min(r->file_bbox1[0], x);
 				r->file_bbox1[1] = std::min(r->file_bbox1[1], y);
 				r->file_bbox1[2] = std::max(r->file_bbox1[2], x);

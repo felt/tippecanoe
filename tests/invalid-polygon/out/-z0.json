@@ -1,5 +1,5 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "180.000000,85.051129,-180.000000,-85.051129",
+"antimeridian_adjusted_bounds": "-135.232962,-85.051129,-135.232962,-85.051129",
 "bounds": "-135.232962,-85.051129,-135.232962,-85.051129",
 "center": "-135.232962,-85.051129,0",
 "description": "tests/invalid-polygon/out/-z0.json.check.mbtiles",
