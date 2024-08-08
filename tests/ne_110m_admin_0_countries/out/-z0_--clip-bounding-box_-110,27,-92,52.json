@@ -1,5 +1,5 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "0.023802,-85.040752,359.950216,83.645130",
+"antimeridian_adjusted_bounds": "0.023802,-85.051129,359.950216,83.645130",
 "bounds": "-110.039063,26.980829,-92.021484,51.998410",
 "center": "-92.021484,26.980829,0",
 "description": "tests/ne_110m_admin_0_countries/out/-z0_--clip-bounding-box_-110,27,-92,52.json.check.mbtiles",

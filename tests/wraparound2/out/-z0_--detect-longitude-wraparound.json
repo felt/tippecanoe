@@ -1,5 +1,5 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-180.000000,12.583700,179.688000,85.027900",
+"antimeridian_adjusted_bounds": "-180.000000,12.583700,179.688000,85.051129",
 "bounds": "-180.000000,12.583700,180.000000,85.051129",
 "center": "0.000000,12.583700,0",
 "description": "tests/wraparound2/out/-z0_--detect-longitude-wraparound.json.check.mbtiles",
