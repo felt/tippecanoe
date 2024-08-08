@@ -1,3 +1,7 @@
+# 2.59.0
+
+* Correct `antimeridian_adjusted_bounds` latitude calculation when vertices extend beyond the edge of the Mercator plane
+
 # 2.58.0
 
 * Add --generate-variable-depth-tile-pyramid option
