@@ -772,6 +772,17 @@ static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, d
 	return gaps[ix];
 }
 
+static unsigned long long choose_maxgap(std::vector<unsigned long long> &gaps, double f, unsigned long long existing_gap) {
+	std::stable_sort(gaps.begin(), gaps.end());
+
+	size_t ix = (gaps.size() - 1) * f;
+	while (ix > 0 && gaps[ix] == existing_gap) {
+		ix--;
+	}
+
+	return gaps[ix];
+}
+
 // This function is called to choose the new "extent" threshold to try when a tile exceeds the
 // tile size limit or feature limit and `--drop-smallest-as-needed` or `--coalesce-smallest-as-needed`
 // has been set.
@@ -888,6 +899,8 @@ struct write_tile_args {
 	size_t pass = 0;
 	unsigned long long mingap = 0;
 	unsigned long long mingap_out = 0;
+	unsigned long long maxgap = 0;
+	unsigned long long maxgap_out = 0;
 	long long minextent = 0;
 	long long minextent_out = 0;
 	unsigned long long mindrop_sequence = 0;
@@ -1547,9 +1560,10 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, unsigned long long maxgap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
+	double maxgap_fraction = 1;
 	double minextent_fraction = 1;
 	double mindrop_sequence_fraction = 1;
 
@@ -1864,9 +1878,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						can_stop_early = false;
 						continue;
 					}
-				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
+				} else if (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_DROP_SPARSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
-					if (sf.gap < mingap) {
+					if (sf.gap < mingap || sf.gap > maxgap) {
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
 							can_stop_early = false;
 							continue;
@@ -1895,9 +1909,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						drop_rest = true;
 						continue;
 					}
-				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
+				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_COALESCE_SPARSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
-					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if ((sf.gap < mingap || sf.gap > maxgap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
@@ -2529,6 +2543,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
+				} else if (maxgap > 0 && (additional[A_DROP_SPARSEST_AS_NEEDED] || additional[A_COALESCE_SPARSEST_AS_NEEDED])) {
+					maxgap_fraction = maxgap_fraction * scaled_max_tile_features / totalsize * 0.80;
+					unsigned long long m = choose_maxgap(gaps, maxgap_fraction, maxgap);
+					if (m != maxgap) {
+						maxgap = m;
+						if (maxgap < arg->maxgap_out) {
+							arg->maxgap_out = maxgap;
+							arg->still_dropping = true;
+						}
+						if (!quiet) {
+							fprintf(stderr, "Going to try keeping the densest %0.2f%% of the features to make it fit\n", maxgap_fraction * 100.0);
+						}
+						line_detail++;
+						continue;
+					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * scaled_max_tile_features / totalsize * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
@@ -2637,6 +2666,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						if (!quiet) {
 							fprintf(stderr, "Going to try keeping the sparsest %0.2f%% of the features to make it fit\n", mingap_fraction * 100.0);
+						}
+						line_detail++;
+						continue;
+					}
+				} else if (maxgap > 0 && (additional[A_DROP_SPARSEST_AS_NEEDED] || additional[A_COALESCE_SPARSEST_AS_NEEDED])) {
+					maxgap_fraction = maxgap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.80;
+					unsigned long long m = choose_maxgap(gaps, maxgap_fraction, maxgap);
+					if (m != maxgap) {
+						maxgap = m;
+						if (maxgap < arg->maxgap_out) {
+							arg->maxgap_out = maxgap;
+							arg->still_dropping = true;
+						}
+						if (!quiet) {
+							fprintf(stderr, "Going to try keeping the densest %0.2f%% of the features to make it fit\n", maxgap_fraction * 100.0);
 						}
 						line_detail++;
 						continue;
@@ -2810,7 +2854,7 @@ exit(EXIT_IMPOSSIBLE);
 				skip_tile(&dc, &geompos, arg->compressed);
 				len = 1;
 			} else {
-				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
+				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->maxgap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
 			}
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
@@ -2987,6 +3031,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 
 		double zoom_gamma = gamma;
 		unsigned long long zoom_mingap = 0;
+		unsigned long long zoom_maxgap = ULLONG_MAX;
 		long long zoom_minextent = 0;
 		unsigned long long zoom_mindrop_sequence = 0;
 		size_t zoom_tile_size = 0;
@@ -3020,7 +3065,9 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].gamma = zoom_gamma;
 				args[thread].gamma_out = zoom_gamma;
 				args[thread].mingap = zoom_mingap;
+				args[thread].maxgap = zoom_maxgap;
 				args[thread].mingap_out = zoom_mingap;
+				args[thread].maxgap_out = zoom_maxgap;
 				args[thread].minextent = zoom_minextent;
 				args[thread].minextent_out = zoom_minextent;
 				args[thread].mindrop_sequence = zoom_mindrop_sequence;
@@ -3101,6 +3148,10 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				}
 				if (args[thread].mingap_out > zoom_mingap) {
 					zoom_mingap = args[thread].mingap_out;
+					again = true;
+				}
+				if (args[thread].maxgap_out < zoom_maxgap) {
+					zoom_maxgap = args[thread].maxgap_out;
 					again = true;
 				}
 				if (args[thread].minextent_out > zoom_minextent) {
