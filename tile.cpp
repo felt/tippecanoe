@@ -1640,6 +1640,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		size_t lead_features_count = 0;			     // of the tile so far
 		size_t other_multiplier_cluster_features_count = 0;  // of the tile so far
 
+		bool too_many_features = false;
+		bool too_many_bytes = false;
+
 		std::atomic<bool> within[child_shards];
 		long long start_geompos[child_shards];
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
@@ -1995,10 +1998,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
-				if (lead_features_count > max_tile_size || (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT])) {
+				if (lead_features_count > max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
+					too_many_bytes = true;
+				} else if (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+					skipped++;
+					too_many_features = true;
 				} else {
 					kept++;
 
@@ -2483,7 +2490,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		if (totalsize > 0 && tile.layers.size() > 0) {
-			if (totalsize > scaled_max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+			if (too_many_features || (totalsize > scaled_max_tile_features && !prevent[P_FEATURE_LIMIT])) {
 				if (totalsize > arg->feature_count_out) {
 					arg->feature_count_out = totalsize;
 				}
@@ -2585,7 +2592,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// printf("%lld %zu\n", estimated_complexity, compressed.size());
 			}
 
-			if (compressed.size() > scaled_max_tile_size && !prevent[P_KILOBYTE_LIMIT]) {
+			if (too_many_bytes || (compressed.size() > scaled_max_tile_size && !prevent[P_KILOBYTE_LIMIT])) {
 				// Estimate how big it really should have been compressed
 				// from how many features were kept vs skipped for already being
 				// over the threshold
