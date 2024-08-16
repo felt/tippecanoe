@@ -49,7 +49,6 @@
 #include "tile.hpp"
 #include "pool.hpp"
 #include "projection.hpp"
-#include "version.hpp"
 #include "memfile.hpp"
 #include "main.hpp"
 #include "geojson.hpp"
@@ -3608,7 +3607,7 @@ int main(int argc, char **argv) {
 		}
 
 		case 'v':
-			fprintf(stderr, "tippecanoe %s\n", VERSION);
+			fprintf(stderr, "tippecanoe %s\n", version_str().c_str());
 			exit(EXIT_SUCCESS);
 
 		case 'P':

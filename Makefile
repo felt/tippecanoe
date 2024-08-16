@@ -1,14 +1,15 @@
 PREFIX ?= /usr/local
 MANDIR ?= $(PREFIX)/share/man/man1/
 BUILDTYPE ?= Release
+BUILD_INFO ?=
 SHELL = /bin/sh
 
 
 # inherit from env if set
 CC := $(CC)
 CXX := $(CXX)
-CFLAGS := $(CFLAGS) -fPIE
-CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE
+CFLAGS := $(CFLAGS) -fPIE -DBUILD_INFO=$(BUILD_INFO)
+CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE -DBUILD_INFO=$(BUILD_INFO)
 LDFLAGS := $(LDFLAGS)
 WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow
 RELEASE_FLAGS := -O3 -DNDEBUG

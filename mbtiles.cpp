@@ -654,6 +654,17 @@ static double sixdig(double val) {
 	return std::round(val * 1e6) / 1e6;
 }
 
+#define str(x) #x
+#define xstr(x) str(x)
+std::string version_str() {
+	std::string s = VERSION;
+	std::string build_info = xstr(BUILD_INFO);
+	if (build_info.size() > 0) {
+		s += " " + build_info;
+	}
+	return s;
+}
+
 metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, int retain_points_multiplier) {
 	metadata m;
 
@@ -684,7 +695,7 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 		m.attribution = attribution;
 	}
 
-	m.generator = program + " " + VERSION;
+	m.generator = program + " " + version_str();
 	m.generator_options = commandline;
 
 	m.strategies_json = stringify_strategies(strategies);
