@@ -1521,7 +1521,7 @@ struct layer_features {
 	size_t multiplier_cluster_size = 0;    // The feature count of the current multiplier cluster
 };
 
-bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, size_t &multiplier_seq, strategy &strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
+bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, size_t &multiplier_seq, strategy &strategy, bool &drop_rest_of_cluster, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
 	ssize_t which_serial_feature;
 
 	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
@@ -1533,7 +1533,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 		} else {
 			preserve_attributes(attribute_accum, sf, layer.features[which_serial_feature]);
 			strategy.dropped_as_needed++;
-			drop_rest = true;
+			drop_rest_of_cluster = true;
 			return true;  // dropped
 		}
 	}
@@ -1744,8 +1744,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		struct multiplier_state multiplier_state;
 		size_t multiplier_seq = retain_points_multiplier - 1;
-		bool drop_rest = false;		// are we dropping the remainder of a multiplier cluster whose first point was dropped?
-		bool dropping_by_rate = false;	// are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
+		bool drop_rest_of_cluster = false;  // are we dropping the remainder of a multiplier cluster whose first point was dropped?
+		bool dropping_by_rate = false;	    // are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
 		unsigned long long next_feature_previndex = 0;
 
 		strategy strategy;
@@ -1800,7 +1800,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.dropped == FEATURE_KEPT) {
 				// this is a new multiplier cluster, so stop dropping features
 				// that were dropped because the previous lead feature was dropped
-				drop_rest = false;
+				drop_rest_of_cluster = false;
 			} else {
 				can_stop_early = false;
 
@@ -1814,7 +1814,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
+			if (sf.dropped == FEATURE_DROPPED || drop_rest_of_cluster) {
 				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
 
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
@@ -1829,13 +1829,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
-			// cluster down with it by setting drop_rest).
+			// cluster down with it by setting drop_rest_of_cluster).
 			if (sf.dropped == FEATURE_KEPT) {
 				if (gamma > 0) {
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.dropped_by_gamma++;
-						drop_rest = true;
+						drop_rest_of_cluster = true;
 						can_stop_early = false;
 						continue;
 					}
@@ -1863,14 +1863,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.coalesced_as_needed++;
-						drop_rest = true;
+						drop_rest_of_cluster = true;
 						can_stop_early = false;
 						continue;
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest_of_cluster, arg->attribute_accum)) {
 							can_stop_early = false;
 							continue;
 						}
@@ -1895,7 +1895,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.coalesced_as_needed++;
-						drop_rest = true;
+						drop_rest_of_cluster = true;
 						continue;
 					}
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
@@ -1906,7 +1906,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.coalesced_as_needed++;
-						drop_rest = true;
+						drop_rest_of_cluster = true;
 						can_stop_early = false;
 						continue;
 					}
@@ -1915,7 +1915,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest_of_cluster, arg->attribute_accum)) {
 							can_stop_early = false;
 							continue;
 						}
@@ -1928,7 +1928,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.coalesced_as_needed++;
-						drop_rest = true;
+						drop_rest_of_cluster = true;
 						can_stop_early = false;
 						continue;
 					}
@@ -1937,7 +1937,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest_of_cluster, arg->attribute_accum)) {
 							can_stop_early = false;
 							continue;
 						}
@@ -1949,7 +1949,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						features[which_serial_feature].coalesced = true;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.coalesced_as_needed++;
-						drop_rest = true;
+						drop_rest_of_cluster = true;
 						can_stop_early = false;
 						continue;
 					}
@@ -1998,12 +1998,22 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
-				if (lead_features_count > max_tile_size) {
+				// Adjust tile size limit based on the ratio of multiplier cluster features to lead features
+				size_t scaled_max_tile_size = max_tile_size;
+				if (lead_features_count > 0) {
+					scaled_max_tile_size *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+				}
+				size_t scaled_max_tile_features = max_tile_features;
+				if (lead_features_count > 0) {
+					scaled_max_tile_features *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+				}
+
+				if (too_many_bytes || lead_features_count > scaled_max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
 					too_many_bytes = true;
-				} else if (lead_features_count + other_multiplier_cluster_features_count > max_tile_features && !prevent[P_FEATURE_LIMIT]) {
+				} else if (too_many_features || (lead_features_count + other_multiplier_cluster_features_count > scaled_max_tile_features && !prevent[P_FEATURE_LIMIT])) {
 					skipped++;
 					too_many_features = true;
 				} else {
@@ -2495,10 +2505,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					arg->feature_count_out = totalsize;
 				}
 
-				size_t estimated = totalsize * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+				size_t estimated = totalsize * (skipped + kept) / kept;
 
 				if (!quiet) {
-					fprintf(stderr, "tile %d/%u/%u has %zu (%zu) features, >%zu    \n", z, tx, ty, totalsize, estimated, scaled_max_tile_features);
+					fprintf(stderr, "tile %d/%u/%u has %zu (estimated %zu) features, >%zu    \n", z, tx, ty, totalsize, estimated, scaled_max_tile_features);
 				}
 
 				if (trying_to_stop_early && line_detail == first_detail) {
@@ -2689,6 +2699,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (pthread_mutex_lock(&db_lock) != 0) {
 					perror("pthread_mutex_lock");
 					exit(EXIT_PTHREAD);
+				}
+
+				if (skipped > 0 || too_many_bytes || too_many_features) {
+					fprintf(stderr, "Can't happen: writing tile even though we skipped\n");
+					exit(EXIT_IMPOSSIBLE);
 				}
 
 				if (outdb != NULL) {
