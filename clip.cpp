@@ -1188,37 +1188,6 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			static const std::string retain_points_multiplier_sequence = "tippecanoe:retain_points_multiplier_sequence";
 
 			for (auto feature : layer.features) {
-				bool flush_multiplier_cluster = false;
-				if (demultiply) {
-					for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
-						if (layer.keys[feature.tags[i]] == retain_points_multiplier_first) {
-							mvt_value v = layer.values[feature.tags[i + 1]];
-							if (v.type == mvt_bool && v.numeric_value.bool_value) {
-								flush_multiplier_cluster = true;
-								feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
-							}
-						} else if (i < (ssize_t) feature.tags.size() && layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
-							mvt_value v = layer.values[feature.tags[i + 1]];
-							feature.seq = mvt_value_to_long_long(v);
-							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
-						}
-					}
-				} else {
-					flush_multiplier_cluster = true;
-				}
-
-				if (flush_multiplier_cluster) {
-					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool);
-						pending_tile_features.clear();
-					}
-				}
-
-				std::set<std::string> exclude_attributes;
-				if (filter != NULL && !evaluate(feature, layer, filter, exclude_attributes, nz, unidecode_data)) {
-					continue;
-				}
-
 				drawvec geom;
 				int t = feature.type;
 
@@ -1268,6 +1237,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 					long long b = outtilesize * buffer / 256;
 					if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
+						// quick exclusion by bounding box
 						continue;
 					}
 
@@ -1279,6 +1249,42 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					} else if (t == VT_POINT) {
 						geom = clip_point(geom, nz, buffer);
 					}
+				}
+
+				if (geom.size() == 0) {
+					// clipped away
+					continue;
+				}
+
+				bool flush_multiplier_cluster = false;
+				if (demultiply) {
+					for (ssize_t i = feature.tags.size() - 2; i >= 0; i -= 2) {
+						if (layer.keys[feature.tags[i]] == retain_points_multiplier_first) {
+							mvt_value v = layer.values[feature.tags[i + 1]];
+							if (v.type == mvt_bool && v.numeric_value.bool_value) {
+								flush_multiplier_cluster = true;
+								feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
+							}
+						} else if (i < (ssize_t) feature.tags.size() && layer.keys[feature.tags[i]] == retain_points_multiplier_sequence) {
+							mvt_value v = layer.values[feature.tags[i + 1]];
+							feature.seq = mvt_value_to_long_long(v);
+							feature.tags.erase(feature.tags.begin() + i, feature.tags.begin() + i + 2);
+						}
+					}
+				} else {
+					flush_multiplier_cluster = true;
+				}
+
+				if (flush_multiplier_cluster) {
+					if (pending_tile_features.size() > 0) {
+						feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool);
+						pending_tile_features.clear();
+					}
+				}
+
+				std::set<std::string> exclude_attributes;
+				if (filter != NULL && !evaluate(feature, layer, filter, exclude_attributes, nz, unidecode_data)) {
+					continue;
 				}
 
 				bool still_need_simplification_after_reduction = false;
