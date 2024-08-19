@@ -9,7 +9,7 @@
 "maxzoom": "13",
 "minzoom": "11",
 "name": "tests/muni/out/-Z11_-z13_-O100_--cluster-densest-as-needed.json.check.mbtiles",
-"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":4080,\"coalesced_as_needed\":681,\"feature_count_desired\":101},{\"dropped_by_rate\":2974,\"coalesced_as_needed\":1789,\"feature_count_desired\":101},{\"coalesced_as_needed\":4457,\"feature_count_desired\":101}]",
+"strategies": "[{},{},{},{},{},{},{},{},{},{},{},{\"dropped_by_rate\":4080,\"coalesced_as_needed\":681,\"feature_count_desired\":703},{\"dropped_by_rate\":2974,\"coalesced_as_needed\":1789,\"feature_count_desired\":755},{\"coalesced_as_needed\":4457,\"feature_count_desired\":856}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

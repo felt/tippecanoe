@@ -1998,22 +1998,40 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
-				// Adjust tile size limit based on the ratio of multiplier cluster features to lead features
-				size_t scaled_max_tile_size = max_tile_size;
+				// There are two adjustments that we need to make
+				// when determining if we have hit the feature count
+				// or byte size limit:
+				//
+				// The max_tile_size and max_tile_features are inflated
+				// to account for the number of multiplier clusters features
+				// we are carrying around in addition to their lead features.
+
+				size_t adjusted_max_tile_size = max_tile_size;
 				if (lead_features_count > 0) {
-					scaled_max_tile_size *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+					adjusted_max_tile_size = adjusted_max_tile_size * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
 				}
-				size_t scaled_max_tile_features = max_tile_features;
+				size_t adjusted_max_tile_features = max_tile_features;
 				if (lead_features_count > 0) {
-					scaled_max_tile_features *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+					adjusted_max_tile_features = adjusted_max_tile_features * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
 				}
 
-				if (too_many_bytes || lead_features_count > scaled_max_tile_size) {
+				// The number of features in the tile, meanwhile, is inflated
+				// to account for the number of features that we have skipped over
+				// because we were already over the limit, in addition to those
+				// that we have actually added to the layer (as either lead or
+				// multiplier features).
+
+				size_t adjusted_feature_count = lead_features_count + other_multiplier_cluster_features_count;
+				if (kept > 0) {
+					adjusted_feature_count = adjusted_feature_count * (skipped + kept) / kept;
+				}
+
+				if (too_many_bytes || adjusted_feature_count > adjusted_max_tile_size) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
 					too_many_bytes = true;
-				} else if (too_many_features || (lead_features_count + other_multiplier_cluster_features_count > scaled_max_tile_features && !prevent[P_FEATURE_LIMIT])) {
+				} else if (too_many_features || ((adjusted_feature_count > adjusted_max_tile_features) && !prevent[P_FEATURE_LIMIT])) {
 					skipped++;
 					too_many_features = true;
 				} else {
@@ -2151,13 +2169,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		first_time = false;
 
 		// Adjust tile size limit based on the ratio of multiplier cluster features to lead features
-		size_t scaled_max_tile_size = max_tile_size;
+		size_t adjusted_max_tile_size = max_tile_size;
 		if (lead_features_count > 0) {
-			scaled_max_tile_size *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+			adjusted_max_tile_size = adjusted_max_tile_size * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
 		}
-		size_t scaled_max_tile_features = max_tile_features;
+		size_t adjusted_max_tile_features = max_tile_features;
 		if (lead_features_count > 0) {
-			scaled_max_tile_features *= (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
+			adjusted_max_tile_features = adjusted_max_tile_features * (lead_features_count + other_multiplier_cluster_features_count) / lead_features_count;
 		}
 
 		// Operations on the features within each layer:
@@ -2404,11 +2422,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		mvt_tile tile;
-		size_t totalsize = 0;
+		size_t feature_count = 0;
 
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
 			std::vector<serial_feature> &layer_features = layer_iterator->second.features;
-			totalsize += layer_features.size();
+			feature_count += layer_features.size();
 
 			mvt_layer layer;
 			layer.name = layer_iterator->first;
@@ -2499,16 +2517,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			continue;
 		}
 
-		if (totalsize > 0 && tile.layers.size() > 0) {
-			if (too_many_features || (totalsize > scaled_max_tile_features && !prevent[P_FEATURE_LIMIT])) {
-				if (totalsize > arg->feature_count_out) {
-					arg->feature_count_out = totalsize;
+		// Again, adjust the retabulated feature count to estimate
+		// how many total features there would have been if we hadn't
+		// hit the limit and started dropping early.
+
+		size_t adjusted_feature_count = feature_count;
+		if (kept > 0) {
+			adjusted_feature_count = adjusted_feature_count * (skipped + kept) / kept;
+		}
+
+		if (adjusted_feature_count > 0 && tile.layers.size() > 0) {
+			if (too_many_features || (adjusted_feature_count > adjusted_max_tile_features && !prevent[P_FEATURE_LIMIT])) {
+				if (adjusted_feature_count > arg->feature_count_out) {
+					arg->feature_count_out = adjusted_feature_count;
 				}
 
-				size_t estimated = totalsize * (skipped + kept) / kept;
-
 				if (!quiet) {
-					fprintf(stderr, "tile %d/%u/%u has %zu (estimated %zu) features, >%zu    \n", z, tx, ty, totalsize, estimated, scaled_max_tile_features);
+					fprintf(stderr, "tile %d/%u/%u has %zu (estimated %zu) features, >%zu    \n", z, tx, ty, feature_count, adjusted_feature_count, adjusted_max_tile_features);
 				}
 
 				if (trying_to_stop_early && line_detail == first_detail) {
@@ -2534,7 +2559,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * scaled_max_tile_features / estimated * 0.80;
+					mingap_fraction = mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m != mingap) {
 						mingap = m;
@@ -2549,7 +2574,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * scaled_max_tile_features / estimated * 0.75;
+					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m != minextent) {
 						minextent = m;
@@ -2563,11 +2588,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
-				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
+				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					mindrop_sequence_fraction = mindrop_sequence_fraction * scaled_max_tile_features / estimated * 0.95;
+					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m != mindrop_sequence) {
 						mindrop_sequence = m;
@@ -2600,26 +2625,24 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				compressed = pbf;
 			}
 
-			if (trying_to_stop_early && line_detail == first_detail) {
-				// printf("%lld %zu\n", estimated_complexity, compressed.size());
+			// And similarly, adjust the compressed byte size to estimate
+			// what it would have been if we hadn't stopped dropping features early
+
+			size_t adjusted_tile_size = compressed.size();
+			if (kept > 0) {
+				adjusted_tile_size = adjusted_tile_size * (kept + skipped) / kept;
 			}
 
-			if (too_many_bytes || (compressed.size() > scaled_max_tile_size && !prevent[P_KILOBYTE_LIMIT])) {
-				// Estimate how big it really should have been compressed
-				// from how many features were kept vs skipped for already being
-				// over the threshold
-
-				double kept_adjust = (skipped + kept) / (double) kept;
-
-				if (compressed.size() > arg->tile_size_out) {
-					arg->tile_size_out = compressed.size() * kept_adjust;
+			if (too_many_bytes || (adjusted_tile_size > adjusted_max_tile_size && !prevent[P_KILOBYTE_LIMIT])) {
+				if (adjusted_tile_size > arg->tile_size_out) {
+					arg->tile_size_out = adjusted_tile_size;
 				}
 
 				if (!quiet) {
-					if (skipped > 0) {
-						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %lld) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), (long long) (compressed.size() * kept_adjust), line_detail, scaled_max_tile_size);
+					if (adjusted_tile_size == compressed.size()) {
+						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %zu) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), adjusted_tile_size, line_detail, adjusted_max_tile_size);
 					} else {
-						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, scaled_max_tile_size);
+						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, adjusted_max_tile_size);
 					}
 				}
 
@@ -2646,7 +2669,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.80;
+					mingap_fraction = mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m != mingap) {
 						mingap = m;
@@ -2661,7 +2684,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
+					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m != minextent) {
 						minextent = m;
@@ -2675,8 +2698,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						line_detail++;
 						continue;
 					}
-				} else if (totalsize > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
-					mindrop_sequence_fraction = mindrop_sequence_fraction * scaled_max_tile_size / (kept_adjust * compressed.size()) * 0.75;
+				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
+					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m != mindrop_sequence) {
 						mindrop_sequence = m;
