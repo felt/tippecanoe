@@ -2826,7 +2826,6 @@ exit(EXIT_IMPOSSIBLE);
 				dc.begin();
 			}
 
-			arg->wrote_zoom = z;
 			long long len;
 
 			struct zxy parent(z - 1, x / 2, y / 2);
@@ -2834,6 +2833,7 @@ exit(EXIT_IMPOSSIBLE);
 				skip_tile(&dc, &geompos, arg->compressed);
 				len = 1;
 			} else {
+				arg->wrote_zoom = z;
 				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
 			}
 
@@ -2927,6 +2927,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 	std::set<zxy> skip_children;
 
 	int z;
+	int largest_written = -1;
+
 	for (z = iz; z <= maxzoom; z++) {
 		std::atomic<long long> most(0);
 
@@ -3146,6 +3148,9 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				if (args[thread].wrote_zoom > z) {
 					z = args[thread].wrote_zoom;
 				}
+				if (args[thread].wrote_zoom > largest_written) {
+					largest_written = args[thread].wrote_zoom;
+				}
 
 				if (args[thread].still_dropping) {
 					extend_zooms = true;
@@ -3206,6 +3211,10 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		if (err != INT_MAX) {
 			return err;
 		}
+	}
+
+	if (largest_written >= 0 && maxzoom > largest_written) {
+		maxzoom = largest_written;
 	}
 
 	for (size_t j = 0; j < TEMP_FILES; j++) {
