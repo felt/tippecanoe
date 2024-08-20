@@ -77,5 +77,6 @@ std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::
 std::map<std::string, layermap_entry> merge_layermaps(std::vector<std::map<std::string, layermap_entry> > const &maps, bool trunc);
 
 void add_to_tilestats(std::map<std::string, tilestat> &tilestats, std::string const &layername, serial_val const &val);
+std::string version_str();
 
 #endif

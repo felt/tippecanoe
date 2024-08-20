@@ -1,14 +1,15 @@
 { "type": "FeatureCollection", "properties": {
 "antimeridian_adjusted_bounds": "0.000000,85.051129,0.000000,85.051129",
 "bounds": "-180.000000,85.051129,180.000000,85.051129",
-"center": "-179.989014,85.051129,14",
+"center": "0.000000,85.051129,0",
 "description": "tests/raw-tiles/nothing",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -f -e tests/raw-tiles/nothing tests/raw-tiles/nothing.geojson",
-"json": "{\"vector_layers\":[{\"id\":\"nothing\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":14,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"nothing\",\"count\":1,\"geometry\":\"Point\",\"attributeCount\":0,\"attributes\":[]}]}}",
-"maxzoom": "14",
+"json": "{\"vector_layers\":[{\"id\":\"nothing\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"nothing\",\"count\":1,\"geometry\":\"Point\",\"attributeCount\":0,\"attributes\":[]}]}}",
+"maxzoom": "0",
 "minzoom": "0",
 "name": "tests/raw-tiles/nothing",
+"tippecanoe_decisions": "{\"basezoom\":14,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [
