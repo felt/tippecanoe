@@ -1,7 +1,7 @@
 # 2.60.0
 
 * Fix bad interaction between --retain-points-multiplier and stopping early when the tile feature limit is reached
-* Fix another bad interaction between --retain-points-multiplier and --generate-variable-depth-tile-pyramid
+* Fix another bad interaction between --retain-points-multiplier, dropping-as-needed, and variable depth tile pyramids
 * Add optional BUILD_INFO string to version
 * Reorder overzoom logic to clip before dealing with multiplier and filters
 * When --generate-variable-depth-tile-pyramid is in use, report the actual highest zoom generated as tileset maxzoom
