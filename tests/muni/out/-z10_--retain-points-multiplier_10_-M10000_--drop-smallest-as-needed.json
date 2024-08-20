@@ -9,7 +9,7 @@
 "maxzoom": "10",
 "minzoom": "0",
 "name": "tests/muni/out/-z10_--retain-points-multiplier_10_-M10000_--drop-smallest-as-needed.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":4591},{\"dropped_by_rate\":4591},{\"dropped_by_rate\":4561},{\"dropped_by_rate\":4511},{\"dropped_by_rate\":4401},{\"dropped_by_rate\":4121},{\"dropped_by_rate\":3411},{\"dropped_by_rate\":1650},{\"dropped_by_rate\":1066,\"dropped_as_needed\":107,\"tile_size_desired\":68538},{\"dropped_by_rate\":1058,\"dropped_as_needed\":696,\"tile_size_desired\":72665},{\"dropped_as_needed\":1976,\"tile_size_desired\":67958}]",
+"strategies": "[{\"dropped_by_rate\":4591},{\"dropped_by_rate\":4591},{\"dropped_by_rate\":4561},{\"dropped_by_rate\":4511},{\"dropped_by_rate\":4401},{\"dropped_by_rate\":4121},{\"dropped_by_rate\":3411},{\"dropped_by_rate\":1650},{\"dropped_by_rate\":1066,\"dropped_as_needed\":311,\"tile_size_desired\":68538},{\"dropped_by_rate\":1058,\"dropped_as_needed\":1579,\"tile_size_desired\":72665},{\"dropped_as_needed\":4452,\"tile_size_desired\":67958}]",
 "tippecanoe_decisions": "{\"basezoom\":10,\"droprate\":2.5,\"retain_points_multiplier\":10}",
 "type": "overlay",
 "version": "2"

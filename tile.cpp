@@ -1525,6 +1525,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 	ssize_t which_serial_feature;
 
 	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+		strategy.dropped_as_needed++;
 		if (layer.multiplier_cluster_size < (size_t) retain_points_multiplier) {
 			// we have capacity to keep this feature as part of an existing multiplier cluster that isn't full yet
 			// so do that instead of dropping it
@@ -1532,7 +1533,6 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 			return false;  // converted rather than dropped
 		} else {
 			preserve_attributes(attribute_accum, sf, layer.features[which_serial_feature]);
-			strategy.dropped_as_needed++;
 			drop_rest = true;
 			return true;  // dropped
 		}
@@ -1589,7 +1589,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// empirical estimate from ne_10m_admin_0_countries, CPAD units, Cal fires.
 		// only try to make an overzoomable final tile if it seems like it might work
 		long long estimated_output_tile_size = 0.6693 * estimated_complexity - 3.36e+04;
-
 		if (estimated_output_tile_size < (long long) (0.9 * max_tile_size)) {
 			first_detail = 30 - z;
 			second_detail = detail;
@@ -1870,8 +1869,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
+						can_stop_early = false;
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
-							can_stop_early = false;
 							continue;
 						}
 					}
@@ -1915,8 +1914,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
+						can_stop_early = false;
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
-							can_stop_early = false;
 							continue;
 						}
 					}
@@ -1934,11 +1933,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				} else if (additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
-					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
-					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
+						can_stop_early = false;
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
-							can_stop_early = false;
 							continue;
 						}
 					}
