@@ -1156,7 +1156,8 @@ struct index_event {
 		CHECK,	    // point needs to be checked against active bins
 		EXIT	    // bin has ceased to be active
 	} kind;
-	size_t what;
+	size_t layer;
+	size_t feature;
 
 	bool operator<(const index_event &ie) const {
 		if (where < ie.where) {
@@ -1164,9 +1165,13 @@ struct index_event {
 		} else if (where == ie.where) {
 			if (kind < ie.kind) {
 				return true;
-			} else {
-				if (what < ie.what) {
+			} else if (kind == ie.kind) {
+				if (layer < ie.layer) {
 					return true;
+				} else if (layer == ie.layer) {
+					if (feature < ie.feature) {
+						return true;
+					}
 				}
 			}
 		}
@@ -1176,21 +1181,20 @@ struct index_event {
 };
 
 mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y) {
-	// Flatten bins, in the unlikely event that there are multiple layers of them
-	std::vector<mvt_feature> bin_features;
-	for (auto const &layer : bins) {
-		for (auto const &feature : layer.features) {
-			bin_features.push_back(feature);
+	std::vector<index_event> events;
+
+	// Index bins
+	for (size_t i = 0; i < bins.size(); i++) {
+		for (size_t j = 0; j < bins[i].features.size(); j++) {
 		}
 	}
 
-	std::vector<index_event> events;
-
-	for (size_t i = 0; i < bin_features.size(); i++) {
-		index_event ie;
+	// Index points
+	for (size_t i = 0; i < features.layers.size(); i++) {
+		for (size_t j = 0; j < features.layers[i].features.size(); j++) {
+			index_event ie;
+		}
 	}
-
-	// Add
 
 	return features;
 }
