@@ -77,7 +77,7 @@ tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o
 unit: unit.o text.o sort.o mvt.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-tippecanoe-overzoom: overzoom.o mvt.o clip.o evaluator.o jsonpull/jsonpull.o text.o attribute.o
+tippecanoe-overzoom: overzoom.o mvt.o clip.o evaluator.o jsonpull/jsonpull.o text.o attribute.o read_json.o projection.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 -include $(wildcard *.d)

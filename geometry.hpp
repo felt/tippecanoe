@@ -83,7 +83,7 @@ int quick_check(const long long *bbox, int z, long long buffer);
 void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, bool prevent_simplify_shared_nodes);
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);
 drawvec reorder_lines(const drawvec &geom);
-drawvec fix_polygon(const drawvec &geom);
+drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding);
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms);
 void check_polygon(drawvec &geom);
 double get_area(const drawvec &geom, size_t i, size_t j);

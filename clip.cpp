@@ -1397,3 +1397,151 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		return "";
 	}
 }
+
+drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding) {
+	int outer = 1;
+	drawvec out;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_CLOSEPATH) {
+			outer = 1;
+		} else if (geom[i].op == VT_MOVETO) {
+			// Find the end of the ring
+
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			// A polygon ring must contain at least three points
+			// (and really should contain four). If this one does
+			// not have any, avoid a division by zero trying to
+			// calculate the centroid below.
+			if (j - i < 1) {
+				i = j - 1;
+				outer = 0;
+				continue;
+			}
+
+			// Make a temporary copy of the ring.
+			// Close it if it isn't closed.
+
+			drawvec ring;
+			for (size_t a = i; a < j; a++) {
+				ring.push_back(geom[a]);
+			}
+			if (j - i != 0 && (ring[0].x != ring[j - i - 1].x || ring[0].y != ring[j - i - 1].y)) {
+				ring.push_back(ring[0]);
+			}
+
+			// A polygon ring at this point should contain at least four points.
+			// Flesh it out with some vertex copies if it doesn't.
+
+			while (ring.size() < 4) {
+				ring.push_back(ring[0]);
+			}
+
+			// Reverse ring if winding order doesn't match
+			// inner/outer expectation
+
+			bool reverse_ring = false;
+			if (use_winding) {
+				// GeoJSON winding is reversed from vector winding
+				reverse_ring = true;
+			} else if (reverse_winding) {
+				// GeoJSON winding is reversed from vector winding
+				reverse_ring = false;
+			} else {
+				double area = get_area(ring, 0, ring.size());
+				if ((area > 0) != outer) {
+					reverse_ring = true;
+				}
+			}
+
+			if (reverse_ring) {
+				drawvec tmp;
+				for (int a = ring.size() - 1; a >= 0; a--) {
+					tmp.push_back(ring[a]);
+				}
+				ring = tmp;
+			}
+
+			// Now we are rotating the ring to make the first/last point
+			// one that would be unlikely to be simplified away.
+
+			// calculate centroid
+			// a + 1 < size() because point 0 is duplicated at the end
+			long long xtotal = 0;
+			long long ytotal = 0;
+			long long count = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				xtotal += ring[a].x;
+				ytotal += ring[a].y;
+				count++;
+			}
+			xtotal /= count;
+			ytotal /= count;
+
+			// figure out which point is furthest from the centroid
+			long long dist2 = 0;
+			long long furthest = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				// division by 16 because these are z0 coordinates and we need to avoid overflow
+				long long xd = (ring[a].x - xtotal) / 16;
+				long long yd = (ring[a].y - ytotal) / 16;
+				long long d2 = xd * xd + yd * yd;
+				if (d2 > dist2 || (d2 == dist2 && ring[a] < ring[furthest])) {
+					dist2 = d2;
+					furthest = a;
+				}
+			}
+
+			// then figure out which point is furthest from *that*,
+			// which will hopefully be a good origin point since it should be
+			// at a far edge of the shape.
+			long long dist2b = 0;
+			long long furthestb = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				// division by 16 because these are z0 coordinates and we need to avoid overflow
+				long long xd = (ring[a].x - ring[furthest].x) / 16;
+				long long yd = (ring[a].y - ring[furthest].y) / 16;
+				long long d2 = xd * xd + yd * yd;
+				if (d2 > dist2b || (d2 == dist2b && ring[a] < ring[furthestb])) {
+					dist2b = d2;
+					furthestb = a;
+				}
+			}
+
+			// rotate ring so the furthest point is the duplicated one.
+			// the idea is that simplification will then be more efficient,
+			// never wasting the start and end points, which are always retained,
+			// on a point that has little impact on the shape.
+
+			// Copy ring into output, fixing the moveto/lineto ops if necessary because of
+			// reversal or closing
+
+			for (size_t a = 0; a < ring.size(); a++) {
+				size_t a2 = (a + furthestb) % (ring.size() - 1);
+
+				if (a == 0) {
+					out.push_back(draw(VT_MOVETO, ring[a2].x, ring[a2].y));
+				} else {
+					out.push_back(draw(VT_LINETO, ring[a2].x, ring[a2].y));
+				}
+			}
+
+			// Next ring or polygon begins on the non-lineto that ended this one
+			// and is not an outer ring unless there is a terminator first
+
+			i = j - 1;
+			outer = 0;
+		} else {
+			fprintf(stderr, "Internal error: polygon ring begins with %d, not moveto\n", geom[i].op);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	return out;
+}

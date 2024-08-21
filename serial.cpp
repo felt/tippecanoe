@@ -460,7 +460,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	// This has to happen after scaling so that the wraparound detection has happened first.
 	// Otherwise the inner/outer calculation will be confused by bad geometries.
 	if (sf.t == VT_POLYGON) {
-		scaled_geometry = fix_polygon(scaled_geometry);
+		scaled_geometry = fix_polygon(scaled_geometry, prevent[P_USE_SOURCE_POLYGON_WINDING], prevent[P_REVERSE_SOURCE_POLYGON_WINDING]);
 	}
 
 	for (auto &c : clipbboxes) {
