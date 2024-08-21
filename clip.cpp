@@ -1149,6 +1149,52 @@ static struct preservecmp {
 	}
 } preservecmp;
 
+struct index_event {
+	unsigned long long where;
+	enum {
+		ENTER = 0,  // new bin in is now active
+		CHECK,	    // point needs to be checked against active bins
+		EXIT	    // bin has ceased to be active
+	} kind;
+	size_t what;
+
+	bool operator<(const index_event &ie) const {
+		if (where < ie.where) {
+			return true;
+		} else if (where == ie.where) {
+			if (kind < ie.kind) {
+				return true;
+			} else {
+				if (what < ie.what) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y) {
+	// Flatten bins, in the unlikely event that there are multiple layers of them
+	std::vector<mvt_feature> bin_features;
+	for (auto const &layer : bins) {
+		for (auto const &feature : layer.features) {
+			bin_features.push_back(feature);
+		}
+	}
+
+	std::vector<index_event> events;
+
+	for (size_t i = 0; i < bin_features.size(); i++) {
+		index_event ie;
+	}
+
+	// Add
+
+	return features;
+}
+
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
@@ -1378,6 +1424,10 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				}
 			}
 		}
+	}
+
+	if (bins.size() > 0) {
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
