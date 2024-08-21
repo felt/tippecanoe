@@ -1022,8 +1022,10 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size) {
+		     bool demultiply, json_object *filter, bool preserve_input_order,
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
+		     std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1049,7 +1051,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
+	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
 }
 
 struct tile_feature {
@@ -1150,8 +1152,10 @@ static struct preservecmp {
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size) {
+		     bool demultiply, json_object *filter, bool preserve_input_order,
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
+		     std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -1367,7 +1371,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
+								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
