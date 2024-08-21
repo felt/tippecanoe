@@ -9,6 +9,7 @@
 #include "evaluator.hpp"
 #include "attribute.hpp"
 #include "text.hpp"
+#include "read_json.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -20,7 +21,7 @@ std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
-std::string assign_to_bins;
+std::vector<mvt_layer> bins;
 
 std::set<std::string> keep;
 
@@ -38,6 +39,7 @@ int main(int argc, char **argv) {
 	const char *outfile = NULL;
 	double simplification = 0;
 	double tiny_polygon_size = 0;
+	std::string assign_to_bins;
 
 	std::vector<input_tile> sources;
 
@@ -134,9 +136,6 @@ int main(int argc, char **argv) {
 	std::vector<input_tile> its;
 	int nz, nx, ny;
 
-	if (assign_to_bins.size() != 0) {
-	}
-
 	if (outtile == NULL) {	// single input
 		if (argc - optind != 3) {
 			fprintf(stderr, "Wrong number of arguments\n");
@@ -189,6 +188,17 @@ int main(int argc, char **argv) {
 
 			sources.push_back(s);
 		}
+	}
+
+	if (assign_to_bins.size() != 0) {
+		FILE *f = fopen(assign_to_bins.c_str(), "r");
+		if (f == NULL) {
+			perror(assign_to_bins.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		bins = parse_layers(f, nz, nx, ny, 1LL << detail);
+		fclose(f);
 	}
 
 	json_object *json_filter = NULL;
