@@ -20,6 +20,7 @@ std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
+std::string assign_to_bins;
 
 std::set<std::string> keep;
 
@@ -53,6 +54,7 @@ int main(int argc, char **argv) {
 		{"line-simplification", required_argument, 0, 'S'},
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
+		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -119,6 +121,10 @@ int main(int argc, char **argv) {
 			simplification = atof(optarg);
 			break;
 
+		case 'b' & 0x1F:
+			assign_to_bins = optarg;
+			break;
+
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
@@ -127,6 +133,9 @@ int main(int argc, char **argv) {
 
 	std::vector<input_tile> its;
 	int nz, nx, ny;
+
+	if (assign_to_bins.size() != 0) {
+	}
 
 	if (outtile == NULL) {	// single input
 		if (argc - optind != 3) {
