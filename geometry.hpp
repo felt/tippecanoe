@@ -133,4 +133,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 
 draw center_of_mass_mp(const drawvec &dv);
 
+void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
+			unsigned long long *start, unsigned long long *end);
+
 #endif

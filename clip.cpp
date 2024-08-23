@@ -11,6 +11,7 @@
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
+#include "projection.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -1184,6 +1185,28 @@ struct index_event {
 	}
 };
 
+void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
+			unsigned long long *start, unsigned long long *end) {
+	if (xmin < 0 || ymin < 0 || xmax >= 1LL << 32 || ymax >= 1LL << 32) {
+		*start = 0;
+		*end = ULLONG_MAX;
+		return;
+	}
+
+	*start = encode_quadkey(xmin, ymin);
+	*end = encode_quadkey(xmax, ymax);
+
+	for (ssize_t i = 62; i >= 0; i -= 2) {
+		if ((*start & (3LL << i)) != (*end & (3LL << i))) {
+			for (; i >= 0; i -= 2) {
+				*start &= ~(3LL << i);
+				*end |= 3LL << i;
+			}
+			break;
+		}
+	}
+}
+
 mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail) {
 	std::vector<index_event> events;
 
@@ -1194,7 +1217,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			unsigned long long start, end;
 
 			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
-			// get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end, z, x, y, detail);
+			get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
 			events.emplace_back(start, index_event::ENTER, i, j);
 			events.emplace_back(end, index_event::EXIT, i, j);
 		}
@@ -1207,7 +1230,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			unsigned long long start, end;
 
 			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
-			// get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end, z, x, y, detail);
+			get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
 			events.emplace_back(start, index_event::CHECK, i, j);
 		}
 	}

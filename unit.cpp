@@ -5,6 +5,7 @@
 #include "tile-cache.hpp"
 #include "mvt.hpp"
 #include "projection.hpp"
+#include "geometry.hpp"
 #include <unistd.h>
 #include <limits.h>
 
@@ -144,4 +145,10 @@ TEST_CASE("mvt_geometry bbox") {
 	tile2lonlat(xmax, ymax, 32, &lon, &lat);
 	REQUIRE(std::to_string(lon) == "-122.431641");
 	REQUIRE(std::to_string(lat) == "37.788081");
+
+	unsigned long long start, end;
+	get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
+	// 22 bits in common, for z11
+	REQUIRE(start == 0x1c84fc0000000000);
+	REQUIRE(end == 0x1c84ffffffffffff);
 }
