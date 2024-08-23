@@ -1,4 +1,5 @@
 #include <stack>
+#include <set>
 #include <stdlib.h>
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
@@ -1229,9 +1230,41 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			long long xmin, ymin, xmax, ymax;
 			unsigned long long start, end;
 
-			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
-			get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
-			events.emplace_back(start, index_event::CHECK, i, j);
+			if (features.layers[i].features[j].geometry.size() > 0) {
+				get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+				get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
+				events.emplace_back(start, index_event::CHECK, i, j);
+			}
+		}
+	}
+
+	std::sort(events.begin(), events.end());
+	std::set<std::pair<size_t, size_t>> active;
+
+	for (auto &e : events) {
+		if (e.kind == index_event::ENTER) {
+			active.emplace(e.layer, e.feature);
+		} else if (e.kind == index_event::CHECK) {
+			auto const &feature = features.layers[e.layer].features[e.feature];
+
+			for (auto const &a : active) {
+				auto const &bin = bins[a.first].features[a.second];
+
+#if 0
+				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
+					printf("found\n");
+					break;
+				}
+#endif
+			}
+		} else /* EXIT */ {
+			auto const &found = active.find({e.layer, e.feature});
+			if (found != active.end()) {
+				active.erase(found);
+			} else {
+				fprintf(stderr, "event mismatch: can't happen\n");
+				exit(EXIT_IMPOSSIBLE);
+			}
 		}
 	}
 
