@@ -1151,13 +1151,17 @@ static struct preservecmp {
 
 struct index_event {
 	unsigned long long where;
-	enum {
+	enum index_event_kind {
 		ENTER = 0,  // new bin in is now active
 		CHECK,	    // point needs to be checked against active bins
 		EXIT	    // bin has ceased to be active
 	} kind;
 	size_t layer;
 	size_t feature;
+
+	index_event(unsigned long long where_, index_event_kind kind_, size_t layer_, size_t feature_)
+	    : where(where_), kind(kind_), layer(layer_), feature(feature_) {
+	}
 
 	bool operator<(const index_event &ie) const {
 		if (where < ie.where) {
@@ -1180,19 +1184,32 @@ struct index_event {
 	}
 };
 
-mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y) {
+void get_quadkey_bounds(std::vector<mvt_geometry> const &geom,
+			unsigned long long *start, unsigned long long *end,
+			int z, int x, int y, int extent) {
+}
+
+mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int extent) {
 	std::vector<index_event> events;
 
 	// Index bins
 	for (size_t i = 0; i < bins.size(); i++) {
 		for (size_t j = 0; j < bins[i].features.size(); j++) {
+			unsigned long long start, end;
+
+			get_quadkey_bounds(bins[i].features[j].geometry, &start, &end, z, x, y, extent);
+			events.emplace_back(start, index_event::ENTER, i, j);
+			events.emplace_back(end, index_event::EXIT, i, j);
 		}
 	}
 
 	// Index points
 	for (size_t i = 0; i < features.layers.size(); i++) {
 		for (size_t j = 0; j < features.layers[i].features.size(); j++) {
-			index_event ie;
+			unsigned long long start, end;
+
+			get_quadkey_bounds(bins[i].features[j].geometry, &start, &end, z, x, y, extent);
+			events.emplace_back(start, index_event::CHECK, i, j);
 		}
 	}
 
@@ -1431,7 +1448,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, nz, nx, ny);
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny, 1 << detail);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
