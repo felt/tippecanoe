@@ -1295,39 +1295,49 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 	std::sort(events.begin(), events.end());
 	std::set<std::pair<size_t, size_t>> active;
 
+	mvt_layer outlayer;
+	outlayer.extent = 1 << detail;
+	outlayer.version = 2;
+	outlayer.name = features.layers[0].name;
+
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
-			printf("enter\n");
 			active.emplace(e.layer, e.feature);
+			const mvt_feature &bin = bins[e.layer].features[e.feature];
+
+			mvt_feature outfeature;
+			outfeature.geometry = bin.geometry;
+			outfeature.type = bin.type;
+			for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
+				outlayer.tag(outfeature, bins[e.layer].keys[bin.tags[i]], bins[e.layer].values[bin.tags[i + 1]]);
+			}
+
+			outlayer.features.push_back(std::move(outfeature));
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
-			printf("checking ");
+#if 0
 			for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
 				printf("%s ", features.layers[e.layer].values[feature.tags[i + 1]].toString().c_str());
 			}
 			printf(": ");
+#endif
 
-			bool found = false;
 			for (auto const &a : active) {
 				auto const &bin = bins[a.first].features[a.second];
 
 				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
+#if 0
 					printf("found: ");
 
 					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
 						printf("%s ", bins[a.first].values[bin.tags[i + 1]].toString().c_str());
 					}
 					printf("\n");
-
-					found = true;
+#endif
 					break;
 				}
 			}
-			if (!found) {
-				printf("not found\n");
-			}
 		} else /* EXIT */ {
-			printf("exit\n");
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
 				active.erase(found);
@@ -1338,7 +1348,9 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 		}
 	}
 
-	return features;
+	mvt_tile ret;
+	ret.layers.push_back(outlayer);
+	return ret;
 }
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
