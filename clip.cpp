@@ -1285,7 +1285,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			unsigned long long start, end;
 
 			if (features.layers[i].features[j].geometry.size() > 0) {
-				get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
 				get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
 				events.emplace_back(start, index_event::CHECK, i, j);
 			}
@@ -1297,32 +1297,35 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
-			printf("enter\n");
 			active.emplace(e.layer, e.feature);
 		} else if (e.kind == index_event::CHECK) {
-			printf("check\n");
 			auto const &feature = features.layers[e.layer].features[e.feature];
 			printf("checking ");
-			for (size_t i = 0; i < feature.tags.size(); i += 2) {
-				printf("%s ", features.layers[e.layer].values[feature.tags[i] + 1].toString().c_str());
+			for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+				printf("%s ", features.layers[e.layer].values[feature.tags[i + 1]].toString().c_str());
 			}
-			printf("\n");
+			printf(": ");
 
+			bool found = false;
 			for (auto const &a : active) {
 				auto const &bin = bins[a.first].features[a.second];
 
-				bool found = false;
 				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
-					printf("found\n");
+					printf("found: ");
+
+                    for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
+                        printf("%s ", bins[a.first].values[bin.tags[i + 1]].toString().c_str());
+                    }
+                    printf("\n");
+
 					found = true;
 					break;
 				}
-				if (!found) {
-					printf("not found\n");
-				}
+			}
+			if (!found) {
+				printf("not found\n");
 			}
 		} else /* EXIT */ {
-			printf("exit\n");
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
 				active.erase(found);
@@ -1567,9 +1570,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		}
 	}
 
-	printf("%zu bins\n", bins.size());
 	if (bins.size() > 0) {
-		printf("assigning to bins\n");
 		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail);
 	}
 
