@@ -1272,7 +1272,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			unsigned long long start, end;
 
 			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
-			get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
+			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
 			events.emplace_back(start, index_event::ENTER, i, j);
 			events.emplace_back(end, index_event::EXIT, i, j);
 		}
@@ -1286,7 +1286,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 			if (features.layers[i].features[j].geometry.size() > 0) {
 				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
-				get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end);
+				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
 				events.emplace_back(start, index_event::CHECK, i, j);
 			}
 		}
@@ -1297,6 +1297,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
+			printf("enter\n");
 			active.emplace(e.layer, e.feature);
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
@@ -1313,10 +1314,10 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
 					printf("found: ");
 
-                    for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
-                        printf("%s ", bins[a.first].values[bin.tags[i + 1]].toString().c_str());
-                    }
-                    printf("\n");
+					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
+						printf("%s ", bins[a.first].values[bin.tags[i + 1]].toString().c_str());
+					}
+					printf("\n");
 
 					found = true;
 					break;
@@ -1326,6 +1327,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 				printf("not found\n");
 			}
 		} else /* EXIT */ {
+			printf("exit\n");
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
 				active.erase(found);
