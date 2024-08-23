@@ -1184,20 +1184,17 @@ struct index_event {
 	}
 };
 
-void get_quadkey_bounds(std::vector<mvt_geometry> const &geom,
-			unsigned long long *start, unsigned long long *end,
-			int z, int x, int y, int extent) {
-}
-
-mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int extent) {
+mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail) {
 	std::vector<index_event> events;
 
 	// Index bins
 	for (size_t i = 0; i < bins.size(); i++) {
 		for (size_t j = 0; j < bins[i].features.size(); j++) {
+			long long xmin, ymin, xmax, ymax;
 			unsigned long long start, end;
 
-			get_quadkey_bounds(bins[i].features[j].geometry, &start, &end, z, x, y, extent);
+			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+			// get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end, z, x, y, detail);
 			events.emplace_back(start, index_event::ENTER, i, j);
 			events.emplace_back(end, index_event::EXIT, i, j);
 		}
@@ -1206,9 +1203,11 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 	// Index points
 	for (size_t i = 0; i < features.layers.size(); i++) {
 		for (size_t j = 0; j < features.layers[i].features.size(); j++) {
+			long long xmin, ymin, xmax, ymax;
 			unsigned long long start, end;
 
-			get_quadkey_bounds(bins[i].features[j].geometry, &start, &end, z, x, y, extent);
+			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+			// get_quadkey_bounds(xmin, xmax, ymin, ymax, &start, &end, z, x, y, detail);
 			events.emplace_back(start, index_event::CHECK, i, j);
 		}
 	}
@@ -1448,7 +1447,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, nz, nx, ny, 1 << detail);
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {

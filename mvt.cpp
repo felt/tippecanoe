@@ -835,3 +835,34 @@ long long mvt_value_to_long_long(mvt_value const &v) {
 		exit(EXIT_IMPOSSIBLE);
 	}
 }
+
+void get_bbox(std::vector<mvt_geometry> const &geom,
+	      long long *xmin, long long *ymin, long long *xmax, long long *ymax,
+	      int z, int tx, int ty, int detail) {
+	*xmin = LLONG_MAX;
+	*ymin = LLONG_MAX;
+	*xmax = 0;
+	*ymax = 0;
+
+	for (auto const &g : geom) {
+		if (g.op == mvt_moveto || g.op == mvt_lineto) {
+			long long x = g.x;
+			long long y = g.y;
+
+			// to world scale
+			x = x * (1LL << (32 - z - detail));
+			y = y * (1LL << (32 - z - detail));
+
+			// to world origin
+			if (z > 0) {
+				x += (1LL << (32 - z)) * tx;
+				y += (1LL << (32 - z)) * ty;
+			}
+
+			*xmin = std::min(*xmin, x);
+			*ymin = std::min(*ymin, y);
+			*xmax = std::max(*xmax, x);
+			*ymax = std::max(*ymax, y);
+		}
+	}
+}

@@ -199,4 +199,8 @@ bool is_unsigned_integer(const char *s, unsigned long long *v);
 
 struct serial_val;
 serial_val mvt_value_to_serial_val(mvt_value const &v);
+
+void get_bbox(std::vector<mvt_geometry> const &geom,
+	      long long *xmin, long long *ymin, long long *xmax, long long *ymax,
+	      int z, int tx, int ty, int detail);
 #endif
