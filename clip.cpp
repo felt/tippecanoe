@@ -1240,6 +1240,31 @@ struct index_event {
 	}
 };
 
+struct active_bin {
+	size_t layer;
+	size_t feature;
+
+	active_bin(size_t layer_, size_t feature_)
+	    : layer(layer_), feature(feature_) {
+	}
+
+	bool operator<(const active_bin &o) const {
+		if (layer < o.layer) {
+			return true;
+		} else if (layer == o.layer) {
+			if (feature < o.feature) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	size_t outfeature;
+	long long xmin, ymin, xmax, ymax;
+	size_t counter = 0;
+};
+
 void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
 			unsigned long long *start, unsigned long long *end) {
 	if (xmin < 0 || ymin < 0 || xmax >= 1LL << 32 || ymax >= 1LL << 32) {
@@ -1293,7 +1318,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 	}
 
 	std::sort(events.begin(), events.end());
-	std::set<std::pair<size_t, size_t>> active;
+	std::set<active_bin> active;
+	std::vector<size_t> counters;  // separate because set items can't be mutated from an iterator
 
 	mvt_layer outlayer;
 	outlayer.extent = 1 << detail;
@@ -1302,9 +1328,9 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
-			active.emplace(e.layer, e.feature);
-			const mvt_feature &bin = bins[e.layer].features[e.feature];
+			active_bin a(e.layer, e.feature);
 
+			const mvt_feature &bin = bins[e.layer].features[e.feature];
 			mvt_feature outfeature;
 			outfeature.geometry = bin.geometry;
 			outfeature.type = bin.type;
@@ -1312,7 +1338,12 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 				outlayer.tag(outfeature, bins[e.layer].keys[bin.tags[i]], bins[e.layer].values[bin.tags[i + 1]]);
 			}
 
+			a.outfeature = outlayer.features.size();
+			a.counter = counters.size();
+
 			outlayer.features.push_back(std::move(outfeature));
+			counters.push_back(0);
+			active.insert(std::move(a));
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
 #if 0
@@ -1323,8 +1354,9 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 #endif
 
 			for (auto const &a : active) {
-				auto const &bin = bins[a.first].features[a.second];
+				auto const &bin = bins[a.layer].features[a.feature];
 
+				// XXX do bounding box check first
 				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
 #if 0
 					printf("found: ");
@@ -1334,12 +1366,18 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 					}
 					printf("\n");
 #endif
+					counters[a.counter]++;
 					break;
 				}
 			}
 		} else /* EXIT */ {
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
+				mvt_value v;
+				v.type = mvt_uint;
+				v.numeric_value.uint_value = counters[found->counter];
+				outlayer.tag(outlayer.features[found->outfeature], "bin-count", v);
+
 				active.erase(found);
 			} else {
 				fprintf(stderr, "event mismatch: can't happen\n");
