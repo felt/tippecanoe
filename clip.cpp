@@ -1021,6 +1021,60 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 	return out;
 }
 
+/* pnpoly:
+Copyright (c) 1970-2003, Wm. Randolph Franklin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimers.
+Redistributions in binary form must reproduce the above copyright notice in the documentation and/or other materials provided with the distribution.
+The name of W. Randolph Franklin may not be used to endorse or promote products derived from this Software without specific prior written permission.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy) {
+	size_t i, j;
+	bool c = false;
+	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+		if (((vert[i + start].y > testy) != (vert[j + start].y > testy)) &&
+		    (testx < (vert[j + start].x - vert[i + start].x) * (testy - vert[i + start].y) / (double) (vert[j + start].y - vert[i + start].y) + vert[i + start].x))
+			c = !c;
+	}
+	return c;
+}
+
+bool pnpoly(const std::vector<mvt_geometry> &vert, size_t start, size_t nvert, long long testx, long long testy) {
+	size_t i, j;
+	bool c = false;
+	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+		if (((vert[i + start].y > testy) != (vert[j + start].y > testy)) &&
+		    (testx < (vert[j + start].x - vert[i + start].x) * (testy - vert[i + start].y) / (double) (vert[j + start].y - vert[i + start].y) + vert[i + start].x))
+			c = !c;
+	}
+	return c;
+}
+
+bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) {
+	// assumes rings are properly nested, so inside a hole matches twice
+	bool found = false;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == mvt_moveto) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != mvt_lineto) {
+					break;
+				}
+			}
+
+			found ^= pnpoly(geom, i, j - i, x, y);
+			i = j - 1;
+		}
+	}
+
+	return found;
+}
+
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
@@ -1243,21 +1297,32 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
+			printf("enter\n");
 			active.emplace(e.layer, e.feature);
 		} else if (e.kind == index_event::CHECK) {
+			printf("check\n");
 			auto const &feature = features.layers[e.layer].features[e.feature];
+			printf("checking ");
+			for (size_t i = 0; i < feature.tags.size(); i += 2) {
+				printf("%s ", features.layers[e.layer].values[feature.tags[i] + 1].toString().c_str());
+			}
+			printf("\n");
 
 			for (auto const &a : active) {
 				auto const &bin = bins[a.first].features[a.second];
 
-#if 0
+				bool found = false;
 				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
 					printf("found\n");
+					found = true;
 					break;
 				}
-#endif
+				if (!found) {
+					printf("not found\n");
+				}
 			}
 		} else /* EXIT */ {
+			printf("exit\n");
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
 				active.erase(found);
@@ -1502,7 +1567,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		}
 	}
 
+	printf("%zu bins\n", bins.size());
 	if (bins.size() > 0) {
+		printf("assigning to bins\n");
 		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail);
 	}
 
