@@ -366,6 +366,11 @@ overzoom-test: tippecanoe-overzoom
 	tippecanoe-decode tests/pbf/bin-11-327-791.pbf.out 11 327 791 > tests/pbf/bin-11-327-791.pbf.out.json.check
 	cmp tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out.json
 	rm tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out
+	# Binning with longitude wraparound problems
+	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-2-0-1.pbf.out --assign-to-bins tests/pbf/h3-2-0-1.geojson tests/pbf/0-0-0.pbf 0/0/0 2/0/1
+	./tippecanoe-decode tests/pbf/0-0-0-pop-2-0-1.pbf.out 2 0 1 > tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check
+	cmp tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check tests/pbf/0-0-0-pop-2-0-1.pbf.out.json
+	rm tests/pbf/0-0-0-pop-2-0-1.pbf.out tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'

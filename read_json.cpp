@@ -282,11 +282,25 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			dv = fix_polygon(dv, false, false);
 		}
 
-		// Scale and offset geometry from global to tile
+		// Offset and scale geometry from global to tile
 		for (size_t i = 0; i < dv.size(); i++) {
 			long long scale = 1LL << (32 - z);
-			dv[i].x = std::round((dv[i].x - scale * x) * extent / (double) scale);
-			dv[i].y = std::round((dv[i].y - scale * y) * extent / (double) scale);
+
+			// offset
+			dv[i].x -= scale * x;
+			dv[i].y -= scale * y;
+
+			// handle longitude wraparound
+			if (dv[i].x > 2 * scale && dv[i].x - (1LL << 32) > -3 * scale) {
+				dv[i].x -= 1LL << 32;
+			}
+			if (dv[i].x < -3 * scale && dv[i].x + (1LL << 32) < 2 * scale) {
+				dv[i].x += 1LL << 32;
+			}
+
+			// scale
+			dv[i].x = std::round(dv[i].x * extent / (double) scale);
+			dv[i].y = std::round(dv[i].y * extent / (double) scale);
 		}
 
 		if (mb_geometry[t] == VT_POLYGON) {
