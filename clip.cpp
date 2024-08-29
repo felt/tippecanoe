@@ -1319,8 +1319,10 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	std::sort(events.begin(), events.end());
 	std::set<active_bin> active;
-	std::vector<size_t> counters;			  // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> sums;  // separate because set items can't be mutated from an iterator
+	std::vector<size_t> counters;			   // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> sums;   // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> maxes;  // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> mins;   // separate because set items can't be mutated from an iterator
 
 	mvt_layer outlayer;
 	outlayer.extent = 1 << detail;
@@ -1340,6 +1342,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			a.counter = counters.size();
 			counters.push_back(0);
 			sums.emplace_back();
+			maxes.emplace_back();
+			mins.emplace_back();
 
 			outlayer.features.push_back(std::move(outfeature));
 			active.insert(std::move(a));
@@ -1372,13 +1376,22 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 						const std::string &key = features.layers[e.layer].keys[feature.tags[i]];
 
 						if (val.is_numeric()) {
-							auto find_attr = sums[a.counter].find(key);
-							if (find_attr == sums[a.counter].end()) {
+							auto sum_attr = sums[a.counter].find(key);
+							if (sum_attr == sums[a.counter].end()) {
 								sums[a.counter].emplace(key, 0);
-								find_attr = sums[a.counter].find(key);
+								mins[a.counter].emplace(key, std::numeric_limits<double>::infinity());
+								maxes[a.counter].emplace(key, -std::numeric_limits<double>::infinity());
+
+								sum_attr = sums[a.counter].find(key);
 							}
 
-							find_attr->second += mvt_value_to_double(val);
+							auto min_attr = mins[a.counter].find(key);
+							auto max_attr = maxes[a.counter].find(key);
+							double v = mvt_value_to_double(val);
+
+							sum_attr->second += v;
+							min_attr->second = std::min(min_attr->second, v);
+							max_attr->second = std::max(max_attr->second, v);
 						}
 					}
 
@@ -1402,13 +1415,28 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 					mvt_value v;
 					v.type = mvt_uint;
 					v.numeric_value.uint_value = counters[found->counter];
-					outlayer.tag(outfeature, "bin-count", v);
+					outlayer.tag(outfeature, "tippecanoe:count", v);
 
 					for (auto const &kv : sums[found->counter]) {
-						mvt_value v2;
-						v2.type = mvt_double;
-						v2.numeric_value.double_value = kv.second;
-						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v2);
+						mvt_value v_sum;
+						v_sum.type = mvt_double;
+						v_sum.numeric_value.double_value = kv.second;
+						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v_sum);
+
+						mvt_value v_mean;
+						v_mean.type = mvt_double;
+						v_mean.numeric_value.double_value = kv.second / counters[found->counter];
+						outlayer.tag(outfeature, "tippecanoe:mean:" + kv.first, v_mean);
+
+						mvt_value v_min;
+						v_min.type = mvt_double;
+						v_min.numeric_value.double_value = mins[found->counter][kv.first];
+						outlayer.tag(outfeature, "tippecanoe:min:" + kv.first, v_min);
+
+						mvt_value v_max;
+						v_max.type = mvt_double;
+						v_max.numeric_value.double_value = maxes[found->counter][kv.first];
+						outlayer.tag(outfeature, "tippecanoe:max:" + kv.first, v_max);
 					}
 				} else {
 					outfeature.geometry.clear();
