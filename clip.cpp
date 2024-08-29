@@ -1319,7 +1319,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	std::sort(events.begin(), events.end());
 	std::set<active_bin> active;
-	std::vector<size_t> counters;  // separate because set items can't be mutated from an iterator
+	std::vector<size_t> counters;			  // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> sums;  // separate because set items can't be mutated from an iterator
 
 	mvt_layer outlayer;
 	outlayer.extent = 1 << detail;
@@ -1335,10 +1336,12 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			outfeature.geometry = bin.geometry;
 			outfeature.type = bin.type;
 			a.outfeature = outlayer.features.size();
+
 			a.counter = counters.size();
+			counters.push_back(0);
+			sums.emplace_back();
 
 			outlayer.features.push_back(std::move(outfeature));
-			counters.push_back(0);
 			active.insert(std::move(a));
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
@@ -1363,6 +1366,22 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 					printf("\n");
 #endif
 					counters[a.counter]++;
+
+					for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+						const mvt_value &val = features.layers[e.layer].values[feature.tags[i + 1]];
+						const std::string &key = features.layers[e.layer].keys[feature.tags[i]];
+
+						if (val.is_numeric()) {
+							auto find_attr = sums[a.counter].find(key);
+							if (find_attr == sums[a.counter].end()) {
+								sums[a.counter].emplace(key, 0);
+								find_attr = sums[a.counter].find(key);
+							}
+
+							find_attr->second += mvt_value_to_double(val);
+						}
+					}
+
 					break;
 				}
 			}
@@ -1384,6 +1403,13 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 					v.type = mvt_uint;
 					v.numeric_value.uint_value = counters[found->counter];
 					outlayer.tag(outfeature, "bin-count", v);
+
+					for (auto const &kv : sums[found->counter]) {
+						mvt_value v2;
+						v2.type = mvt_double;
+						v2.numeric_value.double_value = kv.second;
+						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v2);
+					}
 				} else {
 					outfeature.geometry.clear();
 				}

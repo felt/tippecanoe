@@ -836,6 +836,31 @@ long long mvt_value_to_long_long(mvt_value const &v) {
 	}
 }
 
+// This extracts a double value from an mvt_value
+double mvt_value_to_double(mvt_value const &v) {
+	switch (v.type) {
+	case mvt_string:
+		return atof(v.c_str());
+	case mvt_float:
+		return v.numeric_value.float_value;
+	case mvt_double:
+		return v.numeric_value.double_value;
+	case mvt_int:
+		return v.numeric_value.int_value;
+	case mvt_uint:
+		return v.numeric_value.uint_value;
+	case mvt_sint:
+		return v.numeric_value.sint_value;
+	case mvt_bool:
+		return v.numeric_value.bool_value;
+	case mvt_null:
+		return 0;
+	default:
+		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
+		exit(EXIT_IMPOSSIBLE);
+	}
+}
+
 void get_bbox(std::vector<mvt_geometry> const &geom,
 	      long long *xmin, long long *ymin, long long *xmax, long long *ymax,
 	      int z, int tx, int ty, int detail) {
