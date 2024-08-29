@@ -1334,10 +1334,6 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			mvt_feature outfeature;
 			outfeature.geometry = bin.geometry;
 			outfeature.type = bin.type;
-			for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
-				outlayer.tag(outfeature, bins[e.layer].keys[bin.tags[i]], bins[e.layer].values[bin.tags[i + 1]]);
-			}
-
 			a.outfeature = outlayer.features.size();
 			a.counter = counters.size();
 
@@ -1373,10 +1369,24 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 		} else /* EXIT */ {
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
-				mvt_value v;
-				v.type = mvt_uint;
-				v.numeric_value.uint_value = counters[found->counter];
-				outlayer.tag(outlayer.features[found->outfeature], "bin-count", v);
+				mvt_feature &outfeature = outlayer.features[found->outfeature];
+
+				if (counters[found->counter] >= 0) {
+					const mvt_feature &bin = bins[e.layer].features[e.feature];
+
+					// copy attributes from the original bin feature
+					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
+						outlayer.tag(outfeature, bins[e.layer].keys[bin.tags[i]], bins[e.layer].values[bin.tags[i + 1]]);
+					}
+
+					// new attribute for number of features assigned to the bin
+					mvt_value v;
+					v.type = mvt_uint;
+					v.numeric_value.uint_value = counters[found->counter];
+					outlayer.tag(outfeature, "bin-count", v);
+				} else {
+					outfeature.geometry.clear();
+				}
 
 				active.erase(found);
 			} else {
@@ -1385,6 +1395,17 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			}
 		}
 	}
+
+#if 0
+	// crunch out bin features whose geometry we cleared along the way
+	size_t out = 0;
+	for (size_t i = 0; i < outlayer.features.size(); i++) {
+		if (outlayer.features[i].geometry.size() > 0) {
+			outlayer.features[out++] = outlayer.features[i];
+		}
+	}
+	outlayer.features.resize(out);
+#endif
 
 	mvt_tile ret;
 	ret.layers.push_back(outlayer);
