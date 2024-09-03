@@ -3084,6 +3084,7 @@ int main(int argc, char **argv) {
 		{"attribute-type", required_argument, 0, 'T'},
 		{"attribute-description", required_argument, 0, 'Y'},
 		{"accumulate-attribute", required_argument, 0, 'E'},
+		{"accumulate-numeric-attributes", no_argument, &additional[A_ACCUMULATE_NUMERIC], 1},
 		{"empty-csv-columns-are-null", no_argument, &prevent[P_EMPTY_CSV_COLUMNS], 1},
 		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
 		{"use-attribute-for-id", required_argument, 0, '~'},
