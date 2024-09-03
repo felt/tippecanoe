@@ -1319,10 +1319,11 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	std::sort(events.begin(), events.end());
 	std::set<active_bin> active;
-	std::vector<size_t> counters;			   // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> sums;   // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> maxes;  // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> mins;   // separate because set items can't be mutated from an iterator
+	std::vector<size_t> counters;			    // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> sums;    // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> maxes;   // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> mins;    // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> counts;  // separate because set items can't be mutated from an iterator
 
 	mvt_layer outlayer;
 	outlayer.extent = 1 << detail;
@@ -1344,6 +1345,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			sums.emplace_back();
 			maxes.emplace_back();
 			mins.emplace_back();
+			counts.emplace_back();
 
 			outlayer.features.push_back(std::move(outfeature));
 			active.insert(std::move(a));
@@ -1381,15 +1383,18 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 								sums[a.counter].emplace(key, 0);
 								mins[a.counter].emplace(key, std::numeric_limits<double>::infinity());
 								maxes[a.counter].emplace(key, -std::numeric_limits<double>::infinity());
+								counts[a.counter].emplace(key, 0);
 
 								sum_attr = sums[a.counter].find(key);
 							}
 
 							auto min_attr = mins[a.counter].find(key);
 							auto max_attr = maxes[a.counter].find(key);
+							auto count_attr = counts[a.counter].find(key);
 							double v = mvt_value_to_double(val);
 
 							sum_attr->second += v;
+							count_attr->second += 1;
 							min_attr->second = std::min(min_attr->second, v);
 							max_attr->second = std::max(max_attr->second, v);
 						}
@@ -1422,6 +1427,11 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 						v_sum.type = mvt_double;
 						v_sum.numeric_value.double_value = kv.second;
 						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v_sum);
+
+						mvt_value v_count;
+						v_count.type = mvt_double;
+						v_count.numeric_value.double_value = counts[found->counter][kv.first];
+						outlayer.tag(outfeature, "tippecanoe:count:" + kv.first, v_count);
 
 						mvt_value v_mean;
 						v_mean.type = mvt_double;

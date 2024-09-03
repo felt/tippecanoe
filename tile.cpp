@@ -1460,7 +1460,6 @@ std::map<std::string, attribute_op> numeric_operations = {
 	{"sum", op_sum},
 	{"min", op_min},
 	{"max", op_max},
-	{"mean", op_mean},
 	{"count", op_count},
 };
 
