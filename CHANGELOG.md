@@ -1,3 +1,7 @@
+# 2.61.0
+
+* Fix another bad interaction, this time between dropping-as-needed and --limit-tile-feature-count
+
 # 2.60.0
 
 * Fix bad interaction between --retain-points-multiplier and stopping early when the tile feature limit is reached
