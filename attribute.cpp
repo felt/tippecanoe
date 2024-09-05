@@ -23,8 +23,10 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 		t = op_concat;
 	} else if (type == "comma") {
 		t = op_comma;
+	} else if (type == "count") {
+		t = op_count;
 	} else {
-		fprintf(stderr, "Attribute method (%s) must be sum, product, mean, max, min, concat, or comma\n", type.c_str());
+		fprintf(stderr, "Attribute method (%s) must be sum, product, mean, max, min, concat, comma, or count\n", type.c_str());
 		exit(EXIT_ARGS);
 	}
 
@@ -140,6 +142,21 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 				full_values[i].s += std::string(",") + val.s;
 				full_values[i].type = mvt_string;
 				break;
+
+			case op_count: {
+				auto state = attribute_accum_state.find(key);
+				if (state == attribute_accum_state.end()) {  // not already present
+					accum_state s;
+					s.count = 2;
+					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
+
+					full_values[i].s = std::to_string(s.count);
+				} else {  // already present, incrementing
+					state->second.count += 1;
+					full_values[i].s = std::to_string(state->second.count);
+				}
+				break;
+			}
 			}
 		}
 	}

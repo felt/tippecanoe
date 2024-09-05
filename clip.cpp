@@ -1,4 +1,5 @@
 #include <stack>
+#include <set>
 #include <stdlib.h>
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
@@ -11,6 +12,7 @@
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
+#include "projection.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -1019,11 +1021,67 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 	return out;
 }
 
+/* pnpoly:
+Copyright (c) 1970-2003, Wm. Randolph Franklin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimers.
+Redistributions in binary form must reproduce the above copyright notice in the documentation and/or other materials provided with the distribution.
+The name of W. Randolph Franklin may not be used to endorse or promote products derived from this Software without specific prior written permission.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy) {
+	size_t i, j;
+	bool c = false;
+	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+		if (((vert[i + start].y > testy) != (vert[j + start].y > testy)) &&
+		    (testx < (vert[j + start].x - vert[i + start].x) * (testy - vert[i + start].y) / (double) (vert[j + start].y - vert[i + start].y) + vert[i + start].x))
+			c = !c;
+	}
+	return c;
+}
+
+bool pnpoly(const std::vector<mvt_geometry> &vert, size_t start, size_t nvert, long long testx, long long testy) {
+	size_t i, j;
+	bool c = false;
+	for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+		if (((vert[i + start].y > testy) != (vert[j + start].y > testy)) &&
+		    (testx < (vert[j + start].x - vert[i + start].x) * (testy - vert[i + start].y) / (double) (vert[j + start].y - vert[i + start].y) + vert[i + start].x))
+			c = !c;
+	}
+	return c;
+}
+
+bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) {
+	// assumes rings are properly nested, so inside a hole matches twice
+	bool found = false;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == mvt_moveto) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != mvt_lineto) {
+					break;
+				}
+			}
+
+			found ^= pnpoly(geom, i, j - i, x, y);
+			i = j - 1;
+		}
+	}
+
+	return found;
+}
+
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size) {
+		     bool demultiply, json_object *filter, bool preserve_input_order,
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
+		     std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1049,7 +1107,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
+	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
 }
 
 struct tile_feature {
@@ -1147,11 +1205,284 @@ static struct preservecmp {
 	}
 } preservecmp;
 
+struct index_event {
+	unsigned long long where;
+	enum index_event_kind {
+		ENTER = 0,  // new bin in is now active
+		CHECK,	    // point needs to be checked against active bins
+		EXIT	    // bin has ceased to be active
+	} kind;
+	size_t layer;
+	size_t feature;
+
+	index_event(unsigned long long where_, index_event_kind kind_, size_t layer_, size_t feature_)
+	    : where(where_), kind(kind_), layer(layer_), feature(feature_) {
+	}
+
+	bool operator<(const index_event &ie) const {
+		if (where < ie.where) {
+			return true;
+		} else if (where == ie.where) {
+			if (kind < ie.kind) {
+				return true;
+			} else if (kind == ie.kind) {
+				if (layer < ie.layer) {
+					return true;
+				} else if (layer == ie.layer) {
+					if (feature < ie.feature) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+};
+
+struct active_bin {
+	size_t layer;
+	size_t feature;
+
+	active_bin(size_t layer_, size_t feature_)
+	    : layer(layer_), feature(feature_) {
+	}
+
+	bool operator<(const active_bin &o) const {
+		if (layer < o.layer) {
+			return true;
+		} else if (layer == o.layer) {
+			if (feature < o.feature) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	size_t outfeature;
+	long long xmin, ymin, xmax, ymax;
+	size_t counter = 0;
+};
+
+void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
+			unsigned long long *start, unsigned long long *end) {
+	if (xmin < 0 || ymin < 0 || xmax >= 1LL << 32 || ymax >= 1LL << 32) {
+		*start = 0;
+		*end = ULLONG_MAX;
+		return;
+	}
+
+	*start = encode_quadkey(xmin, ymin);
+	*end = encode_quadkey(xmax, ymax);
+
+	for (ssize_t i = 62; i >= 0; i -= 2) {
+		if ((*start & (3LL << i)) != (*end & (3LL << i))) {
+			for (; i >= 0; i -= 2) {
+				*start &= ~(3LL << i);
+				*end |= 3LL << i;
+			}
+			break;
+		}
+	}
+}
+
+mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail) {
+	std::vector<index_event> events;
+
+	// Index bins
+	for (size_t i = 0; i < bins.size(); i++) {
+		for (size_t j = 0; j < bins[i].features.size(); j++) {
+			long long xmin, ymin, xmax, ymax;
+			unsigned long long start, end;
+
+			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
+			events.emplace_back(start, index_event::ENTER, i, j);
+			events.emplace_back(end, index_event::EXIT, i, j);
+		}
+	}
+
+	// Index points
+	for (size_t i = 0; i < features.layers.size(); i++) {
+		for (size_t j = 0; j < features.layers[i].features.size(); j++) {
+			long long xmin, ymin, xmax, ymax;
+			unsigned long long start, end;
+
+			if (features.layers[i].features[j].geometry.size() > 0) {
+				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
+				events.emplace_back(start, index_event::CHECK, i, j);
+			}
+		}
+	}
+
+	std::sort(events.begin(), events.end());
+	std::set<active_bin> active;
+	std::vector<size_t> counters;			    // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> sums;    // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> maxes;   // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> mins;    // separate because set items can't be mutated from an iterator
+	std::vector<std::map<std::string, double>> counts;  // separate because set items can't be mutated from an iterator
+
+	mvt_layer outlayer;
+	outlayer.extent = 1 << detail;
+	outlayer.version = 2;
+	outlayer.name = features.layers[0].name;
+
+	for (auto &e : events) {
+		if (e.kind == index_event::ENTER) {
+			active_bin a(e.layer, e.feature);
+
+			const mvt_feature &bin = bins[e.layer].features[e.feature];
+			mvt_feature outfeature;
+			outfeature.geometry = bin.geometry;
+			outfeature.type = bin.type;
+			a.outfeature = outlayer.features.size();
+
+			a.counter = counters.size();
+			counters.push_back(0);
+			sums.emplace_back();
+			maxes.emplace_back();
+			mins.emplace_back();
+			counts.emplace_back();
+
+			outlayer.features.push_back(std::move(outfeature));
+			active.insert(std::move(a));
+		} else if (e.kind == index_event::CHECK) {
+			auto const &feature = features.layers[e.layer].features[e.feature];
+#if 0
+			for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+				printf("%s ", features.layers[e.layer].values[feature.tags[i + 1]].toString().c_str());
+			}
+			printf(": ");
+#endif
+
+			for (auto const &a : active) {
+				auto const &bin = bins[a.layer].features[a.feature];
+
+				// XXX do bounding box check first
+				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
+#if 0
+					printf("found: ");
+
+					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
+						printf("%s ", bins[a.first].values[bin.tags[i + 1]].toString().c_str());
+					}
+					printf("\n");
+#endif
+					counters[a.counter]++;
+
+					for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+						const mvt_value &val = features.layers[e.layer].values[feature.tags[i + 1]];
+						const std::string &key = features.layers[e.layer].keys[feature.tags[i]];
+
+						if (val.is_numeric()) {
+							auto sum_attr = sums[a.counter].find(key);
+							if (sum_attr == sums[a.counter].end()) {
+								sums[a.counter].emplace(key, 0);
+								mins[a.counter].emplace(key, std::numeric_limits<double>::infinity());
+								maxes[a.counter].emplace(key, -std::numeric_limits<double>::infinity());
+								counts[a.counter].emplace(key, 0);
+
+								sum_attr = sums[a.counter].find(key);
+							}
+
+							auto min_attr = mins[a.counter].find(key);
+							auto max_attr = maxes[a.counter].find(key);
+							auto count_attr = counts[a.counter].find(key);
+							double v = mvt_value_to_double(val);
+
+							sum_attr->second += v;
+							count_attr->second += 1;
+							min_attr->second = std::min(min_attr->second, v);
+							max_attr->second = std::max(max_attr->second, v);
+						}
+					}
+
+					break;
+				}
+			}
+		} else /* EXIT */ {
+			auto const &found = active.find({e.layer, e.feature});
+			if (found != active.end()) {
+				mvt_feature &outfeature = outlayer.features[found->outfeature];
+
+				if (counters[found->counter] >= 0) {
+					const mvt_feature &bin = bins[e.layer].features[e.feature];
+
+					// copy attributes from the original bin feature
+					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
+						outlayer.tag(outfeature, bins[e.layer].keys[bin.tags[i]], bins[e.layer].values[bin.tags[i + 1]]);
+					}
+
+					// new attribute for number of features assigned to the bin
+					mvt_value v;
+					v.type = mvt_uint;
+					v.numeric_value.uint_value = counters[found->counter];
+					outlayer.tag(outfeature, "tippecanoe:count", v);
+
+					for (auto const &kv : sums[found->counter]) {
+						mvt_value v_sum;
+						v_sum.type = mvt_double;
+						v_sum.numeric_value.double_value = kv.second;
+						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v_sum);
+
+						mvt_value v_count;
+						v_count.type = mvt_double;
+						v_count.numeric_value.double_value = counts[found->counter][kv.first];
+						outlayer.tag(outfeature, "tippecanoe:count:" + kv.first, v_count);
+
+						mvt_value v_mean;
+						v_mean.type = mvt_double;
+						v_mean.numeric_value.double_value = kv.second / counters[found->counter];
+						outlayer.tag(outfeature, "tippecanoe:mean:" + kv.first, v_mean);
+
+						mvt_value v_min;
+						v_min.type = mvt_double;
+						v_min.numeric_value.double_value = mins[found->counter][kv.first];
+						outlayer.tag(outfeature, "tippecanoe:min:" + kv.first, v_min);
+
+						mvt_value v_max;
+						v_max.type = mvt_double;
+						v_max.numeric_value.double_value = maxes[found->counter][kv.first];
+						outlayer.tag(outfeature, "tippecanoe:max:" + kv.first, v_max);
+					}
+				} else {
+					outfeature.geometry.clear();
+				}
+
+				active.erase(found);
+			} else {
+				fprintf(stderr, "event mismatch: can't happen\n");
+				exit(EXIT_IMPOSSIBLE);
+			}
+		}
+	}
+
+#if 0
+	// crunch out bin features whose geometry we cleared along the way
+	size_t out = 0;
+	for (size_t i = 0; i < outlayer.features.size(); i++) {
+		if (outlayer.features[i].geometry.size() > 0) {
+			outlayer.features[out++] = outlayer.features[i];
+		}
+	}
+	outlayer.features.resize(out);
+#endif
+
+	mvt_tile ret;
+	ret.layers.push_back(outlayer);
+	return ret;
+}
+
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
-		     bool demultiply, json_object *filter, bool preserve_input_order, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size) {
+		     bool demultiply, json_object *filter, bool preserve_input_order,
+		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
+		     std::vector<std::string> const &unidecode_data, double simplification,
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -1367,13 +1698,17 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
+								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
 				}
 			}
 		}
+	}
+
+	if (bins.size() > 0) {
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
@@ -1396,4 +1731,152 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	} else {
 		return "";
 	}
+}
+
+drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding) {
+	int outer = 1;
+	drawvec out;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_CLOSEPATH) {
+			outer = 1;
+		} else if (geom[i].op == VT_MOVETO) {
+			// Find the end of the ring
+
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			// A polygon ring must contain at least three points
+			// (and really should contain four). If this one does
+			// not have any, avoid a division by zero trying to
+			// calculate the centroid below.
+			if (j - i < 1) {
+				i = j - 1;
+				outer = 0;
+				continue;
+			}
+
+			// Make a temporary copy of the ring.
+			// Close it if it isn't closed.
+
+			drawvec ring;
+			for (size_t a = i; a < j; a++) {
+				ring.push_back(geom[a]);
+			}
+			if (j - i != 0 && (ring[0].x != ring[j - i - 1].x || ring[0].y != ring[j - i - 1].y)) {
+				ring.push_back(ring[0]);
+			}
+
+			// A polygon ring at this point should contain at least four points.
+			// Flesh it out with some vertex copies if it doesn't.
+
+			while (ring.size() < 4) {
+				ring.push_back(ring[0]);
+			}
+
+			// Reverse ring if winding order doesn't match
+			// inner/outer expectation
+
+			bool reverse_ring = false;
+			if (use_winding) {
+				// GeoJSON winding is reversed from vector winding
+				reverse_ring = true;
+			} else if (reverse_winding) {
+				// GeoJSON winding is reversed from vector winding
+				reverse_ring = false;
+			} else {
+				double area = get_area(ring, 0, ring.size());
+				if ((area > 0) != outer) {
+					reverse_ring = true;
+				}
+			}
+
+			if (reverse_ring) {
+				drawvec tmp;
+				for (int a = ring.size() - 1; a >= 0; a--) {
+					tmp.push_back(ring[a]);
+				}
+				ring = tmp;
+			}
+
+			// Now we are rotating the ring to make the first/last point
+			// one that would be unlikely to be simplified away.
+
+			// calculate centroid
+			// a + 1 < size() because point 0 is duplicated at the end
+			long long xtotal = 0;
+			long long ytotal = 0;
+			long long count = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				xtotal += ring[a].x;
+				ytotal += ring[a].y;
+				count++;
+			}
+			xtotal /= count;
+			ytotal /= count;
+
+			// figure out which point is furthest from the centroid
+			long long dist2 = 0;
+			long long furthest = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				// division by 16 because these are z0 coordinates and we need to avoid overflow
+				long long xd = (ring[a].x - xtotal) / 16;
+				long long yd = (ring[a].y - ytotal) / 16;
+				long long d2 = xd * xd + yd * yd;
+				if (d2 > dist2 || (d2 == dist2 && ring[a] < ring[furthest])) {
+					dist2 = d2;
+					furthest = a;
+				}
+			}
+
+			// then figure out which point is furthest from *that*,
+			// which will hopefully be a good origin point since it should be
+			// at a far edge of the shape.
+			long long dist2b = 0;
+			long long furthestb = 0;
+			for (size_t a = 0; a + 1 < ring.size(); a++) {
+				// division by 16 because these are z0 coordinates and we need to avoid overflow
+				long long xd = (ring[a].x - ring[furthest].x) / 16;
+				long long yd = (ring[a].y - ring[furthest].y) / 16;
+				long long d2 = xd * xd + yd * yd;
+				if (d2 > dist2b || (d2 == dist2b && ring[a] < ring[furthestb])) {
+					dist2b = d2;
+					furthestb = a;
+				}
+			}
+
+			// rotate ring so the furthest point is the duplicated one.
+			// the idea is that simplification will then be more efficient,
+			// never wasting the start and end points, which are always retained,
+			// on a point that has little impact on the shape.
+
+			// Copy ring into output, fixing the moveto/lineto ops if necessary because of
+			// reversal or closing
+
+			for (size_t a = 0; a < ring.size(); a++) {
+				size_t a2 = (a + furthestb) % (ring.size() - 1);
+
+				if (a == 0) {
+					out.push_back(draw(VT_MOVETO, ring[a2].x, ring[a2].y));
+				} else {
+					out.push_back(draw(VT_LINETO, ring[a2].x, ring[a2].y));
+				}
+			}
+
+			// Next ring or polygon begins on the non-lineto that ended this one
+			// and is not an outer ring unless there is a terminator first
+
+			i = j - 1;
+			outer = 0;
+		} else {
+			fprintf(stderr, "Internal error: polygon ring begins with %d, not moveto\n", geom[i].op);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	return out;
 }

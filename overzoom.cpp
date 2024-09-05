@@ -9,6 +9,7 @@
 #include "evaluator.hpp"
 #include "attribute.hpp"
 #include "text.hpp"
+#include "read_json.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -20,6 +21,7 @@ std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
+std::vector<mvt_layer> bins;
 
 std::set<std::string> keep;
 
@@ -37,6 +39,7 @@ int main(int argc, char **argv) {
 	const char *outfile = NULL;
 	double simplification = 0;
 	double tiny_polygon_size = 0;
+	std::string assign_to_bins;
 
 	std::vector<input_tile> sources;
 
@@ -53,6 +56,7 @@ int main(int argc, char **argv) {
 		{"line-simplification", required_argument, 0, 'S'},
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
+		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -119,6 +123,10 @@ int main(int argc, char **argv) {
 			simplification = atof(optarg);
 			break;
 
+		case 'b' & 0x1F:
+			assign_to_bins = optarg;
+			break;
+
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
@@ -182,6 +190,17 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	if (assign_to_bins.size() != 0) {
+		FILE *f = fopen(assign_to_bins.c_str(), "r");
+		if (f == NULL) {
+			perror(assign_to_bins.c_str());
+			exit(EXIT_OPEN);
+		}
+
+		bins = parse_layers(f, nz, nx, ny, 1LL << detail);
+		fclose(f);
+	}
+
 	json_object *json_filter = NULL;
 	if (filter.size() > 0) {
 		json_filter = parse_filter(filter.c_str());
@@ -208,7 +227,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

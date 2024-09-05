@@ -1,6 +1,12 @@
-# 2.61.0
+# 2.62.0
 
 * Fix another bad interaction, this time between dropping-as-needed and --limit-tile-feature-count
+
+# 2.61.0
+
+* Added --calculate-feature-index option
+* Added "count" accumulation type to --accumulate-attribute
+* Work in progress on binning of point features in overzoom. Not ready for use yet.
 
 # 2.60.0
 

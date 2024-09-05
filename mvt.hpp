@@ -118,6 +118,14 @@ struct mvt_value {
 		s->push_back('\0');
 	}
 
+	bool is_numeric() const {
+		return type == mvt_float ||
+		       type == mvt_double ||
+		       type == mvt_int ||
+		       type == mvt_uint ||
+		       type == mvt_sint;
+	}
+
 	bool operator<(const mvt_value &o) const;
 	bool operator==(const mvt_value &o) const;
 	std::string toString() const;
@@ -193,10 +201,15 @@ int dezig(unsigned n);
 
 mvt_value stringified_to_mvt_value(int type, const char *s, std::shared_ptr<std::string> const &tile_stringpool);
 long long mvt_value_to_long_long(mvt_value const &v);
+double mvt_value_to_double(mvt_value const &v);
 
 bool is_integer(const char *s, long long *v);
 bool is_unsigned_integer(const char *s, unsigned long long *v);
 
 struct serial_val;
 serial_val mvt_value_to_serial_val(mvt_value const &v);
+
+void get_bbox(std::vector<mvt_geometry> const &geom,
+	      long long *xmin, long long *ymin, long long *xmax, long long *ymax,
+	      int z, int tx, int ty, int detail);
 #endif

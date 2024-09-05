@@ -460,7 +460,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	// This has to happen after scaling so that the wraparound detection has happened first.
 	// Otherwise the inner/outer calculation will be confused by bad geometries.
 	if (sf.t == VT_POLYGON) {
-		scaled_geometry = fix_polygon(scaled_geometry);
+		scaled_geometry = fix_polygon(scaled_geometry, prevent[P_USE_SOURCE_POLYGON_WINDING], prevent[P_REVERSE_SOURCE_POLYGON_WINDING]);
 	}
 
 	for (auto &c : clipbboxes) {
@@ -713,6 +713,14 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	}
 
 	bbox_index = encode_index(midx, midy);
+	if (additional[A_CALCULATE_INDEX]) {
+		sf.full_keys.push_back("tippecanoe:index");
+
+		serial_val sv;
+		sv.type = mvt_double;
+		sv.s = std::to_string(bbox_index);
+		sf.full_values.push_back(sv);
+	}
 
 	if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 		drawvec dv = polygon_to_anchor(scaled_geometry);
