@@ -2023,7 +2023,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					adjusted_feature_count = adjusted_feature_count * (skipped + kept) / kept;
 				}
 
-				if (too_many_bytes || adjusted_feature_count > adjusted_max_tile_size) {
+				if (too_many_bytes || (adjusted_feature_count > adjusted_max_tile_size && !prevent[P_KILOBYTE_LIMIT])) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
