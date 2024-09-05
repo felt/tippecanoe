@@ -83,7 +83,7 @@ int quick_check(const long long *bbox, int z, long long buffer);
 void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, bool prevent_simplify_shared_nodes);
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);
 drawvec reorder_lines(const drawvec &geom);
-drawvec fix_polygon(const drawvec &geom);
+drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding);
 std::vector<drawvec> chop_polygon(std::vector<drawvec> &geoms);
 void check_polygon(drawvec &geom);
 double get_area(const drawvec &geom, size_t i, size_t j);
@@ -121,7 +121,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size);
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
@@ -129,8 +129,11 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size);
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins);
 
 draw center_of_mass_mp(const drawvec &dv);
+
+void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
+			unsigned long long *start, unsigned long long *end);
 
 #endif

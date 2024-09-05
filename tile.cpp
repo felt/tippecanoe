@@ -1398,10 +1398,76 @@ void promote_attribute(std::string const &key, serial_feature &p) {
 	}
 }
 
+void promote_attribute_prefix(std::string const &key, std::string const &prefixed_key, serial_feature &p) {
+	if (p.need_tilestats.count(prefixed_key) == 0) {
+		p.need_tilestats.insert(prefixed_key);
+	}
+
+	// does the prefixed attribute already exist as a full key?
+	ssize_t found_as = -1;
+	for (size_t i = 0; i < p.full_keys.size(); i++) {
+		if (prefixed_key == p.full_keys[i]) {
+			// yes, so we're done
+			return;
+		}
+		if (key == p.full_keys[i]) {
+			found_as = i;
+		}
+	}
+
+	// or did we find the source as a full key? then copy it
+	if (found_as >= 0) {
+		p.full_keys.push_back(prefixed_key);
+		p.full_values.push_back(p.full_values[found_as]);
+		return;
+	}
+
+	// does the prefix attribute exist as a reference key?
+	found_as = -1;
+	for (size_t i = 0; i < p.keys.size(); i++) {
+		if (strcmp(prefixed_key.c_str(), p.stringpool + p.keys[i] + 1) == 0) {
+			// yes, so promote it to a full key
+			serial_val sv;
+			sv.s = p.stringpool + p.values[i] + 1;
+			sv.type = p.stringpool[p.values[i]];
+
+			p.full_keys.push_back(prefixed_key);
+			p.full_values.push_back(std::move(sv));
+
+			p.keys.erase(p.keys.begin() + i);
+			p.values.erase(p.values.begin() + i);
+
+			return;
+		} else if (strcmp(key.c_str(), p.stringpool + p.keys[i] + 1) == 0) {
+			found_as = i;
+		}
+	}
+
+	// or did we find the source as a reference key? then copy it
+	if (found_as >= 0) {
+		serial_val sv;
+		sv.s = p.stringpool + p.values[found_as] + 1;
+		sv.type = p.stringpool[p.values[found_as]];
+
+		p.full_keys.push_back(prefixed_key);
+		p.full_values.push_back(std::move(sv));
+
+		return;
+	}
+}
+
+std::map<std::string, attribute_op> numeric_operations = {
+	{"sum", op_sum},
+	{"min", op_min},
+	{"max", op_max},
+	{"count", op_count},
+};
+
 // accumulate attribute values from sf onto p
 void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
 		std::string key = sf.stringpool + sf.keys[i] + 1;
+		int type = sf.stringpool[sf.values[i]];
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
@@ -1411,17 +1477,34 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
+		} else if (type == mvt_double && additional[A_ACCUMULATE_NUMERIC]) {
+			for (auto const &operation : numeric_operations) {
+				serial_val sv;
+				sv.type = sf.stringpool[sf.values[i]];
+				sv.s = sf.stringpool + sf.values[i] + 1;
+
+				std::string prefixed_key = "tippecanoe:" + operation.first + ":" + key;
+				promote_attribute_prefix(key, prefixed_key, p);
+				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
+			}
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
 		const std::string &key = sf.full_keys[i];
+		int type = sf.full_values[i].type;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
 			const serial_val &sv = sf.full_values[i];
 
-			promote_attribute(key, p);
+			promote_attribute(key, p);  // promotes it in the target feature
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
+		} else if (type == mvt_double && additional[A_ACCUMULATE_NUMERIC]) {
+			for (auto const &operation : numeric_operations) {
+				std::string prefixed_key = "tippecanoe:" + operation.first + ":" + key;
+				promote_attribute_prefix(key, prefixed_key, p);
+				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, p.attribute_accum_state);
+			}
 		}
 	}
 }

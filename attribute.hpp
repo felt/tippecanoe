@@ -12,6 +12,7 @@ enum attribute_op {
 	op_comma,
 	op_max,
 	op_min,
+	op_count,
 };
 
 struct accum_state {

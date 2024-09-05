@@ -1,3 +1,9 @@
+# 2.61.0
+
+* Added --calculate-feature-index option
+* Added "count" accumulation type to --accumulate-attribute
+* Work in progress on binning of point features in overzoom. Not ready for use yet.
+
 # 2.60.0
 
 * Fix bad interaction between --retain-points-multiplier and stopping early when the tile feature limit is reached
