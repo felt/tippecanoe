@@ -1,3 +1,7 @@
+# 2.62.0
+
+* Fix another bad interaction, this time between dropping-as-needed and --limit-tile-feature-count
+
 # 2.61.0
 
 * Added --calculate-feature-index option

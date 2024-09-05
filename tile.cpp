@@ -2106,7 +2106,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					adjusted_feature_count = adjusted_feature_count * (skipped + kept) / kept;
 				}
 
-				if (too_many_bytes || adjusted_feature_count > adjusted_max_tile_size) {
+				if (too_many_bytes || (adjusted_feature_count > adjusted_max_tile_size && !prevent[P_KILOBYTE_LIMIT])) {
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
@@ -2490,13 +2490,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
 				if (layer_features.size() > limit_tile_feature_count_at_maxzoom) {
-					can_stop_early = false;
+					// this is maxzoom; ok to stop early still because they said to limit abruptly
 					layer_features.resize(limit_tile_feature_count_at_maxzoom);
+					too_many_features = false;  // don't try to drop; we have already truncated
+					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
 				}
 			} else if (limit_tile_feature_count != 0) {
 				if (layer_features.size() > limit_tile_feature_count) {
 					can_stop_early = false;
 					layer_features.resize(limit_tile_feature_count);
+					too_many_features = false;  // don't try to drop; we have already truncated
+					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
 				}
 			}
 		}
