@@ -285,13 +285,9 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		// handle longitude wraparound
 		//
 		// this is supposed to be data for a single tile,
-		// so any jump from the left hand side of the world
-		// to the right side, or vice versa, is unexpected,
+		// so any jump from the left hand side edge of the world
+		// to the right edge, or vice versa, is unexpected,
 		// so move it to the other side.
-		//
-		// (unless this is z0, in which case it is still
-		// reasonable to have a big, world-spanning polygon,
-		// and I'm not sure what to do about that.)
 
 		if (fix_longitudes) {
 			for (size_t i = 0; i < dv.size(); i++) {
