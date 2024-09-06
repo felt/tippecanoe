@@ -178,7 +178,7 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	return out;
 }
 
-std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int extent) {
+std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int extent, bool fix_longitudes) {
 	std::map<std::string, mvt_layer> ret;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -282,26 +282,26 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			dv = fix_polygon(dv, false, false);
 		}
 
-		if (z > 0) {
-			// handle longitude wraparound
-			//
-			// this is supposed to be data for a single tile,
-			// so any jump from the left hand side of the world
-			// to the right side, or vice versa, is unexpected,
-			// so move it to the other side.
-			//
-			// (unless this is z0, in which case it is still
-			// reasonable to have a big, world-spanning polygon,
-			// and I'm not sure what to do about that.)
+		// handle longitude wraparound
+		//
+		// this is supposed to be data for a single tile,
+		// so any jump from the left hand side of the world
+		// to the right side, or vice versa, is unexpected,
+		// so move it to the other side.
+		//
+		// (unless this is z0, in which case it is still
+		// reasonable to have a big, world-spanning polygon,
+		// and I'm not sure what to do about that.)
 
+		if (fix_longitudes) {
 			for (size_t i = 0; i < dv.size(); i++) {
 				if (i > 0) {
-					if ((dv[0].x < (1LL << 31)) &&
-					    (dv[i].x > (1LL << 31))) {
+					if ((dv[0].x < (1LL << 30)) &&
+					    (dv[i].x > 3 * (1LL << 30))) {
 						dv[i].x -= 1LL << 32;
 					}
-					if ((dv[0].x > (1LL << 31)) &&
-					    (dv[i].x < (1LL << 31))) {
+					if ((dv[0].x > 3 * (1LL << 30)) &&
+					    (dv[i].x < (1LL << 30))) {
 						dv[i].x += 1LL << 32;
 					}
 				}

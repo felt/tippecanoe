@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
 			exit(EXIT_OPEN);
 		}
 
-		bins = parse_layers(f, nz, nx, ny, 1LL << detail);
+		bins = parse_layers(f, nz, nx, ny, 1LL << detail, true);
 		fclose(f);
 	}
 

@@ -82,7 +82,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 		exit(EXIT_OPEN);
 	}
 
-	std::vector<mvt_layer> out = parse_layers(f, z, x, y, extent);
+	std::vector<mvt_layer> out = parse_layers(f, z, x, y, extent, true);
 
 	if (fclose(f) != 0) {
 		perror("fclose postfilter output");
