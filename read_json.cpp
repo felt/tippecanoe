@@ -282,23 +282,42 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			dv = fix_polygon(dv, false, false);
 		}
 
+		if (z > 0) {
+			// handle longitude wraparound
+			//
+			// this is supposed to be data for a single tile,
+			// so any jump from the left hand side of the world
+			// to the right side, or vice versa, is unexpected,
+			// so move it to the other side.
+			//
+			// (unless this is z0, in which case it is still
+			// reasonable to have a big, world-spanning polygon,
+			// and I'm not sure what to do about that.)
+
+			for (size_t i = 0; i < dv.size(); i++) {
+				if (i > 0) {
+					if ((dv[0].x < (1LL << 31)) &&
+					    (dv[i].x > (1LL << 31))) {
+						dv[i].x -= 1LL << 32;
+					}
+					if ((dv[0].x > (1LL << 31)) &&
+					    (dv[i].x < (1LL << 31))) {
+						dv[i].x += 1LL << 32;
+					}
+				}
+			}
+		}
+
 		// Offset and scale geometry from global to tile
+
 		for (size_t i = 0; i < dv.size(); i++) {
 			long long scale = 1LL << (32 - z);
 
-			// offset
+			// offset to tile
 			dv[i].x -= scale * x;
 			dv[i].y -= scale * y;
 
-			// handle longitude wraparound
-			if (dv[i].x > 2 * scale && dv[i].x - (1LL << 32) > -3 * scale) {
-				dv[i].x -= 1LL << 32;
-			}
-			if (dv[i].x < -3 * scale && dv[i].x + (1LL << 32) < 2 * scale) {
-				dv[i].x += 1LL << 32;
-			}
-
-			// scale
+			// scale to tile
 			dv[i].x = std::round(dv[i].x * extent / (double) scale);
 			dv[i].y = std::round(dv[i].y * extent / (double) scale);
 		}
