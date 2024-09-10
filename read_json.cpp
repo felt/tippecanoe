@@ -278,9 +278,6 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 		drawvec dv;
 		parse_geometry(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
-		if (mb_geometry[t] == VT_POLYGON) {
-			dv = fix_polygon(dv, false, false);
-		}
 
 		// handle longitude wraparound
 		//
@@ -289,7 +286,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		// to the right edge, or vice versa, is unexpected,
 		// so move it to the other side.
 
-		if (fix_longitudes) {
+		if (fix_longitudes && mb_geometry[t] == VT_POLYGON) {
 			const long long quarter_world = 1LL << 30;
 			const long long world = 1LL << 32;
 
@@ -332,6 +329,10 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			}
 		}
 
+		if (mb_geometry[t] == VT_POLYGON) {
+			dv = fix_polygon(dv, false, false);
+		}
+
 		// Offset and scale geometry from global to tile
 
 		for (size_t i = 0; i < dv.size(); i++) {
@@ -351,6 +352,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			// on the other side of the world
 			dv = clean_or_clip_poly(dv, z, 256, true, false);
 			if (dv.size() < 3) {
+				// printf("%s\n", json_stringify(j));
 				dv.clear();
 			}
 		}
