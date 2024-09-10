@@ -178,7 +178,7 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	return out;
 }
 
-std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int extent) {
+std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int extent, bool fix_longitudes) {
 	std::map<std::string, mvt_layer> ret;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -278,6 +278,57 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 		drawvec dv;
 		parse_geometry(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
+
+		// handle longitude wraparound
+		//
+		// this is supposed to be data for a single tile,
+		// so any jump from the left hand side edge of the world
+		// to the right edge, or vice versa, is unexpected,
+		// so move it to the other side.
+
+		if (fix_longitudes && mb_geometry[t] == VT_POLYGON) {
+			const long long quarter_world = 1LL << 30;
+			const long long world = 1LL << 32;
+
+			bool copy_to_left = false;
+			bool copy_to_right = false;
+
+			for (size_t i = 0; i < dv.size(); i++) {
+				// is this vertex on a different side of the world
+				// than the first vertex? then shift this one to match
+				if (i > 0) {
+					if ((dv[0].x < quarter_world) && (dv[i].x > 3 * quarter_world)) {
+						dv[i].x -= world;
+					}
+					if ((dv[0].x > 3 * quarter_world) && (dv[i].x < quarter_world)) {
+						dv[i].x += world;
+					}
+				}
+
+				// does it stick off the edge of the world?
+				// then we need another copy on the other side of the world
+				if (dv[i].x < 0) {
+					copy_to_right = true;
+				}
+				if (dv[i].x > world) {
+					copy_to_left = true;
+				}
+			}
+
+			if (copy_to_left) {
+				size_t n = dv.size();
+				for (size_t i = 0; i < n; i++) {
+					dv.emplace_back(dv[i].op, dv[i].x - world, (long long) dv[i].y);
+				}
+			}
+			if (copy_to_right) {
+				size_t n = dv.size();
+				for (size_t i = 0; i < n; i++) {
+					dv.emplace_back(dv[i].op, dv[i].x + world, (long long) dv[i].y);
+				}
+			}
+		}
+
 		if (mb_geometry[t] == VT_POLYGON) {
 			dv = fix_polygon(dv, false, false);
 		}
@@ -286,26 +337,19 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		for (size_t i = 0; i < dv.size(); i++) {
 			long long scale = 1LL << (32 - z);
 
-			// offset
+			// offset to tile
 			dv[i].x -= scale * x;
 			dv[i].y -= scale * y;
 
-			// handle longitude wraparound
-			if (dv[i].x > 2 * scale && dv[i].x - (1LL << 32) > -3 * scale) {
-				dv[i].x -= 1LL << 32;
-			}
-			if (dv[i].x < -3 * scale && dv[i].x + (1LL << 32) < 2 * scale) {
-				dv[i].x += 1LL << 32;
-			}
-
-			// scale
+			// scale to tile
 			dv[i].x = std::round(dv[i].x * extent / (double) scale);
 			dv[i].y = std::round(dv[i].y * extent / (double) scale);
 		}
 
 		if (mb_geometry[t] == VT_POLYGON) {
-			// we can try scaling up because these are tile coordinates
-			dv = clean_or_clip_poly(dv, 0, 0, false, true);
+			// don't try scaling up because we may have coordinates
+			// on the other side of the world
+			dv = clean_or_clip_poly(dv, z, 256, true, false);
 			if (dv.size() < 3) {
 				dv.clear();
 			}

@@ -1,3 +1,7 @@
+# 2.62.1
+
+* More work in progress on binning point features in overzoom
+
 # 2.62.0
 
 * Fix another bad interaction, this time between dropping-as-needed and --limit-tile-feature-count
