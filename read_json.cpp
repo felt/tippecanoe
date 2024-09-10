@@ -334,7 +334,6 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		}
 
 		// Offset and scale geometry from global to tile
-
 		for (size_t i = 0; i < dv.size(); i++) {
 			long long scale = 1LL << (32 - z);
 
@@ -352,7 +351,6 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			// on the other side of the world
 			dv = clean_or_clip_poly(dv, z, 256, true, false);
 			if (dv.size() < 3) {
-				// printf("%s\n", json_stringify(j));
 				dv.clear();
 			}
 		}
