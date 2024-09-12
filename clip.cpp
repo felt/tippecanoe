@@ -1291,6 +1291,18 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 
 static bool bbox_intersects(long long x1min, long long y1min, long long x1max, long long y1max,
 			    long long x2min, long long y2min, long long x2max, long long y2max) {
+	if (x1max < x2min) {
+		return false;
+	}
+	if (x2max < x1min) {
+		return false;
+	}
+	if (y1max < y2min) {
+		return false;
+	}
+	if (y2max < y1min) {
+		return false;
+	}
 	return true;
 }
 
