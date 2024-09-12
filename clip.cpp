@@ -1229,11 +1229,20 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 										auto out_attr = numeric_out_field.find(outkey);
 										if (out_attr == numeric_out_field.end()) {
 											// not present at all, so copy our value to the prefixed output
+											numeric_out_field.emplace(prefixed, full_keys.size());
+											full_keys.push_back(prefixed);
+											full_values.push_back(mvt_value_to_serial_val(val));
 										} else {
 											// exists unprefixed, so copy it, and then accumulate on our value
+											numeric_out_field.emplace(prefixed, full_keys.size());
+											full_keys.push_back(prefixed);
+											full_values.push_back(full_values[out_attr->second]);
+
+											preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
 										}
 									} else {
 										// exists, so accumulate on our value
+										preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
 									}
 								}
 							}
