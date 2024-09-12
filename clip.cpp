@@ -1120,6 +1120,8 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
+bool accumulate_numeric = true;	 // XXX
+
 static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::shared_ptr<std::string> const &tile_stringpool) {
 	// Add geometry to output feature
 
@@ -1139,7 +1141,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 		outfeature.seq = features[0].seq;
 
-		if (attribute_accum.size() > 0) {
+		if (attribute_accum.size() > 0 || accumulate_numeric) {
 			// convert the attributes of the output feature
 			// from mvt_value to serial_val so they can have
 			// attributes from the other features of the
@@ -1148,6 +1150,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::unordered_map<std::string, accum_state> attribute_accum_state;
 			std::vector<std::string> full_keys;
 			std::vector<serial_val> full_values;
+			std::map<std::string, size_t> numeric;
 
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
 				auto f = attribute_accum.find(features[0].layer->keys[features[0].tags[i]]);
@@ -1155,11 +1158,25 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					// this attribute has an accumulator, so convert it
 					full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
 					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
+				} else if (accumulate_numeric && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
+					// convert numeric for accumulation
+					const std::string &key = features[0].layer->keys[features[0].tags[i]];
+					numeric.emplace(key, full_keys.size());
+					full_keys.push_back(key);
+					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
 				} else {
 					// otherwise just tag it directly onto the output feature
 					if (keep.size() == 0 || keep.find(features[0].layer->keys[features[0].tags[i]]) != keep.end()) {
 						outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
 					}
+				}
+			}
+
+			// also create any numeric accumulation attributes that are needed
+			// but don't exist yet
+			for (auto const &k : numeric) {
+				for (auto const &op : numeric_operations) {
+					std::string key = k.first + ":" + op.first;
 				}
 			}
 

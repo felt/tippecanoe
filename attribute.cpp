@@ -6,6 +6,13 @@
 #include "jsonpull/jsonpull.h"
 #include "milo/dtoa_milo.h"
 
+std::map<std::string, attribute_op> numeric_operations = {
+	{"sum", op_sum},
+	{"min", op_min},
+	{"max", op_max},
+	{"count", op_count},
+};
+
 void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribute_accum, std::string name, std::string type) {
 	attribute_op t;
 

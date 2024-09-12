@@ -18,7 +18,6 @@
 #include "main.hpp"
 #include "options.hpp"
 #include "errors.hpp"
-#include "projection.hpp"
 
 drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long long *bbox, unsigned initial_x, unsigned initial_y) {
 	drawvec out;

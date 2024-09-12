@@ -1456,13 +1456,6 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 	}
 }
 
-std::map<std::string, attribute_op> numeric_operations = {
-	{"sum", op_sum},
-	{"min", op_min},
-	{"max", op_max},
-	{"count", op_count},
-};
-
 // accumulate attribute values from sf onto p
 void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p) {
 	for (size_t i = 0; i < sf.keys.size(); i++) {
