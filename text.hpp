@@ -15,5 +15,6 @@ unsigned long long fnv1a(const char *s, char additional);
 unsigned long long fnv1a(size_t size, void *p);
 unsigned long long bit_reverse(unsigned long long v);
 std::string truncate_string(std::string const &s, size_t len);
+bool starts_with(std::string const &s, std::string const &prefix);
 
 #endif

@@ -1172,19 +1172,18 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				}
 			}
 
-			// also create any numeric accumulation attributes that are needed
-			// but don't exist yet
-			for (auto const &k : numeric) {
-				for (auto const &op : numeric_operations) {
-					std::string key = k.first + ":" + op.first;
-				}
-			}
-
 			// accumulate whatever attributes are specified to be accumulated
 			// onto the feature that will survive into the output, from the
 			// features that will not
 
 			for (size_t i = 1; i < features.size(); i++) {
+				std::set<std::string> keys;
+
+				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
+					const std::string &key = features[i].layer->keys[features[i].tags[j]];
+					keys.insert(key);
+				}
+
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
 					std::string key = features[i].layer->keys[features[i].tags[j]];
 
@@ -1192,6 +1191,40 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					if (f != attribute_accum.end()) {
 						serial_val val = mvt_value_to_serial_val(features[i].layer->values[features[i].tags[j + 1]]);
 						preserve_attribute(f->second, key, val, full_keys, full_values, attribute_accum_state);
+					} else if (accumulate_numeric) {
+						const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
+						if (val.is_numeric()) {
+							// If this is a numeric attribute, but there is also a tippecanoe:sum (etc.) for the
+							// same attribute, we want to use that one instead of this one.
+
+							for (auto const &op : numeric_operations) {
+								std::string compound_key = "tippecanoe:" + op.first + ":" + key;
+								auto compound_found = keys.find(compound_key);
+								if (compound_found == keys.end()) {
+									// found, so skip this one
+								} else {
+									// not found, so accumulate this one
+
+									// if this is already prefixed, strip off the prefix
+									// if it is the right one, and skip the attribute if
+									// it is the wrong one.
+
+									if (starts_with(key, "tippecanoe:")) {
+										std::string prefix = "tippecanoe:" + op.first + ":";
+										if (starts_with(key, prefix)) {
+											key = key.substr(prefix.size());
+										} else {
+											continue;  // to next operation
+										}
+									}
+
+									// Does it exist in the output feature already?
+									// If not, promote it
+
+									// And then accumulate onto it
+								}
+							}
+						}
 					}
 				}
 			}
@@ -1457,8 +1490,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v_sum);
 
 						mvt_value v_count;
-						v_count.type = mvt_double;
-						v_count.numeric_value.double_value = counts[found->counter][kv.first];
+						v_count.type = mvt_uint;
+						v_count.numeric_value.uint_value = counts[found->counter][kv.first];
 						outlayer.tag(outfeature, "tippecanoe:count:" + kv.first, v_count);
 
 						mvt_value v_mean;

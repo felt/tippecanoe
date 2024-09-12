@@ -341,3 +341,17 @@ std::string truncate_string(std::string const &s, size_t len) {
 
 	return s.substr(0, i);
 }
+
+bool starts_with(std::string const &s, std::string const &prefix) {
+	if (s.size() < prefix.size()) {
+		return false;
+	}
+
+	for (size_t i = 0; i < prefix.size(); i++) {
+		if (s[i] != prefix[i]) {
+			return false;
+		}
+	}
+
+	return true;
+}
