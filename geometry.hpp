@@ -121,7 +121,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size, std::vector<mvt_layer> const &bins);
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
+		     bool accumulate_numeric);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
@@ -129,7 +130,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size, std::vector<mvt_layer> const &bins);
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
+		     bool accumulate_numeric);
 
 draw center_of_mass_mp(const drawvec &dv);
 

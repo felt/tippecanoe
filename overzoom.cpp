@@ -22,6 +22,7 @@ bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
 std::vector<mvt_layer> bins;
+bool accumulate_numeric = false;
 
 std::set<std::string> keep;
 
@@ -57,6 +58,7 @@ int main(int argc, char **argv) {
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
+		{"accumulate-numeric-attributes", no_argument, 0, 'a' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -125,6 +127,10 @@ int main(int argc, char **argv) {
 
 		case 'b' & 0x1F:
 			assign_to_bins = optarg;
+			break;
+
+		case 'a' & 0x1F:
+			accumulate_numeric = true;
 			break;
 
 		default:
@@ -227,7 +233,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

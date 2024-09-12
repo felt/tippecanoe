@@ -1081,7 +1081,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size, std::vector<mvt_layer> const &bins) {
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
+		     bool accumulate_numeric) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1107,7 +1108,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
+	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 }
 
 struct tile_feature {
@@ -1120,9 +1121,11 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-bool accumulate_numeric = true;	 // XXX
-
-static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer, std::set<std::string> const &keep, std::unordered_map<std::string, attribute_op> const &attribute_accum, std::shared_ptr<std::string> const &tile_stringpool) {
+static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
+			std::set<std::string> const &keep,
+			std::unordered_map<std::string, attribute_op> const &attribute_accum,
+			std::shared_ptr<std::string> const &tile_stringpool,
+			bool accumulate_numeric) {
 	// Add geometry to output feature
 
 	mvt_feature outfeature;
@@ -1565,7 +1568,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size, std::vector<mvt_layer> const &bins) {
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
+		     bool accumulate_numeric) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
@@ -1691,7 +1695,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool);
+						feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool, accumulate_numeric);
 						pending_tile_features.clear();
 					}
 				}
@@ -1748,7 +1752,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool);
+				feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool, accumulate_numeric);
 				pending_tile_features.clear();
 			}
 
@@ -1781,7 +1785,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail, buffer, keep, false, NULL,
-								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
+								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
