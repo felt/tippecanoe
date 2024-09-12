@@ -1150,7 +1150,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::unordered_map<std::string, accum_state> attribute_accum_state;
 			std::vector<std::string> full_keys;
 			std::vector<serial_val> full_values;
-			std::map<std::string, size_t> numeric;
+			std::map<std::string, size_t> numeric_out_field;
 
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
 				auto f = attribute_accum.find(features[0].layer->keys[features[0].tags[i]]);
@@ -1161,7 +1161,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				} else if (accumulate_numeric && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
 					// convert numeric for accumulation
 					const std::string &key = features[0].layer->keys[features[0].tags[i]];
-					numeric.emplace(key, full_keys.size());
+					numeric_out_field.emplace(key, full_keys.size());
 					full_keys.push_back(key);
 					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
 				} else {
@@ -1185,7 +1185,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				}
 
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
-					std::string key = features[i].layer->keys[features[i].tags[j]];
+					const std::string &key = features[i].layer->keys[features[i].tags[j]];
 
 					auto f = attribute_accum.find(key);
 					if (f != attribute_accum.end()) {
@@ -1198,8 +1198,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 							// same attribute, we want to use that one instead of this one.
 
 							for (auto const &op : numeric_operations) {
-								std::string compound_key = "tippecanoe:" + op.first + ":" + key;
-								auto compound_found = keys.find(compound_key);
+								auto compound_found = keys.find("tipppecanoe:" + op.first + ":" + key);
 								if (compound_found == keys.end()) {
 									// found, so skip this one
 								} else {
@@ -1209,19 +1208,33 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 									// if it is the right one, and skip the attribute if
 									// it is the wrong one.
 
-									if (starts_with(key, "tippecanoe:")) {
+									std::string outkey = key;
+									if (starts_with(outkey, "tippecanoe:")) {
 										std::string prefix = "tippecanoe:" + op.first + ":";
-										if (starts_with(key, prefix)) {
-											key = key.substr(prefix.size());
+										if (starts_with(outkey, prefix)) {
+											outkey = outkey.substr(prefix.size());
 										} else {
 											continue;  // to next operation
 										}
 									}
+									// and then put it back on for the output field
+									std::string prefixed = "tippecanoe:" + op.first + ":" + outkey;
 
 									// Does it exist in the output feature already?
-									// If not, promote it
 
-									// And then accumulate onto it
+									auto prefixed_attr = numeric_out_field.find(prefixed);
+									if (prefixed_attr == numeric_out_field.end()) {
+										// No? Does it exist unprefixed in the output feature already?
+
+										auto out_attr = numeric_out_field.find(outkey);
+										if (out_attr == numeric_out_field.end()) {
+											// not present at all, so copy our value to the prefixed output
+										} else {
+											// exists unprefixed, so copy it, and then accumulate on our value
+										}
+									} else {
+										// exists, so accumulate on our value
+									}
 								}
 							}
 						}
