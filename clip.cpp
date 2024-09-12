@@ -1214,9 +1214,11 @@ struct index_event {
 	} kind;
 	size_t layer;
 	size_t feature;
+	long long xmin, ymin, xmax, ymax;
 
-	index_event(unsigned long long where_, index_event_kind kind_, size_t layer_, size_t feature_)
-	    : where(where_), kind(kind_), layer(layer_), feature(feature_) {
+	index_event(unsigned long long where_, index_event_kind kind_, size_t layer_, size_t feature_,
+		    long long xmin_, long long ymin_, long long xmax_, long long ymax_)
+	    : where(where_), kind(kind_), layer(layer_), feature(feature_), xmin(xmin_), ymin(ymin_), xmax(xmax_), ymax(ymax_) {
 	}
 
 	bool operator<(const index_event &ie) const {
@@ -1287,6 +1289,11 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 	}
 }
 
+static bool bbox_intersects(long long x1min, long long y1min, long long x1max, long long y1max,
+			    long long x2min, long long y2min, long long x2max, long long y2max) {
+	return true;
+}
+
 mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail) {
 	std::vector<index_event> events;
 
@@ -1298,8 +1305,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
 			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-			events.emplace_back(start, index_event::ENTER, i, j);
-			events.emplace_back(end, index_event::EXIT, i, j);
+			events.emplace_back(start, index_event::ENTER, i, j, xmin, ymin, xmax, ymax);
+			events.emplace_back(end, index_event::EXIT, i, j, xmin, ymin, xmax, ymax);
 		}
 	}
 
@@ -1312,7 +1319,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			if (features.layers[i].features[j].geometry.size() > 0) {
 				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
 				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-				events.emplace_back(start, index_event::CHECK, i, j);
+				events.emplace_back(start, index_event::CHECK, i, j, xmin, ymin, xmax, ymax);
 			}
 		}
 	}
@@ -1333,6 +1340,10 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
 			active_bin a(e.layer, e.feature);
+			a.xmin = e.xmin;
+			a.ymin = e.ymin;
+			a.xmax = e.xmax;
+			a.ymax = e.ymax;
 
 			const mvt_feature &bin = bins[e.layer].features[e.feature];
 			mvt_feature outfeature;
@@ -1351,56 +1362,44 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			active.insert(std::move(a));
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
-#if 0
-			for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-				printf("%s ", features.layers[e.layer].values[feature.tags[i + 1]].toString().c_str());
-			}
-			printf(": ");
-#endif
 
 			for (auto const &a : active) {
 				auto const &bin = bins[a.layer].features[a.feature];
 
-				// XXX do bounding box check first
-				if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
-#if 0
-					printf("found: ");
+				if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
+						    a.xmin, a.ymin, a.xmax, a.ymax)) {
+					if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
+						counters[a.counter]++;
 
-					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
-						printf("%s ", bins[a.first].values[bin.tags[i + 1]].toString().c_str());
-					}
-					printf("\n");
-#endif
-					counters[a.counter]++;
+						for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+							const mvt_value &val = features.layers[e.layer].values[feature.tags[i + 1]];
+							const std::string &key = features.layers[e.layer].keys[feature.tags[i]];
 
-					for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-						const mvt_value &val = features.layers[e.layer].values[feature.tags[i + 1]];
-						const std::string &key = features.layers[e.layer].keys[feature.tags[i]];
+							if (val.is_numeric()) {
+								auto sum_attr = sums[a.counter].find(key);
+								if (sum_attr == sums[a.counter].end()) {
+									sums[a.counter].emplace(key, 0);
+									mins[a.counter].emplace(key, std::numeric_limits<double>::infinity());
+									maxes[a.counter].emplace(key, -std::numeric_limits<double>::infinity());
+									counts[a.counter].emplace(key, 0);
 
-						if (val.is_numeric()) {
-							auto sum_attr = sums[a.counter].find(key);
-							if (sum_attr == sums[a.counter].end()) {
-								sums[a.counter].emplace(key, 0);
-								mins[a.counter].emplace(key, std::numeric_limits<double>::infinity());
-								maxes[a.counter].emplace(key, -std::numeric_limits<double>::infinity());
-								counts[a.counter].emplace(key, 0);
+									sum_attr = sums[a.counter].find(key);
+								}
 
-								sum_attr = sums[a.counter].find(key);
+								auto min_attr = mins[a.counter].find(key);
+								auto max_attr = maxes[a.counter].find(key);
+								auto count_attr = counts[a.counter].find(key);
+								double v = mvt_value_to_double(val);
+
+								sum_attr->second += v;
+								count_attr->second += 1;
+								min_attr->second = std::min(min_attr->second, v);
+								max_attr->second = std::max(max_attr->second, v);
 							}
-
-							auto min_attr = mins[a.counter].find(key);
-							auto max_attr = maxes[a.counter].find(key);
-							auto count_attr = counts[a.counter].find(key);
-							double v = mvt_value_to_double(val);
-
-							sum_attr->second += v;
-							count_attr->second += 1;
-							min_attr->second = std::min(min_attr->second, v);
-							max_attr->second = std::max(max_attr->second, v);
 						}
-					}
 
-					break;
+						break;
+					}
 				}
 			}
 		} else /* EXIT */ {
