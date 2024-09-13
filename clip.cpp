@@ -1157,14 +1157,14 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::map<std::string, size_t> numeric_out_field;
 
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
-				auto f = attribute_accum.find(features[0].layer->keys[features[0].tags[i]]);
+				const std::string &key = features[0].layer->keys[features[0].tags[i]];
+				auto f = attribute_accum.find(key);
 				if (f != attribute_accum.end()) {
 					// this attribute has an accumulator, so convert it
 					full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
 					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
 				} else if (accumulate_numeric && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
 					// convert numeric for accumulation
-					const std::string &key = features[0].layer->keys[features[0].tags[i]];
 					numeric_out_field.emplace(key, full_keys.size());
 					full_keys.push_back(key);
 					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
@@ -1202,8 +1202,9 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 							// same attribute, we want to use that one instead of this one.
 
 							for (auto const &op : numeric_operations) {
-								auto compound_found = keys.find("tipppecanoe:" + op.first + ":" + key);
-								if (compound_found == keys.end()) {
+								std::string compound_key = "tipppecanoe:" + op.first + ":" + key;
+								auto compound_found = keys.find(compound_key);
+								if (compound_found != keys.end()) {
 									// found, so skip this one
 								} else {
 									// not found, so accumulate this one
