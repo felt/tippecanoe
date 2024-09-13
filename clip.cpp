@@ -1111,6 +1111,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 }
 
+// like a minimal serial_feature, but with mvt_feature-style attributes
 struct tile_feature {
 	drawvec geom;
 	int t;
@@ -1381,7 +1382,8 @@ static bool bbox_intersects(long long x1min, long long y1min, long long x1max, l
 	return true;
 }
 
-mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail) {
+mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail,
+			bool accumulate_numeric) {
 	std::vector<index_event> events;
 
 	// Index bins
@@ -1413,16 +1415,14 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 
 	std::sort(events.begin(), events.end());
 	std::set<active_bin> active;
-	std::vector<size_t> counters;			    // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> sums;    // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> maxes;   // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> mins;    // separate because set items can't be mutated from an iterator
-	std::vector<std::map<std::string, double>> counts;  // separate because set items can't be mutated from an iterator
 
 	mvt_layer outlayer;
 	outlayer.extent = 1 << detail;
 	outlayer.version = 2;
 	outlayer.name = features.layers[0].name;
+
+	std::vector<std::vector<tile_feature>> outfeatures;
+	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
@@ -1433,19 +1433,21 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			a.ymax = e.ymax;
 
 			const mvt_feature &bin = bins[e.layer].features[e.feature];
-			mvt_feature outfeature;
-			outfeature.geometry = bin.geometry;
-			outfeature.type = bin.type;
-			a.outfeature = outlayer.features.size();
 
-			a.counter = counters.size();
-			counters.push_back(0);
-			sums.emplace_back();
-			maxes.emplace_back();
-			mins.emplace_back();
-			counts.emplace_back();
+			tile_feature outfeature;
+			for (auto const &g : bin.geometry) {
+				outfeature.geom.emplace_back(g.op, g.x, g.y);
+			}
+			outfeature.t = bin.type;
+			outfeature.has_id = bin.has_id;
+			outfeature.id = bin.id;
+			outfeature.tags = bin.tags;
+			outfeature.layer = &bins[e.layer];
+			outfeature.seq = e.feature;
 
-			outlayer.features.push_back(std::move(outfeature));
+			a.outfeature = outfeatures.size();
+			outfeatures.push_back({std::move(outfeature)});
+
 			active.insert(std::move(a));
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
@@ -1456,34 +1458,17 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 				if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
 						    a.xmin, a.ymin, a.xmax, a.ymax)) {
 					if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
-						counters[a.counter]++;
-
-						for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-							const mvt_value &val = features.layers[e.layer].values[feature.tags[i + 1]];
-							const std::string &key = features.layers[e.layer].keys[feature.tags[i]];
-
-							if (val.is_numeric()) {
-								auto sum_attr = sums[a.counter].find(key);
-								if (sum_attr == sums[a.counter].end()) {
-									sums[a.counter].emplace(key, 0);
-									mins[a.counter].emplace(key, std::numeric_limits<double>::infinity());
-									maxes[a.counter].emplace(key, -std::numeric_limits<double>::infinity());
-									counts[a.counter].emplace(key, 0);
-
-									sum_attr = sums[a.counter].find(key);
-								}
-
-								auto min_attr = mins[a.counter].find(key);
-								auto max_attr = maxes[a.counter].find(key);
-								auto count_attr = counts[a.counter].find(key);
-								double v = mvt_value_to_double(val);
-
-								sum_attr->second += v;
-								count_attr->second += 1;
-								min_attr->second = std::min(min_attr->second, v);
-								max_attr->second = std::max(max_attr->second, v);
-							}
+						tile_feature outfeature;
+						for (auto const &g : feature.geometry) {
+							outfeature.geom.emplace_back(g.op, g.x, g.y);
 						}
+						outfeature.t = feature.type;
+						outfeature.has_id = feature.has_id;
+						outfeature.id = feature.id;
+						outfeature.tags = feature.tags;
+						outfeature.layer = &features.layers[e.layer];
+						outfeature.seq = e.feature;
+						outfeatures[a.outfeature].push_back(std::move(outfeature));
 
 						break;
 					}
@@ -1492,50 +1477,17 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 		} else /* EXIT */ {
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
-				mvt_feature &outfeature = outlayer.features[found->outfeature];
+				std::unordered_map<std::string, attribute_op> attribute_accum;
 
-				if (counters[found->counter] >= 0) {
-					const mvt_feature &bin = bins[e.layer].features[e.feature];
-
-					// copy attributes from the original bin feature
-					for (size_t i = 0; i + 1 < bin.tags.size(); i += 2) {
-						outlayer.tag(outfeature, bins[e.layer].keys[bin.tags[i]], bins[e.layer].values[bin.tags[i + 1]]);
-					}
-
-					// new attribute for number of features assigned to the bin
-					mvt_value v;
-					v.type = mvt_uint;
-					v.numeric_value.uint_value = counters[found->counter];
-					outlayer.tag(outfeature, "tippecanoe:count", v);
-
-					for (auto const &kv : sums[found->counter]) {
-						mvt_value v_sum;
-						v_sum.type = mvt_double;
-						v_sum.numeric_value.double_value = kv.second;
-						outlayer.tag(outfeature, "tippecanoe:sum:" + kv.first, v_sum);
-
-						mvt_value v_count;
-						v_count.type = mvt_uint;
-						v_count.numeric_value.uint_value = counts[found->counter][kv.first];
-						outlayer.tag(outfeature, "tippecanoe:count:" + kv.first, v_count);
-
-						mvt_value v_mean;
-						v_mean.type = mvt_double;
-						v_mean.numeric_value.double_value = kv.second / counters[found->counter];
-						outlayer.tag(outfeature, "tippecanoe:mean:" + kv.first, v_mean);
-
-						mvt_value v_min;
-						v_min.type = mvt_double;
-						v_min.numeric_value.double_value = mins[found->counter][kv.first];
-						outlayer.tag(outfeature, "tippecanoe:min:" + kv.first, v_min);
-
-						mvt_value v_max;
-						v_max.type = mvt_double;
-						v_max.numeric_value.double_value = maxes[found->counter][kv.first];
-						outlayer.tag(outfeature, "tippecanoe:max:" + kv.first, v_max);
-					}
-				} else {
-					outfeature.geometry.clear();
+				if (outfeatures[found->outfeature].size() > 1) {
+					feature_out(outfeatures[found->outfeature], outlayer,
+						    std::set<std::string>(), attribute_accum,
+						    tile_stringpool, accumulate_numeric);
+					mvt_feature &nfeature = outlayer.features.back();
+					mvt_value val;
+					val.type = mvt_uint;
+					val.numeric_value.uint_value = outfeatures[found->outfeature].size() - 1;
+					outlayer.tag(nfeature, "tippecanoe:count", val);
 				}
 
 				active.erase(found);
@@ -1545,17 +1497,6 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			}
 		}
 	}
-
-#if 0
-	// crunch out bin features whose geometry we cleared along the way
-	size_t out = 0;
-	for (size_t i = 0; i < outlayer.features.size(); i++) {
-		if (outlayer.features[i].geometry.size() > 0) {
-			outlayer.features[out++] = outlayer.features[i];
-		}
-	}
-	outlayer.features.resize(out);
-#endif
 
 	mvt_tile ret;
 	ret.layers.push_back(outlayer);
@@ -1795,7 +1736,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail);
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail, accumulate_numeric);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
