@@ -1122,6 +1122,32 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
+static void add_mean(mvt_feature &feature, mvt_layer &layer) {
+	std::unordered_map<std::string, size_t> attributes;
+	for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+		std::string const &key = layer.keys[feature.tags[i]];
+		if (starts_with(key, "tippecanoe:")) {
+			attributes.emplace(key, i);
+		}
+	}
+
+	for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+		std::string const &key = layer.keys[feature.tags[i]];
+		if (starts_with(key, "tippecanoe:sum:")) {
+			std::string trunc = key.substr(15);
+			auto const f = attributes.find("tippecanoe:count:" + trunc);
+			if (f != attributes.end()) {
+				mvt_value const &sum = layer.values[feature.tags[i + 1]];
+				mvt_value const &count = layer.values[feature.tags[f->second + 1]];
+				mvt_value mean;
+				mean.type = mvt_double;
+				mean.numeric_value.double_value = mvt_value_to_double(sum) / mvt_value_to_double(count);
+				layer.tag(feature, "tippecanoe:mean:" + trunc, mean);
+			}
+		}
+	}
+};
+
 static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
@@ -1263,6 +1289,10 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				if (keep.size() == 0 || keep.find(full_keys[i]) != keep.end()) {
 					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str(), tile_stringpool));
 				}
+			}
+
+			if (accumulate_numeric) {
+				add_mean(outfeature, outlayer);
 			}
 		} else {
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
