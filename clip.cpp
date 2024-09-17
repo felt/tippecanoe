@@ -1228,7 +1228,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 							// same attribute, we want to use that one instead of this one.
 
 							for (auto const &op : numeric_operations) {
-								std::string compound_key = "tipppecanoe:" + op.first + ":" + key;
+								std::string compound_key = "tippecanoe:" + op.first + ":" + key;
 								auto compound_found = keys.find(compound_key);
 								if (compound_found != keys.end()) {
 									// found, so skip this one

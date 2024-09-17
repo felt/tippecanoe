@@ -553,11 +553,11 @@ accumulate-test:
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'POP1950' | wc -l` == 2
 	# (which is the same as you get if you don't use -retain-points-multiplier when creating the tileset)
 	#
-	# the clustered and megatile-filtered POP1950s add up to 183298
-	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep 'tippecanoe:sum:POP1950' | sed 's/.*"tippecanoe:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 183298
+	# the clustered and megatile-filtered POP1950s add up to 146370
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep 'tippecanoe:sum:POP1950' | sed 's/.*"tippecanoe:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 146370
 	# the non-clustered but megatile-filtered POP1950s add up to 15220
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'tippecanoe:sum:POP1950' | grep POP1950 | sed 's/.*"POP1950": //' | awk '{sum += $$1} END {print sum}'` == 15220
-	# which does not add up to 161590 so something is wrong
+	# which add up to 161590 so we have the right global total
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
