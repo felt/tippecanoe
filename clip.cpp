@@ -1338,6 +1338,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			mvt_feature outfeature;
 			outfeature.geometry = bin.geometry;
 			outfeature.type = bin.type;
+			outfeature.has_id = bin.has_id;
+			outfeature.id = bin.id;
 			a.outfeature = outlayer.features.size();
 
 			a.counter = counters.size();
