@@ -95,12 +95,12 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 			case op_sum:
 				full_values[i].s = milo::dtoa_milo(atof(full_values[i].s.c_str()) + atof(val.s.c_str()));
 				full_values[i].type = mvt_double;
-				break;
+				return;
 
 			case op_product:
 				full_values[i].s = milo::dtoa_milo(atof(full_values[i].s.c_str()) * atof(val.s.c_str()));
 				full_values[i].type = mvt_double;
-				break;
+				return;
 
 			case op_max: {
 				double existing = atof(full_values[i].s.c_str());
@@ -109,7 +109,7 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 					full_values[i].s = val.s.c_str();
 					full_values[i].type = mvt_double;
 				}
-				break;
+				return;
 			}
 
 			case op_min: {
@@ -119,7 +119,7 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 					full_values[i].s = val.s.c_str();
 					full_values[i].type = mvt_double;
 				}
-				break;
+				return;
 			}
 
 			case op_mean: {
@@ -131,24 +131,26 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
 
 					full_values[i].s = milo::dtoa_milo(s.sum / s.count);
+					full_values[i].type = mvt_double;
 				} else {
 					state->second.sum += atof(val.s.c_str());
 					state->second.count += 1;
 
 					full_values[i].s = milo::dtoa_milo(state->second.sum / state->second.count);
+					full_values[i].type = mvt_double;
 				}
-				break;
+				return;
 			}
 
 			case op_concat:
 				full_values[i].s += val.s;
 				full_values[i].type = mvt_string;
-				break;
+				return;
 
 			case op_comma:
 				full_values[i].s += std::string(",") + val.s;
 				full_values[i].type = mvt_string;
-				break;
+				return;
 
 			case op_count: {
 				auto state = attribute_accum_state.find(key);
@@ -162,9 +164,69 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 					state->second.count += 1;
 					full_values[i].s = std::to_string(state->second.count);
 				}
-				break;
+				return;
 			}
 			}
 		}
 	}
+
+	// not found, so we are making a new value
+
+	serial_val sv;
+	switch (op) {
+	case op_sum:
+	case op_product:
+	case op_max:
+	case op_min:
+		sv.s = val.s;
+		sv.type = mvt_double;
+		break;
+
+	case op_mean: {
+		auto state = attribute_accum_state.find(key);
+		if (state == attribute_accum_state.end()) {
+			accum_state s;
+			s.sum = atof(val.s.c_str());
+			s.count = 1;
+			attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
+
+			sv.s = milo::dtoa_milo(s.sum / s.count);
+		} else {
+			state->second.sum += atof(val.s.c_str());
+			state->second.count += 1;
+
+			sv.s = milo::dtoa_milo(state->second.sum / state->second.count);
+		}
+		break;
+	}
+
+	case op_concat:
+		sv.s = val.s;
+		sv.type = mvt_string;
+		break;
+
+	case op_comma:
+		sv.s = val.s;
+		sv.type = mvt_string;
+		break;
+
+	case op_count: {
+		auto state = attribute_accum_state.find(key);
+		if (state == attribute_accum_state.end()) {  // not already present
+			accum_state s;
+			s.count = 1;
+			attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
+
+			sv.s = std::to_string(s.count);
+		} else {  // already present, incrementing
+			state->second.count += 1;
+			sv.s = std::to_string(state->second.count);
+		}
+		sv.type = mvt_double;
+		break;
+	}
+	}
+
+	full_keys.push_back(key);
+	full_values.push_back(sv);
 }

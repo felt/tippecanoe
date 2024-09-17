@@ -1454,6 +1454,8 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 
 		return;
 	}
+
+	// it does not exist, so preserve_attribute() will create it
 }
 
 // accumulate attribute values from sf onto p
