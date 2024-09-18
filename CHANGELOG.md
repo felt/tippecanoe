@@ -1,3 +1,7 @@
+# 2.62.2
+
+* Pass feature ID through with bins
+
 # 2.62.1
 
 * More work in progress on binning point features in overzoom
