@@ -1437,6 +1437,7 @@ static bool bbox_intersects(long long x1min, long long y1min, long long x1max, l
 }
 
 mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail,
+			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &accumulate_numeric) {
 	std::vector<index_event> events;
 
@@ -1531,8 +1532,6 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 		} else /* EXIT */ {
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
-				std::unordered_map<std::string, attribute_op> attribute_accum;
-
 				if (outfeatures[found->outfeature].size() > 1) {
 					feature_out(outfeatures[found->outfeature], outlayer,
 						    std::set<std::string>(), attribute_accum,
@@ -1797,7 +1796,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail, accumulate_numeric);
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail, attribute_accum, accumulate_numeric);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {

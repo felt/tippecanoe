@@ -583,7 +583,7 @@ accumulate-test:
 	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:sum:POP1950' | sed 's/.*"clustered:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 161590
 	# which is the right global total
 	# the cluster sizes still add up to the 243 original features
-	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
