@@ -1139,9 +1139,14 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer) {
 			if (f != attributes.end()) {
 				mvt_value const &sum = layer.values[feature.tags[i + 1]];
 				mvt_value const &count = layer.values[feature.tags[f->second + 1]];
+				double count_val = mvt_value_to_double(count);
+				if (count_val <= 0) {
+					fprintf(stderr, "can't happen: count is %s (type %d)\n", count.toString().c_str(), count.type);
+					exit(EXIT_IMPOSSIBLE);
+				}
 				mvt_value mean;
 				mean.type = mvt_double;
-				mean.numeric_value.double_value = mvt_value_to_double(sum) / mvt_value_to_double(count);
+				mean.numeric_value.double_value = mvt_value_to_double(sum) / count_val;
 				layer.tag(feature, "tippecanoe:mean:" + trunc, mean);
 			}
 		}
@@ -1262,12 +1267,26 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 											// not present at all, so copy our value to the prefixed output
 											numeric_out_field.emplace(prefixed, full_keys.size());
 											full_keys.push_back(prefixed);
-											full_values.push_back(mvt_value_to_serial_val(val));
+											if (op.second == op_count) {
+												serial_val sv;
+												sv.type = mvt_double;
+												sv.s = "1";
+												full_values.push_back(sv);
+											} else {
+												full_values.push_back(mvt_value_to_serial_val(val));
+											}
 										} else {
 											// exists unprefixed, so copy it, and then accumulate on our value
 											numeric_out_field.emplace(prefixed, full_keys.size());
 											full_keys.push_back(prefixed);
-											full_values.push_back(full_values[out_attr->second]);
+											if (op.second == op_count) {
+												serial_val sv;
+												sv.type = mvt_double;
+												sv.s = "1";
+												full_values.push_back(sv);
+											} else {
+												full_values.push_back(full_values[out_attr->second]);
+											}
 
 											preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
 										}
