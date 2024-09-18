@@ -12,7 +12,6 @@
 #define A_PREFER_RADIX_SORT ((int) 'R')
 #define A_COALESCE_DENSEST_AS_NEEDED ((int) 'S')
 #define A_CALCULATE_INDEX ((int) 'X')
-#define A_ACCUMULATE_NUMERIC ((int) 'a')
 #define A_DETECT_SHARED_BORDERS ((int) 'b')
 #define A_COALESCE ((int) 'c')
 #define A_DROP_FRACTION_AS_NEEDED ((int) 'd')

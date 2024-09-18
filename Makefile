@@ -367,15 +367,15 @@ overzoom-test: tippecanoe-overzoom
 	cmp tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out.json
 	rm tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out
 	# Binning with longitude wraparound problems
-	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-2-0-1.pbf.out --accumulate-numeric-attributes --assign-to-bins tests/pbf/h3-2-0-1.geojson tests/pbf/0-0-0.pbf 2/0/1 2/0/1
+	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-2-0-1.pbf.out --accumulate-numeric-attributes=tippecanoe --assign-to-bins tests/pbf/h3-2-0-1.geojson tests/pbf/0-0-0.pbf 2/0/1 2/0/1
 	./tippecanoe-decode tests/pbf/0-0-0-pop-2-0-1.pbf.out 2 0 1 > tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check
 	cmp tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check tests/pbf/0-0-0-pop-2-0-1.pbf.out.json
 	rm tests/pbf/0-0-0-pop-2-0-1.pbf.out tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check
-	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-1-1-0.pbf.out --accumulate-numeric-attributes --assign-to-bins tests/pbf/h3-1-1-0.geojson tests/pbf/0-0-0.pbf 1/1/0 1/1/0
+	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-1-1-0.pbf.out --accumulate-numeric-attributes=tippecanoe --assign-to-bins tests/pbf/h3-1-1-0.geojson tests/pbf/0-0-0.pbf 1/1/0 1/1/0
 	./tippecanoe-decode tests/pbf/0-0-0-pop-1-1-0.pbf.out 1 1 0 > tests/pbf/0-0-0-pop-1-1-0.pbf.out.json.check
 	cmp tests/pbf/0-0-0-pop-1-1-0.pbf.out.json.check tests/pbf/0-0-0-pop-1-1-0.pbf.out.json
 	rm tests/pbf/0-0-0-pop-1-1-0.pbf.out tests/pbf/0-0-0-pop-1-1-0.pbf.out.json.check
-	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-0-0-0.pbf.out --accumulate-numeric-attributes --assign-to-bins tests/pbf/h3-0-0-0.geojson tests/pbf/0-0-0.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-0-0-0.pbf.out --accumulate-numeric-attributes=tippecanoe --assign-to-bins tests/pbf/h3-0-0-0.geojson tests/pbf/0-0-0.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/0-0-0-pop-0-0-0.pbf.out 0 0 0 > tests/pbf/0-0-0-pop-0-0-0.pbf.out.json.check
 	cmp tests/pbf/0-0-0-pop-0-0-0.pbf.out.json.check tests/pbf/0-0-0-pop-0-0-0.pbf.out.json
 	rm tests/pbf/0-0-0-pop-0-0-0.pbf.out tests/pbf/0-0-0-pop-0-0-0.pbf.out.json.check
@@ -520,7 +520,7 @@ accumulate-test:
 	test `grep '"POP1950": [0-9]' tests/ne_110m_populated_places_nulls/in.json | wc -l` == 144
 	# and 99 without it
 	test `grep '"POP1950": null' tests/ne_110m_populated_places_nulls/in.json | wc -l` == 99
-	./tippecanoe -yNAME -yPOP1950 -q -z3 -r1.75 -b0 -f -e tests/pbf/accum.dir --accumulate-numeric-attributes --set-attribute clustersize:1 --accumulate-attribute clustersize:sum --retain-points-multiplier 3 tests/ne_110m_populated_places_nulls/in.json
+	./tippecanoe -yNAME -yPOP1950 -q -z3 -r1.75 -b0 -f -e tests/pbf/accum.dir --accumulate-numeric-attributes=tippecanoe --set-attribute clustersize:1 --accumulate-attribute clustersize:sum --retain-points-multiplier 3 tests/ne_110m_populated_places_nulls/in.json
 	# at this drop rate, there are 6 points at z0 that have no POP1950s clustered onto them....
 	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep -v 'tippecanoe:count:POP1950' | wc -l` == 78
 	# 35 of which have no POP1950 at all
@@ -544,7 +544,7 @@ accumulate-test:
 	# which is the correct 161590
 	#
 	# OK, so do these still hold after megatile filtering?
-	./tippecanoe-overzoom --accumulate-numeric-attributes --accumulate-attribute clustersize:sum -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom --accumulate-numeric-attributes=tippecanoe --accumulate-attribute clustersize:sum -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
 	# Now there are 40 features with POP1950 clusters
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep 'tippecanoe:count:POP1950' | wc -l` == 40
 	# There are 4 with bare POP1950
@@ -560,7 +560,7 @@ accumulate-test:
 	# which add up to 161590 so we have the right global total
 	#
 	# Now on to binning!
-	./tippecanoe-overzoom --assign-to-bins tests/pbf/h3-0-0-0.geojson --accumulate-numeric-attributes --accumulate-attribute clustersize:sum -m -o tests/pbf/bins-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom --assign-to-bins tests/pbf/h3-0-0-0.geojson --accumulate-numeric-attributes=tippecanoe --accumulate-attribute clustersize:sum -m -o tests/pbf/bins-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
 	# Now there are 30 bins with POP1950 clusters
 	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'tippecanoe:count:POP1950' | wc -l` == 30
 	# There are none with bare POP1950 (which is expected; we should only have summary statistics)

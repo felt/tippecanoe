@@ -22,7 +22,7 @@ bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
 std::vector<mvt_layer> bins;
-bool accumulate_numeric = false;
+std::string accumulate_numeric;
 
 std::set<std::string> keep;
 
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
-		{"accumulate-numeric-attributes", no_argument, 0, 'a' & 0x1F},
+		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'a' & 0x1F:
-			accumulate_numeric = true;
+			accumulate_numeric = optarg;
 			break;
 
 		default:

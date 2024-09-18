@@ -1472,13 +1472,13 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
-		} else if (type == mvt_double && additional[A_ACCUMULATE_NUMERIC]) {
+		} else if (type == mvt_double && accumulate_numeric.size() > 0) {
 			for (auto const &operation : numeric_operations) {
 				serial_val sv;
 				sv.type = sf.stringpool[sf.values[i]];
 				sv.s = sf.stringpool + sf.values[i] + 1;
 
-				std::string prefixed_key = "tippecanoe:" + operation.first + ":" + key;
+				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
 				promote_attribute_prefix(key, prefixed_key, p);
 				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 			}
@@ -1494,9 +1494,9 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p);  // promotes it in the target feature
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
-		} else if (type == mvt_double && additional[A_ACCUMULATE_NUMERIC]) {
+		} else if (type == mvt_double && accumulate_numeric.size() > 0) {
 			for (auto const &operation : numeric_operations) {
-				std::string prefixed_key = "tippecanoe:" + operation.first + ":" + key;
+				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
 				promote_attribute_prefix(key, prefixed_key, p);
 				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, p.attribute_accum_state);
 			}

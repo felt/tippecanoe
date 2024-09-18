@@ -712,7 +712,7 @@ struct tileset_reader {
 			t.y = parent_tile.y;
 			tv.push_back(std::move(t));
 
-			std::string ret = overzoom(tv, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data, 0, 0, std::vector<mvt_layer>(), false);
+			std::string ret = overzoom(tv, tile.z, tile.x, tile.y, -1, buffer, std::set<std::string>(), false, &next_overzoomed_tiles, false, NULL, false, std::unordered_map<std::string, attribute_op>(), unidecode_data, 0, 0, std::vector<mvt_layer>(), "");
 			return ret;
 		}
 

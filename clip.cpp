@@ -1082,7 +1082,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
-		     bool accumulate_numeric) {
+		     std::string const &accumulate_numeric) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1122,20 +1122,24 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-static void add_mean(mvt_feature &feature, mvt_layer &layer) {
+static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &accumulate_numeric) {
+	std::string accumulate_numeric_colon = accumulate_numeric + ":";
+
 	std::unordered_map<std::string, size_t> attributes;
 	for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
 		std::string const &key = layer.keys[feature.tags[i]];
-		if (starts_with(key, "tippecanoe:")) {
+		if (starts_with(key, accumulate_numeric_colon)) {
 			attributes.emplace(key, i);
 		}
 	}
 
 	for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
+		std::string accumulate_numeric_sum_colon = accumulate_numeric + ":sum:";
+
 		std::string const &key = layer.keys[feature.tags[i]];
-		if (starts_with(key, "tippecanoe:sum:")) {
-			std::string trunc = key.substr(15);
-			auto const f = attributes.find("tippecanoe:count:" + trunc);
+		if (starts_with(key, accumulate_numeric_sum_colon)) {
+			std::string trunc = key.substr(accumulate_numeric_sum_colon.size());
+			auto const f = attributes.find(accumulate_numeric + ":count:" + trunc);
 			if (f != attributes.end()) {
 				mvt_value const &sum = layer.values[feature.tags[i + 1]];
 				mvt_value const &count = layer.values[feature.tags[f->second + 1]];
@@ -1147,7 +1151,7 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer) {
 				mvt_value mean;
 				mean.type = mvt_double;
 				mean.numeric_value.double_value = mvt_value_to_double(sum) / count_val;
-				layer.tag(feature, "tippecanoe:mean:" + trunc, mean);
+				layer.tag(feature, accumulate_numeric + ":mean:" + trunc, mean);
 			}
 		}
 	}
@@ -1157,7 +1161,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::set<std::string> const &keep,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::shared_ptr<std::string> const &tile_stringpool,
-			bool accumulate_numeric) {
+			std::string const &accumulate_numeric) {
 	// Add geometry to output feature
 
 	mvt_feature outfeature;
@@ -1176,7 +1180,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 		outfeature.seq = features[0].seq;
 
-		if (attribute_accum.size() > 0 || accumulate_numeric) {
+		if (attribute_accum.size() > 0 || accumulate_numeric.size() > 0) {
 			// convert the attributes of the output feature
 			// from mvt_value to serial_val so they can have
 			// attributes from the other features of the
@@ -1194,7 +1198,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					// this attribute has an accumulator, so convert it
 					full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
 					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
-				} else if (accumulate_numeric && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
+				} else if (accumulate_numeric.size() > 0 && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
 					// convert numeric for accumulation
 					numeric_out_field.emplace(key, full_keys.size());
 					full_keys.push_back(key);
@@ -1226,14 +1230,14 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					if (f != attribute_accum.end()) {
 						serial_val val = mvt_value_to_serial_val(features[i].layer->values[features[i].tags[j + 1]]);
 						preserve_attribute(f->second, key, val, full_keys, full_values, attribute_accum_state);
-					} else if (accumulate_numeric) {
+					} else if (accumulate_numeric.size() > 0) {
 						const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
 						if (val.is_numeric()) {
 							// If this is a numeric attribute, but there is also a tippecanoe:sum (etc.) for the
 							// same attribute, we want to use that one instead of this one.
 
 							for (auto const &op : numeric_operations) {
-								std::string compound_key = "tippecanoe:" + op.first + ":" + key;
+								std::string compound_key = accumulate_numeric + ":" + op.first + ":" + key;
 								auto compound_found = keys.find(compound_key);
 								if (compound_found != keys.end()) {
 									// found, so skip this one
@@ -1245,8 +1249,8 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 									// it is the wrong one.
 
 									std::string outkey = key;
-									if (starts_with(outkey, "tippecanoe:")) {
-										std::string prefix = "tippecanoe:" + op.first + ":";
+									if (starts_with(outkey, accumulate_numeric + ":")) {
+										std::string prefix = accumulate_numeric + ":" + op.first + ":";
 										if (starts_with(outkey, prefix)) {
 											outkey = outkey.substr(prefix.size());
 										} else {
@@ -1254,7 +1258,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 										}
 									}
 									// and then put it back on for the output field
-									std::string prefixed = "tippecanoe:" + op.first + ":" + outkey;
+									std::string prefixed = accumulate_numeric + ":" + op.first + ":" + outkey;
 
 									// Does it exist in the output feature already?
 
@@ -1310,8 +1314,8 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				}
 			}
 
-			if (accumulate_numeric) {
-				add_mean(outfeature, outlayer);
+			if (accumulate_numeric.size() > 0) {
+				add_mean(outfeature, outlayer, accumulate_numeric);
 			}
 		} else {
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
@@ -1433,7 +1437,7 @@ static bool bbox_intersects(long long x1min, long long y1min, long long x1max, l
 }
 
 mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail,
-			bool accumulate_numeric) {
+			std::string const &accumulate_numeric) {
 	std::vector<index_event> events;
 
 	// Index bins
@@ -1537,7 +1541,14 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 					mvt_value val;
 					val.type = mvt_uint;
 					val.numeric_value.uint_value = outfeatures[found->outfeature].size() - 1;
-					outlayer.tag(nfeature, "tippecanoe:count", val);
+
+					std::string attrname;
+					if (accumulate_numeric.size() == 0) {
+						attrname = "tippecanoe:count";
+					} else {
+						attrname = accumulate_numeric + ":count";
+					}
+					outlayer.tag(nfeature, attrname, val);
 				}
 
 				active.erase(found);
@@ -1560,7 +1571,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
-		     bool accumulate_numeric) {
+		     std::string const &accumulate_numeric) {
 	mvt_tile outtile;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
