@@ -544,7 +544,7 @@ accumulate-test:
 	# which is the correct 161590
 	#
 	# OK, so do these still hold after megatile filtering?
-	./tippecanoe-overzoom --accumulate-numeric-attributes -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom --accumulate-numeric-attributes --accumulate-attribute clustersize:sum -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
 	# Now there are 40 features with POP1950 clusters
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep 'tippecanoe:count:POP1950' | wc -l` == 40
 	# There are 4 with bare POP1950
@@ -558,6 +558,19 @@ accumulate-test:
 	# the non-clustered but megatile-filtered POP1950s add up to 15220
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'tippecanoe:sum:POP1950' | grep POP1950 | sed 's/.*"POP1950": //' | awk '{sum += $$1} END {print sum}'` == 15220
 	# which add up to 161590 so we have the right global total
+	#
+	# Now on to binning!
+	./tippecanoe-overzoom --assign-to-bins tests/pbf/h3-0-0-0.geojson --accumulate-numeric-attributes --accumulate-attribute clustersize:sum -m -o tests/pbf/bins-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	# Now there are 30 bins with POP1950 clusters
+	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'tippecanoe:count:POP1950' | wc -l` == 30
+	# There are none with bare POP1950 (which is expected; we should only have summary statistics)
+	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'tippecanoe:count:POP1950' | grep 'POP1950' | wc -l` == 0
+	# And 2 with no POP1950 at all
+	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'POP1950' | wc -l` == 2
+	#
+	# the clustered and megatile-filtered and binned POP1950s add up to 161590
+	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'tippecanoe:sum:POP1950' | sed 's/.*"tippecanoe:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 161590
+	# which is the right global total
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
