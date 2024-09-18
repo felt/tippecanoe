@@ -520,7 +520,7 @@ accumulate-test:
 	test `grep '"POP1950": [0-9]' tests/ne_110m_populated_places_nulls/in.json | wc -l` == 144
 	# and 99 without it
 	test `grep '"POP1950": null' tests/ne_110m_populated_places_nulls/in.json | wc -l` == 99
-	./tippecanoe -yNAME -yPOP1950 -q -z3 -r1.75 -b0 -f -e tests/pbf/accum.dir --accumulate-numeric-attributes=clustered --set-attribute clustersize:1 --accumulate-attribute clustersize:sum --retain-points-multiplier 3 tests/ne_110m_populated_places_nulls/in.json
+	./tippecanoe -yNAME -yPOP1950 -yclustered:cluster_size -q -z3 -r1.75 -b0 -f -e tests/pbf/accum.dir --accumulate-numeric-attributes=clustered --set-attribute '{"clustered:cluster_size":1}' --accumulate-attribute '{"clustered:cluster_size":"sum"}' --retain-points-multiplier 3 tests/ne_110m_populated_places_nulls/in.json
 	# at this drop rate, there are 6 points at z0 that have no POP1950s clustered onto them....
 	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep -v 'clustered:count:POP1950' | wc -l` == 78
 	# 35 of which have no POP1950 at all
@@ -534,6 +534,14 @@ accumulate-test:
 	# we have already established that there are 43 bare POP1950s
 	# which makes a total of 144, which is the total count expected
 	#
+	# meanwhile, regular attribute accumulation.
+	# there are 137 features in the z0 tile, and they all have clustered:cluster_size
+	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep 'clustered:cluster_size' | wc -l` == 137
+	# there are no features that lack it.
+	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep -v 'clustered:cluster_size' | wc -l` == 0
+	# they add up to the 243 original features
+	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
+	#
 	# on to the sums:
 	# in the original data set, the POP1950s that are present add up to 161590
 	test `grep '"POP1950": [0-9]' tests/ne_110m_populated_places_nulls/in.json | sed 's/.*"POP1950": //' | awk '{sum += $$1} END {print sum}' ` == 161590
@@ -544,7 +552,7 @@ accumulate-test:
 	# which is the correct 161590
 	#
 	# OK, so do these still hold after megatile filtering?
-	./tippecanoe-overzoom --accumulate-numeric-attributes=clustered --accumulate-attribute clustersize:sum -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom --accumulate-numeric-attributes=clustered --accumulate-attribute '{"clustered:cluster_size":"sum"}' -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
 	# Now there are 40 features with POP1950 clusters
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep 'clustered:count:POP1950' | wc -l` == 40
 	# There are 4 with bare POP1950
@@ -559,18 +567,23 @@ accumulate-test:
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'clustered:sum:POP1950' | grep POP1950 | sed 's/.*"POP1950": //' | awk '{sum += $$1} END {print sum}'` == 15220
 	# which add up to 161590 so we have the right global total
 	#
+	# the cluster sizes still add up to the 243 original features
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
+	#
 	# Now on to binning!
-	./tippecanoe-overzoom --assign-to-bins tests/pbf/h3-0-0-0.geojson --accumulate-numeric-attributes=clustered --accumulate-attribute clustersize:sum -m -o tests/pbf/bins-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom --assign-to-bins tests/pbf/h3-0-0-0.geojson --accumulate-numeric-attributes=clustered --accumulate-attribute '{"clustered:cluster_size":"sum"}' -o tests/pbf/bins-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
 	# Now there are 30 bins with POP1950 clusters
-	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:count:POP1950' | wc -l` == 30
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:count:POP1950' | wc -l` == 44
 	# There are none with bare POP1950 (which is expected; we should only have summary statistics)
-	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'clustered:count:POP1950' | grep 'POP1950' | wc -l` == 0
-	# And 2 with no POP1950 at all
-	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'POP1950' | wc -l` == 2
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'clustered:count:POP1950' | grep 'POP1950' | wc -l` == 0
+	# And 4 with no POP1950 at all
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'POP1950' | wc -l` == 4
 	#
 	# the clustered and megatile-filtered and binned POP1950s add up to 161590
-	echo test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:sum:POP1950' | sed 's/.*"clustered:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 161590
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:sum:POP1950' | sed 's/.*"clustered:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 161590
 	# which is the right global total
+	# the cluster sizes still add up to the 243 original features
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
