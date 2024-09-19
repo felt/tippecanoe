@@ -1,3 +1,9 @@
+# 2.62.3
+
+* Summary statistics with --accumulate-numeric-attributes make it from tiling through to binning
+* Prefix can be specified for --accumulate-numeric-attributes
+* Added --exclude and --exclude-prefix to tippecanoe-overzoom
+
 # 2.62.2
 
 * Pass feature ID through with bins
