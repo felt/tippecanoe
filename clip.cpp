@@ -1076,7 +1076,11 @@ bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) 
 }
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
+		     int detail, int buffer,
+		     std::set<std::string> const &keep,
+		     std::set<std::string> const &exclude,
+		     std::vector<std::string> const &exclude_prefix,
+		     bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
@@ -1108,7 +1112,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
+	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1237,6 +1241,8 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 
 static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
+			std::set<std::string> const &exclude,
+			std::vector<std::string> const &exclude_prefix,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::shared_ptr<std::string> const &tile_stringpool,
 			std::string const &accumulate_numeric) {
@@ -1452,7 +1458,10 @@ static bool bbox_intersects(long long x1min, long long y1min, long long x1max, l
 
 mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &bins, int z, int x, int y, int detail,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
-			std::string const &accumulate_numeric) {
+			std::string const &accumulate_numeric,
+			std::set<std::string> keep,
+			std::set<std::string> exclude,
+			std::vector<std::string> exclude_prefix) {
 	std::vector<index_event> events;
 
 	// Index bins
@@ -1548,7 +1557,7 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			if (found != active.end()) {
 				if (outfeatures[found->outfeature].size() > 1) {
 					feature_out(outfeatures[found->outfeature], outlayer,
-						    std::set<std::string>(), attribute_accum,
+						    keep, exclude, exclude_prefix, attribute_accum,
 						    tile_stringpool, accumulate_numeric);
 					mvt_feature &nfeature = outlayer.features.back();
 					mvt_value val;
@@ -1578,7 +1587,11 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 }
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
+		     int detail, int buffer,
+		     std::set<std::string> const &keep,
+		     std::set<std::string> const &exclude,
+		     std::vector<std::string> const &exclude_prefix,
+		     bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
@@ -1710,7 +1723,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool, accumulate_numeric);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, tile_stringpool, accumulate_numeric);
 						pending_tile_features.clear();
 					}
 				}
@@ -1767,7 +1780,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, attribute_accum, tile_stringpool, accumulate_numeric);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, tile_stringpool, accumulate_numeric);
 				pending_tile_features.clear();
 			}
 
@@ -1799,7 +1812,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
-								     detail, buffer, keep, false, NULL,
+								     detail, buffer, keep, exclude, exclude_prefix, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
@@ -1810,7 +1823,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail, attribute_accum, accumulate_numeric);
+		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail, attribute_accum, accumulate_numeric,
+					 keep, exclude, exclude_prefix);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
