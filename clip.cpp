@@ -1239,6 +1239,27 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 	}
 }
 
+static bool should_keep(std::string const &key,
+			std::set<std::string> const &keep,
+			std::set<std::string> const &exclude,
+			std::vector<std::string> const &exclude_prefix) {
+	if (keep.size() == 0 || keep.find(key) != keep.end()) {
+		if (exclude.find(key) != exclude.end()) {
+			return false;
+		}
+
+		for (auto const &prefix : exclude_prefix) {
+			if (starts_with(key, prefix)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
 			std::set<std::string> const &exclude,
@@ -1289,7 +1310,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
 				} else {
 					// otherwise just tag it directly onto the output feature
-					if (keep.size() == 0 || keep.find(features[0].layer->keys[features[0].tags[i]]) != keep.end()) {
+					if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
 						outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
 					}
 				}
@@ -1329,7 +1350,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			// and tag them onto the output feature
 
 			for (size_t i = 0; i < full_keys.size(); i++) {
-				if (keep.size() == 0 || keep.find(full_keys[i]) != keep.end()) {
+				if (should_keep(full_keys[i], keep, exclude, exclude_prefix)) {
 					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str(), tile_stringpool));
 				}
 			}
@@ -1339,7 +1360,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			}
 		} else {
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
-				if (keep.size() == 0 || keep.find(features[0].layer->keys[features[0].tags[i]]) != keep.end()) {
+				if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
 					outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
 				}
 			}

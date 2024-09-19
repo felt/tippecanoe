@@ -97,7 +97,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test accumulate-test
 	./unit
 
 suffixes = json json.gz
@@ -574,7 +574,19 @@ accumulate-test:
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep sum:clustered:unrelated | wc -l` == 0
 	# But that we *do* preserve those attributes into the output features:
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep clustered:unrelated | wc -l` == 22
+	# the cluster sizes still add up to the 243 original features
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
 	#
+	# We actually want to serve point tiles without the numeric accumulations,
+	# but with cluster size, so test that combination:
+	./tippecanoe-overzoom --accumulate-attribute '{"clustered:cluster_size":"sum"}' --exclude-prefix clustered:sum --exclude-prefix clustered:count --exclude-prefix clustered:min --exclude-prefix clustered:max --exclude-prefix clustered:mean -m -o tests/pbf/accum-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	# There are no POP1950 clusters
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep 'clustered:count:POP1950' | wc -l` == 0
+	# But there are still 28 with bare POP1950
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'clustered:count:POP1950' | grep 'POP1950' | wc -l` == 28
+	# And 18 with no POP1950 at all
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'POP1950' | wc -l` == 18
+    # which matches the 46 features that you get if you tile without --retain-points-multiplier.
 	# the cluster sizes still add up to the 243 original features
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
 	#
