@@ -1157,6 +1157,84 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &
 	}
 };
 
+// accumulate :sum:, :min:, :max:, and :count: versions of the specified attribute
+static void preserve_numeric(const std::string &key, const mvt_value &val,			  // numeric attribute being accumulated
+			     std::vector<std::string> &full_keys,				  // keys of feature being accumulated onto
+			     std::vector<serial_val> &full_values,				  // values of features being accumulated onto
+			     const std::string &accumulate_numeric,				  // prefix of accumulations
+			     std::set<std::string> &keys,					  // key presence in the source feature
+			     std::map<std::string, size_t> &numeric_out_field,			  // key index in the output feature
+			     std::unordered_map<std::string, accum_state> &attribute_accum_state  // accumulation state for preserve_attribute()
+) {
+	// If this is a numeric attribute, but there is also a prefix:sum (etc.) for the
+	// same attribute, we want to use that one instead of this one.
+
+	for (auto const &op : numeric_operations) {
+		std::string compound_key = accumulate_numeric + ":" + op.first + ":" + key;
+		auto compound_found = keys.find(compound_key);
+		if (compound_found != keys.end()) {
+			// found, so skip this one
+		} else {
+			// not found, so accumulate this one
+
+			// if this is already prefixed, strip off the prefix
+			// if it is the right one, and skip the attribute if
+			// it is the wrong one.
+
+			std::string outkey = key;
+			if (starts_with(outkey, accumulate_numeric + ":")) {
+				std::string prefix = accumulate_numeric + ":" + op.first + ":";
+				if (starts_with(outkey, prefix)) {
+					outkey = outkey.substr(prefix.size());
+				} else {
+					continue;  // to next operation
+				}
+			}
+			// and then put it back on for the output field
+			std::string prefixed = accumulate_numeric + ":" + op.first + ":" + outkey;
+
+			// Does it exist in the output feature already?
+
+			auto prefixed_attr = numeric_out_field.find(prefixed);
+			if (prefixed_attr == numeric_out_field.end()) {
+				// No? Does it exist unprefixed in the output feature already?
+
+				auto out_attr = numeric_out_field.find(outkey);
+				if (out_attr == numeric_out_field.end()) {
+					// not present at all, so copy our value to the prefixed output
+					numeric_out_field.emplace(prefixed, full_keys.size());
+					full_keys.push_back(prefixed);
+					if (op.second == op_count) {
+						serial_val sv;
+						sv.type = mvt_double;
+						sv.s = "1";
+						full_values.push_back(sv);
+					} else {
+						full_values.push_back(mvt_value_to_serial_val(val));
+					}
+				} else {
+					// exists unprefixed, so copy it, and then accumulate on our value
+					numeric_out_field.emplace(prefixed, full_keys.size());
+					full_keys.push_back(prefixed);
+					if (op.second == op_count) {
+						serial_val sv;
+						sv.type = mvt_double;
+						sv.s = "1";
+						full_values.push_back(sv);
+					} else {
+						full_values.push_back(full_values[out_attr->second]);
+					}
+
+					preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+				}
+			} else {
+				// exists, so accumulate on our value
+				preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+			}
+		}
+	}
+}
+
 static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
@@ -1233,73 +1311,9 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					} else if (accumulate_numeric.size() > 0) {
 						const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
 						if (val.is_numeric()) {
-							// If this is a numeric attribute, but there is also a tippecanoe:sum (etc.) for the
-							// same attribute, we want to use that one instead of this one.
-
-							for (auto const &op : numeric_operations) {
-								std::string compound_key = accumulate_numeric + ":" + op.first + ":" + key;
-								auto compound_found = keys.find(compound_key);
-								if (compound_found != keys.end()) {
-									// found, so skip this one
-								} else {
-									// not found, so accumulate this one
-
-									// if this is already prefixed, strip off the prefix
-									// if it is the right one, and skip the attribute if
-									// it is the wrong one.
-
-									std::string outkey = key;
-									if (starts_with(outkey, accumulate_numeric + ":")) {
-										std::string prefix = accumulate_numeric + ":" + op.first + ":";
-										if (starts_with(outkey, prefix)) {
-											outkey = outkey.substr(prefix.size());
-										} else {
-											continue;  // to next operation
-										}
-									}
-									// and then put it back on for the output field
-									std::string prefixed = accumulate_numeric + ":" + op.first + ":" + outkey;
-
-									// Does it exist in the output feature already?
-
-									auto prefixed_attr = numeric_out_field.find(prefixed);
-									if (prefixed_attr == numeric_out_field.end()) {
-										// No? Does it exist unprefixed in the output feature already?
-
-										auto out_attr = numeric_out_field.find(outkey);
-										if (out_attr == numeric_out_field.end()) {
-											// not present at all, so copy our value to the prefixed output
-											numeric_out_field.emplace(prefixed, full_keys.size());
-											full_keys.push_back(prefixed);
-											if (op.second == op_count) {
-												serial_val sv;
-												sv.type = mvt_double;
-												sv.s = "1";
-												full_values.push_back(sv);
-											} else {
-												full_values.push_back(mvt_value_to_serial_val(val));
-											}
-										} else {
-											// exists unprefixed, so copy it, and then accumulate on our value
-											numeric_out_field.emplace(prefixed, full_keys.size());
-											full_keys.push_back(prefixed);
-											if (op.second == op_count) {
-												serial_val sv;
-												sv.type = mvt_double;
-												sv.s = "1";
-												full_values.push_back(sv);
-											} else {
-												full_values.push_back(full_values[out_attr->second]);
-											}
-
-											preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
-										}
-									} else {
-										// exists, so accumulate on our value
-										preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
-									}
-								}
-							}
+							preserve_numeric(key, val, full_keys, full_values,
+									 accumulate_numeric,
+									 keys, numeric_out_field, attribute_accum_state);
 						}
 					}
 				}
