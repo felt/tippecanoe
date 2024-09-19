@@ -541,6 +541,10 @@ accumulate-test:
 	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep -v 'clustered:cluster_size' | wc -l` == 0
 	# they add up to the 243 original features
 	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
+	# Make sure we do *not* accumulate a numeric attribute that already has the magic prefix:
+	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep sum:clustered:unrelated | wc -l` == 0
+	# But that we *do* preserve those attributes into the output features:
+	test `./tippecanoe-decode -c tests/pbf/accum.dir/0/0/0.pbf 0 0 0 | grep clustered:unrelated | wc -l` == 66
 	#
 	# on to the sums:
 	# in the original data set, the POP1950s that are present add up to 161590
@@ -566,6 +570,10 @@ accumulate-test:
 	# the non-clustered but megatile-filtered POP1950s add up to 15220
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep -v 'clustered:sum:POP1950' | grep POP1950 | sed 's/.*"POP1950": //' | awk '{sum += $$1} END {print sum}'` == 15220
 	# which add up to 161590 so we have the right global total
+	# Make sure we do *not* accumulate a numeric attribute that already has the magic prefix:
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep sum:clustered:unrelated | wc -l` == 0
+	# But that we *do* preserve those attributes into the output features:
+	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | grep clustered:unrelated | wc -l` == 22
 	#
 	# the cluster sizes still add up to the 243 original features
 	test `./tippecanoe-decode -c tests/pbf/accum-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
@@ -582,6 +590,10 @@ accumulate-test:
 	# the clustered and megatile-filtered and binned POP1950s add up to 161590
 	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:sum:POP1950' | sed 's/.*"clustered:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 161590
 	# which is the right global total
+	# Make sure we do *not* accumulate a numeric attribute that already has the magic prefix:
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep sum:clustered:unrelated | wc -l` == 0
+	# And those attributes do *not* make it onto the bins
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep clustered:unrelated | wc -l` == 0
 	# the cluster sizes still add up to the 243 original features
 	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
 
