@@ -1267,6 +1267,8 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::shared_ptr<std::string> const &tile_stringpool,
 			std::string const &accumulate_numeric) {
+	std::string outfids = "";
+
 	// Add geometry to output feature
 
 	mvt_feature outfeature;
@@ -1321,6 +1323,10 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			// features that will not
 
 			for (size_t i = 1; i < features.size(); i++) {
+				if (features[i].has_id) {
+					outfids += std::to_string(features[i].id) + ",";
+				}
+
 				std::set<std::string> keys;
 
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
@@ -1364,6 +1370,12 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 					outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
 				}
 			}
+		}
+
+		if (outfids.size() > 0) {
+			mvt_value v;
+			v.set_string_value(outfids);
+			outlayer.tag(outfeature, "source_fids", v);
 		}
 
 		outlayer.features.push_back(std::move(outfeature));
