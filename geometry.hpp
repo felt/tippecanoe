@@ -116,20 +116,30 @@ struct source_tile {
 };
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
+		     int detail, int buffer,
+		     std::set<std::string> const &keep,
+		     std::set<std::string> const &exclude,
+		     std::vector<std::string> const &exclude_prefix,
+		     bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size, std::vector<mvt_layer> const &bins);
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
+		     std::string const &accumulate_numeric);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
-		     int detail, int buffer, std::set<std::string> const &keep, bool do_compress,
+		     int detail, int buffer,
+		     std::set<std::string> const &keep,
+		     std::set<std::string> const &exclude,
+		     std::vector<std::string> const &exclude_prefix,
+		     bool do_compress,
 		     std::vector<std::pair<unsigned, unsigned>> *next_overzoomed_tiles,
 		     bool demultiply, json_object *filter, bool preserve_input_order,
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
-		     double tiny_polygon_size, std::vector<mvt_layer> const &bins);
+		     double tiny_polygon_size, std::vector<mvt_layer> const &bins,
+		     std::string const &accumulate_numeric);
 
 draw center_of_mass_mp(const drawvec &dv);
 

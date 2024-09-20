@@ -22,8 +22,11 @@ bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
 std::vector<mvt_layer> bins;
+std::string accumulate_numeric;
 
 std::set<std::string> keep;
+std::set<std::string> exclude;
+std::vector<std::string> exclude_prefix;
 
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s -o newtile.pbf.gz tile.pbf.gz oz/ox/oy nz/nx/ny\n", argv[0]);
@@ -45,6 +48,8 @@ int main(int argc, char **argv) {
 
 	struct option long_options[] = {
 		{"include", required_argument, 0, 'y'},
+		{"exclude", required_argument, 0, 'x'},
+		{"exclude-prefix", required_argument, 0, 'x' & 0x1F},
 		{"full-detail", required_argument, 0, 'd'},
 		{"buffer", required_argument, 0, 'b'},
 		{"output", required_argument, 0, 'o'},
@@ -57,6 +62,7 @@ int main(int argc, char **argv) {
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
+		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -77,6 +83,14 @@ int main(int argc, char **argv) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
+			break;
+
+		case 'x':
+			exclude.insert(optarg);
+			break;
+
+		case 'x' & 0x1F:
+			exclude_prefix.push_back(optarg);
 			break;
 
 		case 'o':
@@ -125,6 +139,10 @@ int main(int argc, char **argv) {
 
 		case 'b' & 0x1F:
 			assign_to_bins = optarg;
+			break;
+
+		case 'a' & 0x1F:
+			accumulate_numeric = optarg;
 			break;
 
 		default:
@@ -227,7 +245,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

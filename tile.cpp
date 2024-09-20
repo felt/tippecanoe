@@ -1454,17 +1454,14 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 
 		return;
 	}
-}
 
-std::map<std::string, attribute_op> numeric_operations = {
-	{"sum", op_sum},
-	{"min", op_min},
-	{"max", op_max},
-	{"count", op_count},
-};
+	// it does not exist, so preserve_attribute() will create it
+}
 
 // accumulate attribute values from sf onto p
 void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p) {
+	std::string accumulate_numeric_colon = accumulate_numeric + ":";
+
 	for (size_t i = 0; i < sf.keys.size(); i++) {
 		std::string key = sf.stringpool + sf.keys[i] + 1;
 		int type = sf.stringpool[sf.values[i]];
@@ -1477,13 +1474,13 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
-		} else if (type == mvt_double && additional[A_ACCUMULATE_NUMERIC]) {
+		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
 			for (auto const &operation : numeric_operations) {
 				serial_val sv;
 				sv.type = sf.stringpool[sf.values[i]];
 				sv.s = sf.stringpool + sf.values[i] + 1;
 
-				std::string prefixed_key = "tippecanoe:" + operation.first + ":" + key;
+				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
 				promote_attribute_prefix(key, prefixed_key, p);
 				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
 			}
@@ -1499,9 +1496,9 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p);  // promotes it in the target feature
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
-		} else if (type == mvt_double && additional[A_ACCUMULATE_NUMERIC]) {
+		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
 			for (auto const &operation : numeric_operations) {
-				std::string prefixed_key = "tippecanoe:" + operation.first + ":" + key;
+				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
 				promote_attribute_prefix(key, prefixed_key, p);
 				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, p.attribute_accum_state);
 			}
