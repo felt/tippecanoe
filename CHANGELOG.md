@@ -1,3 +1,7 @@
+# 2.62.4
+
+* Fix accumulation of count and mean in overzoom
+
 # 2.62.3
 
 * Summary statistics with --accumulate-numeric-attributes make it from tiling through to binning
