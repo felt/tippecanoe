@@ -159,9 +159,11 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 					s.count = 2;
 					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
 
+					full_values[i].type = mvt_double;
 					full_values[i].s = std::to_string(s.count);
 				} else {  // already present, incrementing
 					state->second.count += 1;
+					full_values[i].type = mvt_double;
 					full_values[i].s = std::to_string(state->second.count);
 				}
 				return;

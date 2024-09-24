@@ -1186,13 +1186,18 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 			// it is the wrong one.
 
 			std::string outkey = key;
+			bool starting_from_accumulation;
+
 			if (starts_with(outkey, accumulate_numeric + ":")) {
 				std::string prefix = accumulate_numeric + ":" + op.first + ":";
 				if (starts_with(outkey, prefix)) {
 					outkey = outkey.substr(prefix.size());
+					starting_from_accumulation = true;  // from a subaccumulation
 				} else {
 					continue;  // to next operation
 				}
+			} else {
+				starting_from_accumulation = false;  // from a plain value
 			}
 			// and then put it back on for the output field
 			std::string prefixed = accumulate_numeric + ":" + op.first + ":" + outkey;
@@ -1208,11 +1213,18 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 					// not present at all, so copy our value to the prefixed output
 					numeric_out_field.emplace(prefixed, full_keys.size());
 					full_keys.push_back(prefixed);
+
 					if (op.second == op_count) {
-						serial_val sv;
-						sv.type = mvt_double;
-						sv.s = "1";
-						full_values.push_back(sv);
+						if (starting_from_accumulation) {
+							// copy our count
+							full_values.push_back(mvt_value_to_serial_val(val));
+						} else {
+							// new count of 1
+							serial_val sv;
+							sv.type = mvt_double;
+							sv.s = "1";
+							full_values.push_back(sv);
+						}
 					} else {
 						full_values.push_back(mvt_value_to_serial_val(val));
 					}
@@ -1220,20 +1232,35 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 					// exists unprefixed, so copy it, and then accumulate on our value
 					numeric_out_field.emplace(prefixed, full_keys.size());
 					full_keys.push_back(prefixed);
+
 					if (op.second == op_count) {
 						serial_val sv;
 						sv.type = mvt_double;
-						sv.s = "1";
+						if (starting_from_accumulation) {
+							// sum our count onto the existing 1
+							sv.s = std::to_string(1 + mvt_value_to_long_long(val));
+						} else {
+							// sum our 1 onto the existing 1
+							sv.s = "2";
+						}
 						full_values.push_back(sv);
 					} else {
 						full_values.push_back(full_values[out_attr->second]);
+						preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
 					}
-
-					preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
 				}
 			} else {
 				// exists, so accumulate on our value
-				preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+				if (op.second == op_count) {
+					if (starting_from_accumulation) {
+						// sum our count onto the existing count
+						full_values[prefixed_attr->second].s = std::to_string(atoll(full_values[prefixed_attr->second].s.c_str()) + mvt_value_to_long_long(val));
+					} else {
+						full_values[prefixed_attr->second].s = std::to_string(atoll(full_values[prefixed_attr->second].s.c_str()) + 1);
+					}
+				} else {
+					preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+				}
 			}
 		}
 	}
