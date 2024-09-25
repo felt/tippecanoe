@@ -608,6 +608,12 @@ accumulate-test:
 	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep clustered:unrelated | wc -l` == 0
 	# the cluster sizes still add up to the 243 original features
 	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
+	#
+	#
+	# A tile where the counts and means were previously wrong:
+	./tippecanoe-overzoom --accumulate-numeric-attributes=felt -m -o tests/pbf/yearbuilt-accum.pbf tests/pbf/yearbuilt.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/yearbuilt-accum.pbf 0 0 0 > tests/pbf/yearbuilt-accum.pbf.json.check
+	cmp tests/pbf/yearbuilt-accum.pbf.json.check tests/pbf/yearbuilt-accum.pbf.json
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
