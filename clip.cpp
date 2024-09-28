@@ -1509,7 +1509,8 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 			std::string const &accumulate_numeric,
 			std::set<std::string> keep,
 			std::set<std::string> exclude,
-			std::vector<std::string> exclude_prefix) {
+			std::vector<std::string> exclude_prefix,
+			int buffer) {
 	std::vector<index_event> events;
 
 	// Index bins
@@ -1578,27 +1579,34 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 		} else if (e.kind == index_event::CHECK) {
 			auto const &feature = features.layers[e.layer].features[e.feature];
 
+			// if we can't find a real match,
+			// assign points to the most nearby bin
+			ssize_t which_outfeature = outfeatures.size() - 1;
+
 			for (auto const &a : active) {
 				auto const &bin = bins[a.layer].features[a.feature];
 
 				if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
 						    a.xmin, a.ymin, a.xmax, a.ymax)) {
 					if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
-						tile_feature outfeature;
-						for (auto const &g : feature.geometry) {
-							outfeature.geom.emplace_back(g.op, g.x, g.y);
-						}
-						outfeature.t = feature.type;
-						outfeature.has_id = feature.has_id;
-						outfeature.id = feature.id;
-						outfeature.tags = feature.tags;
-						outfeature.layer = &features.layers[e.layer];
-						outfeature.seq = e.feature;
-						outfeatures[a.outfeature].push_back(std::move(outfeature));
-
+						which_outfeature = a.outfeature;
 						break;
 					}
 				}
+			}
+
+			if (which_outfeature >= 0) {
+				tile_feature outfeature;
+				for (auto const &g : feature.geometry) {
+					outfeature.geom.emplace_back(g.op, g.x, g.y);
+				}
+				outfeature.t = feature.type;
+				outfeature.has_id = feature.has_id;
+				outfeature.id = feature.id;
+				outfeature.tags = feature.tags;
+				outfeature.layer = &features.layers[e.layer];
+				outfeature.seq = e.feature;
+				outfeatures[which_outfeature].push_back(std::move(outfeature));
 			}
 		} else /* EXIT */ {
 			auto const &found = active.find({e.layer, e.feature});
@@ -1714,7 +1722,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					g.y -= ny * outtilesize;
 				}
 
-				if (!sametile) {
+				// Don't clip here if we are binning, because we need to bin points in the buffer
+				if (!sametile /* && bins.size() == 0 */) {
 					// Clip to output tile
 
 					long long xmin = LLONG_MAX;
@@ -1872,7 +1881,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 	if (bins.size() > 0) {
 		outtile = assign_to_bins(outtile, bins, nz, nx, ny, detail, attribute_accum, accumulate_numeric,
-					 keep, exclude, exclude_prefix);
+					 keep, exclude, exclude_prefix, buffer);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
