@@ -1611,29 +1611,31 @@ mvt_tile assign_to_bins(mvt_tile const &features, std::vector<mvt_layer> const &
 		} else /* EXIT */ {
 			auto const &found = active.find({e.layer, e.feature});
 			if (found != active.end()) {
-				if (outfeatures[found->outfeature].size() > 1) {
-					feature_out(outfeatures[found->outfeature], outlayer,
-						    keep, exclude, exclude_prefix, attribute_accum,
-						    tile_stringpool, accumulate_numeric);
-					mvt_feature &nfeature = outlayer.features.back();
-					mvt_value val;
-					val.type = mvt_uint;
-					val.numeric_value.uint_value = outfeatures[found->outfeature].size() - 1;
-
-					std::string attrname;
-					if (accumulate_numeric.size() == 0) {
-						attrname = "tippecanoe:count";
-					} else {
-						attrname = accumulate_numeric + ":count";
-					}
-					outlayer.tag(nfeature, attrname, val);
-				}
-
 				active.erase(found);
 			} else {
 				fprintf(stderr, "event mismatch: can't happen\n");
 				exit(EXIT_IMPOSSIBLE);
 			}
+		}
+	}
+
+	for (size_t i = 0; i < outfeatures.size(); i++) {
+		if (outfeatures[i].size() > 1) {
+			feature_out(outfeatures[i], outlayer,
+				    keep, exclude, exclude_prefix, attribute_accum,
+				    tile_stringpool, accumulate_numeric);
+			mvt_feature &nfeature = outlayer.features.back();
+			mvt_value val;
+			val.type = mvt_uint;
+			val.numeric_value.uint_value = outfeatures[i].size() - 1;
+
+			std::string attrname;
+			if (accumulate_numeric.size() == 0) {
+				attrname = "tippecanoe:count";
+			} else {
+				attrname = accumulate_numeric + ":count";
+			}
+			outlayer.tag(nfeature, attrname, val);
 		}
 	}
 
