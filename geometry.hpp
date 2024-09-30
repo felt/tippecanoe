@@ -146,4 +146,7 @@ draw center_of_mass_mp(const drawvec &dv);
 void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
 			unsigned long long *start, unsigned long long *end);
 
+std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, long long p1_x, long long p1_y,
+						long long p2_x, long long p2_y, long long p3_x, long long p3_y);
+
 #endif
