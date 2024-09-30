@@ -1,3 +1,7 @@
+# 2.65.5
+
+* More aggressive binning when points fail the point-in-polygon test
+
 # 2.62.4
 
 * Fix accumulation of count and mean in overzoom
