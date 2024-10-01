@@ -1725,7 +1725,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				}
 
 				// Don't clip here if we are binning, because we need to bin points in the buffer
-				if (!sametile && bins.size() == 0) {
+				if (bins.size() == 0) {
 					// Clip to output tile
 
 					long long xmin = LLONG_MAX;
