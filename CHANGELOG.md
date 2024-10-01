@@ -1,4 +1,8 @@
-# 2.65.5
+# 2.62.6
+
+* Remove buggy optimization to avoid reclipping in tippecanoe-overzoom
+
+# 2.62.5
 
 * More aggressive binning when points fail the point-in-polygon test
 

@@ -280,7 +280,7 @@ overzoom-test: tippecanoe-overzoom
 	cmp tests/pbf/13-1310-3166.pbf.json.check tests/pbf/13-1310-3166.pbf.json
 	rm tests/pbf/13-1310-3166.pbf tests/pbf/13-1310-3166.pbf.json.check
 	# Make sure feature order is stable
-	./tippecanoe-overzoom --preserve-input-order -o tests/pbf/11-327-791-out.pbf tests/pbf/11-327-791.pbf 11/327/791 11/327/791
+	./tippecanoe-overzoom -b20 --preserve-input-order -o tests/pbf/11-327-791-out.pbf tests/pbf/11-327-791.pbf 11/327/791 11/327/791
 	./tippecanoe-decode tests/pbf/11-327-791.pbf 11 327 791 > tests/pbf/11-327-791.json
 	./tippecanoe-decode tests/pbf/11-327-791-out.pbf 11 327 791 > tests/pbf/11-327-791-out.json
 	cmp tests/pbf/11-327-791.json tests/pbf/11-327-791-out.json
