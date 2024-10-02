@@ -1,3 +1,7 @@
+# 2.63.0
+
+* Top-level null filter now evaluates to true
+
 # 2.62.6
 
 * Remove buggy optimization to avoid reclipping in tippecanoe-overzoom
