@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
 	double simplification = 0;
 	double tiny_polygon_size = 0;
 	std::string assign_to_bins;
+	std::string bin_by_id_list;
 
 	std::vector<input_tile> sources;
 
@@ -62,6 +63,7 @@ int main(int argc, char **argv) {
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
+		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
 		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
 
 		{0, 0, 0, 0},
@@ -139,6 +141,10 @@ int main(int argc, char **argv) {
 
 		case 'b' & 0x1F:
 			assign_to_bins = optarg;
+			break;
+
+		case 'c' & 0x1F:
+			bin_by_id_list = optarg;
 			break;
 
 		case 'a' & 0x1F:
@@ -245,7 +251,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, accumulate_numeric);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

@@ -1,3 +1,7 @@
+# 2.64.0
+
+* Add --bin-by-id to overzoom
+
 # 2.63.0
 
 * Top-level null filter now evaluates to true
