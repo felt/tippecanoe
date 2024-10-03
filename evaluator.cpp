@@ -262,7 +262,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		} else if (f->type == JSON_FALSE) {
 			return 0;
 		} else if (f->type == JSON_NULL) {
-			return -1;
+			return 1;
 		}
 
 		if (f->type == JSON_NUMBER) {
