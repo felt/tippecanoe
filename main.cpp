@@ -1391,6 +1391,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				".pmtiles",
 				".csv",
 				".gz",
+			        ".fgb",
 			};
 
 			// Trim .json or .mbtiles from the name
