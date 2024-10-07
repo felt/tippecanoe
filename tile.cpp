@@ -1056,7 +1056,8 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex, double droprate) {
+	double extra_multiplier_zooms = log(retain_points_multiplier) / log(droprate);
 	while (1) {
 		serial_feature sf;
 		long long len;
@@ -1221,7 +1222,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			if (z >= sf.feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
-			} else if (count->second + 1 < retain_points_multiplier) {
+			} else if (ceil(z + extra_multiplier_zooms) >= sf.feature_minzoom && count->second + 1 < retain_points_multiplier) {
 				count->second++;
 				sf.dropped = count->second;
 			} else {
@@ -1287,6 +1288,7 @@ struct run_prefilter_args {
 	std::vector<std::string> const *unidecode_data;
 	bool first_time = false;
 	bool compressed = false;
+	double droprate = 1;
 };
 
 void *run_prefilter(void *v) {
@@ -1297,7 +1299,7 @@ void *run_prefilter(void *v) {
 	unsigned long long previndex = 0;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), previndex);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), previndex, rpa->droprate);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1804,6 +1806,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.unidecode_data = &unidecode_data;
 			rpa.first_time = first_time;
 			rpa.compressed = compressed_input;
+			rpa.droprate = arg->droprate;
 
 			// this does need to be a real thread, so we can pipe both to and from it
 			if (pthread_create(&prefilter_writer, NULL, run_prefilter, &rpa) != 0) {
@@ -1835,7 +1838,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_previndex);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_previndex, arg->droprate);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
@@ -1894,7 +1897,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
-				multiplier_seq = (multiplier_seq + 1) % retain_points_multiplier;
+				multiplier_seq = 0;
 
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
 					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
