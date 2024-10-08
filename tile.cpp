@@ -1086,6 +1086,18 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
+		// with fractional zoom level, so we can target a specific number
+		// of features to keep with retain-points-multiplier, not just the
+		// powers of the drop rate
+		//
+		// the shift-right is because we lose the bottom two bits of
+		// point coordinate precision in the calculation in serial.cpp.
+		//
+		// the fractional part should actually be scaled in an exponential
+		// curve instead of linear, but I can't figure out how to make it
+		// come out right, and this should be close enough.
+		double feature_minzoom = sf.feature_minzoom - (bit_reverse(sf.index >> 2) / pow(2, 64));
+
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;
 		if (progress >= *oprogress + 0.1) {
@@ -1219,10 +1231,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
 			}
 
-			if (z >= sf.feature_minzoom || sf.dropped == FEATURE_KEPT) {
+			if (z >= feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
-			} else if (ceil(z + extra_multiplier_zooms) >= sf.feature_minzoom && count->second + 1 < retain_points_multiplier) {
+			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
 				count->second++;
 				sf.dropped = count->second;
 			} else {
