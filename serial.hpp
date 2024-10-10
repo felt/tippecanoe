@@ -94,7 +94,6 @@ struct serial_feature {
 
 #define FEATURE_DROPPED -1
 #define FEATURE_KEPT 0
-#define FEATURE_NO_REALLY_KEEP_IT_AROUND INT_MAX
 	// <0: dropped
 	//  0: kept
 	// >0: sequence number of additional feature kept by retain-points-multiplier
