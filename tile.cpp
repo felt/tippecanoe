@@ -1237,10 +1237,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
 				count->second++;
 				sf.dropped = count->second;
-			} else if (preserve_multiplier_density_threshold > 0 && count->second + 1 < 2 * retain_points_multiplier &&
+			} else if (preserve_multiplier_density_threshold > 0 &&
 				   sf.gap > ((1LL << (32 - z)) / preserve_multiplier_density_threshold) * ((1LL << (32 - z)) / preserve_multiplier_density_threshold)) {
-				count->second++;
-				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
+				sf.dropped = FEATURE_NO_REALLY_KEEP_IT_AROUND;
 			} else {
 				sf.dropped = FEATURE_DROPPED;
 			}
@@ -1902,7 +1901,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			} else {
 				can_stop_early = false;
 
-				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY) {
+				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_NO_REALLY_KEEP_IT_AROUND) {
 					// Does the current multiplier cluster already have too many features?
 					// (Because we are dropping dynamically, and we have already filled the
 					// cluster with features that were dynamically dropped from being
@@ -2153,7 +2152,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (sf.dropped == FEATURE_KEPT) {
 						layer.multiplier_cluster_size = 1;
 						lead_features_count++;
-					} else if (sf.dropped == FEATURE_ADDED_FOR_MULTIPLIER_DENSITY) {
+					} else if (sf.dropped == FEATURE_NO_REALLY_KEEP_IT_AROUND) {
 						other_multiplier_cluster_features_count++;
 					} else {
 						layer.multiplier_cluster_size++;
