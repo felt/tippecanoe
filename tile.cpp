@@ -1523,24 +1523,17 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 // This function finds the feature in `features` onto which the attributes or geometry
 // of a feature that is being dropped (`sf`) will be accumulated or coalesced. It
 // ordinarily returns the most recently-added feature from the same layer as the feature
-// that is being dropped, but if there is an active multiplier, will walk multiple
-// features backward so that the features being dropped will be accumulated round-robin
-// onto the N features that are being kept. The caller increments the `multiplier_seq`
-// mod N with each dropped feature to drive the round-robin decision.
+// that is being dropped.
 //
-bool find_feature_to_accumulate_onto(std::vector<serial_feature> &features, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent, ssize_t multiplier_seq) {
+bool find_feature_to_accumulate_onto(std::vector<serial_feature> &features, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent) {
 	for (size_t i = features.size(); i > 0; i--) {
 		if (features[i - 1].t == sf.t) {
 			std::string &layername1 = (*layer_unmaps)[features[i - 1].segment][features[i - 1].layer];
 			std::string &layername2 = (*layer_unmaps)[sf.segment][sf.layer];
 
 			if (layername1 == layername2 && features[i - 1].extent <= maxextent) {
-				if (multiplier_seq <= 0) {
-					out = i - 1;
-					return true;
-				}
-
-				multiplier_seq--;
+				out = i - 1;
+				return true;
 			}
 		}
 	}
@@ -1615,10 +1608,10 @@ struct layer_features {
 	size_t multiplier_cluster_size = 0;    // The feature count of the current multiplier cluster
 };
 
-bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, size_t &multiplier_seq, strategy &strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
+bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, strategy &strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
 	ssize_t which_serial_feature;
 
-	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 		strategy.dropped_as_needed++;
 		if (layer.multiplier_cluster_size < (size_t) retain_points_multiplier) {
 			// we have capacity to keep this feature as part of an existing multiplier cluster that isn't full yet
@@ -1837,7 +1830,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// Read features, filter them, assign them to layers
 
 		struct multiplier_state multiplier_state;
-		size_t multiplier_seq = retain_points_multiplier - 1;
 		bool drop_rest = false;		// are we dropping the remainder of a multiplier cluster whose first point was dropped?
 		bool dropping_by_rate = false;	// are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
 		unsigned long long next_feature_previndex = 0;
@@ -1909,16 +1901,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
-				multiplier_seq = 0;
-
-				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 					strategy.dropped_by_rate++;
 					can_stop_early = false;
 					continue;
 				}
-			} else {
-				multiplier_seq = retain_points_multiplier - 1;
 			}
 
 			// only the first point of a multiplier cluster can be dropped
@@ -1926,7 +1914,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// cluster down with it by setting drop_rest).
 			if (sf.dropped == FEATURE_KEPT) {
 				if (gamma > 0) {
-					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
 						strategy.dropped_by_gamma++;
 						drop_rest = true;
@@ -1941,7 +1929,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// distances between points that are subject to dot-dropping,
 					// rather than wanting each feature to have a consistent
 					// idea of density between zooms.
-					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						features[which_serial_feature].clustered++;
 
 						if (features[which_serial_feature].t == VT_POINT &&
@@ -1965,7 +1953,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
 						can_stop_early = false;
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
@@ -1973,7 +1961,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// this is now just like coalesce-densest, except that instead of unioning the geometry,
 					// it averages the point locations
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
-					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						features[which_serial_feature].clustered++;
 
 						if (features[which_serial_feature].t == VT_POINT &&
@@ -1994,7 +1982,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
-					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
@@ -2010,13 +1998,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
 						can_stop_early = false;
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
 				} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					add_sample_to(extents, sf.extent, extents_increment, seq);
-					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent, multiplier_seq)) {
+					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
@@ -2030,13 +2018,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
 						can_stop_early = false;
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, multiplier_seq, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum)) {
 							continue;
 						}
 					}
 				} else if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
-					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX, multiplier_seq)) {
+					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);

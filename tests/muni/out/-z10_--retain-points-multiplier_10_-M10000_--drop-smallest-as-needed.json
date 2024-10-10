@@ -9,7 +9,7 @@
 "maxzoom": "10",
 "minzoom": "0",
 "name": "tests/muni/out/-z10_--retain-points-multiplier_10_-M10000_--drop-smallest-as-needed.json.check.mbtiles",
-"strategies": "[{\"dropped_by_rate\":4606},{\"dropped_by_rate\":4600},{\"dropped_by_rate\":4580},{\"dropped_by_rate\":4538},{\"dropped_by_rate\":4437},{\"dropped_by_rate\":4161},{\"dropped_by_rate\":3498},{\"dropped_by_rate\":1846},{\"dropped_by_rate\":1066,\"dropped_as_needed\":311,\"tile_size_desired\":68538},{\"dropped_by_rate\":1058,\"dropped_as_needed\":1579,\"tile_size_desired\":72665},{\"dropped_as_needed\":4452,\"tile_size_desired\":67958}]",
+"strategies": "[{\"dropped_by_rate\":4606},{\"dropped_by_rate\":4600},{\"dropped_by_rate\":4580},{\"dropped_by_rate\":4538},{\"dropped_by_rate\":4437},{\"dropped_by_rate\":4161},{\"dropped_by_rate\":3498},{\"dropped_by_rate\":1846},{\"dropped_by_rate\":1068,\"dropped_as_needed\":314,\"tile_size_desired\":68538},{\"dropped_by_rate\":1061,\"dropped_as_needed\":1591,\"tile_size_desired\":72665},{\"dropped_as_needed\":4481,\"tile_size_desired\":67958}]",
 "tippecanoe_decisions": "{\"basezoom\":10,\"droprate\":2.5,\"retain_points_multiplier\":10}",
 "type": "overlay",
 "version": "2"
@@ -18950,7 +18950,7 @@
 ,
 { "type": "Feature", "properties": { "name": "9th St & Avenue H", "tippecanoe:retain_points_multiplier_sequence": 0 }, "geometry": { "type": "Point", "coordinates": [ -122.370186, 37.825243 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Avenue H & 9th St", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 34 }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.825243 ] } }
+{ "type": "Feature", "properties": { "name": "Avenue H & 9th St", "tippecanoe:retain_points_multiplier_sequence": 34 }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.825243 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Avenue H & 6th St", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -122.368813, 37.823616 ] } }
 ,
@@ -19024,7 +19024,7 @@
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
 ,
@@ -19034,13 +19034,9 @@
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
-,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 10 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
-,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 11 }, "geometry": { "type": "Point", "coordinates": [ -12.239799, 37.820090 ] } }
 ] }
 ] }
 ,
@@ -19060,11 +19056,11 @@
 ,
 { "type": "Feature", "properties": { "name": "Buckingham Way & Winston Dr", "tippecanoe:retain_points_multiplier_sequence": 607 }, "geometry": { "type": "Point", "coordinates": [ -122.479019, 37.728638 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Buckingham Way & Winston Dr", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 84 }, "geometry": { "type": "Point", "coordinates": [ -122.479019, 37.728095 ] } }
+{ "type": "Feature", "properties": { "name": "Buckingham Way & Winston Dr", "tippecanoe:retain_points_multiplier_sequence": 84 }, "geometry": { "type": "Point", "coordinates": [ -122.479019, 37.728095 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Winston Dr & Buckingham Way", "tippecanoe:retain_points_multiplier_sequence": 509 }, "geometry": { "type": "Point", "coordinates": [ -122.478676, 37.728095 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Winston Dr & Buckingham Way", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 508 }, "geometry": { "type": "Point", "coordinates": [ -122.478504, 37.728095 ] } }
+{ "type": "Feature", "properties": { "name": "Winston Dr & Buckingham Way", "tippecanoe:retain_points_multiplier_sequence": 508 }, "geometry": { "type": "Point", "coordinates": [ -122.478504, 37.728095 ] } }
 ,
 { "type": "Feature", "properties": { "name": "20th Av/Macy's Stonestown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 557 }, "geometry": { "type": "Point", "coordinates": [ -122.475758, 37.728774 ] } }
 ,
@@ -26326,33 +26322,25 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762708 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762708 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Castro Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762573 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 1 }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762573 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Forest Hill Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -122.458591, 37.748322 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Forest Hill Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -122.458591, 37.748322 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -122.402115, 37.788760 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -122.402115, 37.788760 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 11 }, "geometry": { "type": "Point", "coordinates": [ -122.412415, 37.780348 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -122.412415, 37.780348 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Van Ness Station Outbound", "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775192 ] } }
+{ "type": "Feature", "properties": { "name": "Van Ness Station Outbound", "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775192 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Van Ness Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 13 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775057 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Van Ness Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775057 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Metro Van Ness Station", "tippecanoe:retain_points_multiplier_sequence": 0 }, "geometry": { "type": "Point", "coordinates": [ -122.419109, 37.775057 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Van Ness Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 12 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775057 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Van Ness Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775057 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Outbd", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -122.414989, 37.778585 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Downtn", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -122.414818, 37.778449 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Church Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 10 }, "geometry": { "type": "Point", "coordinates": [ -122.429237, 37.767322 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Church Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 1 }, "geometry": { "type": "Point", "coordinates": [ -122.429066, 37.767187 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Powell Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -122.407780, 37.784283 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Outbd", "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -122.414989, 37.778585 ] } }
 ] }
 ] }
 ,
@@ -26364,23 +26352,19 @@
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ,
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
-,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 10 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
-,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 11 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.819955 ] } }
 ] }
 ] }
 ,
@@ -26388,23 +26372,23 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 148 }, "geometry": { "type": "Point", "coordinates": [ -122.500048, 37.718998 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 149 }, "geometry": { "type": "Point", "coordinates": [ -122.499876, 37.718726 ] } }
+{ "type": "Feature", "properties": { "name": "John Muir Dr & Skyline Blvd", "tippecanoe:retain_points_multiplier_sequence": 149 }, "geometry": { "type": "Point", "coordinates": [ -122.499876, 37.718726 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Lake Merced Blvd & Higuera Ave", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 107 }, "geometry": { "type": "Point", "coordinates": [ -122.485027, 37.718726 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Font Blvd & Mary Ward Hall", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 437 }, "geometry": { "type": "Point", "coordinates": [ -122.483654, 37.722732 ] } }
+{ "type": "Feature", "properties": { "name": "Font Blvd & Mary Ward Hall", "tippecanoe:retain_points_multiplier_sequence": 437 }, "geometry": { "type": "Point", "coordinates": [ -122.483654, 37.722732 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Font Blvd & Mary Ward Hall", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 436 }, "geometry": { "type": "Point", "coordinates": [ -122.483053, 37.722460 ] } }
+{ "type": "Feature", "properties": { "name": "Font Blvd & Mary Ward Hall", "tippecanoe:retain_points_multiplier_sequence": 436 }, "geometry": { "type": "Point", "coordinates": [ -122.483053, 37.722460 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Font Blvd & Arballo Dr", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 77 }, "geometry": { "type": "Point", "coordinates": [ -122.482538, 37.721849 ] } }
+{ "type": "Feature", "properties": { "name": "Font Blvd & Arballo Dr", "tippecanoe:retain_points_multiplier_sequence": 77 }, "geometry": { "type": "Point", "coordinates": [ -122.482538, 37.721849 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Font Blvd & Arballo Dr", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 76 }, "geometry": { "type": "Point", "coordinates": [ -122.482109, 37.721781 ] } }
+{ "type": "Feature", "properties": { "name": "Font Blvd & Arballo Dr", "tippecanoe:retain_points_multiplier_sequence": 76 }, "geometry": { "type": "Point", "coordinates": [ -122.482109, 37.721781 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Arballo Dr & Pinto Dr", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 36 }, "geometry": { "type": "Point", "coordinates": [ -122.483053, 37.720763 ] } }
+{ "type": "Feature", "properties": { "name": "Arballo Dr & Pinto Dr", "tippecanoe:retain_points_multiplier_sequence": 36 }, "geometry": { "type": "Point", "coordinates": [ -122.483053, 37.720763 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Arballo Dr & Acevedo Ave .", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 32 }, "geometry": { "type": "Point", "coordinates": [ -122.483139, 37.719880 ] } }
+{ "type": "Feature", "properties": { "name": "Arballo Dr & Acevedo Ave .", "tippecanoe:retain_points_multiplier_sequence": 32 }, "geometry": { "type": "Point", "coordinates": [ -122.483139, 37.719880 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Arballo Dr & Higuera Ave", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 35 }, "geometry": { "type": "Point", "coordinates": [ -122.483225, 37.718590 ] } }
+{ "type": "Feature", "properties": { "name": "Arballo Dr & Higuera Ave", "tippecanoe:retain_points_multiplier_sequence": 35 }, "geometry": { "type": "Point", "coordinates": [ -122.483225, 37.718590 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Font Blvd & Tapia Dr NS/W/SB", "tippecanoe:retain_points_multiplier_sequence": 428 }, "geometry": { "type": "Point", "coordinates": [ -122.481251, 37.720763 ] } }
 ,
@@ -27272,15 +27256,15 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "Fort Cronkhite Parking Lot", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 1034 }, "geometry": { "type": "Point", "coordinates": [ -122.538671, 37.832361 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "MITCHELL RD/Visitor's Center", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 1557 }, "geometry": { "type": "Point", "coordinates": [ -122.536268, 37.831751 ] } }
+{ "type": "Feature", "properties": { "name": "MITCHELL RD/Visitor's Center", "tippecanoe:retain_points_multiplier_sequence": 1557 }, "geometry": { "type": "Point", "coordinates": [ -122.536268, 37.831751 ] } }
 ,
 { "type": "Feature", "properties": { "name": "Mitchell Rd & Bunker Rd", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 1555 }, "geometry": { "type": "Point", "coordinates": [ -122.532406, 37.831819 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Mitchell Rd & Bunker Rd", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 1556 }, "geometry": { "type": "Point", "coordinates": [ -122.530861, 37.831887 ] } }
+{ "type": "Feature", "properties": { "name": "Mitchell Rd & Bunker Rd", "tippecanoe:retain_points_multiplier_sequence": 1556 }, "geometry": { "type": "Point", "coordinates": [ -122.530861, 37.831887 ] } }
 ,
 { "type": "Feature", "properties": { "name": "BUNKER RD/Miwok Trail", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 536 }, "geometry": { "type": "Point", "coordinates": [ -122.527256, 37.832565 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "BUNKER RD/Miwok Trail", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 537 }, "geometry": { "type": "Point", "coordinates": [ -122.527170, 37.832497 ] } }
+{ "type": "Feature", "properties": { "name": "BUNKER RD/Miwok Trail", "tippecanoe:retain_points_multiplier_sequence": 537 }, "geometry": { "type": "Point", "coordinates": [ -122.527170, 37.832497 ] } }
 ,
 { "type": "Feature", "properties": { "name": "FIELD RD/Youth Hostel", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 968 }, "geometry": { "type": "Point", "coordinates": [ -122.523479, 37.831684 ] } }
 ,
@@ -32508,43 +32492,25 @@
 ] }
 ,
 { "type": "FeatureCollection", "properties": { "layer": "subway", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -122.435331, 37.762708 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -122.435331, 37.762708 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Castro Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762641 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Castro Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 0 }, "geometry": { "type": "Point", "coordinates": [ -122.435246, 37.762641 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Forest Hill Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -122.458591, 37.748322 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Forest Hill Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -122.458591, 37.748322 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 10 }, "geometry": { "type": "Point", "coordinates": [ -122.402115, 37.788760 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -122.402115, 37.788760 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -122.401943, 37.788692 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Montgomery Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -122.401943, 37.788692 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Embarcadero Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -122.396536, 37.793033 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Embarcadero Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 1 }, "geometry": { "type": "Point", "coordinates": [ -122.396536, 37.793033 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Embarcadero Station", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 17 }, "geometry": { "type": "Point", "coordinates": [ -122.396450, 37.793168 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Embarcadero Station", "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -122.396450, 37.793168 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Embarcadero Station", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -122.396364, 37.793168 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Embarcadero Station", "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -122.396364, 37.793168 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Downtown", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 15 }, "geometry": { "type": "Point", "coordinates": [ -122.412500, 37.780348 ] } }
+{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -122.412500, 37.780348 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "Van Ness Station Outbound", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 12 }, "geometry": { "type": "Point", "coordinates": [ -122.419367, 37.775260 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Van Ness Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 18 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775125 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Van Ness Station", "tippecanoe:retain_points_multiplier_sequence": 1 }, "geometry": { "type": "Point", "coordinates": [ -122.419195, 37.775057 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Van Ness Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 16 }, "geometry": { "type": "Point", "coordinates": [ -122.419281, 37.775057 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Outbd", "tippecanoe:retain_points_multiplier_sequence": 13 }, "geometry": { "type": "Point", "coordinates": [ -122.414989, 37.778652 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Civic Center Station/Downtn", "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -122.414818, 37.778517 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Church Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 14 }, "geometry": { "type": "Point", "coordinates": [ -122.429323, 37.767322 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Church Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -122.429152, 37.767187 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Powell Station/Outbound", "tippecanoe:retain_points_multiplier_sequence": 11 }, "geometry": { "type": "Point", "coordinates": [ -122.407780, 37.784283 ] } }
-,
-{ "type": "Feature", "properties": { "name": "Metro Powell Station/Downtown", "tippecanoe:retain_points_multiplier_sequence": 0 }, "geometry": { "type": "Point", "coordinates": [ -122.407694, 37.784215 ] } }
+{ "type": "Feature", "properties": { "name": "Van Ness Station Outbound", "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -122.419367, 37.775260 ] } }
 ] }
 ] }
 ,
@@ -32552,27 +32518,23 @@
 { "type": "FeatureCollection", "properties": { "layer": "muni", "version": 2, "extent": 4096 }, "features": [
 { "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 0 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 1 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 1 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 2 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 3 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 4 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 5 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 6 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 7 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 8 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_first": true, "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
-,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 10 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
-,
-{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 11 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
+{ "type": "Feature", "properties": { "name": "REFERENCE & REFERENCE", "tippecanoe:retain_points_multiplier_sequence": 9 }, "geometry": { "type": "Point", "coordinates": [ -12.239971, 37.820023 ] } }
 ] }
 ] }
 ] }
