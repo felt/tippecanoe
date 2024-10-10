@@ -1237,8 +1237,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
 				count->second++;
 				sf.dropped = count->second;
-			} else if (preserve_multiplier_density_threshold > 0 &&
+			} else if (preserve_multiplier_density_threshold > 0 && count->second + 1 < 2 * retain_points_multiplier &&
 				   sf.gap > ((1LL << (32 - z)) / preserve_multiplier_density_threshold) * ((1LL << (32 - z)) / preserve_multiplier_density_threshold)) {
+				count->second++;
 				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
 			} else {
 				sf.dropped = FEATURE_DROPPED;
