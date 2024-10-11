@@ -1053,10 +1053,15 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 	return true;
 }
 
+struct next_feature_state {
+	unsigned long long previndex = 0;
+	unsigned long long prev_kept_index = 0;
+};
+
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, unsigned long long &previndex, double droprate) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, next_feature_state &next_feature_state, double droprate) {
 	double extra_multiplier_zooms = log(retain_points_multiplier) / log(droprate);
 	while (1) {
 		serial_feature sf;
@@ -1114,12 +1119,12 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		(*original_features)++;
 
 		if (sf.gap == 0) {
-			if (sf.index != previndex) {
+			if (sf.index != next_feature_state.previndex) {
 				long long ox = (1LL << (32 - z)) * tx;
 				long long oy = (1LL << (32 - z)) * ty;
 
 				unsigned wx1, wy1;
-				decode_index(previndex, &wx1, &wy1);
+				decode_index(next_feature_state.previndex, &wx1, &wy1);
 
 				for (auto const &g : sf.geometry) {
 					long long dx = (long long) wx1 - (g.x + ox);
@@ -1132,7 +1137,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				}
 			}
 		}
-		previndex = sf.index;
+		next_feature_state.previndex = sf.index;
 
 		if (clip_to_tile(sf, z, buffer)) {
 			continue;
@@ -1311,10 +1316,10 @@ void *run_prefilter(void *v) {
 	json_writer state(rpa->prefilter_fp);
 	struct multiplier_state multiplier_state;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
-	unsigned long long previndex = 0;
+	next_feature_state next_feature_state;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), previndex, rpa->droprate);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1835,7 +1840,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		struct multiplier_state multiplier_state;
 		bool drop_rest = false;		// are we dropping the remainder of a multiplier cluster whose first point was dropped?
 		bool dropping_by_rate = false;	// are we dropping anything by rate in this tile, or keeping it only as part of a multiplier?
-		unsigned long long next_feature_previndex = 0;
+
+		next_feature_state next_feature_state;
 
 		strategy strategy;
 		strategy.detail_reduced = detail_reduced;
@@ -1845,7 +1851,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_previndex, arg->droprate);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL);
 			}
