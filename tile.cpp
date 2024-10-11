@@ -1055,7 +1055,7 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 
 struct next_feature_state {
 	unsigned long long previndex = 0;
-	unsigned long long prev_kept_index = 0;
+	unsigned long long prev_not_dropped_index = 0;
 };
 
 // This function is called repeatedly from write_tile() to retrieve the next feature
@@ -1243,13 +1243,17 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				count->second++;
 				sf.dropped = count->second;
 			} else if (preserve_multiplier_density_threshold > 0 &&
-				   sf.gap > ((1LL << (32 - z)) / preserve_multiplier_density_threshold) * ((1LL << (32 - z)) / preserve_multiplier_density_threshold)) {
+				   sf.index - next_feature_state.prev_not_dropped_index > ((1LL << (32 - z)) / preserve_multiplier_density_threshold) * ((1LL << (32 - z)) / preserve_multiplier_density_threshold)) {
 				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
 			} else {
 				sf.dropped = FEATURE_DROPPED;
 			}
 		} else {
 			sf.dropped = FEATURE_KEPT;
+		}
+
+		if (sf.dropped != FEATURE_DROPPED) {
+			next_feature_state.prev_not_dropped_index = sf.index;
 		}
 
 		// Remove nulls, now that the expression evaluation filter has run
