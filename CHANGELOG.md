@@ -1,3 +1,8 @@
+# 2.65.0
+
+* Improve spatial distribution of --retain-points-multiplier features
+* Add --preserve-multiplier-density-threshold option to maintain minimum density of multiplier features
+
 # 2.64.0
 
 * Add --bin-by-id to overzoom
