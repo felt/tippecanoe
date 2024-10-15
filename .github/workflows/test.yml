@@ -10,5 +10,6 @@ jobs:
         version: ['Release', 'Debug']
     steps:
       - uses: actions/checkout@v3
+      - run: sudo libsqlite3-dev
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
