@@ -288,7 +288,7 @@ struct drop_state {
 	unsigned long long previndex;
 	double interval;
 	double seq;  // floating point because interval is
-	size_t count = 0;
+	std::vector<int> debt;
 };
 
 struct drop_densest {
@@ -320,6 +320,16 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 			}
 		}
 
+		int chosen = feature_minzoom;
+
+		// if that zoom is overdrawn, find the zoom that lent it a feature
+		// and give that zoom a feature instead
+		while (ds[feature_minzoom].debt.size() > 0) {
+			int lender = ds[feature_minzoom].debt.back();
+			ds[feature_minzoom].debt.pop_back();
+			feature_minzoom = lender;
+		}
+
 		// If this feature has been chosen only for a high zoom level,
 		// check whether at a low zoom level it is nevertheless too far
 		// from the last feature chosen for that low zoom, in which case
@@ -327,23 +337,22 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 		if (preserve_point_density_threshold > 0) {
 			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
-					feature_minzoom = i;
-					break;
+					if (std::find(ds[i].debt.begin(), ds[i].debt.end(), feature_minzoom) == ds[i].debt.end()) {
+						ds[i].debt.push_back(feature_minzoom);
+						feature_minzoom = i;
+						break;
+					}
 				}
 			}
 		}
 
-		if (feature_minzoom > maxzoom) {
-			fprintf(stderr, "why are we choosing %d beyond %d\n", feature_minzoom, maxzoom);
-			feature_minzoom = maxzoom;
-		}
-
-		// credit all the zooms that the feature appears in
-		// with a feature increment.
-		for (ssize_t i = maxzoom; i >= feature_minzoom; i--) {
+		// credit all the zooms that the feature was intended to appear in
+		// with a feature increment. (Don't credit the one that it actually
+		// appeared in, or z0 will never be chosen again and will never
+		// pay off any of its debt)
+		for (ssize_t i = maxzoom; i >= chosen; i--) {
 			ds[i].seq -= ds[i].interval;
 		}
-		ds[feature_minzoom].count++;
 
 		// The feature we are pushing out
 		// appears in zooms i + 1 through maxzoom,
