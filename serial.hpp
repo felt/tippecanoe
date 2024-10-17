@@ -94,9 +94,11 @@ struct serial_feature {
 
 #define FEATURE_DROPPED -1
 #define FEATURE_KEPT 0
+#define FEATURE_ADDED_FOR_MULTIPLIER_DENSITY INT_MAX
 	// <0: dropped
 	//  0: kept
 	// >0: sequence number of additional feature kept by retain-points-multiplier
+	// INT_MAX: additional feature kept by preserve-multiplier-density-threshold
 	int dropped = FEATURE_DROPPED;	// was this feature dropped by rate?
 
 	// unsigned long long drop_by;  // dot-dropping priority

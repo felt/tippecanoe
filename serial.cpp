@@ -744,6 +744,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	    additional[A_GENERATE_POLYGON_LABEL_POINTS] ||
 	    sst->uses_gamma ||
 	    retain_points_multiplier > 1 ||
+	    preserve_multiplier_density_threshold > 0 ||
 	    cluster_distance != 0) {
 		sf.index = bbox_index;
 	} else {
