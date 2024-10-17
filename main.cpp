@@ -301,7 +301,7 @@ struct drop_densest {
 	}
 };
 
-int calc_feature_minzoom(struct index *ix, std::vector<struct drop_state> &ds, int maxzoom, double gamma) {
+int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, double gamma) {
 	int feature_minzoom = 0;
 
 	if (gamma >= 0 && (ix->t == VT_POINT ||
@@ -333,9 +333,9 @@ int calc_feature_minzoom(struct index *ix, std::vector<struct drop_state> &ds, i
 			}
 		}
 
-		if (feature_minzoom > ds.size()) {
-			fprintf(stderr, "chose feature minzoom %d beyond %lu\n", feature_minzoom, ds.size());
-			feature_minzoom = ds.size() - 1;
+		if (feature_minzoom > maxzoom) {
+			fprintf(stderr, "why are we choosing %d beyond %d\n", feature_minzoom, maxzoom);
+			feature_minzoom = maxzoom;
 		}
 
 		// credit all the zooms that the feature appears in
@@ -360,7 +360,7 @@ int calc_feature_minzoom(struct index *ix, std::vector<struct drop_state> &ds, i
 	return feature_minzoom;
 }
 
-static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, double gamma, std::vector<struct drop_state> &ds) {
+static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, double gamma, struct drop_state *ds) {
 	struct mergelist *head = NULL;
 
 	for (size_t i = 0; i < nmerges; i++) {
@@ -753,7 +753,7 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	parser_created = true;
 }
 
-void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, std::vector<struct drop_state> &ds) {
+void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds) {
 	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge
 	int splitbits = log(splits) / log(2);
 	splits = 1 << splitbits;
@@ -1061,9 +1061,9 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 	}
 }
 
-void prep_drop_states(std::vector<struct drop_state> &ds, int basezoom, double droprate) {
+void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double droprate) {
 	// Needs to be signed for interval calculation
-	for (size_t i = 0; i < ds.size(); i++) {
+	for (ssize_t i = 0; i <= std::max(maxzoom, basezoom); i++) {
 		ds[i].gap = 0;
 		ds[i].previndex = 0;
 		ds[i].interval = 0;
@@ -1146,8 +1146,8 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 		geom_total += geomst.st_size;
 	}
 
-	std::vector<struct drop_state> ds(std::max(maxzoom, basezoom) + 1);
-	prep_drop_states(ds, basezoom, droprate);
+	struct drop_state ds[std::max(maxzoom, basezoom) + 1];
+	prep_drop_states(ds, maxzoom, basezoom, droprate);
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
 	long long availfiles_before = availfiles;
@@ -2705,8 +2705,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
 
-		std::vector<struct drop_state> ds(std::max(basezoom, maxzoom) + 1);
-		prep_drop_states(ds, basezoom, droprate);
+		struct drop_state ds[std::max(basezoom, maxzoom) + 1];
+		prep_drop_states(ds, maxzoom, basezoom, droprate);
 
 		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
