@@ -1102,11 +1102,6 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		// curve instead of linear, but I can't figure out how to make it
 		// come out right, and this should be close enough.
 		double feature_minzoom = sf.feature_minzoom - (bit_reverse(sf.index >> 2) / pow(2, 64));
-#if 0
-		if (z == 0) {
-			printf("%f\n", feature_minzoom);
-		}
-#endif
 
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;

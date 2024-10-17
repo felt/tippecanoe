@@ -288,7 +288,6 @@ struct drop_state {
 	unsigned long long previndex;
 	double interval;
 	double seq;  // floating point because interval is
-	std::vector<int> debt;
 };
 
 struct drop_densest {
@@ -307,60 +306,45 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 	if (gamma >= 0 && (ix->t == VT_POINT ||
 			   (additional[A_LINE_DROP] && ix->t == VT_LINE) ||
 			   (additional[A_POLYGON_DROP] && ix->t == VT_POLYGON))) {
-		// increment all the counters
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			ds[i].seq++;
 		}
-
-		// find the highest zoom that is due for a new feature
 		for (ssize_t i = maxzoom; i >= 0; i--) {
 			if (ds[i].seq < 0) {
 				feature_minzoom = i + 1;
+
+				// The feature we are pushing out
+				// appears in zooms i + 1 through maxzoom,
+				// so track where that was so we can make sure
+				// not to cluster something else that is *too*
+				// far away into it.
+				for (ssize_t j = i + 1; j <= maxzoom; j++) {
+					ds[j].previndex = ix->ix;
+				}
+
 				break;
+			} else {
+				ds[i].seq -= ds[i].interval;
 			}
-		}
-
-		int chosen = feature_minzoom;
-
-		// if that zoom is overdrawn, find the zoom that lent it a feature
-		// and give that zoom a feature instead
-		while (ds[feature_minzoom].debt.size() > 0) {
-			int lender = ds[feature_minzoom].debt.back();
-			ds[feature_minzoom].debt.pop_back();
-			feature_minzoom = lender;
 		}
 
 		// If this feature has been chosen only for a high zoom level,
 		// check whether at a low zoom level it is nevertheless too far
 		// from the last feature chosen for that low zoom, in which case
 		// we will go ahead and push it out.
+
 		if (preserve_point_density_threshold > 0) {
 			for (ssize_t i = 0; i < feature_minzoom && i < maxzoom; i++) {
 				if (ix->ix - ds[i].previndex > ((1LL << (32 - i)) / preserve_point_density_threshold) * ((1LL << (32 - i)) / preserve_point_density_threshold)) {
-					if (std::find(ds[i].debt.begin(), ds[i].debt.end(), feature_minzoom) == ds[i].debt.end()) {
-						ds[i].debt.push_back(feature_minzoom);
-						feature_minzoom = i;
-						break;
+					feature_minzoom = i;
+
+					for (ssize_t j = i; j <= maxzoom; j++) {
+						ds[j].previndex = ix->ix;
 					}
+
+					break;
 				}
 			}
-		}
-
-		// credit all the zooms that the feature was intended to appear in
-		// with a feature increment. (Don't credit the one that it actually
-		// appeared in, or z0 will never be chosen again and will never
-		// pay off any of its debt)
-		for (ssize_t i = maxzoom; i >= chosen; i--) {
-			ds[i].seq -= ds[i].interval;
-		}
-
-		// The feature we are pushing out
-		// appears in zooms i + 1 through maxzoom,
-		// so track where that was so we can make sure
-		// not to cluster something else that is *too*
-		// far away into it.
-		for (ssize_t j = feature_minzoom; j <= maxzoom; j++) {
-			ds[j].previndex = ix->ix;
 		}
 
 		// XXX manage_gap
@@ -1072,7 +1056,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double droprate) {
 	// Needs to be signed for interval calculation
-	for (ssize_t i = 0; i <= std::max(maxzoom, basezoom); i++) {
+	for (ssize_t i = 0; i <= maxzoom; i++) {
 		ds[i].gap = 0;
 		ds[i].previndex = 0;
 		ds[i].interval = 0;
@@ -1155,7 +1139,7 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 		geom_total += geomst.st_size;
 	}
 
-	struct drop_state ds[std::max(maxzoom, basezoom) + 1];
+	struct drop_state ds[maxzoom + 1];
 	prep_drop_states(ds, maxzoom, basezoom, droprate);
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
@@ -2714,7 +2698,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
 
-		struct drop_state ds[std::max(basezoom, maxzoom) + 1];
+		struct drop_state ds[maxzoom + 1];
 		prep_drop_states(ds, maxzoom, basezoom, droprate);
 
 		if (drop_denser > 0) {
