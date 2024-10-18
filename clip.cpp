@@ -1165,7 +1165,7 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &
 // accumulate :sum:, :min:, :max:, and :count: versions of the specified attribute
 static void preserve_numeric(const std::string &key, const mvt_value &val,			  // numeric attribute being accumulated
 			     std::vector<std::string> &full_keys,				  // keys of feature being accumulated onto
-			     std::vector<serial_val> &full_values,				  // values of features being accumulated onto
+			     std::vector<mvt_value> &full_values,				  // values of features being accumulated onto
 			     const std::string &accumulate_numeric,				  // prefix of accumulations
 			     std::set<std::string> &keys,					  // key presence in the source feature
 			     std::map<std::string, size_t> &numeric_out_field,			  // key index in the output feature
@@ -1218,16 +1218,13 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 					if (op.second == op_count) {
 						if (starting_from_accumulation) {
 							// copy our count
-							full_values.push_back(mvt_value_to_serial_val(val));
+							full_values.push_back(val);
 						} else {
 							// new count of 1
-							serial_val sv;
-							sv.type = mvt_double;
-							sv.s = "1";
-							full_values.push_back(sv);
+							full_values.push_back(mvt_value(1));
 						}
 					} else {
-						full_values.push_back(mvt_value_to_serial_val(val));
+						full_values.push_back(val);
 					}
 				} else {
 					// exists unprefixed, so copy it, and then accumulate on our value
@@ -1235,19 +1232,18 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 					full_keys.push_back(prefixed);
 
 					if (op.second == op_count) {
-						serial_val sv;
-						sv.type = mvt_double;
+						mvt_value v;
 						if (starting_from_accumulation) {
 							// sum our count onto the existing 1
-							sv.s = std::to_string(1 + mvt_value_to_long_long(val));
+							v = mvt_value(1 + mvt_value_to_long_long(val));
 						} else {
 							// sum our 1 onto the existing 1
-							sv.s = "2";
+							v = mvt_value(2);
 						}
-						full_values.push_back(sv);
+						full_values.push_back(v);
 					} else {
 						full_values.push_back(full_values[out_attr->second]);
-						preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+						preserve_attribute(op.second, prefixed, val, full_keys, full_values, attribute_accum_state);
 					}
 				}
 			} else {
@@ -1255,12 +1251,12 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 				if (op.second == op_count) {
 					if (starting_from_accumulation) {
 						// sum our count onto the existing count
-						full_values[prefixed_attr->second].s = std::to_string(atoll(full_values[prefixed_attr->second].s.c_str()) + mvt_value_to_long_long(val));
+						full_values[prefixed_attr->second] = mvt_value(mvt_value_to_long_long(full_values[prefixed_attr->second]) + mvt_value_to_long_long(val));
 					} else {
-						full_values[prefixed_attr->second].s = std::to_string(atoll(full_values[prefixed_attr->second].s.c_str()) + 1);
+						full_values[prefixed_attr->second] = mvt_value(mvt_value_to_long_long(full_values[prefixed_attr->second]) + 1);
 					}
 				} else {
-					preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+					preserve_attribute(op.second, prefixed, val, full_keys, full_values, attribute_accum_state);
 				}
 			}
 		}
@@ -1293,7 +1289,6 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::set<std::string> const &exclude,
 			std::vector<std::string> const &exclude_prefix,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
-			std::shared_ptr<std::string> const &tile_stringpool,
 			std::string const &accumulate_numeric) {
 	// Add geometry to output feature
 
@@ -1315,13 +1310,13 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 		if (attribute_accum.size() > 0 || accumulate_numeric.size() > 0) {
 			// convert the attributes of the output feature
-			// from mvt_value to serial_val so they can have
+			// from layer references to a vector so they can have
 			// attributes from the other features of the
 			// multiplier cluster accumulated onto them
 
 			std::unordered_map<std::string, accum_state> attribute_accum_state;
 			std::vector<std::string> full_keys;
-			std::vector<serial_val> full_values;
+			std::vector<mvt_value> full_values;
 			std::map<std::string, size_t> numeric_out_field;
 
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
@@ -1330,12 +1325,12 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 				if (f != attribute_accum.end()) {
 					// this attribute has an accumulator, so convert it
 					full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
-					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
+					full_values.push_back(features[0].layer->values[features[0].tags[i + 1]]);
 				} else if (accumulate_numeric.size() > 0 && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
 					// convert numeric for accumulation
 					numeric_out_field.emplace(key, full_keys.size());
 					full_keys.push_back(key);
-					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
+					full_values.push_back(features[0].layer->values[features[0].tags[i + 1]]);
 				} else {
 					// otherwise just tag it directly onto the output feature
 					if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
@@ -1361,7 +1356,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 					auto f = attribute_accum.find(key);
 					if (f != attribute_accum.end()) {
-						serial_val val = mvt_value_to_serial_val(features[i].layer->values[features[i].tags[j + 1]]);
+						mvt_value val = features[i].layer->values[features[i].tags[j + 1]];
 						preserve_attribute(f->second, key, val, full_keys, full_values, attribute_accum_state);
 					} else if (accumulate_numeric.size() > 0) {
 						const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
@@ -1379,7 +1374,7 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 			for (size_t i = 0; i < full_keys.size(); i++) {
 				if (should_keep(full_keys[i], keep, exclude, exclude_prefix)) {
-					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str(), tile_stringpool));
+					outlayer.tag(outfeature, full_keys[i], full_values[i]);
 				}
 			}
 
@@ -1570,7 +1565,6 @@ mvt_tile assign_to_bins(mvt_tile &features,
 	outlayer.name = features.layers[0].name;
 
 	std::vector<std::vector<tile_feature>> outfeatures;
-	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
@@ -1680,7 +1674,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 		if (outfeatures[i].size() > 1) {
 			feature_out(outfeatures[i], outlayer,
 				    keep, exclude, exclude_prefix, attribute_accum,
-				    tile_stringpool, accumulate_numeric);
+				    accumulate_numeric);
 			mvt_feature &nfeature = outlayer.features.back();
 			mvt_value val;
 			val.type = mvt_uint;
@@ -1715,7 +1709,6 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric) {
 	mvt_tile outtile;
-	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (auto const &tile : tiles) {
 		for (auto const &layer : tile.tile.layers) {
@@ -1840,7 +1833,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, tile_stringpool, accumulate_numeric);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric);
 						pending_tile_features.clear();
 					}
 				}
@@ -1897,7 +1890,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, tile_stringpool, accumulate_numeric);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric);
 				pending_tile_features.clear();
 			}
 

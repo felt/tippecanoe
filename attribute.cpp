@@ -207,3 +207,111 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 	full_keys.push_back(key);
 	full_values.push_back(sv);
 }
+
+void preserve_attribute(attribute_op const &op, std::string const &key, mvt_value const &val, std::vector<std::string> &full_keys, std::vector<mvt_value> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
+	for (size_t i = 0; i < full_keys.size(); i++) {
+		if (key == full_keys[i]) {
+			switch (op) {
+			case op_sum:
+				full_values[i] = mvt_value(full_values[i].to_double() + val.to_double());
+				return;
+
+			case op_product:
+				full_values[i] = mvt_value_to_double(full_values[i].to_double() * val.to_double());
+				return;
+
+			case op_max: {
+				double existing = full_values[i].to_double();
+				double maybe = val.to_double();
+				if (maybe > existing) {
+					full_values[i] = val;
+				}
+				return;
+			}
+
+			case op_min: {
+				double existing = full_values[i].to_double();
+				double maybe = val.to_double();
+				if (maybe < existing) {
+					full_values[i] = val;
+				}
+				return;
+			}
+
+			case op_mean: {
+				auto state = attribute_accum_state.find(key);
+				if (state == attribute_accum_state.end()) {
+					accum_state s;
+					s.sum = full_values[i].to_double() + val.to_double();
+					s.count = 2;
+					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
+
+					full_values[i] = mvt_value(s.sum / s.count);
+				} else {
+					state->second.sum += val.to_double();
+					state->second.count += 1;
+
+					full_values[i] = mvt_value(state->second.sum / state->second.count);
+				}
+				return;
+			}
+
+			case op_concat:
+				full_values[i].set_string_value(full_values[i].toString() + val.toString());
+				return;
+
+			case op_comma:
+				full_values[i].set_string_value(full_values[i].toString() + "," + val.toString());
+				return;
+
+			case op_count: {
+				auto state = attribute_accum_state.find(key);
+				if (state == attribute_accum_state.end()) {  // not already present
+					accum_state s;
+					s.count = 2;
+					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
+
+					full_values[i] = mvt_value(s.count);
+				} else {  // already present, incrementing
+					state->second.count += 1;
+					full_values[i] = mvt_value(state->second.count);
+				}
+				return;
+			}
+			}
+		}
+	}
+
+	// not found, so we are making a new value
+
+	mvt_value v;
+	switch (op) {
+	case op_sum:
+	case op_max:
+	case op_min:
+		v = val;
+		break;
+
+	case op_count: {
+		auto state = attribute_accum_state.find(key);
+		if (state == attribute_accum_state.end()) {  // not already present
+			accum_state s;
+			s.count = 1;
+			attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
+
+			v = mvt_value(s.count);
+		} else {  // already present, incrementing
+			fprintf(stderr, "preserve_attribute: can't happen (count)\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+		break;
+	}
+
+	default:
+		fprintf(stderr, "can't happen: operation that isn't used by --accumulate-numeric-attributes\n");
+		exit(EXIT_IMPOSSIBLE);
+	}
+
+	full_keys.push_back(key);
+	full_values.push_back(v);
+}
