@@ -1623,6 +1623,8 @@ mvt_tile assign_to_bins(mvt_tile &features,
 
 			active.insert(std::move(a));
 		} else if (e.kind == index_event::CHECK) {
+			continue;  // only bin by id, not geometrically
+
 			auto const &feature = features.layers[e.layer].features[e.feature];
 
 			if (feature.geometry.size() == 0) {
