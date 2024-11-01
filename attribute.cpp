@@ -208,6 +208,9 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 	full_values.push_back(sv);
 }
 
+// This is exactly the same logic as preserve_attribute above,
+// but with mvt_value instead of serial_val, since overzoom doesn't
+// need anything in serial_val form.
 void preserve_attribute(attribute_op const &op, std::string const &key, mvt_value const &val, std::vector<std::string> &full_keys, std::vector<mvt_value> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
 	for (size_t i = 0; i < full_keys.size(); i++) {
 		if (key == full_keys[i]) {

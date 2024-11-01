@@ -1,3 +1,8 @@
+# 2.66.0
+
+* Only bin by ID, not by geometry, if --bin-by-id-list is specified
+* Do attribute accumulation in overzoom in mvt_value instead of converting to serial_val
+
 # 2.65.0
 
 * Improve spatial distribution of --retain-points-multiplier features
