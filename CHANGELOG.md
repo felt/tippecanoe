@@ -2,6 +2,7 @@
 
 * Only bin by ID, not by geometry, if --bin-by-id-list is specified
 * Do attribute accumulation in overzoom in mvt_value instead of converting to serial_val
+* Fix bool values read from flatgeobuf sources (#289)
 
 # 2.65.0
 
