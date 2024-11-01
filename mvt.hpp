@@ -76,6 +76,9 @@ enum mvt_value_type {
 	mvt_no_such_key,
 };
 
+struct mvt_value;
+double mvt_value_to_double(mvt_value const &v);
+
 struct mvt_value {
 	mvt_value_type type;
 	std::shared_ptr<std::string> s;
@@ -95,7 +98,11 @@ struct mvt_value {
 	} numeric_value;
 
 	std::string get_string_value() const {
-		return std::string(*s, numeric_value.string_value.off, numeric_value.string_value.len);
+		if (type == mvt_string) {
+			return std::string(*s, numeric_value.string_value.off, numeric_value.string_value.len);
+		} else {
+			return toString();
+		}
 	}
 
 	std::string_view get_string_view() const {
@@ -126,6 +133,10 @@ struct mvt_value {
 		       type == mvt_sint;
 	}
 
+	double to_double() const {
+		return mvt_value_to_double(*this);
+	}
+
 	bool operator<(const mvt_value &o) const;
 	bool operator==(const mvt_value &o) const;
 	std::string toString() const;
@@ -133,6 +144,11 @@ struct mvt_value {
 	mvt_value() {
 		this->type = mvt_double;
 		this->numeric_value.double_value = 0;
+	}
+
+	mvt_value(double v) {
+		this->type = mvt_double;
+		this->numeric_value.double_value = v;
 	}
 };
 
@@ -201,7 +217,6 @@ int dezig(unsigned n);
 
 mvt_value stringified_to_mvt_value(int type, const char *s, std::shared_ptr<std::string> const &tile_stringpool);
 long long mvt_value_to_long_long(mvt_value const &v);
-double mvt_value_to_double(mvt_value const &v);
 
 bool is_integer(const char *s, long long *v);
 bool is_unsigned_integer(const char *s, unsigned long long *v);

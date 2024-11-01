@@ -49,6 +49,26 @@ struct serial_val {
 	serial_val(int t, const std::string &val)
 	    : type(t), s(val) {
 	}
+
+	// These functions for interface compatibility with mvt_value:
+
+	serial_val(double val) {
+		type = mvt_double;
+		s = milo::dtoa_milo(val);
+	}
+
+	double to_double() const {
+		return atof(s.c_str());
+	}
+
+	std::string get_string_value() const {
+		return s;
+	}
+
+	void set_string_value(std::string const &val) {
+		type = mvt_string;
+		s = val;
+	}
 };
 
 struct serial_feature {

@@ -88,36 +88,33 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 	set_attribute_accum(attribute_accum, name, type);
 }
 
-void preserve_attribute(attribute_op const &op, std::string const &key, serial_val const &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
+template <class T>
+static void preserve_attribute1(attribute_op const &op, std::string const &key, T const &val, std::vector<std::string> &full_keys, std::vector<T> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
 	for (size_t i = 0; i < full_keys.size(); i++) {
 		if (key == full_keys[i]) {
 			switch (op) {
 			case op_sum:
-				full_values[i].s = milo::dtoa_milo(atof(full_values[i].s.c_str()) + atof(val.s.c_str()));
-				full_values[i].type = mvt_double;
+				full_values[i] = (full_values[i].to_double() + val.to_double());
 				return;
 
 			case op_product:
-				full_values[i].s = milo::dtoa_milo(atof(full_values[i].s.c_str()) * atof(val.s.c_str()));
-				full_values[i].type = mvt_double;
+				full_values[i] = (full_values[i].to_double() * val.to_double());
 				return;
 
 			case op_max: {
-				double existing = atof(full_values[i].s.c_str());
-				double maybe = atof(val.s.c_str());
+				double existing = full_values[i].to_double();
+				double maybe = val.to_double();
 				if (maybe > existing) {
-					full_values[i].s = val.s.c_str();
-					full_values[i].type = mvt_double;
+					full_values[i] = val;
 				}
 				return;
 			}
 
 			case op_min: {
-				double existing = atof(full_values[i].s.c_str());
-				double maybe = atof(val.s.c_str());
+				double existing = full_values[i].to_double();
+				double maybe = val.to_double();
 				if (maybe < existing) {
-					full_values[i].s = val.s.c_str();
-					full_values[i].type = mvt_double;
+					full_values[i] = val;
 				}
 				return;
 			}
@@ -126,30 +123,26 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 				auto state = attribute_accum_state.find(key);
 				if (state == attribute_accum_state.end()) {
 					accum_state s;
-					s.sum = atof(full_values[i].s.c_str()) + atof(val.s.c_str());
+					s.sum = full_values[i].to_double() + val.to_double();
 					s.count = 2;
 					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
 
-					full_values[i].s = milo::dtoa_milo(s.sum / s.count);
-					full_values[i].type = mvt_double;
+					full_values[i] = (s.sum / s.count);
 				} else {
-					state->second.sum += atof(val.s.c_str());
+					state->second.sum += val.to_double();
 					state->second.count += 1;
 
-					full_values[i].s = milo::dtoa_milo(state->second.sum / state->second.count);
-					full_values[i].type = mvt_double;
+					full_values[i] = (state->second.sum / state->second.count);
 				}
 				return;
 			}
 
 			case op_concat:
-				full_values[i].s += val.s;
-				full_values[i].type = mvt_string;
+				full_values[i].set_string_value(full_values[i].get_string_value() + val.get_string_value());
 				return;
 
 			case op_comma:
-				full_values[i].s += std::string(",") + val.s;
-				full_values[i].type = mvt_string;
+				full_values[i].set_string_value(full_values[i].get_string_value() + "," + val.get_string_value());
 				return;
 
 			case op_count: {
@@ -159,12 +152,10 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 					s.count = 2;
 					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
 
-					full_values[i].type = mvt_double;
-					full_values[i].s = std::to_string(s.count);
+					full_values[i] = (s.count);
 				} else {  // already present, incrementing
 					state->second.count += 1;
-					full_values[i].type = mvt_double;
-					full_values[i].s = std::to_string(state->second.count);
+					full_values[i] = (state->second.count);
 				}
 				return;
 			}
@@ -174,13 +165,12 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 
 	// not found, so we are making a new value
 
-	serial_val sv;
+	T v;
 	switch (op) {
 	case op_sum:
 	case op_max:
 	case op_min:
-		sv.s = val.s;
-		sv.type = mvt_double;
+		v = val;
 		break;
 
 	case op_count: {
@@ -190,12 +180,11 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 			s.count = 1;
 			attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
 
-			sv.s = std::to_string(s.count);
+			v = (s.count);
 		} else {  // already present, incrementing
 			fprintf(stderr, "preserve_attribute: can't happen (count)\n");
 			exit(EXIT_IMPOSSIBLE);
 		}
-		sv.type = mvt_double;
 		break;
 	}
 
@@ -205,5 +194,13 @@ void preserve_attribute(attribute_op const &op, std::string const &key, serial_v
 	}
 
 	full_keys.push_back(key);
-	full_values.push_back(sv);
+	full_values.push_back(v);
+}
+
+void preserve_attribute(attribute_op const &op, std::string const &key, mvt_value const &val, std::vector<std::string> &full_keys, std::vector<mvt_value> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
+	preserve_attribute1(op, key, val, full_keys, full_values, attribute_accum_state);
+}
+
+void preserve_attribute(attribute_op const &op, std::string const &key, serial_val const &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
+	preserve_attribute1(op, key, val, full_keys, full_values, attribute_accum_state);
 }
