@@ -98,7 +98,11 @@ struct mvt_value {
 	} numeric_value;
 
 	std::string get_string_value() const {
-		return std::string(*s, numeric_value.string_value.off, numeric_value.string_value.len);
+		if (type == mvt_string) {
+			return std::string(*s, numeric_value.string_value.off, numeric_value.string_value.len);
+		} else {
+			return toString();
+		}
 	}
 
 	std::string_view get_string_view() const {
