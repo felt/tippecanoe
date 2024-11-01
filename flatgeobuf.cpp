@@ -177,7 +177,11 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 			sv.type = mvt_bool;
 			uint8_t bool_val;
 			memcpy(&bool_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(bool_val));
-			sv.s = std::to_string(bool_val);
+			if (bool_val) {
+				sv.s = "true";
+			} else {
+				sv.s = "false";
+			}
 			p_pos += sizeof(uint16_t) + sizeof(bool_val);
 		} else if (col_type == FlatGeobuf::ColumnType_Short) {
 			sv.type = mvt_sint;
