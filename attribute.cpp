@@ -220,7 +220,7 @@ void preserve_attribute(attribute_op const &op, std::string const &key, mvt_valu
 				return;
 
 			case op_product:
-				full_values[i] = mvt_value_to_double(full_values[i].to_double() * val.to_double());
+				full_values[i] = mvt_value(full_values[i].to_double() * val.to_double());
 				return;
 
 			case op_max: {
