@@ -72,6 +72,9 @@ struct stats {
 	std::vector<struct strategy> strategies{};
 };
 
+// https://stackoverflow.com/questions/11753871/getting-the-type-of-a-column-in-sqlite
+std::string get_column_types_query = "SELECT m.name AS table_name, UPPER(m.type) AS table_type, p.name AS column_name, p.type AS data_type, CASE p.pk WHEN 1 THEN 'PRIMARY KEY' END AS const FROM sqlite_master AS m INNER JOIN pragma_table_info(m.name) AS p WHERE m.name NOT IN ('sqlite_sequence') ORDER BY m.name, p.cid;";
+
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
@@ -1196,6 +1199,10 @@ int main(int argc, char **argv) {
 	int filearg = 0;
 	json_object *filter = NULL;
 
+    std::string join_sqlite_fname;
+    std::string join_tile_column;
+    std::string join_table_column;
+
 	struct tileset_reader *readers = NULL;
 
 	CPUS = sysconf(_SC_NPROCESSORS_ONLN);
@@ -1242,6 +1249,10 @@ int main(int argc, char **argv) {
 		{"feature-filter", required_argument, 0, 'j'},
 		{"rename-layer", required_argument, 0, 'R'},
 		{"read-from", required_argument, 0, 'r'},
+
+		{"join-sqlite", required_argument, 0, '~'},
+		{"join-tile-key", required_argument, 0, '~'},
+		{"join-table-key", required_argument, 0, '~'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
 		{"no-tile-compression", no_argument, &pC, 1},
@@ -1427,6 +1438,8 @@ int main(int argc, char **argv) {
 				max_tilestats_values = atoi(optarg);
 			} else if (strcmp(opt, "unidecode-data") == 0) {
 				unidecode_data = read_unidecode(optarg);
+			} else if (strcmp(opt, "join-sqlite") == 0) {
+				join_sqlite_fname = optarg;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
