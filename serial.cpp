@@ -413,8 +413,9 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 }
 
 // called from frontends
-int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername, key_pool &key_pool) {
+int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername) {
 	struct reader *r = &(*sst->readers)[sst->segment];
+	key_pool key_pool;
 
 	sf.bbox[0] = LLONG_MAX;
 	sf.bbox[1] = LLONG_MAX;

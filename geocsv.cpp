@@ -58,6 +58,7 @@ void parse_geocsv(std::vector<struct serialization_state> &sst, std::string fnam
 	}
 
 	size_t seq = 0;
+	key_pool key_pool;
 	while ((s = csv_getline(f)).size() > 0) {
 		std::string err = check_utf8(s);
 		if (err != "") {
@@ -89,7 +90,7 @@ void parse_geocsv(std::vector<struct serialization_state> &sst, std::string fnam
 		drawvec dv;
 		dv.push_back(draw(VT_MOVETO, x, y));
 
-		std::vector<std::string> full_keys;
+		std::vector<std::shared_ptr<std::string>> full_keys;
 		std::vector<serial_val> full_values;
 
 		for (size_t i = 0; i < line.size(); i++) {
@@ -107,7 +108,7 @@ void parse_geocsv(std::vector<struct serialization_state> &sst, std::string fnam
 				}
 				sv.s = line[i];
 
-				full_keys.push_back(header[i]);
+				full_keys.push_back(key_pool.pool(header[i]));
 				full_values.push_back(sv);
 			}
 		}

@@ -270,14 +270,14 @@ std::vector<drawvec_type> readGeometry(protozero::pbf_reader &pbf, size_t dim, d
 	return ret;
 }
 
-void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<std::string> &keys, struct serialization_state *sst, int layer, std::string layername) {
+void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<std::string> &keys, struct serialization_state *sst, int layer, std::string layername, key_pool &key_pool) {
 	std::vector<drawvec_type> dv;
 	long long id = 0;
 	bool has_id = false;
 	std::vector<serial_val> values;
 	std::map<std::string, serial_val> other;
 
-	std::vector<std::string> full_keys;
+	std::vector<std::shared_ptr<std::string>> full_keys;
 	std::vector<serial_val> full_values;
 
 	while (pbf.next()) {
@@ -338,7 +338,7 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 					exit(EXIT_IMPOSSIBLE);
 				}
 
-				full_keys.push_back(keys[properties[i]]);
+				full_keys.push_back(key_pool.pool(keys[properties[i]]));
 				full_values.push_back(values[properties[i + 1]]);
 			}
 
@@ -434,10 +434,11 @@ struct queue_run_arg {
 
 void *run_parse_feature(void *v) {
 	struct queue_run_arg *qra = (struct queue_run_arg *) v;
+	key_pool key_pool;
 
 	for (size_t i = qra->start; i < qra->end; i++) {
 		struct queued_feature &qf = feature_queue[i];
-		readFeature(qf.pbf, qf.dim, qf.e, *qf.keys, &(*qf.sst)[qra->segment], qf.layer, qf.layername);
+		readFeature(qf.pbf, qf.dim, qf.e, *qf.keys, &(*qf.sst)[qra->segment], qf.layer, qf.layername, key_pool);
 	}
 
 	return NULL;
