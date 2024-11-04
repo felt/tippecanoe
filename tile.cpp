@@ -143,9 +143,9 @@ static int coalcmp(const void *v1, const void *v2) {
 	}
 
 	for (size_t i = 0; i < c1->full_keys.size(); i++) {
-		if (c1->full_keys[i] < c2->full_keys[i]) {
+		if (*c1->full_keys[i] < *c2->full_keys[i]) {
 			return -1;
-		} else if (c1->full_keys[i] > c2->full_keys[i]) {
+		} else if (*c1->full_keys[i] > *c2->full_keys[i]) {
 			return 1;
 		}
 
@@ -302,7 +302,7 @@ static mvt_value find_attribute_value(const serial_feature *c1, std::string cons
 	}
 
 	for (size_t i = 0; i < c1->full_keys.size(); i++) {
-		if (c1->full_keys[i] == key) {
+		if (*c1->full_keys[i] == key) {
 			return stringified_to_mvt_value(c1->full_values[i].type, c1->full_values[i].s.c_str(), c1->tile_stringpool);
 		}
 	}
@@ -384,7 +384,7 @@ static std::vector<std::vector<serial_feature>> assemble_multiplier_clusters(std
 			bool is_cluster_start = false;
 
 			for (size_t i = 0; i < feature.full_keys.size(); i++) {
-				if (feature.full_keys[i] == "tippecanoe:retain_points_multiplier_first") {
+				if (*feature.full_keys[i] == "tippecanoe:retain_points_multiplier_first") {
 					is_cluster_start = true;
 					break;
 				}
@@ -412,7 +412,7 @@ static std::vector<serial_feature> disassemble_multiplier_clusters(std::vector<s
 		// gets the marker attribute
 		for (size_t i = 0; i < cluster.size(); i++) {
 			for (size_t j = 0; j < cluster[i].full_keys.size(); j++) {
-				if (cluster[i].full_keys[j] == "tippecanoe:retain_points_multiplier_first") {
+				if (*cluster[i].full_keys[j] == "tippecanoe:retain_points_multiplier_first") {
 					cluster[0].full_keys.push_back(std::move(cluster[i].full_keys[j]));
 					cluster[0].full_values.push_back(std::move(cluster[i].full_values[j]));
 
@@ -1012,7 +1012,7 @@ static void remove_attributes(serial_feature &sf, std::set<std::string> const &e
 	}
 
 	for (ssize_t i = sf.full_keys.size() - 1; i >= 0; i--) {
-		std::string key = sf.full_keys[i];
+		std::string key = *sf.full_keys[i];
 		if (exclude_attributes.count(key) > 0) {
 			sf.full_keys.erase(sf.full_keys.begin() + i);
 			sf.full_values.erase(sf.full_values.begin() + i);
@@ -1183,7 +1183,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			for (size_t i = 0; i < sf.full_keys.size(); i++) {
-				std::string key = sf.full_keys[i];
+				std::string key = *sf.full_keys[i];
 				mvt_value val = stringified_to_mvt_value(sf.full_values[i].type, sf.full_values[i].s.c_str(), tile_stringpool);
 
 				attributes.insert(std::pair<std::string, mvt_value>(key, val));
@@ -1399,7 +1399,7 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 	add_to_tilestats(ts->second.tilestats, key, val);
 }
 
-void promote_attribute(std::string const &key, serial_feature &p) {
+void promote_attribute(std::string const &key, serial_feature &p, key_pool &key_pool) {
 	if (p.need_tilestats.count(key) == 0) {
 		p.need_tilestats.insert(key);
 	}
@@ -1413,7 +1413,7 @@ void promote_attribute(std::string const &key, serial_feature &p) {
 			sv.s = p.stringpool + p.values[i] + 1;
 			sv.type = p.stringpool[p.values[i]];
 
-			p.full_keys.push_back(key);
+			p.full_keys.push_back(key_pool.pool(key));
 			p.full_values.push_back(std::move(sv));
 
 			p.keys.erase(p.keys.begin() + i);
@@ -1424,7 +1424,7 @@ void promote_attribute(std::string const &key, serial_feature &p) {
 	}
 }
 
-void promote_attribute_prefix(std::string const &key, std::string const &prefixed_key, serial_feature &p) {
+void promote_attribute_prefix(std::string const &key, std::string const &prefixed_key, serial_feature &p, key_pool &key_pool) {
 	if (p.need_tilestats.count(prefixed_key) == 0) {
 		p.need_tilestats.insert(prefixed_key);
 	}
@@ -1432,18 +1432,18 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 	// does the prefixed attribute already exist as a full key?
 	ssize_t found_as = -1;
 	for (size_t i = 0; i < p.full_keys.size(); i++) {
-		if (prefixed_key == p.full_keys[i]) {
+		if (prefixed_key == *p.full_keys[i]) {
 			// yes, so we're done
 			return;
 		}
-		if (key == p.full_keys[i]) {
+		if (key == *p.full_keys[i]) {
 			found_as = i;
 		}
 	}
 
 	// or did we find the source as a full key? then copy it
 	if (found_as >= 0) {
-		p.full_keys.push_back(prefixed_key);
+		p.full_keys.push_back(key_pool.pool(prefixed_key));
 		p.full_values.push_back(p.full_values[found_as]);
 		return;
 	}
@@ -1457,7 +1457,7 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 			sv.s = p.stringpool + p.values[i] + 1;
 			sv.type = p.stringpool[p.values[i]];
 
-			p.full_keys.push_back(prefixed_key);
+			p.full_keys.push_back(key_pool.pool(prefixed_key));
 			p.full_values.push_back(std::move(sv));
 
 			p.keys.erase(p.keys.begin() + i);
@@ -1475,7 +1475,7 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 		sv.s = p.stringpool + p.values[found_as] + 1;
 		sv.type = p.stringpool[p.values[found_as]];
 
-		p.full_keys.push_back(prefixed_key);
+		p.full_keys.push_back(key_pool.pool(prefixed_key));
 		p.full_values.push_back(std::move(sv));
 
 		return;
@@ -1485,7 +1485,7 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 }
 
 // accumulate attribute values from sf onto p
-void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p) {
+void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p, key_pool &key_pool) {
 	std::string accumulate_numeric_colon = accumulate_numeric + ":";
 
 	for (size_t i = 0; i < sf.keys.size(); i++) {
@@ -1498,8 +1498,8 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 			sv.type = sf.stringpool[sf.values[i]];
 			sv.s = sf.stringpool + sf.values[i] + 1;
 
-			promote_attribute(key, p);
-			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
+			promote_attribute(key, p, key_pool);
+			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
 		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
 			for (auto const &operation : numeric_operations) {
 				serial_val sv;
@@ -1507,26 +1507,26 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 				sv.s = sf.stringpool + sf.values[i] + 1;
 
 				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
-				promote_attribute_prefix(key, prefixed_key, p);
-				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
+				promote_attribute_prefix(key, prefixed_key, p, key_pool);
+				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
 			}
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
-		const std::string &key = sf.full_keys[i];
+		const std::string key = *sf.full_keys[i];
 		int type = sf.full_values[i].type;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
 			const serial_val &sv = sf.full_values[i];
 
-			promote_attribute(key, p);  // promotes it in the target feature
-			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state);
+			promote_attribute(key, p, key_pool);  // promotes it in the target feature
+			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
 		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
 			for (auto const &operation : numeric_operations) {
 				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
-				promote_attribute_prefix(key, prefixed_key, p);
-				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, p.attribute_accum_state);
+				promote_attribute_prefix(key, prefixed_key, p, key_pool);
+				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
 			}
 		}
 	}
@@ -1620,7 +1620,7 @@ struct layer_features {
 	size_t multiplier_cluster_size = 0;    // The feature count of the current multiplier cluster
 };
 
-bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, strategy &strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum) {
+bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features &layer, serial_feature &sf, std::vector<std::vector<std::string>> *layer_unmaps, strategy &strategy, bool &drop_rest, std::unordered_map<std::string, attribute_op> const *attribute_accum, key_pool &key_pool) {
 	ssize_t which_serial_feature;
 
 	if (find_feature_to_accumulate_onto(layer.features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
@@ -1631,7 +1631,7 @@ bool drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer_features 
 			sf.dropped = layer.multiplier_cluster_size + 1;
 			return false;  // converted rather than dropped
 		} else {
-			preserve_attributes(attribute_accum, sf, layer.features[which_serial_feature]);
+			preserve_attributes(attribute_accum, sf, layer.features[which_serial_feature], key_pool);
 			drop_rest = true;
 			return true;  // dropped
 		}
@@ -1740,6 +1740,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		bool too_many_features = false;
 		bool too_many_bytes = false;
+
+		key_pool key_pool;
 
 		std::atomic<bool> within[child_shards];
 		long long start_geompos[child_shards];
@@ -1918,7 +1920,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
-					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+					preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 					strategy.dropped_by_rate++;
 					can_stop_early = false;
 					continue;
@@ -1931,7 +1933,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (sf.dropped == FEATURE_KEPT) {
 				if (gamma > 0) {
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
-						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 						strategy.dropped_by_gamma++;
 						drop_rest = true;
 						can_stop_early = false;
@@ -1959,7 +1961,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							features[which_serial_feature].geometry[0].y = y / (features[which_serial_feature].clustered + 1);
 						}
 
-						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
@@ -1969,7 +1971,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
 						can_stop_early = false;
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
 							continue;
 						}
 					}
@@ -1991,7 +1993,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							features[which_serial_feature].geometry[0].y = y / (features[which_serial_feature].clustered + 1);
 						}
 
-						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						continue;
@@ -2002,7 +2004,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
-						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
@@ -2014,7 +2016,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// so we shouldn't expect to find anything small that we can related this feature to.
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
 						can_stop_early = false;
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
 							continue;
 						}
 					}
@@ -2024,7 +2026,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
 						coalesced_area += sf.extent;
-						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
@@ -2034,7 +2036,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
 						can_stop_early = false;
-						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum)) {
+						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
 							continue;
 						}
 					}
@@ -2043,7 +2045,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						coalesce_geometry(features[which_serial_feature], sf);
 						features[which_serial_feature].coalesced = true;
-						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature]);
+						preserve_attributes(arg->attribute_accum, sf, features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
@@ -2143,7 +2145,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 
 					if (sf.dropped == FEATURE_KEPT && retain_points_multiplier > 1) {
-						sf.full_keys.push_back("tippecanoe:retain_points_multiplier_first");
+						sf.full_keys.push_back(key_pool.pool("tippecanoe:retain_points_multiplier_first"));
 						sf.full_values.emplace_back(mvt_bool, "true");
 					}
 
@@ -2313,10 +2315,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					size_t j = feature_sequences[i].second;
 					serial_val sv(mvt_double, std::to_string(i));
 
-					features[j].full_keys.push_back("tippecanoe:retain_points_multiplier_sequence");
+					features[j].full_keys.push_back(key_pool.pool("tippecanoe:retain_points_multiplier_sequence"));
 					features[j].full_values.push_back(sv);
 
-					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, features[j].full_keys.back(), sv);
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, *features[j].full_keys.back(), sv);
 				}
 			}
 
@@ -2328,28 +2330,28 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					long long point_count = p.clustered + 1;
 					char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
 
-					p.full_keys.push_back("clustered");
+					p.full_keys.push_back(key_pool.pool("clustered"));
 					sv.type = mvt_bool;
 					sv.s = "true";
 					p.full_values.push_back(sv);
 
 					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "clustered", sv);
 
-					p.full_keys.push_back("point_count");
+					p.full_keys.push_back(key_pool.pool("point_count"));
 					sv2.type = mvt_double;
 					sv2.s = std::to_string(point_count);
 					p.full_values.push_back(sv2);
 
 					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count", sv2);
 
-					p.full_keys.push_back("sqrt_point_count");
+					p.full_keys.push_back(key_pool.pool("sqrt_point_count"));
 					sv3.type = mvt_double;
 					sv3.s = std::to_string(round(100 * sqrt(point_count)) / 100.0);
 					p.full_values.push_back(sv3);
 
 					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "sqrt_point_count", sv3);
 
-					p.full_keys.push_back("point_count_abbreviated");
+					p.full_keys.push_back(key_pool.pool("point_count_abbreviated"));
 					sv4.type = mvt_string;
 					if (point_count >= 10000) {
 						snprintf(abbrev, sizeof(abbrev), "%.0fk", point_count / 1000.0);
@@ -2366,8 +2368,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (p.need_tilestats.size() > 0) {
 					for (size_t j = 0; j < p.full_keys.size(); j++) {
-						if (p.need_tilestats.count(p.full_keys[j]) > 0) {
-							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, p.full_keys[j], p.full_values[j]);
+						if (p.need_tilestats.count(*p.full_keys[j]) > 0) {
+							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, *p.full_keys[j], p.full_values[j]);
 						}
 					}
 				}
@@ -2559,7 +2561,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				for (size_t a = 0; a < layer_features[x].full_keys.size(); a++) {
 					serial_val sv = layer_features[x].full_values[a];
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
-					layer.tag(feature, layer_features[x].full_keys[a], v);
+					layer.tag(feature, *layer_features[x].full_keys[a], v);
 				}
 
 				if (additional[A_CALCULATE_FEATURE_DENSITY]) {

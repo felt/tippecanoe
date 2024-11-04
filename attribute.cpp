@@ -89,9 +89,9 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 }
 
 template <class T>
-static void preserve_attribute1(attribute_op const &op, std::string const &key, T const &val, std::vector<std::string> &full_keys, std::vector<T> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
+static void preserve_attribute1(attribute_op const &op, std::string const &key, T const &val, std::vector<std::shared_ptr<std::string>> &full_keys, std::vector<T> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state, key_pool &key_pool) {
 	for (size_t i = 0; i < full_keys.size(); i++) {
-		if (key == full_keys[i]) {
+		if (key == *full_keys[i]) {
 			switch (op) {
 			case op_sum:
 				full_values[i] = (full_values[i].to_double() + val.to_double());
@@ -193,14 +193,14 @@ static void preserve_attribute1(attribute_op const &op, std::string const &key, 
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	full_keys.push_back(key);
+	full_keys.push_back(key_pool.pool(key));
 	full_values.push_back(v);
 }
 
-void preserve_attribute(attribute_op const &op, std::string const &key, mvt_value const &val, std::vector<std::string> &full_keys, std::vector<mvt_value> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
-	preserve_attribute1(op, key, val, full_keys, full_values, attribute_accum_state);
+void preserve_attribute(attribute_op const &op, std::string const &key, mvt_value const &val, std::vector<std::shared_ptr<std::string>> &full_keys, std::vector<mvt_value> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state, key_pool &key_pool) {
+	preserve_attribute1(op, key, val, full_keys, full_values, attribute_accum_state, key_pool);
 }
 
-void preserve_attribute(attribute_op const &op, std::string const &key, serial_val const &val, std::vector<std::string> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state) {
-	preserve_attribute1(op, key, val, full_keys, full_values, attribute_accum_state);
+void preserve_attribute(attribute_op const &op, std::string const &key, serial_val const &val, std::vector<std::shared_ptr<std::string>> &full_keys, std::vector<serial_val> &full_values, std::unordered_map<std::string, accum_state> &attribute_accum_state, key_pool &key_pool) {
+	preserve_attribute1(op, key, val, full_keys, full_values, attribute_accum_state, key_pool);
 }
