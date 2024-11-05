@@ -2295,6 +2295,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		double mean = 0;
 		size_t count = 0;
 		double m2 = 0;
+		size_t dupes = 0;
 
 		long long progress = -1;
 		long long ip;
@@ -2330,6 +2331,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				mean += delta / count;
 				double delta2 = newValue - mean;
 				m2 += delta * delta2;
+			} else {
+				dupes++;
 			}
 
 			long long nprogress = 100 * ip / indices;
@@ -2373,16 +2376,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			double want = nearby_ft / 2;
 
 			maxzoom = ceil(log(360 / (.00000274 * want)) / log(2) - full_detail);
-			if (maxzoom < 0) {
-				maxzoom = 0;
-			}
-			if (maxzoom > 32 - full_detail) {
-				maxzoom = 32 - full_detail;
-			}
-			if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-				maxzoom = 33 - low_detail;
-			}
-
 			if (!quiet) {
 				fprintf(stderr,
 					"Choosing a maxzoom of -z%d for features typically %d feet (%d meters) apart, ",
@@ -2422,6 +2415,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (!quiet) {
 					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
 				}
+
+				if (dupes != 0 && droprate != 0) {
+					maxzoom += std::round(log((dupes + count) / count) / log(droprate));
+					if (!quiet) {
+						fprintf(stderr, "Increasing maxzoom to %d to account for %zu duplicate feature locations\n", maxzoom, dupes);
+					}
+				}
 			}
 		}
 
@@ -2430,22 +2430,22 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			double want2 = exp(dist_sum / dist_count) / 8;
 			int mz = ceil(log(360 / (.00000274 * want2)) / log(2) - full_detail);
 
-			if (mz < 0) {
-				mz = 0;
-			}
-			if (mz > 32 - full_detail) {
-				mz = 32 - full_detail;
-			}
-			if (mz > 33 - low_detail) {  // that is, mz - 1 > 32 - low_detail
-				mz = 33 - low_detail;
-			}
-
 			if (mz > maxzoom || count <= 0) {
 				if (!quiet) {
 					fprintf(stderr, "Choosing a maxzoom of -z%d for resolution of about %d feet (%d meters) within features\n", mz, (int) exp(dist_sum / dist_count), (int) (exp(dist_sum / dist_count) / 3.28084));
 				}
 				maxzoom = mz;
 			}
+		}
+
+		if (maxzoom < 0) {
+			maxzoom = 0;
+		}
+		if (maxzoom > 32 - full_detail) {
+			maxzoom = 32 - full_detail;
+		}
+		if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
+			maxzoom = 33 - low_detail;
 		}
 
 		double total_tile_count = 0;
