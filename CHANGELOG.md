@@ -1,3 +1,8 @@
+# 2.67.0
+
+* Reduce memory consumption of duplicate attribute names in `serial_feature`
+* The maxzoom guess calculation now takes into account the number of duplicate feature locations
+
 # 2.66.0
 
 * Only bin by ID, not by geometry, if --bin-by-id-list is specified
