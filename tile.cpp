@@ -1240,7 +1240,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			if (z >= feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
-			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
+			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier && sf.index != next_feature_state.prev_not_dropped_index) {
 				count->second++;
 				sf.dropped = count->second;
 			} else if (preserve_multiplier_density_threshold > 0 &&
