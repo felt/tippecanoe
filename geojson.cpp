@@ -182,17 +182,18 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		nprop = properties->value.object.length;
 	}
 
-	std::vector<std::string> keys;
+	std::vector<std::shared_ptr<std::string>> full_keys;
 	std::vector<serial_val> values;
 
-	keys.reserve(nprop);
+	full_keys.reserve(nprop);
 	values.reserve(nprop);
+	key_pool key_pool;
 
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
 			serial_val sv = stringify_value(properties->value.object.values[i], sst->fname, sst->line, feature);
 
-			keys.emplace_back(properties->value.object.keys[i]->value.string.string);
+			full_keys.emplace_back(key_pool.pool(properties->value.object.keys[i]->value.string.string));
 			values.push_back(std::move(sv));
 		}
 	}
@@ -211,7 +212,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.geometry = dv;
 	sf.feature_minzoom = 0;	 // Will be filled in during index merging
 	sf.seq = *(sst->layer_seq);
-	sf.full_keys = std::move(keys);
+	sf.full_keys = std::move(full_keys);
 	sf.full_values = std::move(values);
 
 	return serialize_feature(sst, sf, tippecanoe_layername);

@@ -1241,6 +1241,10 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
+double round_droprate(double r) {
+	return std::round(r * 100000.0) / 100000.0;
+}
+
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
@@ -2295,6 +2299,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		double mean = 0;
 		size_t count = 0;
 		double m2 = 0;
+		size_t dupes = 0;
 
 		long long progress = -1;
 		long long ip;
@@ -2330,6 +2335,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				mean += delta / count;
 				double delta2 = newValue - mean;
 				m2 += delta * delta2;
+			} else {
+				dupes++;
 			}
 
 			long long nprogress = 100 * ip / indices;
@@ -2373,16 +2380,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			double want = nearby_ft / 2;
 
 			maxzoom = ceil(log(360 / (.00000274 * want)) / log(2) - full_detail);
-			if (maxzoom < 0) {
-				maxzoom = 0;
-			}
-			if (maxzoom > 32 - full_detail) {
-				maxzoom = 32 - full_detail;
-			}
-			if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-				maxzoom = 33 - low_detail;
-			}
-
 			if (!quiet) {
 				fprintf(stderr,
 					"Choosing a maxzoom of -z%d for features typically %d feet (%d meters) apart, ",
@@ -2413,7 +2410,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				// features is small, the drop rate should be large because the features are evenly
 				// spaced, and if the standard deviation is large, the drop rate can be small because
 				// the features are in clumps.
-				droprate = exp(-0.7681 * log(stddev) + 1.582);
+				droprate = round_droprate(exp(-0.7681 * log(stddev) + 1.582));
 
 				if (droprate < 0) {
 					droprate = 0;
@@ -2421,6 +2418,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 				if (!quiet) {
 					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
+				}
+
+				if (dupes != 0 && droprate != 0) {
+					maxzoom += std::round(log((dupes + count) / count) / log(droprate));
+					if (!quiet) {
+						fprintf(stderr, "Increasing maxzoom to %d to account for %zu duplicate feature locations\n", maxzoom, dupes);
+					}
 				}
 			}
 		}
@@ -2430,22 +2434,22 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			double want2 = exp(dist_sum / dist_count) / 8;
 			int mz = ceil(log(360 / (.00000274 * want2)) / log(2) - full_detail);
 
-			if (mz < 0) {
-				mz = 0;
-			}
-			if (mz > 32 - full_detail) {
-				mz = 32 - full_detail;
-			}
-			if (mz > 33 - low_detail) {  // that is, mz - 1 > 32 - low_detail
-				mz = 33 - low_detail;
-			}
-
 			if (mz > maxzoom || count <= 0) {
 				if (!quiet) {
 					fprintf(stderr, "Choosing a maxzoom of -z%d for resolution of about %d feet (%d meters) within features\n", mz, (int) exp(dist_sum / dist_count), (int) (exp(dist_sum / dist_count) / 3.28084));
 				}
 				maxzoom = mz;
 			}
+		}
+
+		if (maxzoom < 0) {
+			maxzoom = 0;
+		}
+		if (maxzoom > 32 - full_detail) {
+			maxzoom = 32 - full_detail;
+		}
+		if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
+			maxzoom = 33 - low_detail;
 		}
 
 		double total_tile_count = 0;
@@ -2608,7 +2612,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (maxzoom == 0) {
 					droprate = 2.5;
 				} else {
-					droprate = exp(log((double) max[0].count / max[maxzoom].count) / (maxzoom));
+					droprate = round_droprate(exp(log((double) max[0].count / max[maxzoom].count) / (maxzoom)));
 					if (!quiet) {
 						fprintf(stderr, "Choosing a drop rate of -r%f to get from %lld to %lld in %d zooms\n", droprate, max[maxzoom].count, max[0].count, maxzoom);
 					}
@@ -2634,7 +2638,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 				if (max[z].count / interval >= max_features) {
 					interval = (double) max[z].count / max_features;
-					droprate = exp(log(interval) / (basezoom - z));
+					droprate = round_droprate(exp(log(interval) / (basezoom - z)));
 					interval = exp(log(droprate) * (basezoom - z));
 
 					if (!quiet) {

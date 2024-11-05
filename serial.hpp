@@ -6,6 +6,7 @@
 #include <string.h>
 #include <vector>
 #include <atomic>
+#include <memory>
 #include <sys/stat.h>
 #include "geometry.hpp"
 #include "mbtiles.hpp"
@@ -71,6 +72,22 @@ struct serial_val {
 	}
 };
 
+struct key_pool {
+	std::unordered_map<std::string, std::shared_ptr<std::string>> mapping;
+
+	std::shared_ptr<std::string> pool(std::string const &s) {
+		auto f = mapping.find(s);
+		if (f != mapping.end()) {
+			return f->second;
+		}
+
+		std::shared_ptr<std::string> p = std::make_shared<std::string>();
+		*p = s;
+		mapping.emplace(s, p);
+		return p;
+	}
+};
+
 struct serial_feature {
 	long long layer = 0;
 	int segment = 0;
@@ -95,7 +112,7 @@ struct serial_feature {
 	// to create the keys and values references into the string pool
 	// during initial serialization
 
-	std::vector<std::string> full_keys{};
+	std::vector<std::shared_ptr<std::string>> full_keys{};
 	std::vector<serial_val> full_values{};
 
 	// These fields are generated from full_keys and full_values

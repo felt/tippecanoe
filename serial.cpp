@@ -415,6 +415,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 // called from frontends
 int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername) {
 	struct reader *r = &(*sst->readers)[sst->segment];
+	key_pool key_pool;
 
 	sf.bbox[0] = LLONG_MAX;
 	sf.bbox[1] = LLONG_MAX;
@@ -714,7 +715,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 
 	bbox_index = encode_index(midx, midy);
 	if (additional[A_CALCULATE_INDEX]) {
-		sf.full_keys.push_back("tippecanoe:index");
+		sf.full_keys.push_back(key_pool.pool("tippecanoe:index"));
 
 		serial_val sv;
 		sv.type = mvt_double;
@@ -776,7 +777,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	for (auto &kv : set_attributes) {
 		bool found = false;
 		for (size_t i = 0; i < sf.full_keys.size(); i++) {
-			if (sf.full_keys[i] == kv.first) {
+			if (*sf.full_keys[i] == kv.first) {
 				sf.full_values[i] = kv.second;
 				found = true;
 				break;
@@ -784,13 +785,13 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 
 		if (!found) {
-			sf.full_keys.push_back(kv.first);
+			sf.full_keys.push_back(key_pool.pool(kv.first));
 			sf.full_values.push_back(kv.second);
 		}
 	}
 
 	for (ssize_t i = (ssize_t) sf.full_keys.size() - 1; i >= 0; i--) {
-		coerce_value(sf.full_keys[i], sf.full_values[i].type, sf.full_values[i].s, sst->attribute_types);
+		coerce_value(*sf.full_keys[i], sf.full_values[i].type, sf.full_values[i].s, sst->attribute_types);
 
 		if (prevent[P_SINGLE_PRECISION]) {
 			if (sf.full_values[i].type == mvt_double) {
@@ -801,12 +802,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 			}
 		}
 
-		if (sf.full_keys[i] == attribute_for_id) {
+		if (*sf.full_keys[i] == attribute_for_id) {
 			if (sf.full_values[i].type != mvt_double && !additional[A_CONVERT_NUMERIC_IDS]) {
 				static bool warned = false;
 
 				if (!warned) {
-					fprintf(stderr, "Warning: Attribute \"%s\"=\"%s\" as feature ID is not a number\n", sf.full_keys[i].c_str(), sf.full_values[i].s.c_str());
+					fprintf(stderr, "Warning: Attribute \"%s\"=\"%s\" as feature ID is not a number\n", sf.full_keys[i]->c_str(), sf.full_values[i].s.c_str());
 					warned = true;
 				}
 			} else {
@@ -839,12 +840,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 
 		if (sst->exclude_all) {
-			if (sst->include->count(sf.full_keys[i]) == 0) {
+			if (sst->include->count(*sf.full_keys[i]) == 0) {
 				sf.full_keys.erase(sf.full_keys.begin() + i);
 				sf.full_values.erase(sf.full_values.begin() + i);
 				continue;
 			}
-		} else if (sst->exclude->count(sf.full_keys[i]) != 0) {
+		} else if (sst->exclude->count(*sf.full_keys[i]) != 0) {
 			sf.full_keys.erase(sf.full_keys.begin() + i);
 			sf.full_values.erase(sf.full_values.begin() + i);
 			continue;
@@ -854,7 +855,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	if (!sst->filters) {
 		for (size_t i = 0; i < sf.full_keys.size(); i++) {
 			auto ts = sst->layermap->find(layername);
-			add_to_tilestats(ts->second.tilestats, sf.full_keys[i], sf.full_values[i]);
+			add_to_tilestats(ts->second.tilestats, *sf.full_keys[i], sf.full_values[i]);
 		}
 	}
 
@@ -867,7 +868,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	}
 
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
-		sf.keys.push_back(addpool(r->poolfile, r->treefile, sf.full_keys[i].c_str(), mvt_string, r->key_dedup));
+		sf.keys.push_back(addpool(r->poolfile, r->treefile, sf.full_keys[i]->c_str(), mvt_string, r->key_dedup));
 		sf.values.push_back(addpool(r->poolfile, r->treefile, sf.full_values[i].s.c_str(), sf.full_values[i].type, r->value_dedup));
 	}
 
