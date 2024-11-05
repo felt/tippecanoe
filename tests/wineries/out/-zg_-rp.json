@@ -10,7 +10,7 @@
 "minzoom": "0",
 "name": "tests/wineries/out/-zg_-rp.json.check.mbtiles",
 "strategies": "[{\"dropped_by_rate\":64},{\"dropped_by_rate\":63},{\"dropped_by_rate\":62},{\"dropped_by_rate\":60},{\"dropped_by_rate\":57},{\"dropped_by_rate\":55},{\"dropped_by_rate\":52},{\"dropped_by_rate\":47},{\"dropped_by_rate\":50},{\"dropped_by_rate\":35},{\"dropped_by_rate\":25},{\"dropped_by_rate\":14},{}]",
-"tippecanoe_decisions": "{\"basezoom\":12,\"droprate\":1.3002569129377413,\"retain_points_multiplier\":1}",
+"tippecanoe_decisions": "{\"basezoom\":12,\"droprate\":1.30026,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
 }, "features": [
