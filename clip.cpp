@@ -1842,6 +1842,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
 						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, buffer);
+                        if (outlayer->features.size() >= feature_limit) {
+                            break;
+                        }
 						pending_tile_features.clear();
 					}
 				}
@@ -1900,6 +1903,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			if (pending_tile_features.size() > 0) {
 				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, buffer);
 				pending_tile_features.clear();
+                if (outlayer->features.size() >= feature_limit) {
+                    break;
+                }
 			}
 
 			if (preserve_input_order) {
