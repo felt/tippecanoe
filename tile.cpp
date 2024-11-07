@@ -1358,7 +1358,7 @@ void *run_prefilter(void *v) {
 		decode_meta(sf, tmp_layer, tmp_feature);
 		tmp_layer.features.push_back(tmp_feature);
 
-		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0);
+		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0, std::set<std::string>());
 	}
 
 	if (fclose(rpa->prefilter_fp) != 0) {
