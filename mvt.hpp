@@ -9,6 +9,7 @@
 #include <vector>
 #include <optional>
 #include <memory>
+#include <cmath>
 
 #include "errors.hpp"
 #include "text.hpp"
