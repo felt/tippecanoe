@@ -201,6 +201,10 @@ struct mvt_layer {
 	// For tracking the key-value constants already used in this layer
 	std::vector<ssize_t> key_dedup = std::vector<ssize_t>(65536, -1);
 	std::vector<ssize_t> value_dedup = std::vector<ssize_t>(65536, -1);
+
+	int detail() const {
+		return std::round(std::log(extent) / std::log(2));
+	}
 };
 
 struct mvt_tile {
