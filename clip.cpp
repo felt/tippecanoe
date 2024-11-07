@@ -1284,6 +1284,21 @@ static bool should_keep(std::string const &key,
 	return false;
 }
 
+static void handle_closepath_from_mvt(drawvec &geom) {
+	// mvt geometries close polygons with a mvt_closepath operation
+	// tippecanoe-internal geometries close polygons with a lineto to the initial point
+
+	size_t last_open = 0;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == mvt_closepath) {
+			geom[i] = draw(mvt_lineto, geom[last_open].x, geom[last_open].y);
+		} else if (geom[i].op == mvt_moveto) {
+			last_open = i;
+		}
+	}
+}
+
 static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
 			std::set<std::string> const &exclude,
@@ -1293,9 +1308,30 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			key_pool &key_pool, int buffer) {
 	// Add geometry to output feature
 
+	drawvec geom = features[0].geom;
+	if (buffer >= 0) {
+		int t = features[0].t;
+
+		if (t == VT_LINE) {
+			geom = clip_lines(geom, 32 - outlayer.detail(), buffer);
+		} else if (t == VT_POLYGON) {
+			drawvec dv;
+			handle_closepath_from_mvt(geom);
+			geom = simple_clip_poly(geom, 32 - outlayer.detail(), buffer, dv, false);
+		} else if (t == VT_POINT) {
+			geom = clip_point(geom, 32 - outlayer.detail(), buffer);
+		}
+
+		geom = remove_noop(geom, t, 0);
+		if (t == VT_POLYGON) {
+			geom = clean_or_clip_poly(geom, 0, 0, false, false);
+			geom = close_poly(geom);
+		}
+	}
+
 	mvt_feature outfeature;
 	outfeature.type = features[0].t;
-	for (auto const &g : features[0].geom) {
+	for (auto const &g : geom) {
 		outfeature.geometry.emplace_back(g.op, g.x, g.y);
 	}
 
@@ -1845,7 +1881,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, buffer);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1);
 						if (outlayer->features.size() >= feature_limit) {
 							break;
 						}
@@ -1905,7 +1941,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, buffer);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1);
 				pending_tile_features.clear();
 				if (outlayer->features.size() >= feature_limit) {
 					break;
