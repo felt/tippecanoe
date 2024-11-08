@@ -28,6 +28,6 @@ jobs:
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-sqlite3
       - shell: msys2 {0}
-        run: uname -a; BUILDTYPE=${{ matrix.version }} make
+        run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make
       - shell: msys2 {0}
-        run: make test
+        run: mingw32-make test
