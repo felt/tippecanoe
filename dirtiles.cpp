@@ -10,6 +10,9 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sqlite3.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include "jsonpull/jsonpull.h"
 #include "mbtiles.hpp"
 #include "dirtiles.hpp"
