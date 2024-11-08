@@ -199,7 +199,13 @@ void init_cpus() {
 	if (TIPPECANOE_MAX_THREADS != NULL) {
 		CPUS = atoi_require(TIPPECANOE_MAX_THREADS, "TIPPECANOE_MAX_THREADS");
 	} else {
+		#ifndef _WIN32
 		CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+		#else
+		SYSTEM_INFO sysInfo;
+		GetSystemInfo(&sysInfo);
+		CPUS = sysInfo.dwNumberOfProcessors;
+		#endif
 	}
 
 	if (CPUS < 1) {
@@ -915,7 +921,13 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
+				#ifndef _WIN32
 				int page = sysconf(_SC_PAGESIZE);
+				#else
+				SYSTEM_INFO sysInfo;
+				GetSystemInfo(&sysInfo);
+				int page = sysInfo.dwPageSize;
+				#endif
 				// Don't try to sort more than 2GB at once,
 				// which used to crash Macs and may still
 				long long max_unit = 2LL * 1024 * 1024 * 1024;
@@ -1097,8 +1109,22 @@ static size_t calc_memsize() {
 	}
 	mem = hw_memsize;
 #else
+	#ifndef _WIN32
 	long long pagesize = sysconf(_SC_PAGESIZE);
 	long long pages = sysconf(_SC_PHYS_PAGES);
+	#else
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	long long pagesize = sysInfo.dwPageSize;
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	if (GlobalMemoryStatusEx(&statex)) {
+		long long totalPhysicalMemory = statex.ullTotalPhys;
+		long long pages = totalPhysicalMemory / pagesize;
+	} else {
+		pages = 0;
+	}
+	#endif
 	if (pages < 0 || pagesize < 0) {
 		perror("sysconf _SC_PAGESIZE or _SC_PHYS_PAGES");
 		exit(EXIT_MEMORY);
