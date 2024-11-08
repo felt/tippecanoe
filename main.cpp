@@ -1144,13 +1144,12 @@ static size_t calc_memsize() {
 	SYSTEM_INFO sysInfo;
 	GetSystemInfo(&sysInfo);
 	long long pagesize = sysInfo.dwPageSize;
+	long long pages = 0;
 	MEMORYSTATUSEX statex;
 	statex.dwLength = sizeof(statex);
 	if (GlobalMemoryStatusEx(&statex)) {
 		long long totalPhysicalMemory = statex.ullTotalPhys;
 		long long pages = totalPhysicalMemory / pagesize;
-	} else {
-		pages = 0;
 	}
 	#endif
 	if (pages < 0 || pagesize < 0) {
@@ -3118,8 +3117,9 @@ int main(int argc, char **argv) {
 	#ifndef _WIN32
 	const char *tmpdir = "/tmp";
 	#else
-	char tmpdir[MAX_PATH];
-	GetTempPathA(MAX_PATH, tmpdir);
+	char tempPath[MAX_PATH];
+	GetTempPathA(MAX_PATH, tempPath);
+	const char *tmpdir = tempPath;
 	#endif
 	const char *attribution = NULL;
 	std::vector<source> sources;
