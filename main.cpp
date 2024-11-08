@@ -1377,7 +1377,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		diskfree = (long long) fsstat.f_bsize * fsstat.f_bavail;
 	}
 	#else
-	// Should try to turn the file path
+	ULARGE_INTEGER freeBytesAvailable, totalNumberOfBytes, totalNumberOfFreeBytes;
+	// Should try to turn the file descriptor into the path for something more accurate
 	if (!GetDiskFreeSpaceEx(tmpdir, &freeBytesAvailable, &totalNumberOfBytes, &totalNumberOfFreeBytes)) {
 		fprintf(stderr, "Warning: GetDiskFreeSpaceEx failed with error code %lu\n", GetLastError());
 		fprintf(stderr, "Tippecanoe cannot check whether disk space will run out during tiling.\n");
@@ -3050,7 +3051,7 @@ int main(int argc, char **argv) {
 	const char *tmpdir = "/tmp";
 	#else
 	char tmpdir[MAX_PATH];
-	GetTempPathA(MAX_PATH, tempPath);
+	GetTempPathA(MAX_PATH, tmpdir);
 	#endif
 	const char *attribution = NULL;
 	std::vector<source> sources;
