@@ -268,7 +268,7 @@ void write_coords(json_writer &state, lonlat const &ll, double scale) {
 	}
 }
 
-void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, unsigned long long index, long long sequence, long long extent, bool complain, json_writer &state, double scale) {
+void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, unsigned long long index, long long sequence, long long extent, bool complain, json_writer &state, double scale, std::set<std::string> const &include_attr) {
 	for (size_t f = 0; f < layer.features.size(); f++) {
 		mvt_feature const &feat = layer.features[f];
 
@@ -332,6 +332,10 @@ void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y
 			if (feat.tags[t + 1] >= layer.values.size()) {
 				fprintf(stderr, "Error: out of bounds feature value (%u in %zu)\n", feat.tags[t + 1], layer.values.size());
 				exit(EXIT_IMPOSSIBLE);
+			}
+
+			if (include_attr.size() > 0 && include_attr.find(layer.keys[feat.tags[t]]) == include_attr.end()) {
+				continue;
 			}
 
 			const char *key = layer.keys[feat.tags[t]].c_str();

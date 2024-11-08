@@ -28,6 +28,7 @@
 int minzoom = 0;
 int maxzoom = 32;
 bool force = false;
+std::set<std::string> include_attr;
 
 bool progress_time() {
 	return false;
@@ -217,7 +218,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 		} else if (coordinate_mode == 2) {  // integer
 			scale = 1;
 		}
-		layer_to_geojson(layer, z, x, y, !pipeline, pipeline, pipeline, false, 0, 0, 0, !force, state, scale);
+		layer_to_geojson(layer, z, x, y, !pipeline, pipeline, pipeline, false, 0, 0, 0, !force, state, scale, include_attr);
 
 		if (!pipeline) {
 			if (true) {
@@ -571,6 +572,7 @@ int main(int argc, char **argv) {
 		{"stats", no_argument, 0, 'S'},
 		{"force", no_argument, 0, 'f'},
 		{"exclude-metadata-row", required_argument, 0, 'x'},
+		{"include", required_argument, 0, 'y'},
 		{0, 0, 0, 0},
 	};
 
@@ -628,6 +630,10 @@ int main(int argc, char **argv) {
 
 		case 'x':
 			exclude_meta.insert(optarg);
+			break;
+
+		case 'y':
+			include_attr.insert(optarg);
 			break;
 
 		default:

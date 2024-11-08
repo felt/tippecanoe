@@ -17,6 +17,8 @@ extern int optind;
 int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 bool demultiply = false;
+bool do_compress = true;
+
 std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
@@ -65,6 +67,7 @@ int main(int argc, char **argv) {
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
 		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
 		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
+		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -151,6 +154,10 @@ int main(int argc, char **argv) {
 			accumulate_numeric = optarg;
 			break;
 
+		case 'd' & 0x1F:
+			do_compress = false;
+			break;
+
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
@@ -221,7 +228,11 @@ int main(int argc, char **argv) {
 			exit(EXIT_OPEN);
 		}
 
-		bins = parse_layers(f, nz, nx, ny, 1LL << detail, true);
+		int det = detail;
+		if (det < 0) {
+			det = 12;
+		}
+		bins = parse_layers(f, nz, nx, ny, 1LL << det, true);
 		fclose(f);
 	}
 
@@ -251,7 +262,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, true, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {
