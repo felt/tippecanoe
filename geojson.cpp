@@ -20,7 +20,9 @@
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdarg.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <pthread.h>
 #include <vector>
 #include <algorithm>

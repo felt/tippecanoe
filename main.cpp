@@ -25,7 +25,9 @@
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdarg.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <pthread.h>
 #include <getopt.h>
 #include <signal.h>
@@ -206,6 +208,7 @@ void init_cpus() {
 	// Round down to a power of 2
 	CPUS = 1 << (int) (log(CPUS) / log(2));
 
+	#ifndef _WIN32
 	struct rlimit rl;
 	if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
 		perror("getrlimit");
@@ -213,6 +216,9 @@ void init_cpus() {
 	} else {
 		MAX_FILES = rl.rlim_cur;
 	}
+	#else
+	MAX_FILES = 16384;
+	#endif
 
 	// Don't really want too many temporary files, because the file system
 	// will start to bog down eventually
