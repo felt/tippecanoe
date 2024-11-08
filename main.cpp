@@ -3824,7 +3824,9 @@ int main(int argc, char **argv) {
 		max_tilestats_sample_values = max_tilestats_values;
 	}
 
+	#ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
+	#endif
 
 	files_open_at_start = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	if (files_open_at_start < 0) {
