@@ -13,7 +13,11 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <protozero/pbf_reader.hpp>
 #include "mvt.hpp"
 #include "projection.hpp"

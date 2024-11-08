@@ -6,7 +6,11 @@
 #define _DEFAULT_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>

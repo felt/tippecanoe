@@ -20,7 +20,11 @@
 #include <zlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <cmath>
 #include <sqlite3.h>
 #include <pthread.h>
@@ -1537,7 +1541,6 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 // of a feature that is being dropped (`sf`) will be accumulated or coalesced. It
 // ordinarily returns the most recently-added feature from the same layer as the feature
 // that is being dropped.
-//
 bool find_feature_to_accumulate_onto(std::vector<serial_feature> &features, serial_feature &sf, ssize_t &out, std::vector<std::vector<std::string>> *layer_unmaps, long long maxextent) {
 	for (size_t i = features.size(); i > 0; i--) {
 		if (features[i - 1].t == sf.t) {

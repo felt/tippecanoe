@@ -13,7 +13,11 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <string.h>
 #include <fcntl.h>
 #include <ctype.h>
