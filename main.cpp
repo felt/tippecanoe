@@ -700,11 +700,15 @@ void *run_read_parallel(void *v) {
 		perror("map intermediate input");
 		exit(EXIT_MEMORY);
 	}
+	#ifndef _WIN32
 	madvise(map, rpa->len, MADV_RANDOM);  // sequential, but from several pointers at once
+	#endif
 
 	do_read_parallel(map, rpa->len, rpa->offset, rpa->reading, rpa->readers, rpa->progress_seq, rpa->exclude, rpa->include, rpa->exclude_all, rpa->basezoom, rpa->source, rpa->layermaps, rpa->initialized, rpa->initial_x, rpa->initial_y, rpa->maxzoom, rpa->layername, rpa->uses_gamma, rpa->attribute_types, rpa->separator, rpa->dist_sum, rpa->dist_count, rpa->area_sum, rpa->want_dist, rpa->filters);
 
+	#ifndef _WIN32
 	madvise(map, rpa->len, MADV_DONTNEED);
+	#endif
 	if (munmap(map, rpa->len) != 0) {
 		perror("munmap source file");
 	}
@@ -834,15 +838,19 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				perror("map index");
 				exit(EXIT_STAT);
 			}
+			#ifndef _WIN32
 			madvise(indexmap, indexst.st_size, MADV_SEQUENTIAL);
 			madvise(indexmap, indexst.st_size, MADV_WILLNEED);
+			#endif
 			char *geommap = (char *) mmap(NULL, geomst.st_size, PROT_READ, MAP_PRIVATE, geomfds_in[i], 0);
 			if (geommap == MAP_FAILED) {
 				perror("map geom");
 				exit(EXIT_MEMORY);
 			}
+			#ifndef _WIN32
 			madvise(geommap, geomst.st_size, MADV_SEQUENTIAL);
 			madvise(geommap, geomst.st_size, MADV_WILLNEED);
+			#endif
 
 			for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 				struct index ix = indexmap[a];
@@ -866,12 +874,16 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				fwrite_check(&ix, sizeof(struct index), 1, indexfiles[which], &indexpos, "index");
 			}
 
+			#ifndef _WIN32
 			madvise(indexmap, indexst.st_size, MADV_DONTNEED);
+			#endif
 			if (munmap(indexmap, indexst.st_size) < 0) {
 				perror("unmap index");
 				exit(EXIT_MEMORY);
 			}
+			#ifndef _WIN32
 			madvise(geommap, geomst.st_size, MADV_DONTNEED);
+			#endif
 			if (munmap(geommap, geomst.st_size) < 0) {
 				perror("unmap geom");
 				exit(EXIT_MEMORY);
@@ -983,24 +995,32 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					perror("map index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_RANDOM);  // sequential, but from several pointers at once
 				madvise(indexmap, indexst.st_size, MADV_WILLNEED);
+				#endif
 				char *geommap = (char *) mmap(NULL, geomst.st_size, PROT_READ, MAP_PRIVATE, geomfds[i], 0);
 				if (geommap == MAP_FAILED) {
 					perror("map geom");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
+				#endif
 
 				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
 
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(indexmap, indexst.st_size) < 0) {
 					perror("unmap index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(geommap, geomst.st_size) < 0) {
 					perror("unmap geom");
 					exit(EXIT_MEMORY);
@@ -1012,15 +1032,19 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					perror("map index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_SEQUENTIAL);
 				madvise(indexmap, indexst.st_size, MADV_WILLNEED);
+				#endif
 				char *geommap = (char *) mmap(NULL, geomst.st_size, PROT_READ, MAP_PRIVATE, geomfds[i], 0);
 				if (geommap == MAP_FAILED) {
 					perror("map geom");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
+				#endif
 
 				for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 					struct index ix = indexmap[a];
@@ -1044,12 +1068,16 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					fwrite_check(&ix, sizeof(struct index), 1, indexfile, &indexpos, "index");
 				}
 
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(indexmap, indexst.st_size) < 0) {
 					perror("unmap index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(geommap, geomst.st_size) < 0) {
 					perror("unmap geom");
 					exit(EXIT_MEMORY);
@@ -1746,7 +1774,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 					map = (char *) mmap(NULL, st.st_size - off, PROT_READ, MAP_PRIVATE, fd, off);
 					// No error if MAP_FAILED because check is below
 					if (map != MAP_FAILED) {
+						#ifndef _WIN32
 						madvise(map, st.st_size - off, MADV_RANDOM);  // sequential, but from several pointers at once
+						#endif
 					}
 				}
 			}
@@ -2047,7 +2077,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				perror("mmap string pool for copy");
 				exit(EXIT_MEMORY);
 			}
+			#ifndef _WIN32
 			madvise(s, readers[i].poolfile->off, MADV_SEQUENTIAL);
+			#endif
 			if (fwrite(s, sizeof(char), readers[i].poolfile->off, poolfile) != readers[i].poolfile->off) {
 				perror("Reunify string pool (split)");
 				exit(EXIT_WRITE);
@@ -2076,7 +2108,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("mmap string pool");
 			exit(EXIT_MEMORY);
 		}
+		#ifndef _WIN32
 		madvise(stringpool, poolpos, MADV_RANDOM);
+		#endif
 	}
 
 	if (!quiet) {
@@ -2344,8 +2378,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		perror("mmap index for basezoom");
 		exit(EXIT_MEMORY);
 	}
+	#ifndef _WIN32
 	madvise(map, indexpos, MADV_SEQUENTIAL);
 	madvise(map, indexpos, MADV_WILLNEED);
+	#endif
 	long long indices = indexpos / sizeof(struct index);
 	bool fix_dropping = false;
 
@@ -2753,8 +2789,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("mmap geom for fixup");
 			exit(EXIT_MEMORY);
 		}
+		#ifndef _WIN32
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
+		#endif
 
 		struct drop_state ds[maxzoom + 1];
 		prep_drop_states(ds, maxzoom, basezoom, droprate);
@@ -2808,7 +2846,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		munmap(geom, geomst.st_size);
 	}
 
+	#ifndef _WIN32
 	madvise(map, indexpos, MADV_DONTNEED);
+	#endif
 	munmap(map, indexpos);
 
 	if (close(indexfd) != 0) {
@@ -2851,7 +2891,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	if (poolpos > 0) {
+		#ifndef _WIN32
 		madvise((void *) stringpool, poolpos, MADV_DONTNEED);
+		#endif
 		if (munmap(stringpool, poolpos) != 0) {
 			perror("munmap stringpool");
 		}
