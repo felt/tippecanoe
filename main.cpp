@@ -3992,6 +3992,7 @@ int main(int argc, char **argv) {
 	return ret;
 }
 
+#ifndef _WIN32
 int mkstemp_cloexec(char *name) {
 	int fd = mkstemp(name);
 	if (fd >= 0) {
@@ -4002,6 +4003,24 @@ int mkstemp_cloexec(char *name) {
 	}
 	return fd;
 }
+#else
+int mkstemp_cloexec(char *name) {
+	// Generate a unique temporary filename
+	if (_mktemp_s(name, strlen(name) + 1) != 0) {
+		perror("cloexec for temporary file unique name fail");
+		exit(EXIT_OPEN);
+	}
+	
+	// Open the file with O_CREAT | O_EXCL | O_RDWR | O_NOINHERIT
+	int fd = _open(name, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY | _O_NOINHERIT, _S_IREAD | _S_IWRITE);
+	if (fd < 0) {
+		perror("Failed to open temporary file");
+		exit(EXIT_OPEN);
+	}
+	
+	return fd;
+}
+#endif
 
 FILE *fopen_oflag(const char *name, const char *mode, int oflag) {
 	int fd = open(name, oflag);
