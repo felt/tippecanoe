@@ -1,4 +1,6 @@
 #ifdef _WIN32
+#include <windows.h>
+
 // Several hacks for cross-platform support on Windows...
 #define O_CLOEXEC 0 //hopefully safe, since OR'd with other values
 
