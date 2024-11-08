@@ -48,6 +48,10 @@
 #include "geometry.hpp"
 #include "thread.hpp"
 
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
+
 int pk = false;
 int pC = false;
 int pg = false;

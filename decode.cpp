@@ -29,6 +29,10 @@
 #include "pmtiles_file.hpp"
 #include "errors.hpp"
 
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
+
 int minzoom = 0;
 int maxzoom = 32;
 bool force = false;

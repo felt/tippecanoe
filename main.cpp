@@ -74,6 +74,10 @@
 #include "attribute.hpp"
 #include "thread.hpp"
 
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
+
 static int low_detail = 12;
 static int full_detail = -1;
 static int min_detail = 7;

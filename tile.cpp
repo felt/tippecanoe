@@ -64,6 +64,10 @@ extern "C" {
 
 #include "plugin.hpp"
 
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
+
 #define CMD_BITS 3
 
 // Offset coordinates to keep them positive
