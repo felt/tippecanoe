@@ -28,16 +28,28 @@ std::string dir_read_tile(std::string base, struct zxy tile) {
 void dir_write_tile(const char *outdir, int z, int tx, int ty, std::string const &pbf) {
 	// Don't check mkdir error returns, since most of these calls to
 	// mkdir will be creating directories that already exist.
+	#ifndef _WIN32
 	mkdir(outdir, S_IRWXU | S_IRWXG | S_IRWXO);
+	#else
+	_mkdir(outdir);
+	#endif
 
 	std::string curdir(outdir);
 	std::string slash("/");
 
 	std::string newdir = curdir + slash + std::to_string(z);
+	#ifndef _WIN32
 	mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	#else
+	_mkdir(newdir.c_str());
+	#endif
 
 	newdir = newdir + "/" + std::to_string(tx);
+	#ifndef _WIN32
 	mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	#else
+	_mkdir(newdir.c_str());
+	#endif
 
 	newdir = newdir + "/" + std::to_string(ty) + ".pbf";
 
@@ -87,7 +99,11 @@ static bool pbfname(const char *s) {
 void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
 	struct stat st;
 
+	#ifndef _WIN32
 	mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
+	#else
+	_mkdir(dir);
+	#endif
 	std::string meta = std::string(dir) + "/" + "metadata.json";
 	if (force) {
 		unlink(meta.c_str());  // error OK since it may not exist;
