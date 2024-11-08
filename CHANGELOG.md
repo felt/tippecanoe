@@ -1,3 +1,11 @@
+# 2.68.0
+
+* Adds `--no-tile-compression` option to `tippecanoe-overzoom`
+* Make `tippecanoe-overzoom` clip the output tile to the tile buffer after assigning points to bins
+* Adds `--include`/`-y` option to `tippecanoe-decode` to decode only specified attributes
+* Cleans up some inconsistent handling of variable tile extents in overzooming code
+* Speeds up overzooming slightly in `tile-join` by doing less preflighting to discover which child tiles contain features
+
 # 2.67.0
 
 * Reduce memory consumption of duplicate attribute names in `serial_feature`
