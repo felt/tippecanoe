@@ -46,7 +46,9 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
+#ifndef _WIN32
 #include <sys/statfs.h>
+#endif
 #endif
 
 #include "jsonpull/jsonpull.h"
