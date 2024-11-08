@@ -25,6 +25,9 @@
 #else
 #include <sys/mman.h>
 #endif
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
 #include <cmath>
 #include <sqlite3.h>
 #include <pthread.h>
@@ -1854,7 +1857,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 			prefilter_jp = json_begin_file(prefilter_read_fp);
 			#else
-			perror("prefilter on Windows")
+			perror("prefilter on Windows");
 			#endif
 		}
 
@@ -2616,7 +2619,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		if (postfilter != NULL) {
+			#ifndef _WIN32
 			tile.layers = filter_layers(postfilter, tile.layers, z, tx, ty, layermaps, tiling_seg, layer_unmaps, 1 << tile_detail);
+			#else
+			perror("shell postfilter on Windows");
+			#endif
 		}
 
 		if (z == 0 && unclipped_features < original_features / 2 && clipbboxes.size() == 0) {
