@@ -13,3 +13,21 @@ jobs:
       - run: sudo apt-get install libsqlite3-dev
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
+
+  test-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        version: ['Release', 'Debug']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-sqlite3
+      - shell: msys2 {0}
+        run: uname -a; BUILDTYPE=${{ matrix.version }} make
+      - shell: msys2 {0}
+        run: make test
