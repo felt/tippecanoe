@@ -291,8 +291,8 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/13-1310-3166.pbf 13 1310 3166 > tests/pbf/13-1310-3166.pbf.json.check
 	cmp tests/pbf/13-1310-3166.pbf.json.check tests/pbf/13-1310-3166.pbf.json
 	rm tests/pbf/13-1310-3166.pbf tests/pbf/13-1310-3166.pbf.json.check
-	# Multiple inputs
-	./tippecanoe-overzoom -o tests/pbf/13-1310-3166-ne.pbf -t 13/1310/3166 tests/pbf/11-327-791.pbf 11/327/791 tests/pbf/0-0-0.pbf 0/0/0
+	# Multiple inputs, no compression
+	./tippecanoe-overzoom --no-tile-compression -o tests/pbf/13-1310-3166-ne.pbf -t 13/1310/3166 tests/pbf/11-327-791.pbf 11/327/791 tests/pbf/0-0-0.pbf 0/0/0
 	./tippecanoe-decode tests/pbf/13-1310-3166-ne.pbf 13 1310 3166 > tests/pbf/13-1310-3166-ne.pbf.json.check
 	cmp tests/pbf/13-1310-3166-ne.pbf.json.check tests/pbf/13-1310-3166-ne.pbf.json
 	rm tests/pbf/13-1310-3166-ne.pbf tests/pbf/13-1310-3166-ne.pbf.json.check
