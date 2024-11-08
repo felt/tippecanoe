@@ -15,7 +15,9 @@
 #include <errno.h>
 #include <cmath>
 #include <sys/types.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #include <sqlite3.h>
 #include <limits.h>
 #include "main.hpp"
@@ -45,6 +47,7 @@ struct writer_arg {
 };
 
 void *run_writer(void *a) {
+	#ifndef _WIN32
 	writer_arg *wa = (writer_arg *) a;
 
 	FILE *fp = fdopen(wa->write_to, "w");
@@ -70,12 +73,13 @@ void *run_writer(void *a) {
 			exit(EXIT_CLOSE);
 		}
 	}
-
+	#endif
 	return NULL;
 }
 
 // Reads from the postfilter
 std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, int extent) {
+	#ifndef _WIN32
 	FILE *f = fdopen(fd, "r");
 	if (f == NULL) {
 		perror("fdopen filter output");
@@ -142,12 +146,16 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 	}
 
 	return out;
+	#else
+	return std::vector<mvt_layer>();
+	#endif
 }
 
 // Reads from the prefilter
 serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, bool postfilter, key_pool &key_pool) {
 	serial_feature sf;
 
+	#ifndef _WIN32
 	while (1) {
 		json_object *j = json_read(jp);
 		if (j == NULL) {
@@ -369,6 +377,9 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 
 		json_free(j);
 	}
+	#else
+	return sf;
+	#endif
 }
 
 static pthread_mutex_t pipe_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -380,6 +391,7 @@ void setup_filter(const char *filter, int *write_to, int *read_from, pid_t *pid,
 	// The new thread will write the GeoJSON to the pipe that leads to the filter.
 	// The original thread will read the GeoJSON from the filter and convert it back into vector tiles.
 
+	#ifndef _WIN32
 	if (pthread_mutex_lock(&pipe_lock) != 0) {
 		perror("pthread_mutex_lock (pipe)");
 		exit(EXIT_PTHREAD);
@@ -465,9 +477,11 @@ void setup_filter(const char *filter, int *write_to, int *read_from, pid_t *pid,
 		*write_to = pipe_orig[1];
 		*read_from = pipe_filtered[0];
 	}
+	#endif
 }
 
 std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> &layers, unsigned z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, int extent) {
+	#ifndef _WIN32
 	int write_to, read_from;
 	pid_t pid;
 	setup_filter(filter, &write_to, &read_from, &pid, z, x, y);
@@ -507,4 +521,7 @@ std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> 
 	}
 
 	return nlayers;
+	#else
+	return std::vector<mvt_layer>();
+	#endif
 }

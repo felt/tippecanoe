@@ -32,7 +32,9 @@
 #include <time.h>
 #include <fcntl.h>
 #include <zlib.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #include "mvt.hpp"
 #include "mbtiles.hpp"
 #include "dirtiles.hpp"
@@ -1321,6 +1323,7 @@ struct run_prefilter_args {
 };
 
 void *run_prefilter(void *v) {
+	#ifndef _WIN32
 	run_prefilter_args *rpa = (run_prefilter_args *) v;
 	json_writer state(rpa->prefilter_fp);
 	struct multiplier_state multiplier_state;
@@ -1377,6 +1380,7 @@ void *run_prefilter(void *v) {
 			exit(EXIT_CLOSE);
 		}
 	}
+	#endif
 	return NULL;
 }
 
@@ -1788,7 +1792,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			postfilter = NULL;
 		}
 
+		#ifdef _WIN32
+		prefilter = NULL;
+		postfilter = NULL;
+		#endif
+
 		if (prefilter != NULL) {
+			#ifndef _WIN32
 			setup_filter(prefilter, &prefilter_write, &prefilter_read, &prefilter_pid, z, tx, ty);
 			prefilter_fp = fdopen(prefilter_write, "w");
 			if (prefilter_fp == NULL) {
@@ -1843,6 +1853,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				exit(EXIT_OPEN);
 			}
 			prefilter_jp = json_begin_file(prefilter_read_fp);
+			#else
+			perror("prefilter on Windows")
+			#endif
 		}
 
 		// Read features, filter them, assign them to layers
@@ -1863,7 +1876,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (prefilter == NULL) {
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 			} else {
+				#ifndef _WIN32
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
+				#endif
 			}
 
 			if (sf.t < 0) {
@@ -2225,6 +2240,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// Close the output files for the next zoom level.
 
 		if (prefilter != NULL) {
+			#ifndef _WIN32
 			json_end(prefilter_jp);
 			if (fclose(prefilter_read_fp) != 0) {
 				perror("close output from prefilter");
@@ -2245,6 +2261,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				perror("pthread_join prefilter writer");
 				exit(EXIT_PTHREAD);
 			}
+			#endif
 		}
 
 		for (int j = 0; j < child_shards; j++) {
