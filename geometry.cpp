@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <cstdio>
 #include <unistd.h>
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
 #include <cmath>
 #include <limits.h>
 #include <sqlite3.h>
