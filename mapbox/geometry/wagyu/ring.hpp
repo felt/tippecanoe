@@ -12,6 +12,7 @@
 #include <vector>
 
 #ifdef DEBUG
+#ifndef _WIN32
 #include <execinfo.h>
 #include <iostream>
 #include <sstream>
@@ -24,6 +25,7 @@
 //     printf("%s\n", strs[i]);
 // }
 // free(strs);
+#endif
 #endif
 
 namespace mapbox {
