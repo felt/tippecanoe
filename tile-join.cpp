@@ -1206,7 +1206,13 @@ int main(int argc, char **argv) {
 
 	struct tileset_reader *readers = NULL;
 
+	#ifndef _WIN32
 	CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+	#else
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	CPUS = sysInfo.dwNumberOfProcessors;
+	#endif
 
 	const char *TIPPECANOE_MAX_THREADS = getenv("TIPPECANOE_MAX_THREADS");
 	if (TIPPECANOE_MAX_THREADS != NULL) {
