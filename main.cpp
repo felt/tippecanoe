@@ -244,7 +244,11 @@ void init_cpus() {
 	long long fds[MAX_FILES];
 	long long i;
 	for (i = 0; i < MAX_FILES; i++) {
+		#ifndef _WIN32
 		fds[i] = open("/dev/null", O_RDONLY | O_CLOEXEC);
+		#else
+		fds[i] = open("NUL", O_RDONLY | O_CLOEXEC);
+		#endif
 		if (fds[i] < 0) {
 			break;
 		}
