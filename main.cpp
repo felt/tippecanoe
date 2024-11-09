@@ -1531,7 +1531,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	size_t dist_count = 0;
 	double area_sum = 0;
 
+	#ifndef _WIN32
 	int files_open_before_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	int files_open_before_reading = open("NUL", O_RDONLY | O_CLOEXEC);
+	#endif
 	if (files_open_before_reading < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -1974,7 +1978,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 	}
 
+	#ifndef _WIN32
 	int files_open_after_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	int files_open_after_reading = open("NUL", O_RDONLY | O_CLOEXEC);
+	#endif
 	if (files_open_after_reading < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -3832,7 +3840,11 @@ int main(int argc, char **argv) {
 	signal(SIGPIPE, SIG_IGN);
 	#endif
 
+	#ifndef _WIN32
 	files_open_at_start = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	files_open_at_start = open("NUL", O_RDONLY | O_CLOEXEC);
+	#endif
 	if (files_open_at_start < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -3982,7 +3994,11 @@ int main(int argc, char **argv) {
 	muntrace();
 #endif
 
+	#ifndef _WIN32
 	i = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	i = open("NUL", O_RDONLY | O_CLOEXEC);
+	#endif
 	// i < files_open_at_start is not an error, because reading from a pipe closes stdin
 	if (i > files_open_at_start) {
 		fprintf(stderr, "Internal error: did not close all files: %d\n", i);
