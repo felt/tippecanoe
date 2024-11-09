@@ -230,6 +230,7 @@ void init_cpus() {
 	}
 	#else
 	MAX_FILES = 16384;
+	MAX_FILES = 10;
 	#endif
 
 	// Don't really want too many temporary files, because the file system
