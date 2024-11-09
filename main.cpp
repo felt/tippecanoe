@@ -247,7 +247,7 @@ void init_cpus() {
 		#ifndef _WIN32
 		fds[i] = open("/dev/null", O_RDONLY | O_CLOEXEC);
 		#else
-		fds[i] = open("NUL", O_RDONLY | O_CLOEXEC);
+		fds[i] = open("nul", O_RDONLY | O_CLOEXEC);
 		#endif
 		if (fds[i] < 0) {
 			break;
@@ -1534,7 +1534,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	#ifndef _WIN32
 	int files_open_before_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	#else
-	int files_open_before_reading = open("NUL", O_RDONLY | O_CLOEXEC);
+	int files_open_before_reading = open("nul", O_RDONLY | O_CLOEXEC);
 	#endif
 	if (files_open_before_reading < 0) {
 		perror("open /dev/null");
@@ -1981,7 +1981,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	#ifndef _WIN32
 	int files_open_after_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	#else
-	int files_open_after_reading = open("NUL", O_RDONLY | O_CLOEXEC);
+	int files_open_after_reading = open("nul", O_RDONLY | O_CLOEXEC);
 	#endif
 	if (files_open_after_reading < 0) {
 		perror("open /dev/null");
@@ -3843,7 +3843,7 @@ int main(int argc, char **argv) {
 	#ifndef _WIN32
 	files_open_at_start = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	#else
-	files_open_at_start = open("NUL", O_RDONLY | O_CLOEXEC);
+	files_open_at_start = open("nul", O_RDONLY | O_CLOEXEC);
 	#endif
 	if (files_open_at_start < 0) {
 		perror("open /dev/null");
@@ -3997,7 +3997,7 @@ int main(int argc, char **argv) {
 	#ifndef _WIN32
 	i = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	#else
-	i = open("NUL", O_RDONLY | O_CLOEXEC);
+	i = open("nul", O_RDONLY | O_CLOEXEC);
 	#endif
 	// i < files_open_at_start is not an error, because reading from a pipe closes stdin
 	if (i > files_open_at_start) {

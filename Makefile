@@ -18,7 +18,7 @@ DEBUG_FLAGS := -O0 -DDEBUG -fno-inline-functions -fno-omit-frame-pointer
 
 # Determine the null device based on the operating system
 ifeq ($(OS),Windows_NT)
-    NULL_DEVICE := NUL
+    NULL_DEVICE := nul
 else
     NULL_DEVICE := /dev/null
 endif
