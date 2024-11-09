@@ -74,7 +74,7 @@ extern "C" {
 #define FILE_MAP_EXECUTE    0x0020
 #endif /* FILE_MAP_EXECUTE */
 
-static int __map_mman_error(const DWORD err, const int deferr)
+static inline int __map_mman_error(const DWORD err, const int deferr)
 {
     if (err == 0)
         return 0;
@@ -82,7 +82,7 @@ static int __map_mman_error(const DWORD err, const int deferr)
     return err;
 }
 
-static DWORD __map_mmap_prot_page(const int prot)
+static inline DWORD __map_mmap_prot_page(const int prot)
 {
     DWORD protect = 0;
     
@@ -103,7 +103,7 @@ static DWORD __map_mmap_prot_page(const int prot)
     return protect;
 }
 
-static DWORD __map_mmap_prot_file(const int prot)
+static inline DWORD __map_mmap_prot_file(const int prot)
 {
     DWORD desiredAccess = 0;
     
@@ -120,7 +120,7 @@ static DWORD __map_mmap_prot_file(const int prot)
     return desiredAccess;
 }
 
-MMANSHARED_EXPORT void* mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off)
+MMANSHARED_EXPORT inline void* mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off)
 {
     HANDLE fm, h;
     
@@ -196,7 +196,7 @@ MMANSHARED_EXPORT void* mmap(void *addr, size_t len, int prot, int flags, int fi
     return map;
 }
 
-MMANSHARED_EXPORT int munmap(void *addr, size_t len)
+MMANSHARED_EXPORT inline int munmap(void *addr, size_t len)
 {
     if (UnmapViewOfFile(addr))
         return 0;
@@ -205,7 +205,7 @@ MMANSHARED_EXPORT int munmap(void *addr, size_t len)
     return -1;
 }
 
-MMANSHARED_EXPORT int _mprotect(void *addr, size_t len, int prot)
+MMANSHARED_EXPORT inline int _mprotect(void *addr, size_t len, int prot)
 {
     DWORD newProtect = __map_mmap_prot_page(prot);
     DWORD oldProtect = 0;
@@ -217,7 +217,7 @@ MMANSHARED_EXPORT int _mprotect(void *addr, size_t len, int prot)
     return -1;
 }
 
-MMANSHARED_EXPORT int msync(void *addr, size_t len, int flags)
+MMANSHARED_EXPORT inline int msync(void *addr, size_t len, int flags)
 {
     if (FlushViewOfFile(addr, len))
         return 0;
@@ -227,7 +227,7 @@ MMANSHARED_EXPORT int msync(void *addr, size_t len, int flags)
     return -1;
 }
 
-MMANSHARED_EXPORT int mlock(const void *addr, size_t len)
+MMANSHARED_EXPORT inline int mlock(const void *addr, size_t len)
 {
     if (VirtualLock((LPVOID)addr, len))
         return 0;
@@ -236,7 +236,7 @@ MMANSHARED_EXPORT int mlock(const void *addr, size_t len)
     return -1;
 }
 
-MMANSHARED_EXPORT int munlock(const void *addr, size_t len)
+MMANSHARED_EXPORT inline int munlock(const void *addr, size_t len)
 {
     if (VirtualUnlock((LPVOID)addr, len))
         return 0;
