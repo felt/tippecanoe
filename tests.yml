@@ -1,0 +1,38 @@
+name: test
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ['Release', 'Debug']
+    steps:
+      - uses: actions/checkout@v3
+      - run: sudo apt-get install libsqlite3-dev
+      - run: uname -a; BUILDTYPE=${{ matrix.version }} make
+      - run: make test
+
+  test-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        version: ['Release', 'Debug']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-sqlite3
+      - shell: msys2 {0}
+        run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make CXXFLAGS="-static-libgcc -static-libstdc++"
+      - shell: msys2 {0}
+        run: mingw32-make test
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tippecanoe-binary
+          path: ./tippecanoe.exe
