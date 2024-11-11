@@ -9,7 +9,7 @@ jobs:
       matrix:
         version: ['Release', 'Debug']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt-get install libsqlite3-dev
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
@@ -20,7 +20,7 @@ jobs:
       matrix:
         version: ['Release', 'Debug']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: msys2/setup-msys2@v2
         with:
           update: true
@@ -32,7 +32,7 @@ jobs:
       - shell: msys2 {0}
         run: mingw32-make test
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: tippecanoe-binary
           path: ./tippecanoe.exe
