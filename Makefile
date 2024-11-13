@@ -385,6 +385,9 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/0-0-0-pop-0-0-0.pbf.out 0 0 0 > tests/pbf/0-0-0-pop-0-0-0.pbf.out.json.check
 	cmp tests/pbf/0-0-0-pop-0-0-0.pbf.out.json.check tests/pbf/0-0-0-pop-0-0-0.pbf.out.json
 	rm tests/pbf/0-0-0-pop-0-0-0.pbf.out tests/pbf/0-0-0-pop-0-0-0.pbf.out.json.check
+	# Verify fix for crash
+	./tippecanoe-overzoom '-o' tests/10188-crash/out.pbf '-t' '3/2/2' '--assign-to-bins' 'tests/10188-crash/bins.json' '--bin-by-id-list' 'felt:bin_features' '-b5' 'tests/10188-crash/2-0-0.pbf' '2/0/0'
+	rm tests/10188-crash/out.pbf
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
