@@ -1,3 +1,7 @@
+# 2.69.0
+
+* Fix crash when the first bin gets clipped away
+
 # 2.68.0
 
 * Adds `--no-tile-compression` option to `tippecanoe-overzoom`
