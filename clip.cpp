@@ -1299,7 +1299,8 @@ static void handle_closepath_from_mvt(drawvec &geom) {
 	}
 }
 
-static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
+// returns true if a feature was output; false if it was clipped away
+static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
 			std::set<std::string> const &exclude,
 			std::vector<std::string> const &exclude_prefix,
@@ -1427,7 +1428,10 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 		}
 
 		outlayer.features.push_back(std::move(outfeature));
+		return true;
 	}
+
+	return false;
 }
 
 static struct preservecmp {
@@ -1719,21 +1723,22 @@ mvt_tile assign_to_bins(mvt_tile &features,
 
 	for (size_t i = 0; i < outfeatures.size(); i++) {
 		if (outfeatures[i].size() > 1) {
-			feature_out(outfeatures[i], outlayer,
-				    keep, exclude, exclude_prefix, attribute_accum,
-				    accumulate_numeric, key_pool, buffer);
-			mvt_feature &nfeature = outlayer.features.back();
-			mvt_value val;
-			val.type = mvt_uint;
-			val.numeric_value.uint_value = outfeatures[i].size() - 1;
+			if (feature_out(outfeatures[i], outlayer,
+					keep, exclude, exclude_prefix, attribute_accum,
+					accumulate_numeric, key_pool, buffer)) {
+				mvt_feature &nfeature = outlayer.features.back();
+				mvt_value val;
+				val.type = mvt_uint;
+				val.numeric_value.uint_value = outfeatures[i].size() - 1;
 
-			std::string attrname;
-			if (accumulate_numeric.size() == 0) {
-				attrname = "tippecanoe:count";
-			} else {
-				attrname = accumulate_numeric + ":count";
+				std::string attrname;
+				if (accumulate_numeric.size() == 0) {
+					attrname = "tippecanoe:count";
+				} else {
+					attrname = accumulate_numeric + ":count";
+				}
+				outlayer.tag(nfeature, attrname, val);
 			}
-			outlayer.tag(nfeature, attrname, val);
 		}
 	}
 
