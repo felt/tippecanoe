@@ -28,7 +28,8 @@ jobs:
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-sqlite3
       - shell: msys2 {0}
-        run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make CXXFLAGS="-static-libgcc -static-libstdc++"
+        #run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make CXXFLAGS="-static-libgcc -static-libstdc++"
+        run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
