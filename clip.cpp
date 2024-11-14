@@ -1127,7 +1127,30 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &accumulate_numeric) {
+static bool should_keep(std::string const &key,
+			std::set<std::string> const &keep,
+			std::set<std::string> const &exclude,
+			std::vector<std::string> const &exclude_prefix) {
+	if (keep.size() == 0 || keep.find(key) != keep.end()) {
+		if (exclude.find(key) != exclude.end()) {
+			return false;
+		}
+
+		for (auto const &prefix : exclude_prefix) {
+			if (starts_with(key, prefix)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &accumulate_numeric,
+		     std::set<std::string> const &keep, std::set<std::string> const &exclude,
+		     std::vector<std::string> const &exclude_prefix) {
 	std::string accumulate_numeric_colon = accumulate_numeric + ":";
 
 	std::unordered_map<std::string, size_t> attributes;
@@ -1156,7 +1179,10 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &
 				mvt_value mean;
 				mean.type = mvt_double;
 				mean.numeric_value.double_value = mvt_value_to_double(sum) / count_val;
-				layer.tag(feature, accumulate_numeric + ":mean:" + trunc, mean);
+
+				if (should_keep(key, keep, exclude, exclude_prefix)) {
+					layer.tag(feature, accumulate_numeric + ":mean:" + trunc, mean);
+				}
 			}
 		}
 	}
@@ -1170,7 +1196,9 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			   
 			     std::set<std::string> &keys,					   // key presence in the source feature
 			     std::map<std::string, size_t> &numeric_out_field,			   // key index in the output feature
 			     std::unordered_map<std::string, accum_state> &attribute_accum_state,  // accumulation state for preserve_attribute()
-			     key_pool &key_pool) {
+			     key_pool &key_pool,
+			     std::set<std::string> const &keep, std::set<std::string> const &exclude,
+			     std::vector<std::string> const &exclude_prefix) {
 	// If this is a numeric attribute, but there is also a prefix:sum (etc.) for the
 	// same attribute, we want to use that one instead of this one.
 
@@ -1202,6 +1230,10 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			   
 			}
 			// and then put it back on for the output field
 			std::string prefixed = accumulate_numeric + ":" + op.first + ":" + outkey;
+
+			if (!should_keep(prefixed, keep, exclude, exclude_prefix)) {
+				continue;
+			}
 
 			// Does it exist in the output feature already?
 
@@ -1261,27 +1293,6 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			   
 			}
 		}
 	}
-}
-
-static bool should_keep(std::string const &key,
-			std::set<std::string> const &keep,
-			std::set<std::string> const &exclude,
-			std::vector<std::string> const &exclude_prefix) {
-	if (keep.size() == 0 || keep.find(key) != keep.end()) {
-		if (exclude.find(key) != exclude.end()) {
-			return false;
-		}
-
-		for (auto const &prefix : exclude_prefix) {
-			if (starts_with(key, prefix)) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	return false;
 }
 
 static void handle_closepath_from_mvt(drawvec &geom) {
@@ -1403,7 +1414,8 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 							if (val.is_numeric()) {
 								preserve_numeric(key, val, full_keys, full_values,
 										 accumulate_numeric,
-										 keys, numeric_out_field, attribute_accum_state, key_pool);
+										 keys, numeric_out_field, attribute_accum_state, key_pool,
+										 keep, exclude, exclude_prefix);
 							}
 						}
 					}
@@ -1420,7 +1432,7 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			}
 
 			if (accumulate_numeric.size() > 0) {
-				add_mean(outfeature, outlayer, accumulate_numeric);
+				add_mean(outfeature, outlayer, accumulate_numeric, keep, exclude, exclude_prefix);
 			}
 		} else if (include_nonaggregate) {
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
