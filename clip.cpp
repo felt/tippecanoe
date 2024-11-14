@@ -1306,7 +1306,7 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::vector<std::string> const &exclude_prefix,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &accumulate_numeric,
-			key_pool &key_pool, int buffer) {
+			key_pool &key_pool, int buffer, bool include_nonaggregate) {
 	// Add geometry to output feature
 
 	drawvec geom = features[0].geom;
@@ -1357,22 +1357,22 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::vector<mvt_value> full_values;
 			std::map<std::string, size_t> numeric_out_field;
 
-			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
-				const std::string &key = features[0].layer->keys[features[0].tags[i]];
-				auto f = attribute_accum.find(key);
-				if (f != attribute_accum.end()) {
-					// this attribute has an accumulator, so convert it
-					full_keys.push_back(key_pool.pool(features[0].layer->keys[features[0].tags[i]]));
-					full_values.push_back(features[0].layer->values[features[0].tags[i + 1]]);
-				} else if (accumulate_numeric.size() > 0 && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
-					// convert numeric for accumulation
-					numeric_out_field.emplace(key, full_keys.size());
-					full_keys.push_back(key_pool.pool(key));
-					full_values.push_back(features[0].layer->values[features[0].tags[i + 1]]);
-				} else {
-					// otherwise just tag it directly onto the output feature
-					if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
-						outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
+			auto const &f = features[0];
+			for (size_t i = 0; i + 1 < f.tags.size(); i += 2) {
+				const std::string &key = f.layer->keys[f.tags[i]];
+				if (should_keep(key, keep, exclude, exclude_prefix)) {
+					if (attribute_accum.find(key) != attribute_accum.end()) {
+						// this attribute has an accumulator, so convert it
+						full_keys.push_back(key_pool.pool(f.layer->keys[f.tags[i]]));
+						full_values.push_back(f.layer->values[f.tags[i + 1]]);
+					} else if (accumulate_numeric.size() > 0 && f.layer->values[f.tags[i + 1]].is_numeric()) {
+						// convert numeric for accumulation
+						numeric_out_field.emplace(key, full_keys.size());
+						full_keys.push_back(key_pool.pool(key));
+						full_values.push_back(f.layer->values[f.tags[i + 1]]);
+					} else if (include_nonaggregate) {
+						// otherwise just tag it directly onto the output feature
+						outlayer.tag(outfeature, f.layer->keys[f.tags[i]], f.layer->values[f.tags[i + 1]]);
 					}
 				}
 			}
@@ -1386,22 +1386,25 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
 					const std::string &key = features[i].layer->keys[features[i].tags[j]];
-					keys.insert(key);
+					if (should_keep(key, keep, exclude, exclude_prefix)) {
+						keys.insert(key);
+					}
 				}
 
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
 					const std::string &key = features[i].layer->keys[features[i].tags[j]];
-
-					auto f = attribute_accum.find(key);
-					if (f != attribute_accum.end()) {
-						mvt_value val = features[i].layer->values[features[i].tags[j + 1]];
-						preserve_attribute(f->second, key, val, full_keys, full_values, attribute_accum_state, key_pool);
-					} else if (accumulate_numeric.size() > 0) {
-						const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
-						if (val.is_numeric()) {
-							preserve_numeric(key, val, full_keys, full_values,
-									 accumulate_numeric,
-									 keys, numeric_out_field, attribute_accum_state, key_pool);
+					if (should_keep(key, keep, exclude, exclude_prefix)) {
+						auto found = attribute_accum.find(key);
+						if (found != attribute_accum.end()) {
+							mvt_value val = features[i].layer->values[features[i].tags[j + 1]];
+							preserve_attribute(found->second, key, val, full_keys, full_values, attribute_accum_state, key_pool);
+						} else if (accumulate_numeric.size() > 0) {
+							const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
+							if (val.is_numeric()) {
+								preserve_numeric(key, val, full_keys, full_values,
+										 accumulate_numeric,
+										 keys, numeric_out_field, attribute_accum_state, key_pool);
+							}
 						}
 					}
 				}
@@ -1419,7 +1422,7 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			if (accumulate_numeric.size() > 0) {
 				add_mean(outfeature, outlayer, accumulate_numeric);
 			}
-		} else {
+		} else if (include_nonaggregate) {
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
 				if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
 					outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
@@ -1725,7 +1728,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 		if (outfeatures[i].size() > 1) {
 			if (feature_out(outfeatures[i], outlayer,
 					keep, exclude, exclude_prefix, attribute_accum,
-					accumulate_numeric, key_pool, buffer)) {
+					accumulate_numeric, key_pool, buffer, true)) {
 				mvt_feature &nfeature = outlayer.features.back();
 				mvt_value val;
 				val.type = mvt_uint;
@@ -1886,7 +1889,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0);
 						if (outlayer->features.size() >= feature_limit) {
 							break;
 						}
@@ -1946,7 +1949,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0);
 				pending_tile_features.clear();
 				if (outlayer->features.size() >= feature_limit) {
 					break;
