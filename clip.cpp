@@ -1752,7 +1752,9 @@ mvt_tile assign_to_bins(mvt_tile &features,
 				} else {
 					attrname = accumulate_numeric + ":count";
 				}
-				outlayer.tag(nfeature, attrname, val);
+				if (should_keep(attrname, keep, exclude, exclude_prefix)) {
+					outlayer.tag(nfeature, attrname, val);
+				}
 			}
 		}
 	}
