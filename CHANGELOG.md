@@ -1,3 +1,7 @@
+# 2.70.0
+
+* Performance improvements to tippecanoe-overzoom with attribute exclusion
+
 # 2.69.0
 
 * Fix crash when the first bin gets clipped away
