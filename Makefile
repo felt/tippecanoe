@@ -368,10 +368,16 @@ overzoom-test: tippecanoe-overzoom
 	cmp tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out.json
 	rm tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out
 	# Binning by id
-	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids.pbf.out --assign-to-bins tests/pbf/sf-zips.json --bin-by-id bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
+	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids.pbf.out --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
 	./tippecanoe-decode tests/pbf/bin-11-327-791-ids.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids.pbf.out.json.check
 	cmp tests/pbf/bin-11-327-791-ids.pbf.out.json.check tests/pbf/bin-11-327-791-ids.pbf.out.json
 	rm tests/pbf/bin-11-327-791-ids.pbf.out.json.check tests/pbf/bin-11-327-791-ids.pbf.out
+	# Binning by id, attribute stripping
+	# Note that it still works even if we exclude the ID that we are binning by
+	./tippecanoe-overzoom -yZCTA5CE10 -ytippecanoe:count -o tests/pbf/bin-11-327-791-ids-zip.pbf.out --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
+	./tippecanoe-decode tests/pbf/bin-11-327-791-ids-zip.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids-zip.pbf.out.json.check
+	cmp tests/pbf/bin-11-327-791-ids-zip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-zip.pbf.out.json
+	rm tests/pbf/bin-11-327-791-ids-zip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-zip.pbf.out
 	# Binning with longitude wraparound problems
 	./tippecanoe-overzoom -o tests/pbf/0-0-0-pop-2-0-1.pbf.out --accumulate-numeric-attributes=tippecanoe --assign-to-bins tests/pbf/h3-2-0-1.geojson tests/pbf/0-0-0.pbf 2/0/1 2/0/1
 	./tippecanoe-decode tests/pbf/0-0-0-pop-2-0-1.pbf.out 2 0 1 > tests/pbf/0-0-0-pop-2-0-1.pbf.out.json.check
@@ -618,11 +624,36 @@ accumulate-test:
 	# the cluster sizes still add up to the 243 original features
 	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
 	#
+	# Binning with attribute stripping
+	./tippecanoe-overzoom -y clustered:count:POP1950 -y clustered:sum:POP1950 -y POP1950 -y clustered:cluster_size --assign-to-bins tests/pbf/h3-0-0-0.geojson --accumulate-numeric-attributes=clustered --accumulate-attribute '{"clustered:cluster_size":"sum"}' -o tests/pbf/bins-0-0-0.pbf tests/pbf/accum.dir/0/0/0.pbf 0/0/0 0/0/0
+	# Now there are 30 bins with POP1950 clusters
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:count:POP1950' | wc -l` == 41
+	# There are none with bare POP1950 (which is expected; we should only have summary statistics)
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'clustered:count:POP1950' | grep 'POP1950' | wc -l` == 0
+	# And 4 with no POP1950 at all
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep -v 'POP1950' | wc -l` == 3
+	#
+	# the clustered and megatile-filtered and binned POP1950s add up to 161590
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep 'clustered:sum:POP1950' | sed 's/.*"clustered:sum:POP1950": //' | awk '{sum += $$1} END {print sum}'` == 161590
+	# which is the right global total
+	# Make sure we do *not* accumulate a numeric attribute that already has the magic prefix:
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep sum:clustered:unrelated | wc -l` == 0
+	# And those attributes do *not* make it onto the bins
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | grep clustered:unrelated | wc -l` == 0
+	# the cluster sizes still add up to the 243 original features
+	test `./tippecanoe-decode -c tests/pbf/bins-0-0-0.pbf 0 0 0 | sed 's/.*clustered:cluster_size": //' | awk '{sum += $$1} END {print sum}'` == 243
+	#
 	#
 	# A tile where the counts and means were previously wrong:
 	./tippecanoe-overzoom --accumulate-numeric-attributes=felt -m -o tests/pbf/yearbuilt-accum.pbf tests/pbf/yearbuilt.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/yearbuilt-accum.pbf 0 0 0 > tests/pbf/yearbuilt-accum.pbf.json.check
 	cmp tests/pbf/yearbuilt-accum.pbf.json.check tests/pbf/yearbuilt-accum.pbf.json
+	rm tests/pbf/yearbuilt-accum.pbf tests/pbf/yearbuilt-accum.pbf.json.check
+	# Same tile, with attribute stripping
+	./tippecanoe-overzoom --accumulate-numeric-attributes=felt -y bldgsqft -y felt:sum:bldgsqft -m -o tests/pbf/yearbuilt-accum-bldgsqft.pbf tests/pbf/yearbuilt.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/yearbuilt-accum-bldgsqft.pbf 0 0 0 > tests/pbf/yearbuilt-accum-bldgsqft.pbf.json.check
+	cmp tests/pbf/yearbuilt-accum-bldgsqft.pbf.json.check tests/pbf/yearbuilt-accum-bldgsqft.pbf.json
+	rm tests/pbf/yearbuilt-accum-bldgsqft.pbf tests/pbf/yearbuilt-accum-bldgsqft.pbf.json.check
 
 join-filter-test: tippecanoe tippecanoe-decode tile-join
 	# Comes out different from the direct tippecanoe run because null attributes are lost
