@@ -1087,7 +1087,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric, size_t feature_limit) {
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1113,7 +1114,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit, clipbboxes);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1776,7 +1777,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric, size_t feature_limit) {
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes) {
 	mvt_tile outtile;
 	key_pool key_pool;
 
@@ -2003,7 +2005,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 								     detail_or_unspecified, buffer, keep, exclude, exclude_prefix, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data,
 								     simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric,
-								     1);
+								     1, clipbboxes);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}

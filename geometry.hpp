@@ -115,6 +115,18 @@ struct source_tile {
 	int y;
 };
 
+struct clipbbox {
+	double lon1;
+	double lat1;
+	double lon2;
+	double lat2;
+
+	long long minx;
+	long long miny;
+	long long maxx;
+	long long maxy;
+};
+
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer,
 		     std::set<std::string> const &keep,
@@ -127,7 +139,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric, size_t feature_limit);
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer,
@@ -141,7 +154,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric, size_t feature_limit);
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes);
 
 draw center_of_mass_mp(const drawvec &dv);
 

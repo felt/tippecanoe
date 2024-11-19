@@ -10,6 +10,7 @@
 #include "attribute.hpp"
 #include "text.hpp"
 #include "read_json.hpp"
+#include "projection.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -29,6 +30,7 @@ std::string accumulate_numeric;
 std::set<std::string> keep;
 std::set<std::string> exclude;
 std::vector<std::string> exclude_prefix;
+std::vector<clipbbox> clipbboxes;
 
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s -o newtile.pbf.gz tile.pbf.gz oz/ox/oy nz/nx/ny\n", argv[0]);
@@ -67,7 +69,9 @@ int main(int argc, char **argv) {
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
 		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
 		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
+		{"numeric-attributes", required_argument, 0, 'a' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
+		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -156,6 +160,18 @@ int main(int argc, char **argv) {
 
 		case 'd' & 0x1F:
 			do_compress = false;
+			break;
+
+		case 'k' & 0x1F:
+			clipbbox clip;
+			if (sscanf(optarg, "%lf,%lf,%lf,%lf", &clip.lon1, &clip.lat1, &clip.lon2, &clip.lat2) == 4) {
+				projection->project(clip.lon1, clip.lat1, 32, &clip.minx, &clip.maxy);
+				projection->project(clip.lon2, clip.lat2, 32, &clip.maxx, &clip.miny);
+				clipbboxes.push_back(clip);
+			} else {
+				fprintf(stderr, "%s: Can't parse bounding box --clip-bounding-box=%s\n", argv[0], optarg);
+				exit(EXIT_ARGS);
+			}
 			break;
 
 		default:
@@ -262,7 +278,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {
