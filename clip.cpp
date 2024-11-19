@@ -1348,16 +1348,26 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 	}
 
 	if (clipbboxes.size() != 0) {
+		// bounding box is in world coordinates at world scale
+		// feature is in local coordinates at tile scale
+
 		long long dx = (long long) nx << (32 - nz);
 		long long dy = (long long) ny << (32 - nz);
+		double scale = (double) outlayer.extent / (1LL << (32 - nz));
 
-		for (auto &c : clipbboxes) {
+		for (auto const &c : clipbboxes) {
+			clipbbox local;
+			local.minx = std::llround((c.minx - dx) * scale);
+			local.miny = std::llround((c.miny - dy) * scale);
+			local.maxx = std::llround((c.maxx - dx) * scale);
+			local.maxy = std::llround((c.maxy - dy) * scale);
+
 			if (t == VT_POLYGON) {
-				geom = simple_clip_poly(geom, c.minx - dx, c.miny - dy, c.maxx - dx, c.maxy - dy, false);
+				geom = simple_clip_poly(geom, local.minx, local.miny, local.maxx, local.maxy, false);
 			} else if (t == VT_LINE) {
-				geom = clip_lines(geom, c.minx - dx, c.miny - dy, c.maxx - dx, c.maxy - dy);
+				geom = clip_lines(geom, local.minx, local.miny, local.maxx, local.maxy);
 			} else if (t == VT_POINT) {
-				geom = clip_point(geom, c.minx - dx, c.miny - dy, c.maxx - dx, c.maxy - dy);
+				geom = clip_point(geom, local.minx, local.miny, local.maxx, local.maxy);
 			}
 		}
 
