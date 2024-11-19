@@ -1318,28 +1318,55 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::vector<std::string> const &exclude_prefix,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &accumulate_numeric,
-			key_pool &key_pool, int buffer, bool include_nonaggregate) {
+			key_pool &key_pool, int buffer, bool include_nonaggregate,
+			std::vector<clipbbox> const &clipbboxes, int nz, int nx, int ny) {
 	// Add geometry to output feature
 
 	drawvec geom = features[0].geom;
-	if (buffer >= 0) {
-		int t = features[0].t;
+	int t = features[0].t;
 
+	bool fix_polygons = false;
+	if ((buffer >= 0 || clipbboxes.size() > 0) && t == VT_POLYGON) {
+		fix_polygons = true;
+	}
+
+	if (fix_polygons) {
+		handle_closepath_from_mvt(geom);
+	}
+
+	if (buffer >= 0) {
 		if (t == VT_LINE) {
 			geom = clip_lines(geom, 32 - outlayer.detail(), buffer);
 		} else if (t == VT_POLYGON) {
 			drawvec dv;
-			handle_closepath_from_mvt(geom);
 			geom = simple_clip_poly(geom, 32 - outlayer.detail(), buffer, dv, false);
 		} else if (t == VT_POINT) {
 			geom = clip_point(geom, 32 - outlayer.detail(), buffer);
 		}
 
 		geom = remove_noop(geom, t, 0);
-		if (t == VT_POLYGON) {
-			geom = clean_or_clip_poly(geom, 0, 0, false, false);
-			geom = close_poly(geom);
+	}
+
+	if (clipbboxes.size() != 0) {
+		long long dx = (long long) nx << (32 - nz);
+		long long dy = (long long) ny << (32 - nz);
+
+		for (auto &c : clipbboxes) {
+			if (t == VT_POLYGON) {
+				geom = simple_clip_poly(geom, c.minx - dx, c.miny - dy, c.maxx - dx, c.maxy - dy, false);
+			} else if (t == VT_LINE) {
+				geom = clip_lines(geom, c.minx - dx, c.miny - dy, c.maxx - dx, c.maxy - dy);
+			} else if (t == VT_POINT) {
+				geom = clip_point(geom, c.minx - dx, c.miny - dy, c.maxx - dx, c.maxy - dy);
+			}
 		}
+
+		geom = remove_noop(geom, t, 0);
+	}
+
+	if (fix_polygons) {
+		geom = clean_or_clip_poly(geom, 0, 0, false, false);
+		geom = close_poly(geom);
 	}
 
 	mvt_feature outfeature;
@@ -1578,7 +1605,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 			std::set<std::string> keep,
 			std::set<std::string> exclude,
 			std::vector<std::string> exclude_prefix,
-			int buffer) {
+			int buffer, std::vector<clipbbox> const &clipbboxes) {
 	std::vector<index_event> events;
 	key_pool key_pool;
 
@@ -1741,7 +1768,8 @@ mvt_tile assign_to_bins(mvt_tile &features,
 		if (outfeatures[i].size() > 1) {
 			if (feature_out(outfeatures[i], outlayer,
 					keep, exclude, exclude_prefix, attribute_accum,
-					accumulate_numeric, key_pool, buffer, true)) {
+					accumulate_numeric, key_pool, buffer, true,
+					clipbboxes, z, x, y)) {
 				mvt_feature &nfeature = outlayer.features.back();
 				mvt_value val;
 				val.type = mvt_uint;
@@ -1838,8 +1866,22 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					}
 				}
 
+				// Clip to user-specified bounding boxes.
+				// But don't clip here if we are binning, because we need to bin points in the buffer
+				if (bins.size() == 0) {
+					for (auto &c : clipbboxes) {
+						if (t == VT_POLYGON) {
+							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+						} else if (t == VT_LINE) {
+							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+						} else if (t == VT_POINT) {
+							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+						}
+					}
+				}
+
 				// Now offset from world coordinates to output tile coordinates,
-				// but retain world scale, because that is what tippecanoe clipping expects
+				// but retain world scale, because that is what tippecanoe zoom-oriented clipping expects
 
 				long long outtilesize = 1LL << (32 - nz);  // destination tile size in world coordinates
 				for (auto &g : geom) {
@@ -1905,7 +1947,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
 						if (outlayer->features.size() >= feature_limit) {
 							break;
 						}
@@ -1965,7 +2007,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
 				pending_tile_features.clear();
 				if (outlayer->features.size() >= feature_limit) {
 					break;
@@ -2017,7 +2059,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	if (bins.size() > 0) {
 		outtile = assign_to_bins(outtile, bins, bin_by_id_list, nz, nx, ny,
 					 attribute_accum, accumulate_numeric,
-					 keep, exclude, exclude_prefix, buffer);
+					 keep, exclude, exclude_prefix, buffer, clipbboxes);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
