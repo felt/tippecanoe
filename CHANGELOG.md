@@ -1,3 +1,7 @@
+# 2.70.1
+
+* Raise tippecanoe-decode limit on the size of individual tiles
+
 # 2.70.0
 
 * Performance improvements to tippecanoe-overzoom with attribute exclusion

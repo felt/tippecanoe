@@ -247,23 +247,26 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 	if (fd >= 0) {
 		struct stat st;
 		if (fstat(fd, &st) == 0) {
-			if (st.st_size < 50 * 1024 * 1024) {
-				char *map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-				if (map != NULL && map != MAP_FAILED) {
-					if (strcmp(map, "SQLite format 3") != 0 && strncmp(map, "PMTiles", 7) != 0) {
-						if (z >= 0) {
+			char *map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+			if (map != NULL && map != MAP_FAILED) {
+				if (strcmp(map, "SQLite format 3") != 0 && strncmp(map, "PMTiles", 7) != 0) {
+					if (z >= 0) {
+						if (st.st_size > 250 * 1024 * 1024) {
+							fprintf(stderr, "%s: unrealistically large single-tile size %zu\n", fname, (size_t) st.st_size);
+							exit(EXIT_MEMORY);
+						} else {
 							std::string s = std::string(map, st.st_size);
 							handle(s, z, x, y, to_decode, pipeline, stats, state, coordinate_mode);
 							munmap(map, st.st_size);
 							return;
-						} else {
-							fprintf(stderr, "Must specify zoom/x/y to decode a single pbf file\n");
-							exit(EXIT_ARGS);
 						}
+					} else {
+						fprintf(stderr, "Must specify zoom/x/y to decode a single pbf file\n");
+						exit(EXIT_ARGS);
 					}
 				}
-				munmap(map, st.st_size);
 			}
+			munmap(map, st.st_size);
 		} else {
 			perror("fstat");
 		}
