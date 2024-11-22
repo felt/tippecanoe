@@ -387,7 +387,6 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 }
 
 drawvec clip_poly(drawvec &geom, drawvec const &bounds) {
-	printf("initial: %zu\n", geom.size());
 	geom = remove_noop(geom, VT_POLYGON, 0);
 	mapbox::geometry::multi_polygon<long long> result;
 
@@ -447,7 +446,6 @@ drawvec clip_poly(drawvec &geom, drawvec const &bounds) {
 
 	drawvec ret;
 	decode_clipped(result, ret, 1);
-	printf("after: %zu\n", ret.size());
 	return ret;
 }
 
@@ -1158,7 +1156,6 @@ clipbbox parse_clip_poly(std::string arg) {
 	out.maxy = LLONG_MIN;
 	for (auto const &d : parsed_geometry.second) {
 		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
-			printf("%lld,%lld\n", d.x, d.y);
 			if (d.x < out.minx) {
 				out.minx = d.x;
 			}
@@ -1985,9 +1982,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				if (bins.size() == 0) {
 					for (auto &c : clipbboxes) {
 						if (t == VT_POLYGON) {
-							printf("clip to %lld,%lld %lld,%lld\n", c.minx, c.miny, c.maxx, c.maxy);
 							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
-							if (c.dv.size() > 0) {
+							if (c.dv.size() > 0 && geom.size() > 0) {
 								geom = clip_poly(geom, c.dv);
 							}
 						} else if (t == VT_LINE) {
