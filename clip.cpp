@@ -438,7 +438,7 @@ drawvec clip_poly(drawvec &geom, drawvec const &bounds) {
 
 		try {
 			result.clear();
-			wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+			wagyu.execute(mapbox::geometry::wagyu::clip_type_intersection, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
 		} catch (std::runtime_error &e) {
 			fprintf(stderr, "Internal error: Polygon clipping failed\n");
 			exit(EXIT_IMPOSSIBLE);
