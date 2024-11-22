@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
 		{"numeric-attributes", required_argument, 0, 'a' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
+		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -162,7 +163,7 @@ int main(int argc, char **argv) {
 			do_compress = false;
 			break;
 
-		case 'k' & 0x1F:
+		case 'k' & 0x1F: {
 			clipbbox clip;
 			if (sscanf(optarg, "%lf,%lf,%lf,%lf", &clip.lon1, &clip.lat1, &clip.lon2, &clip.lat2) == 4) {
 				projection->project(clip.lon1, clip.lat1, 32, &clip.minx, &clip.maxy);
@@ -173,6 +174,13 @@ int main(int argc, char **argv) {
 				exit(EXIT_ARGS);
 			}
 			break;
+		}
+
+		case 'l' & 0x1F: {
+			clipbbox clip = parse_clip_poly(optarg);
+			clipbboxes.push_back(clip);
+			break;
+		}
 
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);

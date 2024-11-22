@@ -179,7 +179,7 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 }
 
 std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, json_object *j,
-				       int z, int x, int y, int extent, bool fix_longitudes) {
+				       int z, int x, int y, long long extent, bool fix_longitudes) {
 	json_object *geometry_type = json_hash_get(geometry, "type");
 	if (geometry_type == NULL) {
 		fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);

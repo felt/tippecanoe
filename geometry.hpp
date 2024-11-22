@@ -125,6 +125,8 @@ struct clipbbox {
 	long long miny;
 	long long maxx;
 	long long maxy;
+
+	drawvec dv;  // empty, or arbitrary clipping polygon
 };
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
@@ -161,5 +163,7 @@ draw center_of_mass_mp(const drawvec &dv);
 
 void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
 			unsigned long long *start, unsigned long long *end);
+
+clipbbox parse_clip_poly(std::string arg);
 
 #endif

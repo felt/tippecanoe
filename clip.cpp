@@ -13,6 +13,7 @@
 #include "serial.hpp"
 #include "attribute.hpp"
 #include "projection.hpp"
+#include "read_json.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -1073,6 +1074,42 @@ bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) 
 	}
 
 	return found;
+}
+
+clipbbox parse_clip_poly(std::string arg) {
+	json_pull *jp = json_begin_string(arg.c_str());
+	json_object *j = json_read_tree(jp);
+	if (j->type != JSON_HASH) {
+		fprintf(stderr, "Expected JSON geometry object, not %s\n", arg.c_str());
+	}
+
+	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false);
+	json_end(jp);
+
+	clipbbox out;
+	out.minx = LLONG_MAX;
+	out.miny = LLONG_MAX;
+	out.maxx = LLONG_MIN;
+	out.maxy = LLONG_MIN;
+	for (auto const &d : parsed_geometry.second) {
+		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
+			if (d.x < out.minx) {
+				out.minx = d.x;
+			}
+			if (d.y < out.miny) {
+				out.miny = d.y;
+			}
+			if (d.x > out.maxx) {
+				out.maxx = d.x;
+			}
+			if (d.y > out.maxy) {
+				out.maxy = d.y;
+			}
+		}
+	}
+	out.dv = std::move(parsed_geometry.second);
+
+	return out;
 }
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
