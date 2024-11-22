@@ -449,6 +449,16 @@ drawvec clip_poly(drawvec &geom, drawvec const &bounds) {
 	return ret;
 }
 
+drawvec clip_point_poly(drawvec &geom, drawvec const &bounds) {
+	drawvec out;
+	for (auto const &p : geom) {
+		if (pnpoly_mp(bounds, p.x, p.y)) {
+			out.push_back(p);
+		}
+	}
+	return out;
+}
+
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	if (32 - detail - z < 0) {
 		for (size_t i = 0; i < geom.size(); i++) {
@@ -1127,6 +1137,27 @@ bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) 
 			size_t j;
 			for (j = i + 1; j < geom.size(); j++) {
 				if (geom[j].op != mvt_lineto) {
+					break;
+				}
+			}
+
+			found ^= pnpoly(geom, i, j - i, x, y);
+			i = j - 1;
+		}
+	}
+
+	return found;
+}
+
+bool pnpoly_mp(drawvec const &geom, long long x, long long y) {
+	// assumes rings are properly nested, so inside a hole matches twice
+	bool found = false;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
 					break;
 				}
 			}
@@ -1990,6 +2021,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
 						} else if (t == VT_POINT) {
 							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_point_poly(geom, c.dv);
+							}
 						}
 					}
 				}
