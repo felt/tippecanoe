@@ -278,8 +278,8 @@ std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, jso
 		dv[i].y -= scale * y;
 
 		// scale to tile
-		dv[i].x = std::round(dv[i].x * extent / (double) scale);
-		dv[i].y = std::round(dv[i].y * extent / (double) scale);
+		dv[i].x = std::round(dv[i].x * (extent / (double) scale));
+		dv[i].y = std::round(dv[i].y * (extent / (double) scale));
 	}
 
 	if (mb_geometry[t] == VT_POLYGON) {

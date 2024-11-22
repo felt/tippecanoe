@@ -386,6 +386,71 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 	return ret;
 }
 
+drawvec clip_poly(drawvec &geom, drawvec const &bounds) {
+	printf("initial: %zu\n", geom.size());
+	geom = remove_noop(geom, VT_POLYGON, 0);
+	mapbox::geometry::multi_polygon<long long> result;
+
+	{
+		mapbox::geometry::wagyu::wagyu<long long> wagyu;
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				mapbox::geometry::linear_ring<long long> lr;
+				lr.push_back(mapbox::geometry::point<long long>(geom[i].x, geom[i].y));
+
+				size_t j;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+					lr.push_back(mapbox::geometry::point<long long>(geom[j].x, geom[j].y));
+				}
+
+				if (lr.size() >= 4) {
+					wagyu.add_ring(lr);
+				}
+
+				i = j - 1;
+			}
+		}
+
+		for (size_t i = 0; i < bounds.size(); i++) {
+			if (bounds[i].op == VT_MOVETO) {
+				mapbox::geometry::linear_ring<long long> lr;
+				lr.push_back(mapbox::geometry::point<long long>(bounds[i].x, bounds[i].y));
+
+				size_t j;
+				for (j = i + 1; j < bounds.size(); j++) {
+					if (bounds[j].op != VT_LINETO) {
+						break;
+					}
+					lr.push_back(mapbox::geometry::point<long long>(bounds[j].x, bounds[j].y));
+				}
+
+				if (lr.size() >= 4) {
+					wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
+				}
+
+				i = j - 1;
+			}
+		}
+
+		try {
+			result.clear();
+			wagyu.execute(mapbox::geometry::wagyu::clip_type_union, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+		} catch (std::runtime_error &e) {
+			fprintf(stderr, "Internal error: Polygon clipping failed\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	drawvec ret;
+	decode_clipped(result, ret, 1);
+	printf("after: %zu\n", ret.size());
+	return ret;
+}
+
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	if (32 - detail - z < 0) {
 		for (size_t i = 0; i < geom.size(); i++) {
@@ -1093,6 +1158,7 @@ clipbbox parse_clip_poly(std::string arg) {
 	out.maxy = LLONG_MIN;
 	for (auto const &d : parsed_geometry.second) {
 		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
+			printf("%lld,%lld\n", d.x, d.y);
 			if (d.x < out.minx) {
 				out.minx = d.x;
 			}
@@ -1914,11 +1980,16 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				}
 
 				// Clip to user-specified bounding boxes.
+				// Bounding box clip first, to reduce complexity of the full clip.
 				// But don't clip here if we are binning, because we need to bin points in the buffer
 				if (bins.size() == 0) {
 					for (auto &c : clipbboxes) {
 						if (t == VT_POLYGON) {
+							printf("clip to %lld,%lld %lld,%lld\n", c.minx, c.miny, c.maxx, c.maxy);
 							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+							if (c.dv.size() > 0) {
+								geom = clip_poly(geom, c.dv);
+							}
 						} else if (t == VT_LINE) {
 							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
 						} else if (t == VT_POINT) {
