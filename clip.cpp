@@ -2065,6 +2065,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 							}
 						} else if (t == VT_LINE) {
 							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_lines(geom, c.dv);
+							}
 						} else if (t == VT_POINT) {
 							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
 							if (c.dv.size() > 0 && geom.size() > 0) {
