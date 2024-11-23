@@ -4,6 +4,7 @@
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
 #include <mapbox/geometry/wagyu/wagyu.hpp>
+#include <clipper2/clipper.h>
 #include <limits.h>
 #include "geometry.hpp"
 #include "errors.hpp"
@@ -1934,73 +1935,49 @@ mvt_tile assign_to_bins(mvt_tile &features,
 	return ret;
 }
 
-drawvec clip_lines(drawvec const &geom, drawvec const &region) {
-	std::vector<index_event> events;
+static Clipper2Lib::Paths64 geom_to_clipper(drawvec const &geom) {
+	Clipper2Lib::Paths64 subject;
 
-	if (region.size() == 0) {
-		return drawvec();
-	}
-
-	// Index region segments
-	for (size_t i = 1; i < region.size(); i++) {
-		if (region[i].op == VT_LINETO) {
-			long long xmin = std::min(region[i - 1].x, region[i].x);
-			long long ymin = std::min(region[i - 1].y, region[i].y);
-			long long xmax = std::max(region[i - 1].x, region[i].x);
-			long long ymax = std::max(region[i - 1].y, region[i].y);
-			unsigned long long start, end;
-
-			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-			events.emplace_back(start, index_event::ENTER, i, 0, xmin, ymin, xmax, ymax);
-			events.emplace_back(end, index_event::EXIT, i, 0, xmin, ymin, xmax, ymax);
-		}
-	}
-
-	// Index linestring segments
-	for (size_t i = 1; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO) {
-			long long xmin = std::min(geom[i - 1].x, geom[i].x);
-			long long ymin = std::min(geom[i - 1].y, geom[i].y);
-			long long xmax = std::max(geom[i - 1].x, geom[i].x);
-			long long ymax = std::max(geom[i - 1].y, geom[i].y);
-			unsigned long long start, end;
-
-			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-			events.emplace_back(start, index_event::CHECK, i, 0, xmin, ymin, xmax, ymax);
-		}
-	}
-
-	std::sort(events.begin(), events.end());
-	std::set<active_bin> active;
-
-	for (auto &e : events) {
-		if (e.kind == index_event::ENTER) {
-			active_bin a(e.layer, e.feature);
-			a.xmin = e.xmin;
-			a.ymin = e.ymin;
-			a.xmax = e.xmax;
-			a.ymax = e.ymax;
-
-			active.insert(std::move(a));
-		} else if (e.kind == index_event::CHECK) {
-			for (auto const &a : active) {
-				if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
-						    a.xmin, a.ymin, a.xmax, a.ymax)) {
-					// compare
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			Clipper2Lib::Path64 path({{geom[i].x, geom[i].y}});
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
 				}
+				path.emplace_back(geom[j].x, geom[j].y);
 			}
-		} else /* EXIT */ {
-			auto const &found = active.find({e.layer, e.feature});
-			if (found != active.end()) {
-				active.erase(found);
-			} else {
-				fprintf(stderr, "event mismatch: can't happen\n");
-				exit(EXIT_IMPOSSIBLE);
-			}
+			subject.push_back(path);
 		}
 	}
 
-	return drawvec();
+	return subject;
+}
+
+static void clipper_to_geom(Clipper2Lib::Paths64 const &geom, drawvec &out) {
+	for (auto const &ring : geom) {
+		for (size_t i = 0; i < ring.size(); i++) {
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x, ring[i].y);
+		}
+	}
+}
+
+drawvec clip_lines(drawvec const &geom, drawvec const &region) {
+	Clipper2Lib::Paths64 subject = geom_to_clipper(geom);
+	Clipper2Lib::Paths64 clip = geom_to_clipper(region);
+
+	Clipper2Lib::Clipper64 clipper;
+	clipper.AddOpenSubject(subject);
+	clipper.AddClip(clip);
+
+	Clipper2Lib::Paths64 solution, open_solution;
+	clipper.Execute(Clipper2Lib::ClipType::Intersection, Clipper2Lib::FillRule::Positive, solution, open_solution);
+
+	drawvec out;
+	clipper_to_geom(solution, out);
+	clipper_to_geom(open_solution, out);
+	return out;
 }
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
