@@ -1174,8 +1174,13 @@ bool pnpoly_mp(drawvec const &geom, long long x, long long y) {
 clipbbox parse_clip_poly(std::string arg) {
 	json_pull *jp = json_begin_string(arg.c_str());
 	json_object *j = json_read_tree(jp);
+	if (j == NULL) {
+		fprintf(stderr, "Expected JSON object, not %s\n", arg.c_str());
+		exit(EXIT_ARGS);
+	}
 	if (j->type != JSON_HASH) {
 		fprintf(stderr, "Expected JSON geometry object, not %s\n", arg.c_str());
+		exit(EXIT_ARGS);
 	}
 
 	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false);
