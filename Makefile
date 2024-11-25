@@ -404,6 +404,21 @@ overzoom-test: tippecanoe-overzoom
 	# Verify fix for crash
 	./tippecanoe-overzoom '-o' tests/10188-crash/out.pbf '-t' '3/2/2' '--assign-to-bins' 'tests/10188-crash/bins.json' '--bin-by-id-list' 'felt:bin_features' '-b5' 'tests/10188-crash/2-0-0.pbf' '2/0/0'
 	rm tests/10188-crash/out.pbf
+	# Polygon clipping
+	./tippecanoe-overzoom -o tests/pbf/countries-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/countries-1-1-0.pbf 1/1/0 1/1/0
+	./tippecanoe-decode tests/pbf/countries-1-1-0-clip.pbf 1 1 0 > tests/pbf/countries-1-1-0-clip.json.check
+	cmp tests/pbf/countries-1-1-0-clip.json.check tests/pbf/countries-1-1-0-clip.json
+	rm tests/pbf/countries-1-1-0-clip.pbf tests/pbf/countries-1-1-0-clip.json.check
+	# LineString clipping
+	./tippecanoe-overzoom -o tests/pbf/roads-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/roads-1-1-0.pbf 1/1/0 1/1/0
+	./tippecanoe-decode tests/pbf/roads-1-1-0-clip.pbf 1 1 0 > tests/pbf/roads-1-1-0-clip.json.check
+	cmp tests/pbf/roads-1-1-0-clip.json.check tests/pbf/roads-1-1-0-clip.json
+	rm tests/pbf/roads-1-1-0-clip.pbf tests/pbf/roads-1-1-0-clip.json.check
+	# Point clipping
+	./tippecanoe-overzoom -o tests/pbf/places-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/places-1-1-0.pbf 1/1/0 1/1/0
+	./tippecanoe-decode tests/pbf/places-1-1-0-clip.pbf 1 1 0 > tests/pbf/places-1-1-0-clip.json.check
+	cmp tests/pbf/places-1-1-0-clip.json.check tests/pbf/places-1-1-0-clip.json
+	rm tests/pbf/places-1-1-0-clip.pbf tests/pbf/places-1-1-0-clip.json.check
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'

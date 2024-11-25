@@ -1,0 +1,211 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "ne_10m_populated_places", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Reims" }, "geometry": { "type": "Point", "coordinates": [ 4.042969, 49.239121 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Diekirch" }, "geometry": { "type": "Point", "coordinates": [ 6.152344, 49.894634 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Arlon" }, "geometry": { "type": "Point", "coordinates": [ 5.800781, 49.696062 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Luxembourg" }, "geometry": { "type": "Point", "coordinates": [ 6.108398, 49.610710 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Metz" }, "geometry": { "type": "Point", "coordinates": [ 6.196289, 49.124219 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Grevenmacher" }, "geometry": { "type": "Point", "coordinates": [ 6.416016, 49.667628 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Saarbrücken" }, "geometry": { "type": "Point", "coordinates": [ 6.987305, 49.239121 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Koblenz" }, "geometry": { "type": "Point", "coordinates": [ 7.602539, 50.345460 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Wiesbaden" }, "geometry": { "type": "Point", "coordinates": [ 8.261719, 50.092393 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Mainz" }, "geometry": { "type": "Point", "coordinates": [ 8.261719, 49.979488 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Karlsruhe" }, "geometry": { "type": "Point", "coordinates": [ 8.393555, 49.009051 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Kassel" }, "geometry": { "type": "Point", "coordinates": [ 9.492188, 51.289406 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Braunschweig" }, "geometry": { "type": "Point", "coordinates": [ 10.502930, 52.241256 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Göttingen" }, "geometry": { "type": "Point", "coordinates": [ 9.931641, 51.508742 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Erfurt" }, "geometry": { "type": "Point", "coordinates": [ 11.030273, 50.958427 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Gießen" }, "geometry": { "type": "Point", "coordinates": [ 8.657227, 50.597186 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Frankfurt" }, "geometry": { "type": "Point", "coordinates": [ 8.657227, 50.092393 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Mannheim" }, "geometry": { "type": "Point", "coordinates": [ 8.481445, 49.496675 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Heidelberg" }, "geometry": { "type": "Point", "coordinates": [ 8.701172, 49.410973 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Coburg" }, "geometry": { "type": "Point", "coordinates": [ 10.986328, 50.261254 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Würzburg" }, "geometry": { "type": "Point", "coordinates": [ 9.931641, 49.809632 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Fürth" }, "geometry": { "type": "Point", "coordinates": [ 10.986328, 49.468124 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Nürnberg" }, "geometry": { "type": "Point", "coordinates": [ 11.074219, 49.439557 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Troyes" }, "geometry": { "type": "Point", "coordinates": [ 4.086914, 48.341646 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Auxerre" }, "geometry": { "type": "Point", "coordinates": [ 3.559570, 47.813155 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Dijon" }, "geometry": { "type": "Point", "coordinates": [ 5.009766, 47.338823 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Nancy" }, "geometry": { "type": "Point", "coordinates": [ 6.196289, 48.690960 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Besançon" }, "geometry": { "type": "Point", "coordinates": [ 6.020508, 47.219568 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Strasbourg" }, "geometry": { "type": "Point", "coordinates": [ 7.734375, 48.574790 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Freiburg" }, "geometry": { "type": "Point", "coordinates": [ 7.866211, 47.989922 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Mulhouse" }, "geometry": { "type": "Point", "coordinates": [ 7.338867, 47.754098 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Basel" }, "geometry": { "type": "Point", "coordinates": [ 7.602539, 47.576526 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Delémont" }, "geometry": { "type": "Point", "coordinates": [ 7.338867, 47.368594 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Biel" }, "geometry": { "type": "Point", "coordinates": [ 7.250977, 47.159840 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Solothurn" }, "geometry": { "type": "Point", "coordinates": [ 7.558594, 47.219568 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Liestal" }, "geometry": { "type": "Point", "coordinates": [ 7.734375, 47.487513 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Aarau" }, "geometry": { "type": "Point", "coordinates": [ 8.041992, 47.398349 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Luzern" }, "geometry": { "type": "Point", "coordinates": [ 8.261719, 47.040182 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Geneva" }, "geometry": { "type": "Point", "coordinates": [ 6.152344, 46.195042 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Neuchâtel" }, "geometry": { "type": "Point", "coordinates": [ 6.943359, 47.010226 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Lausanne" }, "geometry": { "type": "Point", "coordinates": [ 6.635742, 46.528635 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Annecy" }, "geometry": { "type": "Point", "coordinates": [ 6.108398, 45.890008 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Fribourg" }, "geometry": { "type": "Point", "coordinates": [ 7.163086, 46.800059 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Bern" }, "geometry": { "type": "Point", "coordinates": [ 7.470703, 46.920255 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Sion" }, "geometry": { "type": "Point", "coordinates": [ 7.338867, 46.225453 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Sarnen" }, "geometry": { "type": "Point", "coordinates": [ 8.261719, 46.890232 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Stans" }, "geometry": { "type": "Point", "coordinates": [ 8.393555, 46.950262 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Aosta" }, "geometry": { "type": "Point", "coordinates": [ 7.294922, 45.736860 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Stuttgart" }, "geometry": { "type": "Point", "coordinates": [ 9.184570, 48.777913 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Schaffhausen" }, "geometry": { "type": "Point", "coordinates": [ 8.613281, 47.694974 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Frauenfeld" }, "geometry": { "type": "Point", "coordinates": [ 8.920898, 47.546872 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Zürich" }, "geometry": { "type": "Point", "coordinates": [ 8.569336, 47.368594 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Zug" }, "geometry": { "type": "Point", "coordinates": [ 8.481445, 47.189712 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Glarus" }, "geometry": { "type": "Point", "coordinates": [ 9.052734, 47.040182 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Herisau" }, "geometry": { "type": "Point", "coordinates": [ 9.272461, 47.368594 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Saint Gallen" }, "geometry": { "type": "Point", "coordinates": [ 9.360352, 47.428087 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Appenzell" }, "geometry": { "type": "Point", "coordinates": [ 9.404297, 47.338823 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Bregenz" }, "geometry": { "type": "Point", "coordinates": [ 9.755859, 47.517201 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Vaduz" }, "geometry": { "type": "Point", "coordinates": [ 9.536133, 47.129951 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Ulm" }, "geometry": { "type": "Point", "coordinates": [ 10.019531, 48.400032 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Augsburg" }, "geometry": { "type": "Point", "coordinates": [ 10.898438, 48.341646 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Schwyz" }, "geometry": { "type": "Point", "coordinates": [ 8.657227, 47.010226 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Altdorf" }, "geometry": { "type": "Point", "coordinates": [ 8.657227, 46.890232 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Berlin" }, "geometry": { "type": "Point", "coordinates": [ 13.403320, 52.536273 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Magdeburg" }, "geometry": { "type": "Point", "coordinates": [ 11.601562, 52.133488 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Potsdam" }, "geometry": { "type": "Point", "coordinates": [ 13.051758, 52.402419 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Regensburg" }, "geometry": { "type": "Point", "coordinates": [ 12.128906, 49.009051 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Cottbus" }, "geometry": { "type": "Point", "coordinates": [ 14.326172, 51.781436 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Zielona Góra" }, "geometry": { "type": "Point", "coordinates": [ 15.512695, 51.944265 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "České Budějovice" }, "geometry": { "type": "Point", "coordinates": [ 14.458008, 48.980217 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Hradec Králové" }, "geometry": { "type": "Point", "coordinates": [ 15.820312, 50.205033 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Pardubice" }, "geometry": { "type": "Point", "coordinates": [ 15.776367, 50.035974 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Jihlava" }, "geometry": { "type": "Point", "coordinates": [ 15.600586, 49.410973 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Brno" }, "geometry": { "type": "Point", "coordinates": [ 16.611328, 49.210420 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Poznań" }, "geometry": { "type": "Point", "coordinates": [ 16.918945, 52.402419 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Wrocław" }, "geometry": { "type": "Point", "coordinates": [ 17.050781, 51.124213 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Opole" }, "geometry": { "type": "Point", "coordinates": [ 17.929688, 50.680797 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Olomouc" }, "geometry": { "type": "Point", "coordinates": [ 17.270508, 49.582226 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Ostrava" }, "geometry": { "type": "Point", "coordinates": [ 18.237305, 49.837982 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Zlín" }, "geometry": { "type": "Point", "coordinates": [ 17.666016, 49.239121 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Gliwice" }, "geometry": { "type": "Point", "coordinates": [ 18.676758, 50.317408 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Bytom" }, "geometry": { "type": "Point", "coordinates": [ 18.896484, 50.345460 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Katowice" }, "geometry": { "type": "Point", "coordinates": [ 19.028320, 50.261254 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Žilina" }, "geometry": { "type": "Point", "coordinates": [ 18.764648, 49.210420 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Ingolstadt" }, "geometry": { "type": "Point", "coordinates": [ 11.469727, 48.777913 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Munich" }, "geometry": { "type": "Point", "coordinates": [ 11.557617, 48.136767 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Passau" }, "geometry": { "type": "Point", "coordinates": [ 13.447266, 48.574790 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Linz" }, "geometry": { "type": "Point", "coordinates": [ 14.282227, 48.312428 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Vienna" }, "geometry": { "type": "Point", "coordinates": [ 16.347656, 48.195387 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Wiener Neustadt" }, "geometry": { "type": "Point", "coordinates": [ 16.259766, 47.813155 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Eisenstadt" }, "geometry": { "type": "Point", "coordinates": [ 16.523438, 47.842658 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Bratislava" }, "geometry": { "type": "Point", "coordinates": [ 17.138672, 48.136767 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Trnava" }, "geometry": { "type": "Point", "coordinates": [ 17.578125, 48.370848 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Győr" }, "geometry": { "type": "Point", "coordinates": [ 17.622070, 47.694974 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Banská Bystrica" }, "geometry": { "type": "Point", "coordinates": [ 19.160156, 48.719961 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Zvolen" }, "geometry": { "type": "Point", "coordinates": [ 19.116211, 48.574790 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Novi Sad" }, "geometry": { "type": "Point", "coordinates": [ 19.863281, 45.243953 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Zrenjanin" }, "geometry": { "type": "Point", "coordinates": [ 20.390625, 45.367584 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Timișoara" }, "geometry": { "type": "Point", "coordinates": [ 21.225586, 45.767523 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Reșița" }, "geometry": { "type": "Point", "coordinates": [ 21.884766, 45.305803 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Tuzla" }, "geometry": { "type": "Point", "coordinates": [ 18.676758, 44.559163 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Belgrade" }, "geometry": { "type": "Point", "coordinates": [ 20.478516, 44.809122 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Čačak" }, "geometry": { "type": "Point", "coordinates": [ 20.346680, 43.897892 ] } }
+,
+{ "type": "Feature", "properties": { "NAME": "Kragujevac" }, "geometry": { "type": "Point", "coordinates": [ 20.917969, 44.024422 ] } }
+] }
+] }
