@@ -1228,7 +1228,7 @@ clipbbox parse_clip_poly(std::string arg) {
 		exit(EXIT_ARGS);
 	}
 
-	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false);
+	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false, false);
 	json_end(jp);
 
 	clipbbox out;
@@ -1539,10 +1539,16 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 		for (auto const &c_world : clipbboxes) {
 			clipbbox c = c_world;
+
 			c.minx = std::llround((c_world.minx - dx) * scale);
 			c.miny = std::llround((c_world.miny - dy) * scale);
 			c.maxx = std::llround((c_world.maxx - dx) * scale);
 			c.maxy = std::llround((c_world.maxy - dy) * scale);
+
+			for (auto &p : c.dv) {
+				p.x = std::llround((p.x - dx) * scale);
+				p.y = std::llround((p.y - dy) * scale);
+			}
 
 			if (t == VT_POLYGON) {
 				geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);

@@ -179,7 +179,7 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 }
 
 std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, json_object *j,
-				       int z, int x, int y, long long extent, bool fix_longitudes) {
+				       int z, int x, int y, long long extent, bool fix_longitudes, bool mvt_style) {
 	json_object *geometry_type = json_hash_get(geometry, "type");
 	if (geometry_type == NULL) {
 		fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
@@ -291,8 +291,11 @@ std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, jso
 		}
 	}
 	dv = remove_noop(dv, mb_geometry[t], 0);
-	if (mb_geometry[t] == VT_POLYGON) {
-		dv = close_poly(dv);
+
+	if (mvt_style) {
+		if (mb_geometry[t] == VT_POLYGON) {
+			dv = close_poly(dv);
+		}
 	}
 
 	return std::pair<int, drawvec>(t, dv);
@@ -364,7 +367,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			exit(EXIT_JSON);
 		}
 
-		std::pair<int, drawvec> parsed_geometry = parse_geometry(geometry, jp, j, z, x, y, extent, fix_longitudes);
+		std::pair<int, drawvec> parsed_geometry = parse_geometry(geometry, jp, j, z, x, y, extent, fix_longitudes, true);
 
 		int t = parsed_geometry.first;
 		drawvec &dv = parsed_geometry.second;
