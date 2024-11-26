@@ -460,6 +460,51 @@ drawvec clip_point_poly(drawvec &geom, drawvec const &bounds) {
 	return out;
 }
 
+static Clipper2Lib::Paths64 geom_to_clipper(drawvec const &geom) {
+	Clipper2Lib::Paths64 subject;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			Clipper2Lib::Path64 path({{geom[i].x, geom[i].y}});
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+				path.emplace_back(geom[j].x, geom[j].y);
+			}
+			subject.push_back(path);
+		}
+	}
+
+	return subject;
+}
+
+static void clipper_to_geom(Clipper2Lib::Paths64 const &geom, drawvec &out) {
+	for (auto const &ring : geom) {
+		for (size_t i = 0; i < ring.size(); i++) {
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x, ring[i].y);
+		}
+	}
+}
+
+drawvec clip_lines(drawvec const &geom, drawvec const &region) {
+	Clipper2Lib::Paths64 subject = geom_to_clipper(geom);
+	Clipper2Lib::Paths64 clip = geom_to_clipper(region);
+
+	Clipper2Lib::Clipper64 clipper;
+	clipper.AddOpenSubject(subject);
+	clipper.AddClip(clip);
+
+	Clipper2Lib::Paths64 solution, open_solution;
+	clipper.Execute(Clipper2Lib::ClipType::Intersection, Clipper2Lib::FillRule::Positive, solution, open_solution);
+
+	drawvec out;
+	clipper_to_geom(solution, out);
+	clipper_to_geom(open_solution, out);
+	return out;
+}
+
 void to_tile_scale(drawvec &geom, int z, int detail) {
 	if (32 - detail - z < 0) {
 		for (size_t i = 0; i < geom.size(); i++) {
@@ -1492,19 +1537,28 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 		long long dy = (long long) ny << (32 - nz);
 		double scale = (double) outlayer.extent / (1LL << (32 - nz));
 
-		for (auto const &c : clipbboxes) {
-			clipbbox local;
-			local.minx = std::llround((c.minx - dx) * scale);
-			local.miny = std::llround((c.miny - dy) * scale);
-			local.maxx = std::llround((c.maxx - dx) * scale);
-			local.maxy = std::llround((c.maxy - dy) * scale);
+		for (auto const &c_world : clipbboxes) {
+			clipbbox c = c_world;
+			c.minx = std::llround((c_world.minx - dx) * scale);
+			c.miny = std::llround((c_world.miny - dy) * scale);
+			c.maxx = std::llround((c_world.maxx - dx) * scale);
+			c.maxy = std::llround((c_world.maxy - dy) * scale);
 
 			if (t == VT_POLYGON) {
-				geom = simple_clip_poly(geom, local.minx, local.miny, local.maxx, local.maxy, false);
+				geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_poly(geom, c.dv);
+				}
 			} else if (t == VT_LINE) {
-				geom = clip_lines(geom, local.minx, local.miny, local.maxx, local.maxy);
+				geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_lines(geom, c.dv);
+				}
 			} else if (t == VT_POINT) {
-				geom = clip_point(geom, local.minx, local.miny, local.maxx, local.maxy);
+				geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_point_poly(geom, c.dv);
+				}
 			}
 		}
 
@@ -1938,51 +1992,6 @@ mvt_tile assign_to_bins(mvt_tile &features,
 	mvt_tile ret;
 	ret.layers.push_back(outlayer);
 	return ret;
-}
-
-static Clipper2Lib::Paths64 geom_to_clipper(drawvec const &geom) {
-	Clipper2Lib::Paths64 subject;
-
-	for (size_t i = 0; i < geom.size(); i++) {
-		if (geom[i].op == VT_MOVETO) {
-			Clipper2Lib::Path64 path({{geom[i].x, geom[i].y}});
-			size_t j;
-			for (j = i + 1; j < geom.size(); j++) {
-				if (geom[j].op != VT_LINETO) {
-					break;
-				}
-				path.emplace_back(geom[j].x, geom[j].y);
-			}
-			subject.push_back(path);
-		}
-	}
-
-	return subject;
-}
-
-static void clipper_to_geom(Clipper2Lib::Paths64 const &geom, drawvec &out) {
-	for (auto const &ring : geom) {
-		for (size_t i = 0; i < ring.size(); i++) {
-			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x, ring[i].y);
-		}
-	}
-}
-
-drawvec clip_lines(drawvec const &geom, drawvec const &region) {
-	Clipper2Lib::Paths64 subject = geom_to_clipper(geom);
-	Clipper2Lib::Paths64 clip = geom_to_clipper(region);
-
-	Clipper2Lib::Clipper64 clipper;
-	clipper.AddOpenSubject(subject);
-	clipper.AddClip(clip);
-
-	Clipper2Lib::Paths64 solution, open_solution;
-	clipper.Execute(Clipper2Lib::ClipType::Intersection, Clipper2Lib::FillRule::Positive, solution, open_solution);
-
-	drawvec out;
-	clipper_to_geom(solution, out);
-	clipper_to_geom(open_solution, out);
-	return out;
 }
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
