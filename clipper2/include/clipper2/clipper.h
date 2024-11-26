@@ -16,9 +16,6 @@
 
 #include "clipper2/clipper.core.h"
 #include "clipper2/clipper.engine.h"
-#include "clipper2/clipper.offset.h"
-#include "clipper2/clipper.minkowski.h"
-#include "clipper2/clipper.rectclip.h"
 
 namespace Clipper2Lib {
 
@@ -132,35 +129,6 @@ namespace Clipper2Lib {
     return BooleanOp(ClipType::Xor, fillrule, subjects, clips, decimal_prec);
   }
 
-  inline Paths64 InflatePaths(const Paths64& paths, double delta,
-    JoinType jt, EndType et, double miter_limit = 2.0,
-    double arc_tolerance = 0.0)
-  {
-    if (!delta) return paths;
-    ClipperOffset clip_offset(miter_limit, arc_tolerance);
-    clip_offset.AddPaths(paths, jt, et);
-    Paths64 solution;
-    clip_offset.Execute(delta, solution);
-    return solution;
-  }
-
-  inline PathsD InflatePaths(const PathsD& paths, double delta,
-    JoinType jt, EndType et, double miter_limit = 2.0,
-    int precision = 2, double arc_tolerance = 0.0)
-  {
-    int error_code = 0;
-    CheckPrecisionRange(precision, error_code);
-    if (!delta) return paths;
-    if (error_code) return PathsD();
-    const double scale = std::pow(10, precision);
-    ClipperOffset clip_offset(miter_limit, arc_tolerance);
-    clip_offset.AddPaths(ScalePaths<int64_t,double>(paths, scale, error_code), jt, et);
-    if (error_code) return PathsD();
-    Paths64 solution;
-    clip_offset.Execute(delta * scale, solution);
-    return ScalePaths<double, int64_t>(solution, 1 / scale, error_code);
-  }
-
   template <typename T>
   inline Path<T> TranslatePath(const Path<T>& path, T dx, T dy)
   {
@@ -199,72 +167,6 @@ namespace Clipper2Lib {
   inline PathsD TranslatePaths(const PathsD& paths, double dx, double dy)
   {
     return TranslatePaths<double>(paths, dx, dy);
-  }
-
-  inline Paths64 RectClip(const Rect64& rect, const Paths64& paths)
-  {
-    if (rect.IsEmpty() || paths.empty()) return Paths64();
-    RectClip64 rc(rect);
-    return rc.Execute(paths);
-  }
-
-  inline Paths64 RectClip(const Rect64& rect, const Path64& path)
-  {
-    if (rect.IsEmpty() || path.empty()) return Paths64();
-    RectClip64 rc(rect);
-    return rc.Execute(Paths64{ path });
-  }
-
-  inline PathsD RectClip(const RectD& rect, const PathsD& paths, int precision = 2)
-  {
-    if (rect.IsEmpty() || paths.empty()) return PathsD();
-    int error_code = 0;
-    CheckPrecisionRange(precision, error_code);
-    if (error_code) return PathsD();
-    const double scale = std::pow(10, precision);
-    Rect64 r = ScaleRect<int64_t, double>(rect, scale);
-    RectClip64 rc(r);
-    Paths64 pp = ScalePaths<int64_t, double>(paths, scale, error_code);
-    if (error_code) return PathsD(); // ie: error_code result is lost
-    return ScalePaths<double, int64_t>(
-      rc.Execute(pp), 1 / scale, error_code);
-  }
-
-  inline PathsD RectClip(const RectD& rect, const PathD& path, int precision = 2)
-  {
-    return RectClip(rect, PathsD{ path }, precision);
-  }
-
-  inline Paths64 RectClipLines(const Rect64& rect, const Paths64& lines)
-  {
-    if (rect.IsEmpty() || lines.empty()) return Paths64();
-    RectClipLines64 rcl(rect);
-    return rcl.Execute(lines);
-  }
-
-  inline Paths64 RectClipLines(const Rect64& rect, const Path64& line)
-  {
-    return RectClipLines(rect, Paths64{ line });
-  }
-
-  inline PathsD RectClipLines(const RectD& rect, const PathsD& lines, int precision = 2)
-  {
-    if (rect.IsEmpty() || lines.empty()) return PathsD();
-    int error_code = 0;
-    CheckPrecisionRange(precision, error_code);
-    if (error_code) return PathsD();
-    const double scale = std::pow(10, precision);
-    Rect64 r = ScaleRect<int64_t, double>(rect, scale);
-    RectClipLines64 rcl(r);
-    Paths64 p = ScalePaths<int64_t, double>(lines, scale, error_code);
-    if (error_code) return PathsD();
-    p = rcl.Execute(p);
-    return ScalePaths<double, int64_t>(p, 1 / scale, error_code);
-  }
-
-  inline PathsD RectClipLines(const RectD& rect, const PathD& line, int precision = 2)
-  {
-    return RectClipLines(rect, PathsD{ line }, precision);
   }
 
   namespace details
