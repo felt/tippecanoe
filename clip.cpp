@@ -387,7 +387,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 	return ret;
 }
 
-drawvec clip_poly(drawvec &geom, drawvec const &bounds) {
+drawvec clip_poly_poly(drawvec &geom, drawvec const &bounds) {
 	geom = remove_noop(geom, VT_POLYGON, 0);
 	mapbox::geometry::multi_polygon<long long> result;
 
@@ -488,7 +488,7 @@ static void clipper_to_geom(Clipper2Lib::Paths64 const &geom, drawvec &out) {
 	}
 }
 
-drawvec clip_lines(drawvec const &geom, drawvec const &region) {
+drawvec clip_lines_poly(drawvec const &geom, drawvec const &region) {
 	Clipper2Lib::Paths64 subject = geom_to_clipper(geom);
 	Clipper2Lib::Paths64 clip = geom_to_clipper(region);
 
@@ -1553,12 +1553,12 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			if (t == VT_POLYGON) {
 				geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
 				if (c.dv.size() > 0 && geom.size() > 0) {
-					geom = clip_poly(geom, c.dv);
+					geom = clip_poly_poly(geom, c.dv);
 				}
 			} else if (t == VT_LINE) {
 				geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
 				if (c.dv.size() > 0 && geom.size() > 0) {
-					geom = clip_lines(geom, c.dv);
+					geom = clip_lines_poly(geom, c.dv);
 				}
 			} else if (t == VT_POINT) {
 				geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
@@ -2081,12 +2081,12 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 						if (t == VT_POLYGON) {
 							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
 							if (c.dv.size() > 0 && geom.size() > 0) {
-								geom = clip_poly(geom, c.dv);
+								geom = clip_poly_poly(geom, c.dv);
 							}
 						} else if (t == VT_LINE) {
 							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
 							if (c.dv.size() > 0 && geom.size() > 0) {
-								geom = clip_lines(geom, c.dv);
+								geom = clip_lines_poly(geom, c.dv);
 							}
 						} else if (t == VT_POINT) {
 							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
