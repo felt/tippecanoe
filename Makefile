@@ -424,6 +424,11 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/places-1-1-0-clip.pbf 1 1 0 > tests/pbf/places-1-1-0-clip.json.check
 	cmp tests/pbf/places-1-1-0-clip.json.check tests/pbf/places-1-1-0-clip.json
 	rm tests/pbf/places-1-1-0-clip.pbf tests/pbf/places-1-1-0-clip.json.check
+	# Polygon clipping, with excessively large clip region
+	./tippecanoe-overzoom -b10 -o tests/pbf/countries-8-135-86-bigclip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/countries-1-1-0.pbf 1/1/0 8/135/86
+	./tippecanoe-decode tests/pbf/countries-8-135-86-bigclip.pbf 8 135 86 > tests/pbf/countries-8-135-86-bigclip.json.check
+	cmp tests/pbf/countries-8-135-86-bigclip.json.check tests/pbf/countries-8-135-86-bigclip.json
+	rm tests/pbf/countries-8-135-86-bigclip.pbf tests/pbf/countries-8-135-86-bigclip.json.check
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
