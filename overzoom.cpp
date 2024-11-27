@@ -259,6 +259,34 @@ int main(int argc, char **argv) {
 		fclose(f);
 	}
 
+	// clip the clip polygons, if any, to the tile bounds,
+	// to reduce their complexity
+
+	if (clipbboxes.size() > 0) {
+		long long wx1 = (nx - buffer / 256.0) * (1LL << (32 - nz));
+		long long wy1 = (ny - buffer / 256.0) * (1LL << (32 - nz));
+		long long wx2 = (nx + 1 + buffer / 256.0) * (1LL << (32 - nz));
+		long long wy2 = (ny + 1 + buffer / 256.0) * (1LL << (32 - nz));
+
+		drawvec tile_bounds;
+		tile_bounds.emplace_back(VT_MOVETO, wx1, wy1);
+		tile_bounds.emplace_back(VT_LINETO, wx2, wy1);
+		tile_bounds.emplace_back(VT_LINETO, wx2, wy2);
+		tile_bounds.emplace_back(VT_LINETO, wx1, wy2);
+		tile_bounds.emplace_back(VT_LINETO, wx1, wy1);
+
+		for (auto &c : clipbboxes) {
+			c.minx = std::max(c.minx, wx1);
+			c.miny = std::max(c.miny, wy1);
+			c.maxx = std::min(c.maxx, wx2);
+			c.maxy = std::min(c.maxy, wy2);
+
+			if (c.dv.size() > 0) {
+				c.dv = clip_poly_poly(c.dv, tile_bounds);
+			}
+		}
+	}
+
 	json_object *json_filter = NULL;
 	if (filter.size() > 0) {
 		json_filter = parse_filter(filter.c_str());

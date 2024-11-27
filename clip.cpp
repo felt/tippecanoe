@@ -387,8 +387,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 	return ret;
 }
 
-drawvec clip_poly_poly(drawvec &geom, drawvec const &bounds) {
-	geom = remove_noop(geom, VT_POLYGON, 0);
+drawvec clip_poly_poly(drawvec const &geom, drawvec const &bounds) {
 	mapbox::geometry::multi_polygon<long long> result;
 
 	{
@@ -450,7 +449,7 @@ drawvec clip_poly_poly(drawvec &geom, drawvec const &bounds) {
 	return ret;
 }
 
-drawvec clip_point_poly(drawvec &geom, drawvec const &bounds) {
+drawvec clip_point_poly(drawvec const &geom, drawvec const &bounds) {
 	drawvec out;
 	for (auto const &p : geom) {
 		if (pnpoly_mp(bounds, p.x, p.y)) {

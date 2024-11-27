@@ -102,6 +102,10 @@ int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, lon
 bool pnpoly_mp(drawvec const &geom, long long x, long long y);
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
 
+drawvec clip_poly_poly(drawvec const &geom, drawvec const &bounds);
+drawvec clip_lines_poly(drawvec const &geom, drawvec const &bounds);
+drawvec clip_point_poly(drawvec const &geom, drawvec const &bounds);
+
 struct input_tile {
 	std::string tile;
 	int z;
