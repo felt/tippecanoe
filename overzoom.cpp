@@ -69,7 +69,6 @@ int main(int argc, char **argv) {
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
 		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
 		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
-		{"numeric-attributes", required_argument, 0, 'a' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
