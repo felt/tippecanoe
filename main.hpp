@@ -24,18 +24,6 @@ struct index {
 	}
 };
 
-struct clipbbox {
-	double lon1;
-	double lat1;
-	double lon2;
-	double lat2;
-
-	long long minx;
-	long long miny;
-	long long maxx;
-	long long maxy;
-};
-
 extern std::vector<clipbbox> clipbboxes;
 
 void checkdisk(std::vector<struct reader> *r);

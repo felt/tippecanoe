@@ -4,6 +4,7 @@
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
 #include <mapbox/geometry/wagyu/wagyu.hpp>
+#include <clipper2/clipper.h>
 #include <limits.h>
 #include "geometry.hpp"
 #include "errors.hpp"
@@ -13,6 +14,7 @@
 #include "serial.hpp"
 #include "attribute.hpp"
 #include "projection.hpp"
+#include "read_json.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -383,6 +385,123 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 	drawvec ret;
 	decode_clipped(result, ret, scale);
 	return ret;
+}
+
+drawvec clip_poly_poly(drawvec const &geom, drawvec const &bounds) {
+	mapbox::geometry::multi_polygon<long long> result;
+
+	{
+		mapbox::geometry::wagyu::wagyu<long long> wagyu;
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				mapbox::geometry::linear_ring<long long> lr;
+				lr.push_back(mapbox::geometry::point<long long>(geom[i].x, geom[i].y));
+
+				size_t j;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+					lr.push_back(mapbox::geometry::point<long long>(geom[j].x, geom[j].y));
+				}
+
+				if (lr.size() >= 4) {
+					wagyu.add_ring(lr);
+				}
+
+				i = j - 1;
+			}
+		}
+
+		for (size_t i = 0; i < bounds.size(); i++) {
+			if (bounds[i].op == VT_MOVETO) {
+				mapbox::geometry::linear_ring<long long> lr;
+				lr.push_back(mapbox::geometry::point<long long>(bounds[i].x, bounds[i].y));
+
+				size_t j;
+				for (j = i + 1; j < bounds.size(); j++) {
+					if (bounds[j].op != VT_LINETO) {
+						break;
+					}
+					lr.push_back(mapbox::geometry::point<long long>(bounds[j].x, bounds[j].y));
+				}
+
+				if (lr.size() >= 4) {
+					wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
+				}
+
+				i = j - 1;
+			}
+		}
+
+		try {
+			result.clear();
+			wagyu.execute(mapbox::geometry::wagyu::clip_type_intersection, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+		} catch (std::runtime_error &e) {
+			fprintf(stderr, "Internal error: Polygon clipping failed\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	drawvec ret;
+	decode_clipped(result, ret, 1);
+	return ret;
+}
+
+drawvec clip_point_poly(drawvec const &geom, drawvec const &bounds) {
+	drawvec out;
+	for (auto const &p : geom) {
+		if (pnpoly_mp(bounds, p.x, p.y)) {
+			out.push_back(p);
+		}
+	}
+	return out;
+}
+
+static Clipper2Lib::Paths64 geom_to_clipper(drawvec const &geom) {
+	Clipper2Lib::Paths64 subject;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			Clipper2Lib::Path64 path({{geom[i].x, geom[i].y}});
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+				path.emplace_back(geom[j].x, geom[j].y);
+			}
+			subject.push_back(path);
+		}
+	}
+
+	return subject;
+}
+
+static void clipper_to_geom(Clipper2Lib::Paths64 const &geom, drawvec &out) {
+	for (auto const &ring : geom) {
+		for (size_t i = 0; i < ring.size(); i++) {
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x, ring[i].y);
+		}
+	}
+}
+
+drawvec clip_lines_poly(drawvec const &geom, drawvec const &region) {
+	Clipper2Lib::Paths64 subject = geom_to_clipper(geom);
+	Clipper2Lib::Paths64 clip = geom_to_clipper(region);
+
+	Clipper2Lib::Clipper64 clipper;
+	clipper.AddOpenSubject(subject);
+	clipper.AddClip(clip);
+
+	Clipper2Lib::Paths64 solution, open_solution;
+	clipper.Execute(Clipper2Lib::ClipType::Intersection, Clipper2Lib::FillRule::Positive, solution, open_solution);
+
+	drawvec out;
+	clipper_to_geom(solution, out);
+	clipper_to_geom(open_solution, out);
+	return out;
 }
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
@@ -1075,6 +1194,68 @@ bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) 
 	return found;
 }
 
+bool pnpoly_mp(drawvec const &geom, long long x, long long y) {
+	// assumes rings are properly nested, so inside a hole matches twice
+	bool found = false;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			found ^= pnpoly(geom, i, j - i, x, y);
+			i = j - 1;
+		}
+	}
+
+	return found;
+}
+
+clipbbox parse_clip_poly(std::string arg) {
+	json_pull *jp = json_begin_string(arg.c_str());
+	json_object *j = json_read_tree(jp);
+	if (j == NULL) {
+		fprintf(stderr, "Expected JSON object, not %s\n", arg.c_str());
+		exit(EXIT_ARGS);
+	}
+	if (j->type != JSON_HASH) {
+		fprintf(stderr, "Expected JSON geometry object, not %s\n", arg.c_str());
+		exit(EXIT_ARGS);
+	}
+
+	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false, false);
+	json_end(jp);
+
+	clipbbox out;
+	out.minx = LLONG_MAX;
+	out.miny = LLONG_MAX;
+	out.maxx = LLONG_MIN;
+	out.maxy = LLONG_MIN;
+	for (auto const &d : parsed_geometry.second) {
+		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
+			if (d.x < out.minx) {
+				out.minx = d.x;
+			}
+			if (d.y < out.miny) {
+				out.miny = d.y;
+			}
+			if (d.x > out.maxx) {
+				out.maxx = d.x;
+			}
+			if (d.y > out.maxy) {
+				out.maxy = d.y;
+			}
+		}
+	}
+	out.dv = std::move(parsed_geometry.second);
+
+	return out;
+}
+
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail_or_unspecified, int buffer,
 		     std::set<std::string> const &keep,
@@ -1087,7 +1268,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric, size_t feature_limit) {
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1113,7 +1295,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit, clipbboxes);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1317,28 +1499,80 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::vector<std::string> const &exclude_prefix,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &accumulate_numeric,
-			key_pool &key_pool, int buffer, bool include_nonaggregate) {
+			key_pool &key_pool, int buffer, bool include_nonaggregate,
+			std::vector<clipbbox> const &clipbboxes, int nz, int nx, int ny) {
 	// Add geometry to output feature
 
 	drawvec geom = features[0].geom;
-	if (buffer >= 0) {
-		int t = features[0].t;
+	int t = features[0].t;
 
+	bool fix_polygons = false;
+	if ((buffer >= 0 || clipbboxes.size() > 0) && t == VT_POLYGON) {
+		fix_polygons = true;
+	}
+
+	if (fix_polygons) {
+		handle_closepath_from_mvt(geom);
+	}
+
+	if (buffer >= 0) {
 		if (t == VT_LINE) {
 			geom = clip_lines(geom, 32 - outlayer.detail(), buffer);
 		} else if (t == VT_POLYGON) {
 			drawvec dv;
-			handle_closepath_from_mvt(geom);
 			geom = simple_clip_poly(geom, 32 - outlayer.detail(), buffer, dv, false);
 		} else if (t == VT_POINT) {
 			geom = clip_point(geom, 32 - outlayer.detail(), buffer);
 		}
 
 		geom = remove_noop(geom, t, 0);
-		if (t == VT_POLYGON) {
-			geom = clean_or_clip_poly(geom, 0, 0, false, false);
-			geom = close_poly(geom);
+	}
+
+	if (clipbboxes.size() != 0) {
+		// bounding box is in world coordinates at world scale
+		// feature is in local coordinates at tile scale
+
+		long long dx = (long long) nx << (32 - nz);
+		long long dy = (long long) ny << (32 - nz);
+		double scale = (double) outlayer.extent / (1LL << (32 - nz));
+
+		for (auto const &c_world : clipbboxes) {
+			clipbbox c = c_world;
+
+			c.minx = std::llround((c_world.minx - dx) * scale);
+			c.miny = std::llround((c_world.miny - dy) * scale);
+			c.maxx = std::llround((c_world.maxx - dx) * scale);
+			c.maxy = std::llround((c_world.maxy - dy) * scale);
+
+			for (auto &p : c.dv) {
+				p.x = std::llround((p.x - dx) * scale);
+				p.y = std::llround((p.y - dy) * scale);
+			}
+
+			if (t == VT_POLYGON) {
+				geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_poly_poly(geom, c.dv);
+				}
+			} else if (t == VT_LINE) {
+				geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_lines_poly(geom, c.dv);
+				}
+			} else if (t == VT_POINT) {
+				geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_point_poly(geom, c.dv);
+				}
+			}
 		}
+
+		geom = remove_noop(geom, t, 0);
+	}
+
+	if (fix_polygons) {
+		geom = clean_or_clip_poly(geom, 0, 0, false, false);
+		geom = close_poly(geom);
 	}
 
 	mvt_feature outfeature;
@@ -1577,7 +1811,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 			std::set<std::string> keep,
 			std::set<std::string> exclude,
 			std::vector<std::string> exclude_prefix,
-			int buffer) {
+			int buffer, std::vector<clipbbox> const &clipbboxes) {
 	std::vector<index_event> events;
 	key_pool key_pool;
 
@@ -1740,7 +1974,8 @@ mvt_tile assign_to_bins(mvt_tile &features,
 		if (outfeatures[i].size() > 1) {
 			if (feature_out(outfeatures[i], outlayer,
 					keep, exclude, exclude_prefix, attribute_accum,
-					accumulate_numeric, key_pool, buffer, true)) {
+					accumulate_numeric, key_pool, buffer, true,
+					clipbboxes, z, x, y)) {
 				mvt_feature &nfeature = outlayer.features.back();
 				mvt_value val;
 				val.type = mvt_uint;
@@ -1776,7 +2011,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric, size_t feature_limit) {
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes) {
 	mvt_tile outtile;
 	key_pool key_pool;
 
@@ -1836,8 +2072,32 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					}
 				}
 
+				// Clip to user-specified bounding boxes.
+				// Bounding box clip first, to reduce complexity of the full clip.
+				// But don't clip here if we are binning, because we need to bin points in the buffer
+				if (bins.size() == 0) {
+					for (auto &c : clipbboxes) {
+						if (t == VT_POLYGON) {
+							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_poly_poly(geom, c.dv);
+							}
+						} else if (t == VT_LINE) {
+							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_lines_poly(geom, c.dv);
+							}
+						} else if (t == VT_POINT) {
+							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_point_poly(geom, c.dv);
+							}
+						}
+					}
+				}
+
 				// Now offset from world coordinates to output tile coordinates,
-				// but retain world scale, because that is what tippecanoe clipping expects
+				// but retain world scale, because that is what tippecanoe zoom-oriented clipping expects
 
 				long long outtilesize = 1LL << (32 - nz);  // destination tile size in world coordinates
 				for (auto &g : geom) {
@@ -1903,7 +2163,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
 						if (outlayer->features.size() >= feature_limit) {
 							break;
 						}
@@ -1963,7 +2223,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
 				pending_tile_features.clear();
 				if (outlayer->features.size() >= feature_limit) {
 					break;
@@ -2003,7 +2263,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 								     detail_or_unspecified, buffer, keep, exclude, exclude_prefix, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data,
 								     simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric,
-								     1);
+								     1, clipbboxes);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
@@ -2015,7 +2275,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	if (bins.size() > 0) {
 		outtile = assign_to_bins(outtile, bins, bin_by_id_list, nz, nx, ny,
 					 attribute_accum, accumulate_numeric,
-					 keep, exclude, exclude_prefix, buffer);
+					 keep, exclude, exclude_prefix, buffer, clipbboxes);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {

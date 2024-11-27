@@ -2380,6 +2380,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			double want = nearby_ft / 2;
 
 			maxzoom = ceil(log(360 / (.00000274 * want)) / log(2) - full_detail);
+			if (maxzoom < 0) {
+				maxzoom = 0;
+			}
 			if (!quiet) {
 				fprintf(stderr,
 					"Choosing a maxzoom of -z%d for features typically %d feet (%d meters) apart, ",

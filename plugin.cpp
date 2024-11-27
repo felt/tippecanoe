@@ -223,7 +223,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 		}
 
 		drawvec dv;
-		parse_geometry(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
+		parse_coordinates(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
 		if (mb_geometry[t] == VT_POLYGON) {
 			dv = fix_polygon(dv, false, false);
 		}
