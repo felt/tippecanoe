@@ -700,7 +700,7 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 
 	m.strategies_json = stringify_strategies(strategies);
 
-	if (isinf(droprate)) {
+	if (std::isinf(droprate)) {
 		droprate = LLONG_MAX;
 	}
 	if (basezoom != maxzoom || droprate != 2.5 || retain_points_multiplier != 1) {
