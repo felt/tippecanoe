@@ -1,0 +1,7 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "parsed", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 510, "properties": { "bldgsqft": 1765, "felt:sum:bldgsqft": 4857699 }, "geometry": { "type": "Point", "coordinates": [ -122.343750, 37.718590 ] } }
+,
+{ "type": "Feature", "id": 514, "properties": { "bldgsqft": 3050 }, "geometry": { "type": "Point", "coordinates": [ -122.343750, 37.718590 ] } }
+] }
+] }

@@ -99,7 +99,12 @@ drawvec clip_lines(drawvec &geom, long long x1, long long y1, long long x2, long
 drawvec clip_point(drawvec &geom, long long x1, long long y1, long long x2, long long y2);
 void visvalingam(drawvec &ls, size_t start, size_t end, double threshold, size_t retain);
 int pnpoly(const drawvec &vert, size_t start, size_t nvert, long long testx, long long testy);
+bool pnpoly_mp(drawvec const &geom, long long x, long long y);
 double distance_from_line(long long point_x, long long point_y, long long segA_x, long long segA_y, long long segB_x, long long segB_y);
+
+drawvec clip_poly_poly(drawvec const &geom, drawvec const &bounds);
+drawvec clip_lines_poly(drawvec const &geom, drawvec const &bounds);
+drawvec clip_point_poly(drawvec const &geom, drawvec const &bounds);
 
 struct input_tile {
 	std::string tile;
@@ -115,6 +120,20 @@ struct source_tile {
 	int y;
 };
 
+struct clipbbox {
+	double lon1;
+	double lat1;
+	double lon2;
+	double lat2;
+
+	long long minx;
+	long long miny;
+	long long maxx;
+	long long maxy;
+
+	drawvec dv;  // empty, or arbitrary clipping polygon
+};
+
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer,
 		     std::set<std::string> const &keep,
@@ -127,7 +146,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric);
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer,
@@ -141,11 +161,14 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric);
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes);
 
 draw center_of_mass_mp(const drawvec &dv);
 
 void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
 			unsigned long long *start, unsigned long long *end);
+
+clipbbox parse_clip_poly(std::string arg);
 
 #endif

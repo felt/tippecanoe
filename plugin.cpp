@@ -55,7 +55,7 @@ void *run_writer(void *a) {
 
 	json_writer state(fp);
 	for (size_t i = 0; i < wa->layers->size(); i++) {
-		layer_to_geojson((*(wa->layers))[i], wa->z, wa->x, wa->y, false, true, false, true, 0, 0, 0, true, state, 0);
+		layer_to_geojson((*(wa->layers))[i], wa->z, wa->x, wa->y, false, true, false, true, 0, 0, 0, true, state, 0, std::set<std::string>());
 	}
 
 	if (fclose(fp) != 0) {
@@ -145,7 +145,7 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 }
 
 // Reads from the prefilter
-serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, bool postfilter) {
+serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, bool postfilter, key_pool &key_pool) {
 	serial_feature sf;
 
 	while (1) {
@@ -223,7 +223,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 		}
 
 		drawvec dv;
-		parse_geometry(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
+		parse_coordinates(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
 		if (mb_geometry[t] == VT_POLYGON) {
 			dv = fix_polygon(dv, false, false);
 		}
@@ -354,7 +354,7 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 				// would have already run before prefiltering
 
 				if (v.type != mvt_null) {
-					sf.full_keys.push_back(std::string(properties->value.object.keys[i]->value.string.string));
+					sf.full_keys.push_back(key_pool.pool(std::string(properties->value.object.keys[i]->value.string.string)));
 					sf.full_values.push_back(v);
 
 					if (!postfilter) {

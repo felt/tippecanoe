@@ -1,3 +1,38 @@
+# 2.71.0
+
+* Add --clip-bounding-box and --clip-polygon options to tippecanoe-overzoom
+
+# 2.70.1
+
+* Raise tippecanoe-decode limit on the size of individual tiles
+
+# 2.70.0
+
+* Performance improvements to tippecanoe-overzoom with attribute exclusion
+
+# 2.69.0
+
+* Fix crash when the first bin gets clipped away
+
+# 2.68.0
+
+* Adds `--no-tile-compression` option to `tippecanoe-overzoom`
+* Make `tippecanoe-overzoom` clip the output tile to the tile buffer after assigning points to bins
+* Adds `--include`/`-y` option to `tippecanoe-decode` to decode only specified attributes
+* Cleans up some inconsistent handling of variable tile extents in overzooming code
+* Speeds up overzooming slightly in `tile-join` by doing less preflighting to discover which child tiles contain features
+
+# 2.67.0
+
+* Reduce memory consumption of duplicate attribute names in `serial_feature`
+* The maxzoom guess calculation now takes into account the number of duplicate feature locations
+
+# 2.66.0
+
+* Only bin by ID, not by geometry, if --bin-by-id-list is specified
+* Do attribute accumulation in overzoom in mvt_value instead of converting to serial_val
+* Fix bool values read from flatgeobuf sources (#289)
+
 # 2.65.0
 
 * Improve spatial distribution of --retain-points-multiplier features

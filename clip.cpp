@@ -4,6 +4,7 @@
 #include <mapbox/geometry/point.hpp>
 #include <mapbox/geometry/multi_polygon.hpp>
 #include <mapbox/geometry/wagyu/wagyu.hpp>
+#include <clipper2/clipper.h>
 #include <limits.h>
 #include "geometry.hpp"
 #include "errors.hpp"
@@ -13,6 +14,7 @@
 #include "serial.hpp"
 #include "attribute.hpp"
 #include "projection.hpp"
+#include "read_json.hpp"
 
 static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
 							 long long minx, long long miny, long long maxx, long long maxy,
@@ -383,6 +385,123 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 	drawvec ret;
 	decode_clipped(result, ret, scale);
 	return ret;
+}
+
+drawvec clip_poly_poly(drawvec const &geom, drawvec const &bounds) {
+	mapbox::geometry::multi_polygon<long long> result;
+
+	{
+		mapbox::geometry::wagyu::wagyu<long long> wagyu;
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_MOVETO) {
+				mapbox::geometry::linear_ring<long long> lr;
+				lr.push_back(mapbox::geometry::point<long long>(geom[i].x, geom[i].y));
+
+				size_t j;
+				for (j = i + 1; j < geom.size(); j++) {
+					if (geom[j].op != VT_LINETO) {
+						break;
+					}
+					lr.push_back(mapbox::geometry::point<long long>(geom[j].x, geom[j].y));
+				}
+
+				if (lr.size() >= 4) {
+					wagyu.add_ring(lr);
+				}
+
+				i = j - 1;
+			}
+		}
+
+		for (size_t i = 0; i < bounds.size(); i++) {
+			if (bounds[i].op == VT_MOVETO) {
+				mapbox::geometry::linear_ring<long long> lr;
+				lr.push_back(mapbox::geometry::point<long long>(bounds[i].x, bounds[i].y));
+
+				size_t j;
+				for (j = i + 1; j < bounds.size(); j++) {
+					if (bounds[j].op != VT_LINETO) {
+						break;
+					}
+					lr.push_back(mapbox::geometry::point<long long>(bounds[j].x, bounds[j].y));
+				}
+
+				if (lr.size() >= 4) {
+					wagyu.add_ring(lr, mapbox::geometry::wagyu::polygon_type_clip);
+				}
+
+				i = j - 1;
+			}
+		}
+
+		try {
+			result.clear();
+			wagyu.execute(mapbox::geometry::wagyu::clip_type_intersection, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
+		} catch (std::runtime_error &e) {
+			fprintf(stderr, "Internal error: Polygon clipping failed\n");
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	drawvec ret;
+	decode_clipped(result, ret, 1);
+	return ret;
+}
+
+drawvec clip_point_poly(drawvec const &geom, drawvec const &bounds) {
+	drawvec out;
+	for (auto const &p : geom) {
+		if (pnpoly_mp(bounds, p.x, p.y)) {
+			out.push_back(p);
+		}
+	}
+	return out;
+}
+
+static Clipper2Lib::Paths64 geom_to_clipper(drawvec const &geom) {
+	Clipper2Lib::Paths64 subject;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			Clipper2Lib::Path64 path({{geom[i].x, geom[i].y}});
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+				path.emplace_back(geom[j].x, geom[j].y);
+			}
+			subject.push_back(path);
+		}
+	}
+
+	return subject;
+}
+
+static void clipper_to_geom(Clipper2Lib::Paths64 const &geom, drawvec &out) {
+	for (auto const &ring : geom) {
+		for (size_t i = 0; i < ring.size(); i++) {
+			out.emplace_back(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].x, ring[i].y);
+		}
+	}
+}
+
+drawvec clip_lines_poly(drawvec const &geom, drawvec const &region) {
+	Clipper2Lib::Paths64 subject = geom_to_clipper(geom);
+	Clipper2Lib::Paths64 clip = geom_to_clipper(region);
+
+	Clipper2Lib::Clipper64 clipper;
+	clipper.AddOpenSubject(subject);
+	clipper.AddClip(clip);
+
+	Clipper2Lib::Paths64 solution, open_solution;
+	clipper.Execute(Clipper2Lib::ClipType::Intersection, Clipper2Lib::FillRule::Positive, solution, open_solution);
+
+	drawvec out;
+	clipper_to_geom(solution, out);
+	clipper_to_geom(open_solution, out);
+	return out;
 }
 
 void to_tile_scale(drawvec &geom, int z, int detail) {
@@ -1075,8 +1194,70 @@ bool pnpoly_mp(std::vector<mvt_geometry> const &geom, long long x, long long y) 
 	return found;
 }
 
+bool pnpoly_mp(drawvec const &geom, long long x, long long y) {
+	// assumes rings are properly nested, so inside a hole matches twice
+	bool found = false;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			found ^= pnpoly(geom, i, j - i, x, y);
+			i = j - 1;
+		}
+	}
+
+	return found;
+}
+
+clipbbox parse_clip_poly(std::string arg) {
+	json_pull *jp = json_begin_string(arg.c_str());
+	json_object *j = json_read_tree(jp);
+	if (j == NULL) {
+		fprintf(stderr, "Expected JSON object, not %s\n", arg.c_str());
+		exit(EXIT_ARGS);
+	}
+	if (j->type != JSON_HASH) {
+		fprintf(stderr, "Expected JSON geometry object, not %s\n", arg.c_str());
+		exit(EXIT_ARGS);
+	}
+
+	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false, false);
+	json_end(jp);
+
+	clipbbox out;
+	out.minx = LLONG_MAX;
+	out.miny = LLONG_MAX;
+	out.maxx = LLONG_MIN;
+	out.maxy = LLONG_MIN;
+	for (auto const &d : parsed_geometry.second) {
+		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
+			if (d.x < out.minx) {
+				out.minx = d.x;
+			}
+			if (d.y < out.miny) {
+				out.miny = d.y;
+			}
+			if (d.x > out.maxx) {
+				out.maxx = d.x;
+			}
+			if (d.y > out.maxy) {
+				out.maxy = d.y;
+			}
+		}
+	}
+	out.dv = std::move(parsed_geometry.second);
+
+	return out;
+}
+
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
-		     int detail, int buffer,
+		     int detail_or_unspecified, int buffer,
 		     std::set<std::string> const &keep,
 		     std::set<std::string> const &exclude,
 		     std::vector<std::string> const &exclude_prefix,
@@ -1087,7 +1268,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric) {
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1113,7 +1295,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit, clipbboxes);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1127,7 +1309,30 @@ struct tile_feature {
 	size_t seq = 0;
 };
 
-static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &accumulate_numeric) {
+static bool should_keep(std::string const &key,
+			std::set<std::string> const &keep,
+			std::set<std::string> const &exclude,
+			std::vector<std::string> const &exclude_prefix) {
+	if (keep.size() == 0 || keep.find(key) != keep.end()) {
+		if (exclude.find(key) != exclude.end()) {
+			return false;
+		}
+
+		for (auto const &prefix : exclude_prefix) {
+			if (starts_with(key, prefix)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &accumulate_numeric,
+		     std::set<std::string> const &keep, std::set<std::string> const &exclude,
+		     std::vector<std::string> const &exclude_prefix) {
 	std::string accumulate_numeric_colon = accumulate_numeric + ":";
 
 	std::unordered_map<std::string, size_t> attributes;
@@ -1156,21 +1361,26 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &
 				mvt_value mean;
 				mean.type = mvt_double;
 				mean.numeric_value.double_value = mvt_value_to_double(sum) / count_val;
-				layer.tag(feature, accumulate_numeric + ":mean:" + trunc, mean);
+
+				if (should_keep(key, keep, exclude, exclude_prefix)) {
+					layer.tag(feature, accumulate_numeric + ":mean:" + trunc, mean);
+				}
 			}
 		}
 	}
 };
 
 // accumulate :sum:, :min:, :max:, and :count: versions of the specified attribute
-static void preserve_numeric(const std::string &key, const mvt_value &val,			  // numeric attribute being accumulated
-			     std::vector<std::string> &full_keys,				  // keys of feature being accumulated onto
-			     std::vector<serial_val> &full_values,				  // values of features being accumulated onto
-			     const std::string &accumulate_numeric,				  // prefix of accumulations
-			     std::set<std::string> &keys,					  // key presence in the source feature
-			     std::map<std::string, size_t> &numeric_out_field,			  // key index in the output feature
-			     std::unordered_map<std::string, accum_state> &attribute_accum_state  // accumulation state for preserve_attribute()
-) {
+static void preserve_numeric(const std::string &key, const mvt_value &val,			   // numeric attribute being accumulated
+			     std::vector<std::shared_ptr<std::string>> &full_keys,		   // keys of feature being accumulated onto
+			     std::vector<mvt_value> &full_values,				   // values of features being accumulated onto
+			     const std::string &accumulate_numeric,				   // prefix of accumulations
+			     std::set<std::string> &keys,					   // key presence in the source feature
+			     std::map<std::string, size_t> &numeric_out_field,			   // key index in the output feature
+			     std::unordered_map<std::string, accum_state> &attribute_accum_state,  // accumulation state for preserve_attribute()
+			     key_pool &key_pool,
+			     std::set<std::string> const &keep, std::set<std::string> const &exclude,
+			     std::vector<std::string> const &exclude_prefix) {
 	// If this is a numeric attribute, but there is also a prefix:sum (etc.) for the
 	// same attribute, we want to use that one instead of this one.
 
@@ -1203,6 +1413,10 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 			// and then put it back on for the output field
 			std::string prefixed = accumulate_numeric + ":" + op.first + ":" + outkey;
 
+			if (!should_keep(prefixed, keep, exclude, exclude_prefix)) {
+				continue;
+			}
+
 			// Does it exist in the output feature already?
 
 			auto prefixed_attr = numeric_out_field.find(prefixed);
@@ -1213,41 +1427,37 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 				if (out_attr == numeric_out_field.end()) {
 					// not present at all, so copy our value to the prefixed output
 					numeric_out_field.emplace(prefixed, full_keys.size());
-					full_keys.push_back(prefixed);
+					full_keys.push_back(key_pool.pool(prefixed));
 
 					if (op.second == op_count) {
 						if (starting_from_accumulation) {
 							// copy our count
-							full_values.push_back(mvt_value_to_serial_val(val));
+							full_values.push_back(val);
 						} else {
 							// new count of 1
-							serial_val sv;
-							sv.type = mvt_double;
-							sv.s = "1";
-							full_values.push_back(sv);
+							full_values.push_back(mvt_value(1));
 						}
 					} else {
-						full_values.push_back(mvt_value_to_serial_val(val));
+						full_values.push_back(val);
 					}
 				} else {
 					// exists unprefixed, so copy it, and then accumulate on our value
 					numeric_out_field.emplace(prefixed, full_keys.size());
-					full_keys.push_back(prefixed);
+					full_keys.push_back(key_pool.pool(prefixed));
 
 					if (op.second == op_count) {
-						serial_val sv;
-						sv.type = mvt_double;
+						mvt_value v;
 						if (starting_from_accumulation) {
 							// sum our count onto the existing 1
-							sv.s = std::to_string(1 + mvt_value_to_long_long(val));
+							v = mvt_value(1 + mvt_value_to_long_long(val));
 						} else {
 							// sum our 1 onto the existing 1
-							sv.s = "2";
+							v = mvt_value(2);
 						}
-						full_values.push_back(sv);
+						full_values.push_back(v);
 					} else {
 						full_values.push_back(full_values[out_attr->second]);
-						preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+						preserve_attribute(op.second, prefixed, val, full_keys, full_values, attribute_accum_state, key_pool);
 					}
 				}
 			} else {
@@ -1255,51 +1465,119 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			  /
 				if (op.second == op_count) {
 					if (starting_from_accumulation) {
 						// sum our count onto the existing count
-						full_values[prefixed_attr->second].s = std::to_string(atoll(full_values[prefixed_attr->second].s.c_str()) + mvt_value_to_long_long(val));
+						full_values[prefixed_attr->second] = mvt_value(mvt_value_to_long_long(full_values[prefixed_attr->second]) + mvt_value_to_long_long(val));
 					} else {
-						full_values[prefixed_attr->second].s = std::to_string(atoll(full_values[prefixed_attr->second].s.c_str()) + 1);
+						full_values[prefixed_attr->second] = mvt_value(mvt_value_to_long_long(full_values[prefixed_attr->second]) + 1);
 					}
 				} else {
-					preserve_attribute(op.second, prefixed, mvt_value_to_serial_val(val), full_keys, full_values, attribute_accum_state);
+					preserve_attribute(op.second, prefixed, val, full_keys, full_values, attribute_accum_state, key_pool);
 				}
 			}
 		}
 	}
 }
 
-static bool should_keep(std::string const &key,
-			std::set<std::string> const &keep,
-			std::set<std::string> const &exclude,
-			std::vector<std::string> const &exclude_prefix) {
-	if (keep.size() == 0 || keep.find(key) != keep.end()) {
-		if (exclude.find(key) != exclude.end()) {
-			return false;
-		}
+static void handle_closepath_from_mvt(drawvec &geom) {
+	// mvt geometries close polygons with a mvt_closepath operation
+	// tippecanoe-internal geometries close polygons with a lineto to the initial point
 
-		for (auto const &prefix : exclude_prefix) {
-			if (starts_with(key, prefix)) {
-				return false;
-			}
-		}
+	size_t last_open = 0;
 
-		return true;
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == mvt_closepath) {
+			geom[i] = draw(mvt_lineto, geom[last_open].x, geom[last_open].y);
+		} else if (geom[i].op == mvt_moveto) {
+			last_open = i;
+		}
 	}
-
-	return false;
 }
 
-static void feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
+// returns true if a feature was output; false if it was clipped away
+static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &outlayer,
 			std::set<std::string> const &keep,
 			std::set<std::string> const &exclude,
 			std::vector<std::string> const &exclude_prefix,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
-			std::shared_ptr<std::string> const &tile_stringpool,
-			std::string const &accumulate_numeric) {
+			std::string const &accumulate_numeric,
+			key_pool &key_pool, int buffer, bool include_nonaggregate,
+			std::vector<clipbbox> const &clipbboxes, int nz, int nx, int ny) {
 	// Add geometry to output feature
+
+	drawvec geom = features[0].geom;
+	int t = features[0].t;
+
+	bool fix_polygons = false;
+	if ((buffer >= 0 || clipbboxes.size() > 0) && t == VT_POLYGON) {
+		fix_polygons = true;
+	}
+
+	if (fix_polygons) {
+		handle_closepath_from_mvt(geom);
+	}
+
+	if (buffer >= 0) {
+		if (t == VT_LINE) {
+			geom = clip_lines(geom, 32 - outlayer.detail(), buffer);
+		} else if (t == VT_POLYGON) {
+			drawvec dv;
+			geom = simple_clip_poly(geom, 32 - outlayer.detail(), buffer, dv, false);
+		} else if (t == VT_POINT) {
+			geom = clip_point(geom, 32 - outlayer.detail(), buffer);
+		}
+
+		geom = remove_noop(geom, t, 0);
+	}
+
+	if (clipbboxes.size() != 0) {
+		// bounding box is in world coordinates at world scale
+		// feature is in local coordinates at tile scale
+
+		long long dx = (long long) nx << (32 - nz);
+		long long dy = (long long) ny << (32 - nz);
+		double scale = (double) outlayer.extent / (1LL << (32 - nz));
+
+		for (auto const &c_world : clipbboxes) {
+			clipbbox c = c_world;
+
+			c.minx = std::llround((c_world.minx - dx) * scale);
+			c.miny = std::llround((c_world.miny - dy) * scale);
+			c.maxx = std::llround((c_world.maxx - dx) * scale);
+			c.maxy = std::llround((c_world.maxy - dy) * scale);
+
+			for (auto &p : c.dv) {
+				p.x = std::llround((p.x - dx) * scale);
+				p.y = std::llround((p.y - dy) * scale);
+			}
+
+			if (t == VT_POLYGON) {
+				geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_poly_poly(geom, c.dv);
+				}
+			} else if (t == VT_LINE) {
+				geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_lines_poly(geom, c.dv);
+				}
+			} else if (t == VT_POINT) {
+				geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+				if (c.dv.size() > 0 && geom.size() > 0) {
+					geom = clip_point_poly(geom, c.dv);
+				}
+			}
+		}
+
+		geom = remove_noop(geom, t, 0);
+	}
+
+	if (fix_polygons) {
+		geom = clean_or_clip_poly(geom, 0, 0, false, false);
+		geom = close_poly(geom);
+	}
 
 	mvt_feature outfeature;
 	outfeature.type = features[0].t;
-	for (auto const &g : features[0].geom) {
+	for (auto const &g : geom) {
 		outfeature.geometry.emplace_back(g.op, g.x, g.y);
 	}
 
@@ -1315,31 +1593,31 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 		if (attribute_accum.size() > 0 || accumulate_numeric.size() > 0) {
 			// convert the attributes of the output feature
-			// from mvt_value to serial_val so they can have
+			// from layer references to a vector so they can have
 			// attributes from the other features of the
 			// multiplier cluster accumulated onto them
 
 			std::unordered_map<std::string, accum_state> attribute_accum_state;
-			std::vector<std::string> full_keys;
-			std::vector<serial_val> full_values;
+			std::vector<std::shared_ptr<std::string>> full_keys;
+			std::vector<mvt_value> full_values;
 			std::map<std::string, size_t> numeric_out_field;
 
-			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
-				const std::string &key = features[0].layer->keys[features[0].tags[i]];
-				auto f = attribute_accum.find(key);
-				if (f != attribute_accum.end()) {
-					// this attribute has an accumulator, so convert it
-					full_keys.push_back(features[0].layer->keys[features[0].tags[i]]);
-					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
-				} else if (accumulate_numeric.size() > 0 && features[0].layer->values[features[0].tags[i + 1]].is_numeric()) {
-					// convert numeric for accumulation
-					numeric_out_field.emplace(key, full_keys.size());
-					full_keys.push_back(key);
-					full_values.push_back(mvt_value_to_serial_val(features[0].layer->values[features[0].tags[i + 1]]));
-				} else {
-					// otherwise just tag it directly onto the output feature
-					if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
-						outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
+			auto const &f = features[0];
+			for (size_t i = 0; i + 1 < f.tags.size(); i += 2) {
+				const std::string &key = f.layer->keys[f.tags[i]];
+				if (should_keep(key, keep, exclude, exclude_prefix)) {
+					if (attribute_accum.find(key) != attribute_accum.end()) {
+						// this attribute has an accumulator, so convert it
+						full_keys.push_back(key_pool.pool(f.layer->keys[f.tags[i]]));
+						full_values.push_back(f.layer->values[f.tags[i + 1]]);
+					} else if (accumulate_numeric.size() > 0 && f.layer->values[f.tags[i + 1]].is_numeric()) {
+						// convert numeric for accumulation
+						numeric_out_field.emplace(key, full_keys.size());
+						full_keys.push_back(key_pool.pool(key));
+						full_values.push_back(f.layer->values[f.tags[i + 1]]);
+					} else if (include_nonaggregate) {
+						// otherwise just tag it directly onto the output feature
+						outlayer.tag(outfeature, f.layer->keys[f.tags[i]], f.layer->values[f.tags[i + 1]]);
 					}
 				}
 			}
@@ -1353,22 +1631,26 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
 					const std::string &key = features[i].layer->keys[features[i].tags[j]];
-					keys.insert(key);
+					if (should_keep(key, keep, exclude, exclude_prefix)) {
+						keys.insert(key);
+					}
 				}
 
 				for (size_t j = 0; j + 1 < features[i].tags.size(); j += 2) {
 					const std::string &key = features[i].layer->keys[features[i].tags[j]];
-
-					auto f = attribute_accum.find(key);
-					if (f != attribute_accum.end()) {
-						serial_val val = mvt_value_to_serial_val(features[i].layer->values[features[i].tags[j + 1]]);
-						preserve_attribute(f->second, key, val, full_keys, full_values, attribute_accum_state);
-					} else if (accumulate_numeric.size() > 0) {
-						const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
-						if (val.is_numeric()) {
-							preserve_numeric(key, val, full_keys, full_values,
-									 accumulate_numeric,
-									 keys, numeric_out_field, attribute_accum_state);
+					if (should_keep(key, keep, exclude, exclude_prefix)) {
+						auto found = attribute_accum.find(key);
+						if (found != attribute_accum.end()) {
+							mvt_value val = features[i].layer->values[features[i].tags[j + 1]];
+							preserve_attribute(found->second, key, val, full_keys, full_values, attribute_accum_state, key_pool);
+						} else if (accumulate_numeric.size() > 0) {
+							const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
+							if (val.is_numeric()) {
+								preserve_numeric(key, val, full_keys, full_values,
+										 accumulate_numeric,
+										 keys, numeric_out_field, attribute_accum_state, key_pool,
+										 keep, exclude, exclude_prefix);
+							}
 						}
 					}
 				}
@@ -1378,15 +1660,15 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			// and tag them onto the output feature
 
 			for (size_t i = 0; i < full_keys.size(); i++) {
-				if (should_keep(full_keys[i], keep, exclude, exclude_prefix)) {
-					outlayer.tag(outfeature, full_keys[i], stringified_to_mvt_value(full_values[i].type, full_values[i].s.c_str(), tile_stringpool));
+				if (should_keep(*full_keys[i], keep, exclude, exclude_prefix)) {
+					outlayer.tag(outfeature, *full_keys[i], full_values[i]);
 				}
 			}
 
 			if (accumulate_numeric.size() > 0) {
-				add_mean(outfeature, outlayer, accumulate_numeric);
+				add_mean(outfeature, outlayer, accumulate_numeric, keep, exclude, exclude_prefix);
 			}
-		} else {
+		} else if (include_nonaggregate) {
 			for (size_t i = 0; i + 1 < features[0].tags.size(); i += 2) {
 				if (should_keep(features[0].layer->keys[features[0].tags[i]], keep, exclude, exclude_prefix)) {
 					outlayer.tag(outfeature, features[0].layer->keys[features[0].tags[i]], features[0].layer->values[features[0].tags[i + 1]]);
@@ -1395,7 +1677,10 @@ static void feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 		}
 
 		outlayer.features.push_back(std::move(outfeature));
+		return true;
 	}
+
+	return false;
 }
 
 static struct preservecmp {
@@ -1520,13 +1805,19 @@ static std::vector<size_t> parse_ids_string(mvt_value const &v) {
 
 mvt_tile assign_to_bins(mvt_tile &features,
 			std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-			int z, int x, int y, int detail,
+			int z, int x, int y,
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &accumulate_numeric,
 			std::set<std::string> keep,
 			std::set<std::string> exclude,
-			std::vector<std::string> exclude_prefix) {
+			std::vector<std::string> exclude_prefix,
+			int buffer, std::vector<clipbbox> const &clipbboxes) {
 	std::vector<index_event> events;
+	key_pool key_pool;
+
+	if (bins.size() == 0) {
+		return mvt_tile();
+	}
 
 	// Index bins
 	for (size_t i = 0; i < bins.size(); i++) {
@@ -1534,7 +1825,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 			long long xmin, ymin, xmax, ymax;
 			unsigned long long start, end;
 
-			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, bins[i].detail());
 			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
 			events.emplace_back(start, index_event::ENTER, i, j, xmin, ymin, xmax, ymax);
 			events.emplace_back(end, index_event::EXIT, i, j, xmin, ymin, xmax, ymax);
@@ -1554,7 +1845,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 					fid_to_feature.emplace(features.layers[i].features[j].id, std::make_pair(i, j));
 				}
 
-				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, detail);
+				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, features.layers[i].detail());
 				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
 				events.emplace_back(start, index_event::CHECK, i, j, xmin, ymin, xmax, ymax);
 			}
@@ -1565,12 +1856,11 @@ mvt_tile assign_to_bins(mvt_tile &features,
 	std::set<active_bin> active;
 
 	mvt_layer outlayer;
-	outlayer.extent = 1 << detail;
+	outlayer.extent = bins[0].extent;
 	outlayer.version = 2;
 	outlayer.name = features.layers[0].name;
 
 	std::vector<std::vector<tile_feature>> outfeatures;
-	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
 	for (auto &e : events) {
 		if (e.kind == index_event::ENTER) {
@@ -1629,6 +1919,10 @@ mvt_tile assign_to_bins(mvt_tile &features,
 
 			active.insert(std::move(a));
 		} else if (e.kind == index_event::CHECK) {
+			if (bin_by_id_list.size() > 0) {
+				continue;  // only bin by id, not geometrically
+			}
+
 			auto const &feature = features.layers[e.layer].features[e.feature];
 
 			if (feature.geometry.size() == 0) {
@@ -1678,21 +1972,25 @@ mvt_tile assign_to_bins(mvt_tile &features,
 
 	for (size_t i = 0; i < outfeatures.size(); i++) {
 		if (outfeatures[i].size() > 1) {
-			feature_out(outfeatures[i], outlayer,
-				    keep, exclude, exclude_prefix, attribute_accum,
-				    tile_stringpool, accumulate_numeric);
-			mvt_feature &nfeature = outlayer.features.back();
-			mvt_value val;
-			val.type = mvt_uint;
-			val.numeric_value.uint_value = outfeatures[i].size() - 1;
+			if (feature_out(outfeatures[i], outlayer,
+					keep, exclude, exclude_prefix, attribute_accum,
+					accumulate_numeric, key_pool, buffer, true,
+					clipbboxes, z, x, y)) {
+				mvt_feature &nfeature = outlayer.features.back();
+				mvt_value val;
+				val.type = mvt_uint;
+				val.numeric_value.uint_value = outfeatures[i].size() - 1;
 
-			std::string attrname;
-			if (accumulate_numeric.size() == 0) {
-				attrname = "tippecanoe:count";
-			} else {
-				attrname = accumulate_numeric + ":count";
+				std::string attrname;
+				if (accumulate_numeric.size() == 0) {
+					attrname = "tippecanoe:count";
+				} else {
+					attrname = accumulate_numeric + ":count";
+				}
+				if (should_keep(attrname, keep, exclude, exclude_prefix)) {
+					outlayer.tag(nfeature, attrname, val);
+				}
 			}
-			outlayer.tag(nfeature, attrname, val);
 		}
 	}
 
@@ -1702,7 +2000,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 }
 
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
-		     int detail, int buffer,
+		     int detail_or_unspecified, int buffer,
 		     std::set<std::string> const &keep,
 		     std::set<std::string> const &exclude,
 		     std::vector<std::string> const &exclude_prefix,
@@ -1713,15 +2011,16 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-		     std::string const &accumulate_numeric) {
+		     std::string const &accumulate_numeric, size_t feature_limit,
+		     std::vector<clipbbox> const &clipbboxes) {
 	mvt_tile outtile;
-	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
+	key_pool key_pool;
 
 	for (auto const &tile : tiles) {
 		for (auto const &layer : tile.tile.layers) {
 			mvt_layer *outlayer = NULL;
 
-			int det = detail;
+			int det = detail_or_unspecified;
 			if (det <= 0) {
 				det = std::round(log(layer.extent) / log(2));
 			}
@@ -1773,8 +2072,32 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					}
 				}
 
+				// Clip to user-specified bounding boxes.
+				// Bounding box clip first, to reduce complexity of the full clip.
+				// But don't clip here if we are binning, because we need to bin points in the buffer
+				if (bins.size() == 0) {
+					for (auto &c : clipbboxes) {
+						if (t == VT_POLYGON) {
+							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_poly_poly(geom, c.dv);
+							}
+						} else if (t == VT_LINE) {
+							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_lines_poly(geom, c.dv);
+							}
+						} else if (t == VT_POINT) {
+							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
+							if (c.dv.size() > 0 && geom.size() > 0) {
+								geom = clip_point_poly(geom, c.dv);
+							}
+						}
+					}
+				}
+
 				// Now offset from world coordinates to output tile coordinates,
-				// but retain world scale, because that is what tippecanoe clipping expects
+				// but retain world scale, because that is what tippecanoe zoom-oriented clipping expects
 
 				long long outtilesize = 1LL << (32 - nz);  // destination tile size in world coordinates
 				for (auto &g : geom) {
@@ -1840,7 +2163,10 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, tile_stringpool, accumulate_numeric);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
+						if (outlayer->features.size() >= feature_limit) {
+							break;
+						}
 						pending_tile_features.clear();
 					}
 				}
@@ -1854,16 +2180,16 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				if (t == VT_POLYGON && tiny_polygon_size > 0) {
 					bool simplified_away_by_reduction = false;
 
-					geom = reduce_tiny_poly(geom, nz, detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
+					geom = reduce_tiny_poly(geom, nz, det, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
 				} else {
 					still_need_simplification_after_reduction = true;
 				}
 
 				if (simplification > 0 && still_need_simplification_after_reduction) {
 					if (t == VT_POLYGON) {
-						geom = simplify_lines_basic(geom, nz, detail, simplification, 4);
+						geom = simplify_lines_basic(geom, nz, det, simplification, 4);
 					} else if (t == VT_LINE) {
-						geom = simplify_lines_basic(geom, nz, detail, simplification, 0);
+						geom = simplify_lines_basic(geom, nz, det, simplification, 0);
 					}
 				}
 
@@ -1897,8 +2223,11 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, tile_stringpool, accumulate_numeric);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
 				pending_tile_features.clear();
+				if (outlayer->features.size() >= feature_limit) {
+					break;
+				}
 			}
 
 			if (preserve_input_order) {
@@ -1927,10 +2256,14 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					std::vector<source_tile> sts;
 					sts.push_back(st);
 
+					// feature_limit arg is 1, because we just care whether there are any overzoomed features
+					// left after clipping to the child tile, not about their actual content
 					std::string child = overzoom(sts,
 								     nz + 1, nx * 2 + x, ny * 2 + y,
-								     detail, buffer, keep, exclude, exclude_prefix, false, NULL,
-								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric);
+								     detail_or_unspecified, buffer, keep, exclude, exclude_prefix, false, NULL,
+								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data,
+								     simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric,
+								     1, clipbboxes);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
@@ -1940,8 +2273,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, bin_by_id_list, nz, nx, ny, detail, attribute_accum, accumulate_numeric,
-					 keep, exclude, exclude_prefix);
+		outtile = assign_to_bins(outtile, bins, bin_by_id_list, nz, nx, ny,
+					 attribute_accum, accumulate_numeric,
+					 keep, exclude, exclude_prefix, buffer, clipbboxes);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {

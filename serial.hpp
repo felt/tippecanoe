@@ -6,6 +6,7 @@
 #include <string.h>
 #include <vector>
 #include <atomic>
+#include <memory>
 #include <sys/stat.h>
 #include "geometry.hpp"
 #include "mbtiles.hpp"
@@ -49,6 +50,42 @@ struct serial_val {
 	serial_val(int t, const std::string &val)
 	    : type(t), s(val) {
 	}
+
+	// These functions for interface compatibility with mvt_value:
+
+	serial_val(double val) {
+		type = mvt_double;
+		s = milo::dtoa_milo(val);
+	}
+
+	double to_double() const {
+		return atof(s.c_str());
+	}
+
+	std::string get_string_value() const {
+		return s;
+	}
+
+	void set_string_value(std::string const &val) {
+		type = mvt_string;
+		s = val;
+	}
+};
+
+struct key_pool {
+	std::unordered_map<std::string, std::shared_ptr<std::string>> mapping;
+
+	std::shared_ptr<std::string> pool(std::string const &s) {
+		auto f = mapping.find(s);
+		if (f != mapping.end()) {
+			return f->second;
+		}
+
+		std::shared_ptr<std::string> p = std::make_shared<std::string>();
+		*p = s;
+		mapping.emplace(s, p);
+		return p;
+	}
 };
 
 struct serial_feature {
@@ -75,7 +112,7 @@ struct serial_feature {
 	// to create the keys and values references into the string pool
 	// during initial serialization
 
-	std::vector<std::string> full_keys{};
+	std::vector<std::shared_ptr<std::string>> full_keys{};
 	std::vector<serial_val> full_values{};
 
 	// These fields are generated from full_keys and full_values

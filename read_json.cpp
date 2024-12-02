@@ -53,7 +53,7 @@ void json_context(json_object *j) {
 	free(s);  // stringify
 }
 
-void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fname, int line, json_object *feature) {
+void parse_coordinates(int t, json_object *j, drawvec &out, int op, const char *fname, int line, json_object *feature) {
 	if (j == NULL || j->type != JSON_ARRAY) {
 		fprintf(stderr, "%s:%d: expected array for geometry type %d: ", fname, line, t);
 		json_context(feature);
@@ -72,7 +72,7 @@ void parse_geometry(int t, json_object *j, drawvec &out, int op, const char *fna
 				}
 			}
 
-			parse_geometry(within, j->value.array.array[i], out, op, fname, line, feature);
+			parse_coordinates(within, j->value.array.array[i], out, op, fname, line, feature);
 		}
 	} else {
 		if (j->value.array.length >= 2 && j->value.array.array[0]->type == JSON_NUMBER && j->value.array.array[1]->type == JSON_NUMBER) {
@@ -178,6 +178,129 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	return out;
 }
 
+std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, json_object *j,
+				       int z, int x, int y, long long extent, bool fix_longitudes, bool mvt_style) {
+	json_object *geometry_type = json_hash_get(geometry, "type");
+	if (geometry_type == NULL) {
+		fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
+		json_context(j);
+		exit(EXIT_JSON);
+	}
+
+	if (geometry_type->type != JSON_STRING) {
+		fprintf(stderr, "Filter output:%d: geometry type is not a string: ", jp->line);
+		json_context(j);
+		exit(EXIT_JSON);
+	}
+
+	json_object *coordinates = json_hash_get(geometry, "coordinates");
+	if (coordinates == NULL || coordinates->type != JSON_ARRAY) {
+		fprintf(stderr, "Filter output:%d: geometry without coordinates array: ", jp->line);
+		json_context(j);
+		exit(EXIT_JSON);
+	}
+
+	int t;
+	for (t = 0; t < GEOM_TYPES; t++) {
+		if (strcmp(geometry_type->value.string.string, geometry_names[t]) == 0) {
+			break;
+		}
+	}
+	if (t >= GEOM_TYPES) {
+		fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string);
+		json_context(j);
+		exit(EXIT_JSON);
+	}
+
+	drawvec dv;
+	parse_coordinates(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
+
+	// handle longitude wraparound
+	//
+	// this is supposed to be data for a single tile,
+	// so any jump from the left hand side edge of the world
+	// to the right edge, or vice versa, is unexpected,
+	// so move it to the other side.
+
+	if (fix_longitudes && mb_geometry[t] == VT_POLYGON) {
+		const long long quarter_world = 1LL << 30;
+		const long long world = 1LL << 32;
+
+		bool copy_to_left = false;
+		bool copy_to_right = false;
+
+		for (size_t i = 0; i < dv.size(); i++) {
+			// is this vertex on a different side of the world
+			// than the first vertex? then shift this one to match
+			if (i > 0) {
+				if ((dv[0].x < quarter_world) && (dv[i].x > 3 * quarter_world)) {
+					dv[i].x -= world;
+				}
+				if ((dv[0].x > 3 * quarter_world) && (dv[i].x < quarter_world)) {
+					dv[i].x += world;
+				}
+			}
+
+			// does it stick off the edge of the world?
+			// then we need another copy on the other side of the world
+			if (dv[i].x < 0) {
+				copy_to_right = true;
+			}
+			if (dv[i].x > world) {
+				copy_to_left = true;
+			}
+		}
+
+		if (copy_to_left) {
+			size_t n = dv.size();
+			for (size_t i = 0; i < n; i++) {
+				dv.emplace_back(dv[i].op, dv[i].x - world, (long long) dv[i].y);
+			}
+		}
+		if (copy_to_right) {
+			size_t n = dv.size();
+			for (size_t i = 0; i < n; i++) {
+				dv.emplace_back(dv[i].op, dv[i].x + world, (long long) dv[i].y);
+			}
+		}
+	}
+
+	if (mb_geometry[t] == VT_POLYGON) {
+		dv = fix_polygon(dv, false, false);
+	}
+
+	// Offset and scale geometry from global to tile
+	for (size_t i = 0; i < dv.size(); i++) {
+		long long scale = 1LL << (32 - z);
+
+		// offset to tile
+		dv[i].x -= scale * x;
+		dv[i].y -= scale * y;
+
+		// scale to tile
+		dv[i].x = std::round(dv[i].x * (extent / (double) scale));
+		dv[i].y = std::round(dv[i].y * (extent / (double) scale));
+	}
+
+	if (mb_geometry[t] == VT_POLYGON) {
+		// don't try scaling up because we may have coordinates
+		// on the other side of the world
+		dv = clean_or_clip_poly(dv, z, 256, true, false);
+		if (dv.size() < 3) {
+			dv.clear();
+		}
+	}
+	dv = remove_noop(dv, mb_geometry[t], 0);
+
+	if (mvt_style) {
+		if (mb_geometry[t] == VT_POLYGON) {
+			dv = close_poly(dv);
+		}
+	}
+
+	return std::pair<int, drawvec>(t, dv);
+}
+
 std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int extent, bool fix_longitudes) {
 	std::map<std::string, mvt_layer> ret;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
@@ -208,51 +331,11 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			continue;
 		}
 
-		json_object *geometry = json_hash_get(j, "geometry");
-		if (geometry == NULL) {
-			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
-			json_context(j);
-			json_free(j);
-			exit(EXIT_JSON);
-		}
-
 		json_object *properties = json_hash_get(j, "properties");
 		if (properties == NULL || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
 			fprintf(stderr, "Filter output:%d: feature without properties hash: ", jp->line);
 			json_context(j);
 			json_free(j);
-			exit(EXIT_JSON);
-		}
-
-		json_object *geometry_type = json_hash_get(geometry, "type");
-		if (geometry_type == NULL) {
-			fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
-			json_context(j);
-			exit(EXIT_JSON);
-		}
-
-		if (geometry_type->type != JSON_STRING) {
-			fprintf(stderr, "Filter output:%d: geometry type is not a string: ", jp->line);
-			json_context(j);
-			exit(EXIT_JSON);
-		}
-
-		json_object *coordinates = json_hash_get(geometry, "coordinates");
-		if (coordinates == NULL || coordinates->type != JSON_ARRAY) {
-			fprintf(stderr, "Filter output:%d: feature without coordinates array: ", jp->line);
-			json_context(j);
-			exit(EXIT_JSON);
-		}
-
-		int t;
-		for (t = 0; t < GEOM_TYPES; t++) {
-			if (strcmp(geometry_type->value.string.string, geometry_names[t]) == 0) {
-				break;
-			}
-		}
-		if (t >= GEOM_TYPES) {
-			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string);
-			json_context(j);
 			exit(EXIT_JSON);
 		}
 
@@ -276,88 +359,18 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		}
 		auto l = ret.find(layername);
 
-		drawvec dv;
-		parse_geometry(t, coordinates, dv, VT_MOVETO, "Filter output", jp->line, j);
-
-		// handle longitude wraparound
-		//
-		// this is supposed to be data for a single tile,
-		// so any jump from the left hand side edge of the world
-		// to the right edge, or vice versa, is unexpected,
-		// so move it to the other side.
-
-		if (fix_longitudes && mb_geometry[t] == VT_POLYGON) {
-			const long long quarter_world = 1LL << 30;
-			const long long world = 1LL << 32;
-
-			bool copy_to_left = false;
-			bool copy_to_right = false;
-
-			for (size_t i = 0; i < dv.size(); i++) {
-				// is this vertex on a different side of the world
-				// than the first vertex? then shift this one to match
-				if (i > 0) {
-					if ((dv[0].x < quarter_world) && (dv[i].x > 3 * quarter_world)) {
-						dv[i].x -= world;
-					}
-					if ((dv[0].x > 3 * quarter_world) && (dv[i].x < quarter_world)) {
-						dv[i].x += world;
-					}
-				}
-
-				// does it stick off the edge of the world?
-				// then we need another copy on the other side of the world
-				if (dv[i].x < 0) {
-					copy_to_right = true;
-				}
-				if (dv[i].x > world) {
-					copy_to_left = true;
-				}
-			}
-
-			if (copy_to_left) {
-				size_t n = dv.size();
-				for (size_t i = 0; i < n; i++) {
-					dv.emplace_back(dv[i].op, dv[i].x - world, (long long) dv[i].y);
-				}
-			}
-			if (copy_to_right) {
-				size_t n = dv.size();
-				for (size_t i = 0; i < n; i++) {
-					dv.emplace_back(dv[i].op, dv[i].x + world, (long long) dv[i].y);
-				}
-			}
+		json_object *geometry = json_hash_get(j, "geometry");
+		if (geometry == NULL) {
+			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
+			json_context(j);
+			json_free(j);
+			exit(EXIT_JSON);
 		}
 
-		if (mb_geometry[t] == VT_POLYGON) {
-			dv = fix_polygon(dv, false, false);
-		}
+		std::pair<int, drawvec> parsed_geometry = parse_geometry(geometry, jp, j, z, x, y, extent, fix_longitudes, true);
 
-		// Offset and scale geometry from global to tile
-		for (size_t i = 0; i < dv.size(); i++) {
-			long long scale = 1LL << (32 - z);
-
-			// offset to tile
-			dv[i].x -= scale * x;
-			dv[i].y -= scale * y;
-
-			// scale to tile
-			dv[i].x = std::round(dv[i].x * extent / (double) scale);
-			dv[i].y = std::round(dv[i].y * extent / (double) scale);
-		}
-
-		if (mb_geometry[t] == VT_POLYGON) {
-			// don't try scaling up because we may have coordinates
-			// on the other side of the world
-			dv = clean_or_clip_poly(dv, z, 256, true, false);
-			if (dv.size() < 3) {
-				dv.clear();
-			}
-		}
-		dv = remove_noop(dv, mb_geometry[t], 0);
-		if (mb_geometry[t] == VT_POLYGON) {
-			dv = close_poly(dv);
-		}
+		int t = parsed_geometry.first;
+		drawvec &dv = parsed_geometry.second;
 
 		if (dv.size() > 0) {
 			mvt_feature feature;

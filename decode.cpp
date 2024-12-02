@@ -28,6 +28,7 @@
 int minzoom = 0;
 int maxzoom = 32;
 bool force = false;
+std::set<std::string> include_attr;
 
 bool progress_time() {
 	return false;
@@ -217,7 +218,7 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 		} else if (coordinate_mode == 2) {  // integer
 			scale = 1;
 		}
-		layer_to_geojson(layer, z, x, y, !pipeline, pipeline, pipeline, false, 0, 0, 0, !force, state, scale);
+		layer_to_geojson(layer, z, x, y, !pipeline, pipeline, pipeline, false, 0, 0, 0, !force, state, scale, include_attr);
 
 		if (!pipeline) {
 			if (true) {
@@ -246,23 +247,26 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 	if (fd >= 0) {
 		struct stat st;
 		if (fstat(fd, &st) == 0) {
-			if (st.st_size < 50 * 1024 * 1024) {
-				char *map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-				if (map != NULL && map != MAP_FAILED) {
-					if (strcmp(map, "SQLite format 3") != 0 && strncmp(map, "PMTiles", 7) != 0) {
-						if (z >= 0) {
+			char *map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+			if (map != NULL && map != MAP_FAILED) {
+				if (strcmp(map, "SQLite format 3") != 0 && strncmp(map, "PMTiles", 7) != 0) {
+					if (z >= 0) {
+						if (st.st_size > 250 * 1024 * 1024) {
+							fprintf(stderr, "%s: unrealistically large single-tile size %zu\n", fname, (size_t) st.st_size);
+							exit(EXIT_MEMORY);
+						} else {
 							std::string s = std::string(map, st.st_size);
 							handle(s, z, x, y, to_decode, pipeline, stats, state, coordinate_mode);
 							munmap(map, st.st_size);
 							return;
-						} else {
-							fprintf(stderr, "Must specify zoom/x/y to decode a single pbf file\n");
-							exit(EXIT_ARGS);
 						}
+					} else {
+						fprintf(stderr, "Must specify zoom/x/y to decode a single pbf file\n");
+						exit(EXIT_ARGS);
 					}
 				}
-				munmap(map, st.st_size);
 			}
+			munmap(map, st.st_size);
 		} else {
 			perror("fstat");
 		}
@@ -571,6 +575,7 @@ int main(int argc, char **argv) {
 		{"stats", no_argument, 0, 'S'},
 		{"force", no_argument, 0, 'f'},
 		{"exclude-metadata-row", required_argument, 0, 'x'},
+		{"include", required_argument, 0, 'y'},
 		{0, 0, 0, 0},
 	};
 
@@ -628,6 +633,10 @@ int main(int argc, char **argv) {
 
 		case 'x':
 			exclude_meta.insert(optarg);
+			break;
+
+		case 'y':
+			include_attr.insert(optarg);
 			break;
 
 		default:

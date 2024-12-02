@@ -1,0 +1,842 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-123.765733,35.687807,-105.940259,40.511239",
+"bounds": "-123.765733,35.687807,-105.940259,40.511239",
+"center": "-122.387695,37.753336,12",
+"description": "tests/wineries/out/-zg_-rp.json.check.mbtiles",
+"format": "pbf",
+"generator_options": "./tippecanoe -q -a@ -f -o tests/wineries/out/-zg_-rp.json.check.mbtiles -zg -rp tests/wineries/in.json",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":12,\"fields\":{\"Oper_cln\":\"String\",\"Owner_cln\":\"String\",\"USER_CITY\":\"String\",\"USER_COUNT\":\"String\",\"USER_OPERA\":\"String\",\"USER_OWNER\":\"String\",\"USER_PERMI\":\"String\",\"USER_STATE\":\"String\",\"USER_STREE\":\"String\",\"USER_ZIP\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":67,\"geometry\":\"Point\",\"attributeCount\":10,\"attributes\":[{\"attribute\":\"Oper_cln\",\"count\":50,\"type\":\"string\",\"values\":[\"47 Hills Brewing  Company\",\"Alchemist Cellars\",\"August West\",\"Barebottle  Brewing Company\",\"Bravium\",\"Brazen Ventures\",\"Carlotta Cellars\",\"Cb Wine Cellars\",\"Cellars 33\",\"Claire Hill Wines\",\"Demeo Vineyards\",\"Ess Eff Wines\",\"Fallon Place  Wines\",\"Furthermore  Pinot Noir\",\"Gratta Wines\",\"Hardball Cellars\",\"Harrington Wines\",\"Hdc Wine  Company\",\"Hersly Wines\",\"Highlawn Wine  Company\",\"Kendric Vineyards\",\"Magic Bag  Meadery\",\"Michael James  Wines\",\"Montagne Russe\",\"Morgan Family  Wines\",\"Nicholas & Rae  Winery\",\"Ouroboros Wines\",\"Passaggio Wines\",\"Pedro Gomez  Industries\",\"Perfusion  Vineyard\",\"Pug Wine\",\"Ryan Cochrane  Wines\",\"Sandler Wine  Company\",\"Seamus Wines\",\"Sol Rouge\",\"Stagiaire Wine\",\"Sutton Cellars\",\"Tank Wines\",\"The San Francisco  Bay Winery\",\"The San Francisco  Meadery\",\"Theopolis  Vineyards\",\"Timark Wines\",\"Treasure Island  Brands\",\"Treasure Island  Wines\",\"Urban Cellars\",\"Voleurs De Vin\",\"Von Holt Wines\",\"Wait Cellars\",\"William Lane Wine  Company\",\"Woods Beer Co.\"]},{\"attribute\":\"Owner_cln\",\"count\":65,\"type\":\"string\",\"values\":[\"33rd Street Cellars, Llc\",\"47 Hills Brewing Company,  Llc\",\"Alchemist Cellars Llc\",\"Aran O. Healy And David G.  Grega\",\"August West Wines, Llc\",\"Barbara J. Gratta\",\"Barebottle Brewing  Company, Inc.\",\"Brazen Ventures Llc\",\"Bryan Rulison Harrington\",\"Carl E. & Sharon H. Sutton\",\"Casa No Comprende, Inc.\",\"Catherine Cochrane,  Courtney Cochrane, And  Sean Cochrane\",\"Christopher Von Holt And  Pamela Von Holt\",\"City Vintners San Francisco  Winery Llc\",\"Cjm Wine Group Llc\",\"Cosenza Cellars Llc\",\"Dan Baldwin\",\"De Vin, Llc\",\"Demeo Vineyards Inc.\",\"Dh Winery - 139 Wsf, Llc\",\"Edward S. Kurtzman\",\"Eristavi Winery Llc\",\"Ess Eff Wines, Llc\",\"Fortunatus, Llc\",\"Furthermore, Llc\",\"Hackberry Hill Cellars, Llc\",\"Hardball Cellars Inc.\",\"Hdc Wine Company Llc\",\"Hersly Wines Llc\",\"John David Louis Bry\",\"Just Enough Wines Llc\",\"Kendric Vineyards, Llc\",\"Kyle Roemer And  Samantha Roemer\",\"Les Americaines Llc\",\"Loos Family Winery, Llc\",\"Magic Bag Meadery Llc\",\"Mansfield-dunne Wines, Llc\",\"Mayeaux Grape Clinic Llc\",\"Michael James Wines, Inc.\",\"Morgan Family Wines Llc\",\"Morningwood Vineyards  And Winery, Inc.\",\"Ottavino Wines Llc\",\"Ouroboros Wines Llc\",\"Passaggio Wines Llc\",\"Pb Wines, Inc.\",\"Philip C. Bowers\",\"Philip Cuadra\",\"Pug Wine, Llc\",\"Russe Wine Partners, Llc\",\"Seamus Wines, Llc\",\"Seven Hill Llc\",\"Smashing Grapes, Llc\",\"Sol Rouge Llc\",\"Surface Area, Llc\",\"Tank Wines Llc\",\"The San Francisco  Mead Company, Llc\",\"Theopolis Enterprises, Llc\",\"Urban Cellars Llc\",\"Voleurs De Vin, Llc\",\"Wait Cellars, Llc\",\"Waits-mast Family Cellars,  Llc\",\"Webster Granger  Marquez\",\"William Lane Wine Company  Llc\",\"Winedoctors, Llc\",\"Yerba Buena Beverage, Llc\"]},{\"attribute\":\"USER_CITY\",\"count\":7,\"type\":\"string\",\"values\":[\"LIVERMORE\",\"MYERS FLAT\",\"SAN  FRANCISCO\",\"SAN FRANCISCO\",\"SANTA FE\",\"SHINGLETOWN\",\"SOUTH SAN  FRANCISCO\"]},{\"attribute\":\"USER_COUNT\",\"count\":9,\"type\":\"string\",\"values\":[\"ALAMEDA\",\"Geocoded_city_Center\",\"SAN  FRANCISCCO\",\"SAN  FRANCISCO\",\"SAN  FRANCISCO  COUNTY\",\"SAN  FRANCISO\",\"SAN MATEO\",\"SANTA FE\",\"USA\"]},{\"attribute\":\"USER_OPERA\",\"count\":50,\"type\":\"string\",\"values\":[\"47 HILLS BREWING  COMPANY\",\"ALCHEMIST CELLARS\",\"AUGUST WEST\",\"BAREBOTTLE  BREWING COMPANY\",\"BRAVIUM\",\"BRAZEN VENTURES\",\"CARLOTTA CELLARS\",\"CB WINE CELLARS\",\"CELLARS 33\",\"CLAIRE HILL WINES\",\"DEMEO VINEYARDS\",\"ESS EFF WINES\",\"FALLON PLACE  WINES\",\"FURTHERMORE  PINOT NOIR\",\"GRATTA WINES\",\"HARDBALL CELLARS\",\"HARRINGTON WINES\",\"HDC WINE  COMPANY\",\"HERSLY WINES\",\"HIGHLAWN WINE  COMPANY\",\"KENDRIC VINEYARDS\",\"MAGIC BAG  MEADERY\",\"MICHAEL JAMES  WINES\",\"MONTAGNE RUSSE\",\"MORGAN FAMILY  WINES\",\"NICHOLAS & RAE  WINERY\",\"OUROBOROS WINES\",\"PASSAGGIO WINES\",\"PEDRO GOMEZ  INDUSTRIES\",\"PERFUSION  VINEYARD\",\"PUG WINE\",\"RYAN COCHRANE  WINES\",\"SANDLER WINE  COMPANY\",\"SEAMUS WINES\",\"SOL ROUGE\",\"STAGIAIRE WINE\",\"SUTTON CELLARS\",\"TANK WINES\",\"THE SAN FRANCISCO  BAY WINERY\",\"THE SAN FRANCISCO  MEADERY\",\"THEOPOLIS  VINEYARDS\",\"TIMARK WINES\",\"TREASURE ISLAND  BRANDS\",\"TREASURE ISLAND  WINES\",\"URBAN CELLARS\",\"VOLEURS DE VIN\",\"VON HOLT WINES\",\"WAIT CELLARS\",\"WILLIAM LANE WINE  COMPANY\",\"WOODS BEER CO.\"]},{\"attribute\":\"USER_OWNER\",\"count\":65,\"type\":\"string\",\"values\":[\"33RD STREET CELLARS, LLC\",\"47 HILLS BREWING COMPANY,  LLC\",\"ALCHEMIST CELLARS LLC\",\"ARAN O. HEALY AND DAVID G.  GREGA\",\"AUGUST WEST WINES, LLC\",\"BARBARA J. GRATTA\",\"BAREBOTTLE BREWING  COMPANY, INC.\",\"BRAZEN VENTURES LLC\",\"BRYAN RULISON HARRINGTON\",\"CARL E. & SHARON H. SUTTON\",\"CASA NO COMPRENDE, INC.\",\"CATHERINE COCHRANE,  COURTNEY COCHRANE, AND  SEAN COCHRANE\",\"CHRISTOPHER VON HOLT AND  PAMELA VON HOLT\",\"CITY VINTNERS SAN FRANCISCO  WINERY LLC\",\"CJM WINE GROUP LLC\",\"COSENZA CELLARS LLC\",\"DAN BALDWIN\",\"DE VIN, LLC\",\"DEMEO VINEYARDS INC.\",\"DH WINERY - 139 WSF, LLC\",\"EDWARD S. KURTZMAN\",\"ERISTAVI WINERY LLC\",\"ESS EFF WINES, LLC\",\"FORTUNATUS, LLC\",\"FURTHERMORE, LLC\",\"HACKBERRY HILL CELLARS, LLC\",\"HARDBALL CELLARS INC.\",\"HDC WINE COMPANY LLC\",\"HERSLY WINES LLC\",\"JOHN DAVID LOUIS BRY\",\"JUST ENOUGH WINES LLC\",\"KENDRIC VINEYARDS, LLC\",\"KYLE ROEMER AND  SAMANTHA ROEMER\",\"LES AMERICAINES LLC\",\"LOOS FAMILY WINERY, LLC\",\"MAGIC BAG MEADERY LLC\",\"MANSFIELD-DUNNE WINES, LLC\",\"MAYEAUX GRAPE CLINIC LLC\",\"MICHAEL JAMES WINES, INC.\",\"MORGAN FAMILY WINES LLC\",\"MORNINGWOOD VINEYARDS  AND WINERY, INC.\",\"OTTAVINO WINES LLC\",\"OUROBOROS WINES LLC\",\"PASSAGGIO WINES LLC\",\"PB WINES, INC.\",\"PHILIP C. BOWERS\",\"PHILIP CUADRA\",\"PUG WINE, LLC\",\"RUSSE WINE PARTNERS, LLC\",\"SEAMUS WINES, LLC\",\"SEVEN HILL LLC\",\"SMASHING GRAPES, LLC\",\"SOL ROUGE LLC\",\"SURFACE AREA, LLC\",\"TANK WINES LLC\",\"THE SAN FRANCISCO  MEAD COMPANY, LLC\",\"THEOPOLIS ENTERPRISES, LLC\",\"URBAN CELLARS LLC\",\"VOLEURS DE VIN, LLC\",\"WAIT CELLARS, LLC\",\"WAITS-MAST FAMILY CELLARS,  LLC\",\"WEBSTER GRANGER  MARQUEZ\",\"WILLIAM LANE WINE COMPANY  LLC\",\"WINEDOCTORS, LLC\",\"YERBA BUENA BEVERAGE, LLC\"]},{\"attribute\":\"USER_PERMI\",\"count\":66,\"type\":\"string\",\"values\":[\"CA-W-15292\",\"CA-W-15425\",\"CA-W-15734\",\"CA-W-15779\",\"CA-W-15973\",\"CA-W-16641\",\"CA-W-16651\",\"CA-W-17110\",\"CA-W-17212\",\"CA-W-17255\",\"CA-W-17266\",\"CA-W-17319\",\"CA-W-17327\",\"CA-W-17354\",\"CA-W-17377\",\"CA-W-17398\",\"CA-W-17424\",\"CA-W-17487\",\"CA-W-17490\",\"CA-W-17516\",\"CA-W-17548\",\"CA-W-17549\",\"CA-W-17609\",\"CA-W-17719\",\"CA-W-21023\",\"CA-W-21034\",\"CA-W-21050\",\"CA-W-21066\",\"CA-W-21120\",\"CA-W-21125\",\"CA-W-21217\",\"CA-W-21253\",\"CA-W-21270\",\"CA-W-21396\",\"CA-W-21516\",\"CA-W-21705\",\"CA-W-21743\",\"CA-W-21765\",\"CA-W-21774\",\"CA-W-21846\",\"CA-W-21880\",\"CA-W-21912\",\"CA-W-21933\",\"CA-W-21971\",\"CA-W-22040\",\"CA-W-22069\",\"CA-W-22193\",\"CA-W-22247\",\"CA-W-22454\",\"CA-W-22595\",\"CA-W-22655\",\"CA-W-22659\",\"CA-W-22828\",\"CA-W-23055\",\"CA-W-23463\",\"CA-W-23518\",\"CA-W-23922\",\"CA-W-23988\",\"CA-W-23993\",\"CA-W-24193\",\"CA-W-24229\",\"CA-W-24253\",\"CA-W-24254\",\"CA-W-24286\",\"CA-W-3592\",\"NM-W-21035\"]},{\"attribute\":\"USER_STATE\",\"count\":2,\"type\":\"string\",\"values\":[\"CA\",\"NM\"]},{\"attribute\":\"USER_STREE\",\"count\":39,\"type\":\"string\",\"values\":[\"1080 AVENUE  M UNIT C\",\"1180 SHAFTER  AVE\",\"1180 SHAFTER AVE\",\"1225  MINNESOTA ST\",\"1225 MINNESOTA  ST\",\"1300 POTRERO  AVE\",\"137 S LINDEN  AVE\",\"139 W SAN FRANCISCO ST\",\"1469 HUDSON  AVE\",\"1525  CORTLAND AVE\",\"1559 CUSTER  AVE\",\"16370  DYERVILLE  LOOP RD BLDG  201,\",\"18 DORE ST\",\"200  CALIFORNIA  AVE BLDG 180  N\",\"2029 RESEARCH DR\",\"2455 3RD ST\",\"2455 THIRD ST\",\"28740  INWOOD RD\",\"401 13TH ST  BUILDING 3\",\"422 CLIPPER COVE  WAY\",\"495  BARNEVELD  AVE\",\"495 BARNEVELD  AVE\",\"53 BLUXOME  ST\",\"53 BLUXOME ST\",\"5361 BLUXOME  ST\",\"540  BARNEVELD  AVE STE K & L\",\"540  BARNEVELD  AVE STE K AND  L\",\"540  BARNEVELD  AVE STE K, L\",\"540  BARNEVELD  AVE SUITES K A\",\"540 BARNEVELD  AVE STE K & L\",\"601 22ND ST\",\"750 6TH ST\",\"995 9TH ST  BLDG 201\",\"995 9TH ST  BLDG 201 RM  104\",\"995 9TH ST  BLDG 201,\",\"995 9TH ST  BLDG 201/RM  104\",\"995 9TH ST  UNIT 201  RM104\",\"995 NINTH\",\"NOT PROVIDED\"]},{\"attribute\":\"USER_ZIP\",\"count\":12,\"type\":\"number\",\"values\":[0,87501,94080,94103,94107,94110,94117,94124,94130,94550,95554,96088],\"min\":0,\"max\":96088}]}]}}",
+"maxzoom": "12",
+"minzoom": "0",
+"name": "tests/wineries/out/-zg_-rp.json.check.mbtiles",
+"strategies": "[{\"dropped_by_rate\":64},{\"dropped_by_rate\":63},{\"dropped_by_rate\":62},{\"dropped_by_rate\":60},{\"dropped_by_rate\":57},{\"dropped_by_rate\":55},{\"dropped_by_rate\":52},{\"dropped_by_rate\":47},{\"dropped_by_rate\":50},{\"dropped_by_rate\":35},{\"dropped_by_rate\":25},{\"dropped_by_rate\":14},{}]",
+"tippecanoe_decisions": "{\"basezoom\":12,\"droprate\":1.30026,\"retain_points_multiplier\":1}",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.750000, 40.245992 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.431641, 37.718590 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.431641, 37.718590 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.750000, 40.245992 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.788081 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.753344 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.753344 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 2, "x": 0, "y": 1 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.771973, 40.245992 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.770715 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.735969 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.735969 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.735969 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 3, "x": 1, "y": 3 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.760986, 40.245992 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.398682, 37.779399 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.762030 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.744657 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.744657 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.398682, 37.744657 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.717529, 37.675125 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 3, "x": 1, "y": 2 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21971", "USER_OWNER": "SEVEN HILL LLC", "USER_STREE": "28740  INWOOD RD", "USER_CITY": "SHINGLETOWN", "USER_STATE": "CA", "USER_ZIP": 96088, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seven Hill Llc" }, "geometry": { "type": "Point", "coordinates": [ -121.981201, 40.513799 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 4, "x": 2, "y": 6 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.766479, 40.245992 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.371216, 37.827141 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.398682, 37.775057 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757687 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.723022, 37.679473 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 4, "x": 3, "y": 6 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.941162, 35.688533 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 5, "x": 4, "y": 12 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.766479, 40.245992 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 5, "x": 5, "y": 12 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.766479, 40.245992 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368469, 37.824972 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.368469, 37.824972 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.395935, 37.777228 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.759859 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.759859 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.384949, 37.738141 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.720276, 37.679473 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 5, "x": 6, "y": 12 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.941162, 35.688533 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 6, "x": 9, "y": 24 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765106, 40.247040 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 6, "x": 10, "y": 24 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765106, 40.247040 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368469, 37.826057 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367096, 37.823887 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.817378 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.397308, 37.776142 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.758773 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.758773 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.756601 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404175, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.409668, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.402802, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.386322, 37.738141 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721649, 37.679473 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 6, "x": 13, "y": 25 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.939789, 35.687418 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 7, "x": 19, "y": 48 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765793, 40.246516 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 7, "x": 20, "y": 49 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15779", "USER_OWNER": "KENDRIC VINEYARDS, LLC", "USER_OPERA": "KENDRIC VINEYARDS", "USER_STREE": "401 13TH ST  BUILDING 3", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Kendric Vineyards, Llc", "Oper_cln": "Kendric Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.373962, 37.827684 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17255", "USER_OWNER": "MORNINGWOOD VINEYARDS  AND WINERY, INC.", "USER_STREE": "NOT PROVIDED", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 0, "USER_COUNT": "Geocoded_city_Center", "Owner_cln": "Morningwood Vineyards  And Winery, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.373276, 37.824430 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.369156, 37.825514 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367096, 37.824430 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816836 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396622, 37.776685 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.396622, 37.776685 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.759316 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.759316 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757144 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21743", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -122.389755, 37.754973 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404861, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404861, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.408981, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22193", "USER_OWNER": "URBAN CELLARS LLC", "USER_OPERA": "URBAN CELLARS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Urban Cellars Llc", "Oper_cln": "Urban Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385635, 37.738684 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721649, 37.679473 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 7, "x": 20, "y": 48 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765793, 40.246516 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 7, "x": 26, "y": 50 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.940475, 35.687976 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 39, "y": 96 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765793, 40.246516 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 40, "y": 99 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.408981, 37.740042 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385979, 37.738413 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 40, "y": 98 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15779", "USER_OWNER": "KENDRIC VINEYARDS, LLC", "USER_OPERA": "KENDRIC VINEYARDS", "USER_STREE": "401 13TH ST  BUILDING 3", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Kendric Vineyards, Llc", "Oper_cln": "Kendric Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.373962, 37.827684 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17255", "USER_OWNER": "MORNINGWOOD VINEYARDS  AND WINERY, INC.", "USER_STREE": "NOT PROVIDED", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 0, "USER_COUNT": "Geocoded_city_Center", "Owner_cln": "Morningwood Vineyards  And Winery, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.372932, 37.824701 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24229", "USER_OWNER": "WILLIAM LANE WINE COMPANY  LLC", "USER_OPERA": "WILLIAM LANE WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201/RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94103, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "William Lane Wine Company  Llc", "Oper_cln": "William Lane Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368813, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368813, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367096, 37.824430 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816836 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396965, 37.776414 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17487", "USER_OWNER": "WAIT CELLARS, LLC", "USER_OPERA": "WAIT CELLARS", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Wait Cellars, Llc", "Oper_cln": "Wait Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.396965, 37.776414 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.396965, 37.776414 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.388039, 37.759316 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22659", "USER_OWNER": "HACKBERRY HILL CELLARS, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hackberry Hill Cellars, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.388039, 37.759316 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.388039, 37.759316 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757144 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21743", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -122.389412, 37.754973 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404518, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404518, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.408981, 37.740042 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23922", "USER_OWNER": "OTTAVINO WINES LLC", "USER_STREE": "495 BARNEVELD  AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Ottavino Wines Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22193", "USER_OWNER": "URBAN CELLARS LLC", "USER_OPERA": "URBAN CELLARS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Urban Cellars Llc", "Oper_cln": "Urban Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23055", "USER_OWNER": "MANSFIELD-DUNNE WINES, LLC", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mansfield-dunne Wines, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385979, 37.738413 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 40, "y": 96 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765793, 40.246516 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 41, "y": 99 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721306, 37.679473 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 41, "y": 98 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16651", "USER_OWNER": "PB WINES, INC.", "USER_STREE": "1080 AVENUE  M UNIT C", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pb Wines, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.368813, 37.829040 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24229", "USER_OWNER": "WILLIAM LANE WINE COMPANY  LLC", "USER_OPERA": "WILLIAM LANE WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201/RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94103, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "William Lane Wine Company  Llc", "Oper_cln": "William Lane Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368813, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368813, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367096, 37.824430 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816836 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 41, "y": 96 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21971", "USER_OWNER": "SEVEN HILL LLC", "USER_STREE": "28740  INWOOD RD", "USER_CITY": "SHINGLETOWN", "USER_STATE": "CA", "USER_ZIP": 96088, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seven Hill Llc" }, "geometry": { "type": "Point", "coordinates": [ -121.982574, 40.511189 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 52, "y": 100 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.940132, 35.687697 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 79, "y": 193 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765793, 40.246516 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 81, "y": 198 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21066", "USER_OWNER": "THE SAN FRANCISCO  MEAD COMPANY, LLC", "USER_OPERA": "THE SAN FRANCISCO  MEADERY", "USER_STREE": "1180 SHAFTER AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "USA", "Owner_cln": "The San Francisco  Mead Company, Llc", "Oper_cln": "The San Francisco  Meadery" }, "geometry": { "type": "Point", "coordinates": [ -122.382717, 37.726737 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 81, "y": 197 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15779", "USER_OWNER": "KENDRIC VINEYARDS, LLC", "USER_OPERA": "KENDRIC VINEYARDS", "USER_STREE": "401 13TH ST  BUILDING 3", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Kendric Vineyards, Llc", "Oper_cln": "Kendric Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.373791, 37.827684 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17255", "USER_OWNER": "MORNINGWOOD VINEYARDS  AND WINERY, INC.", "USER_STREE": "NOT PROVIDED", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 0, "USER_COUNT": "Geocoded_city_Center", "Owner_cln": "Morningwood Vineyards  And Winery, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.372932, 37.824565 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24229", "USER_OWNER": "WILLIAM LANE WINE COMPANY  LLC", "USER_OPERA": "WILLIAM LANE WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201/RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94103, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "William Lane Wine Company  Llc", "Oper_cln": "William Lane Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17548", "USER_OWNER": "HDC WINE COMPANY LLC", "USER_OPERA": "HDC WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hdc Wine Company Llc", "Oper_cln": "Hdc Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17516", "USER_OWNER": "CASA NO COMPRENDE, INC.", "USER_OPERA": "TREASURE ISLAND  WINES", "USER_STREE": "995 NINTH", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Casa No Comprende, Inc.", "Oper_cln": "Treasure Island  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367096, 37.824294 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816836 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776549 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17487", "USER_OWNER": "WAIT CELLARS, LLC", "USER_OPERA": "WAIT CELLARS", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Wait Cellars, Llc", "Oper_cln": "Wait Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776549 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776549 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387867, 37.759180 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21880", "USER_OWNER": "SMASHING GRAPES, LLC", "USER_OPERA": "TIMARK WINES", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Smashing Grapes, Llc", "Oper_cln": "Timark Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387867, 37.759180 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22659", "USER_OWNER": "HACKBERRY HILL CELLARS, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hackberry Hill Cellars, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387867, 37.759180 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387867, 37.759180 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21253", "USER_OWNER": "WINEDOCTORS, LLC", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Winedoctors, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387867, 37.759180 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757008 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21743", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -122.389412, 37.754973 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17424", "USER_OWNER": "FURTHERMORE, LLC", "USER_OPERA": "FURTHERMORE  PINOT NOIR", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Furthermore, Llc", "Oper_cln": "Furthermore  Pinot Noir" }, "geometry": { "type": "Point", "coordinates": [ -122.389412, 37.754973 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404518, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404518, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.408981, 37.740042 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23922", "USER_OWNER": "OTTAVINO WINES LLC", "USER_STREE": "495 BARNEVELD  AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Ottavino Wines Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23463", "USER_OWNER": "LES AMERICAINES LLC", "USER_OPERA": "CLAIRE HILL WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Les Americaines Llc", "Oper_cln": "Claire Hill Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22193", "USER_OWNER": "URBAN CELLARS LLC", "USER_OPERA": "URBAN CELLARS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Urban Cellars Llc", "Oper_cln": "Urban Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23055", "USER_OWNER": "MANSFIELD-DUNNE WINES, LLC", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mansfield-dunne Wines, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24286", "USER_OWNER": "OUROBOROS WINES LLC", "USER_OPERA": "OUROBOROS WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Ouroboros Wines Llc", "Oper_cln": "Ouroboros Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403488, 37.740313 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385807, 37.738413 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 82, "y": 198 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721478, 37.679337 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 82, "y": 192 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21971", "USER_OWNER": "SEVEN HILL LLC", "USER_STREE": "28740  INWOOD RD", "USER_CITY": "SHINGLETOWN", "USER_STATE": "CA", "USER_ZIP": 96088, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seven Hill Llc" }, "geometry": { "type": "Point", "coordinates": [ -121.982403, 40.511189 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 9, "x": 105, "y": 201 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.940304, 35.687836 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 159, "y": 386 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765707, 40.246516 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 163, "y": 396 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23988", "USER_OWNER": "47 HILLS BREWING COMPANY,  LLC", "USER_OPERA": "47 HILLS BREWING  COMPANY", "USER_STREE": "137 S LINDEN  AVE", "USER_CITY": "SOUTH SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94080, "USER_COUNT": "SAN MATEO", "Owner_cln": "47 Hills Brewing Company,  Llc", "Oper_cln": "47 Hills Brewing  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.413616, 37.644277 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 163, "y": 395 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15779", "USER_OWNER": "KENDRIC VINEYARDS, LLC", "USER_OPERA": "KENDRIC VINEYARDS", "USER_STREE": "401 13TH ST  BUILDING 3", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Kendric Vineyards, Llc", "Oper_cln": "Kendric Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.373877, 37.827616 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17255", "USER_OWNER": "MORNINGWOOD VINEYARDS  AND WINERY, INC.", "USER_STREE": "NOT PROVIDED", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 0, "USER_COUNT": "Geocoded_city_Center", "Owner_cln": "Morningwood Vineyards  And Winery, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.372932, 37.824565 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24229", "USER_OWNER": "WILLIAM LANE WINE COMPANY  LLC", "USER_OPERA": "WILLIAM LANE WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201/RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94103, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "William Lane Wine Company  Llc", "Oper_cln": "William Lane Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17548", "USER_OWNER": "HDC WINE COMPANY LLC", "USER_OPERA": "HDC WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hdc Wine Company Llc", "Oper_cln": "Hdc Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17516", "USER_OWNER": "CASA NO COMPRENDE, INC.", "USER_OPERA": "TREASURE ISLAND  WINES", "USER_STREE": "995 NINTH", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Casa No Comprende, Inc.", "Oper_cln": "Treasure Island  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24193", "USER_OWNER": "DE VIN, LLC", "USER_STREE": "995 9TH ST  BLDG 201 RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "De Vin, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825786 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367182, 37.824294 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816904 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21050", "USER_OWNER": "TANK WINES LLC", "USER_OPERA": "TANK WINES", "USER_STREE": "18 DORE ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94117, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Tank Wines Llc", "Oper_cln": "Tank Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.413530, 37.774107 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17487", "USER_OWNER": "WAIT CELLARS, LLC", "USER_OPERA": "WAIT CELLARS", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Wait Cellars, Llc", "Oper_cln": "Wait Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396793, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387953, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21880", "USER_OWNER": "SMASHING GRAPES, LLC", "USER_OPERA": "TIMARK WINES", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Smashing Grapes, Llc", "Oper_cln": "Timark Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387953, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22659", "USER_OWNER": "HACKBERRY HILL CELLARS, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hackberry Hill Cellars, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387953, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387953, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21253", "USER_OWNER": "WINEDOCTORS, LLC", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Winedoctors, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387953, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21217", "USER_OWNER": "LOOS FAMILY WINERY, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Loos Family Winery, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387953, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757076 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21743", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -122.389498, 37.754973 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17424", "USER_OWNER": "FURTHERMORE, LLC", "USER_OPERA": "FURTHERMORE  PINOT NOIR", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Furthermore, Llc", "Oper_cln": "Furthermore  Pinot Noir" }, "geometry": { "type": "Point", "coordinates": [ -122.389498, 37.754973 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17319", "USER_OWNER": "ERISTAVI WINERY LLC", "USER_STREE": "1300 POTRERO  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Eristavi Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.406492, 37.751105 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21705", "USER_OWNER": "CATHERINE COCHRANE,  COURTNEY COCHRANE, AND  SEAN COCHRANE", "USER_OPERA": "RYAN COCHRANE  WINES", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Catherine Cochrane,  Courtney Cochrane, And  Sean Cochrane", "Oper_cln": "Ryan Cochrane  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740585 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.409067, 37.740110 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23922", "USER_OWNER": "OTTAVINO WINES LLC", "USER_STREE": "495 BARNEVELD  AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Ottavino Wines Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23463", "USER_OWNER": "LES AMERICAINES LLC", "USER_OPERA": "CLAIRE HILL WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Les Americaines Llc", "Oper_cln": "Claire Hill Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22193", "USER_OWNER": "URBAN CELLARS LLC", "USER_OPERA": "URBAN CELLARS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Urban Cellars Llc", "Oper_cln": "Urban Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23055", "USER_OWNER": "MANSFIELD-DUNNE WINES, LLC", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mansfield-dunne Wines, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22247", "USER_OWNER": "CJM WINE GROUP LLC", "USER_OPERA": "FALLON PLACE  WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Cjm Wine Group Llc", "Oper_cln": "Fallon Place  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24286", "USER_OWNER": "OUROBOROS WINES LLC", "USER_OPERA": "OUROBOROS WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Ouroboros Wines Llc", "Oper_cln": "Ouroboros Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385893, 37.738481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21066", "USER_OWNER": "THE SAN FRANCISCO  MEAD COMPANY, LLC", "USER_OPERA": "THE SAN FRANCISCO  MEADERY", "USER_STREE": "1180 SHAFTER AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "USA", "Owner_cln": "The San Francisco  Mead Company, Llc", "Oper_cln": "The San Francisco  Meadery" }, "geometry": { "type": "Point", "coordinates": [ -122.382717, 37.726805 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 165, "y": 396 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721478, 37.679405 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 165, "y": 385 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21971", "USER_OWNER": "SEVEN HILL LLC", "USER_STREE": "28740  INWOOD RD", "USER_CITY": "SHINGLETOWN", "USER_STATE": "CA", "USER_ZIP": 96088, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seven Hill Llc" }, "geometry": { "type": "Point", "coordinates": [ -121.982489, 40.511254 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 210, "y": 403 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.940218, 35.687836 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 319, "y": 773 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765750, 40.246548 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 327, "y": 792 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23988", "USER_OWNER": "47 HILLS BREWING COMPANY,  LLC", "USER_OPERA": "47 HILLS BREWING  COMPANY", "USER_STREE": "137 S LINDEN  AVE", "USER_CITY": "SOUTH SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94080, "USER_COUNT": "SAN MATEO", "Owner_cln": "47 Hills Brewing Company,  Llc", "Oper_cln": "47 Hills Brewing  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.413616, 37.644243 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 327, "y": 791 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15779", "USER_OWNER": "KENDRIC VINEYARDS, LLC", "USER_OPERA": "KENDRIC VINEYARDS", "USER_STREE": "401 13TH ST  BUILDING 3", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Kendric Vineyards, Llc", "Oper_cln": "Kendric Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.373834, 37.827616 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17255", "USER_OWNER": "MORNINGWOOD VINEYARDS  AND WINERY, INC.", "USER_STREE": "NOT PROVIDED", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 0, "USER_COUNT": "Geocoded_city_Center", "Owner_cln": "Morningwood Vineyards  And Winery, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.372975, 37.824565 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24229", "USER_OWNER": "WILLIAM LANE WINE COMPANY  LLC", "USER_OPERA": "WILLIAM LANE WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201/RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94103, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "William Lane Wine Company  Llc", "Oper_cln": "William Lane Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825752 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17548", "USER_OWNER": "HDC WINE COMPANY LLC", "USER_OPERA": "HDC WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hdc Wine Company Llc", "Oper_cln": "Hdc Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825752 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24253", "USER_OWNER": "MAYEAUX GRAPE CLINIC LLC", "USER_OPERA": "STAGIAIRE WINE", "USER_STREE": "995 9TH ST  BLDG 201 RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mayeaux Grape Clinic Llc", "Oper_cln": "Stagiaire Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825752 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825752 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17516", "USER_OWNER": "CASA NO COMPRENDE, INC.", "USER_OPERA": "TREASURE ISLAND  WINES", "USER_STREE": "995 NINTH", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Casa No Comprende, Inc.", "Oper_cln": "Treasure Island  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825752 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24193", "USER_OWNER": "DE VIN, LLC", "USER_STREE": "995 9TH ST  BLDG 201 RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "De Vin, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825752 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367139, 37.824294 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15973", "USER_OWNER": "SOL ROUGE LLC", "USER_OPERA": "SOL ROUGE", "USER_STREE": "200  CALIFORNIA  AVE BLDG 180  N", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Sol Rouge Llc", "Oper_cln": "Sol Rouge" }, "geometry": { "type": "Point", "coordinates": [ -122.369285, 37.818599 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816870 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21050", "USER_OWNER": "TANK WINES LLC", "USER_OPERA": "TANK WINES", "USER_STREE": "18 DORE ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94117, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Tank Wines Llc", "Oper_cln": "Tank Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.413530, 37.774107 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396836, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21516", "USER_OWNER": "WEBSTER GRANGER  MARQUEZ", "USER_OPERA": "PEDRO GOMEZ  INDUSTRIES", "USER_STREE": "53 BLUXOME ST", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "Owner_cln": "Webster Granger  Marquez", "Oper_cln": "Pedro Gomez  Industries" }, "geometry": { "type": "Point", "coordinates": [ -122.396836, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17487", "USER_OWNER": "WAIT CELLARS, LLC", "USER_OPERA": "WAIT CELLARS", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Wait Cellars, Llc", "Oper_cln": "Wait Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.396836, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.396836, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396836, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21396", "USER_OWNER": "KYLE ROEMER AND  SAMANTHA ROEMER", "USER_OPERA": "NICHOLAS & RAE  WINERY", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "Owner_cln": "Kyle Roemer And  Samantha Roemer", "Oper_cln": "Nicholas & Rae  Winery" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21880", "USER_OWNER": "SMASHING GRAPES, LLC", "USER_OPERA": "TIMARK WINES", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Smashing Grapes, Llc", "Oper_cln": "Timark Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22659", "USER_OWNER": "HACKBERRY HILL CELLARS, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hackberry Hill Cellars, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21270", "USER_OWNER": "HARDBALL CELLARS INC.", "USER_OPERA": "HARDBALL CELLARS", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hardball Cellars Inc.", "Oper_cln": "Hardball Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21253", "USER_OWNER": "WINEDOCTORS, LLC", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Winedoctors, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21217", "USER_OWNER": "LOOS FAMILY WINERY, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Loos Family Winery, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757076 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21912", "USER_OWNER": "PHILIP C. BOWERS", "USER_OPERA": "CB WINE CELLARS", "USER_STREE": "1225 MINNESOTA  ST", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "Owner_cln": "Philip C. Bowers", "Oper_cln": "Cb Wine Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21743", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17424", "USER_OWNER": "FURTHERMORE, LLC", "USER_OPERA": "FURTHERMORE  PINOT NOIR", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Furthermore, Llc", "Oper_cln": "Furthermore  Pinot Noir" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17319", "USER_OWNER": "ERISTAVI WINERY LLC", "USER_STREE": "1300 POTRERO  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Eristavi Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.406449, 37.751138 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21933", "USER_OWNER": "PHILIP CUADRA", "USER_OPERA": "HIGHLAWN WINE  COMPANY", "USER_STREE": "540 BARNEVELD  AVE STE K & L", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Philip Cuadra", "Oper_cln": "Highlawn Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740551 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740551 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740551 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21705", "USER_OWNER": "CATHERINE COCHRANE,  COURTNEY COCHRANE, AND  SEAN COCHRANE", "USER_OPERA": "RYAN COCHRANE  WINES", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Catherine Cochrane,  Courtney Cochrane, And  Sean Cochrane", "Oper_cln": "Ryan Cochrane  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740551 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21034", "USER_OWNER": "EDWARD S. KURTZMAN", "USER_OPERA": "SANDLER WINE  COMPANY", "USER_STREE": "540  BARNEVELD  AVE STE K AND  L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Edward S. Kurtzman", "Oper_cln": "Sandler Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740551 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.409067, 37.740076 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23922", "USER_OWNER": "OTTAVINO WINES LLC", "USER_STREE": "495 BARNEVELD  AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Ottavino Wines Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23463", "USER_OWNER": "LES AMERICAINES LLC", "USER_OPERA": "CLAIRE HILL WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Les Americaines Llc", "Oper_cln": "Claire Hill Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22193", "USER_OWNER": "URBAN CELLARS LLC", "USER_OPERA": "URBAN CELLARS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Urban Cellars Llc", "Oper_cln": "Urban Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22454", "USER_OWNER": "ESS EFF WINES, LLC", "USER_OPERA": "ESS EFF WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCCO", "Owner_cln": "Ess Eff Wines, Llc", "Oper_cln": "Ess Eff Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23055", "USER_OWNER": "MANSFIELD-DUNNE WINES, LLC", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mansfield-dunne Wines, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22247", "USER_OWNER": "CJM WINE GROUP LLC", "USER_OPERA": "FALLON PLACE  WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Cjm Wine Group Llc", "Oper_cln": "Fallon Place  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17490", "USER_OWNER": "33RD STREET CELLARS, LLC", "USER_OPERA": "CELLARS 33", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "33rd Street Cellars, Llc", "Oper_cln": "Cellars 33" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24286", "USER_OWNER": "OUROBOROS WINES LLC", "USER_OPERA": "OUROBOROS WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Ouroboros Wines Llc", "Oper_cln": "Ouroboros Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385893, 37.738481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21066", "USER_OWNER": "THE SAN FRANCISCO  MEAD COMPANY, LLC", "USER_OPERA": "THE SAN FRANCISCO  MEADERY", "USER_STREE": "1180 SHAFTER AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "USA", "Owner_cln": "The San Francisco  Mead Company, Llc", "Oper_cln": "The San Francisco  Meadery" }, "geometry": { "type": "Point", "coordinates": [ -122.382674, 37.726771 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21765", "USER_OWNER": "MAGIC BAG MEADERY LLC", "USER_OPERA": "MAGIC BAG  MEADERY", "USER_STREE": "1180 SHAFTER  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Magic Bag Meadery Llc", "Oper_cln": "Magic Bag  Meadery" }, "geometry": { "type": "Point", "coordinates": [ -122.382674, 37.726771 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 330, "y": 771 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21971", "USER_OWNER": "SEVEN HILL LLC", "USER_STREE": "28740  INWOOD RD", "USER_CITY": "SHINGLETOWN", "USER_STATE": "CA", "USER_ZIP": 96088, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seven Hill Llc" }, "geometry": { "type": "Point", "coordinates": [ -121.982489, 40.511254 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 331, "y": 792 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721478, 37.679371 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 421, "y": 806 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.940261, 35.687801 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 639, "y": 1547 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765728, 40.246532 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 639, "y": 1546 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17110", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "16370  DYERVILLE  LOOP RD BLDG  201,", "USER_CITY": "MYERS FLAT", "USER_STATE": "CA", "USER_ZIP": 95554, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -123.765728, 40.246532 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1585 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23988", "USER_OWNER": "47 HILLS BREWING COMPANY,  LLC", "USER_OPERA": "47 HILLS BREWING  COMPANY", "USER_STREE": "137 S LINDEN  AVE", "USER_CITY": "SOUTH SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94080, "USER_COUNT": "SAN MATEO", "Owner_cln": "47 Hills Brewing Company,  Llc", "Oper_cln": "47 Hills Brewing  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.413616, 37.644260 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1583 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21050", "USER_OWNER": "TANK WINES LLC", "USER_OPERA": "TANK WINES", "USER_STREE": "18 DORE ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94117, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Tank Wines Llc", "Oper_cln": "Tank Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.413552, 37.774090 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21846", "USER_OWNER": "COSENZA CELLARS LLC", "USER_STREE": "5361 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Cosenza Cellars Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396150, 37.777431 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396815, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21516", "USER_OWNER": "WEBSTER GRANGER  MARQUEZ", "USER_OPERA": "PEDRO GOMEZ  INDUSTRIES", "USER_STREE": "53 BLUXOME ST", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "Owner_cln": "Webster Granger  Marquez", "Oper_cln": "Pedro Gomez  Industries" }, "geometry": { "type": "Point", "coordinates": [ -122.396815, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17487", "USER_OWNER": "WAIT CELLARS, LLC", "USER_OPERA": "WAIT CELLARS", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Wait Cellars, Llc", "Oper_cln": "Wait Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.396815, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17377", "USER_OWNER": "ALCHEMIST CELLARS LLC", "USER_OPERA": "ALCHEMIST CELLARS", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Alchemist Cellars Llc", "Oper_cln": "Alchemist Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.396815, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21120", "USER_OWNER": "VOLEURS DE VIN, LLC", "USER_OPERA": "VOLEURS DE VIN", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Voleurs De Vin, Llc", "Oper_cln": "Voleurs De Vin" }, "geometry": { "type": "Point", "coordinates": [ -122.396815, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17212", "USER_OWNER": "CITY VINTNERS SAN FRANCISCO  WINERY LLC", "USER_STREE": "53 BLUXOME  ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "City Vintners San Francisco  Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.396815, 37.776481 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21396", "USER_OWNER": "KYLE ROEMER AND  SAMANTHA ROEMER", "USER_OPERA": "NICHOLAS & RAE  WINERY", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "Owner_cln": "Kyle Roemer And  Samantha Roemer", "Oper_cln": "Nicholas & Rae  Winery" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17398", "USER_OWNER": "MICHAEL JAMES WINES, INC.", "USER_OPERA": "MICHAEL JAMES  WINES", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Michael James Wines, Inc.", "Oper_cln": "Michael James  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17354", "USER_OWNER": "PUG WINE, LLC", "USER_OPERA": "PUG WINE", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pug Wine, Llc", "Oper_cln": "Pug Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21880", "USER_OWNER": "SMASHING GRAPES, LLC", "USER_OPERA": "TIMARK WINES", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Smashing Grapes, Llc", "Oper_cln": "Timark Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22659", "USER_OWNER": "HACKBERRY HILL CELLARS, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hackberry Hill Cellars, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21270", "USER_OWNER": "HARDBALL CELLARS INC.", "USER_OPERA": "HARDBALL CELLARS", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hardball Cellars Inc.", "Oper_cln": "Hardball Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17609", "USER_OWNER": "SEAMUS WINES, LLC", "USER_OPERA": "SEAMUS WINES", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seamus Wines, Llc", "Oper_cln": "Seamus Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21023", "USER_OWNER": "ARAN O. HEALY AND DAVID G.  GREGA", "USER_OPERA": "CARLOTTA CELLARS", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Aran O. Healy And David G.  Grega", "Oper_cln": "Carlotta Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21253", "USER_OWNER": "WINEDOCTORS, LLC", "USER_STREE": "2455 3RD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Winedoctors, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21217", "USER_OWNER": "LOOS FAMILY WINERY, LLC", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Loos Family Winery, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22655", "USER_OWNER": "BRAZEN VENTURES LLC", "USER_OPERA": "BRAZEN VENTURES", "USER_STREE": "2455 THIRD ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISO", "Owner_cln": "Brazen Ventures Llc", "Oper_cln": "Brazen Ventures" }, "geometry": { "type": "Point", "coordinates": [ -122.387910, 37.759248 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15734", "USER_OWNER": "CARL E. & SHARON H. SUTTON", "USER_OPERA": "SUTTON CELLARS", "USER_STREE": "601 22ND ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Carl E. & Sharon H. Sutton", "Oper_cln": "Sutton Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.387695, 37.757076 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21912", "USER_OWNER": "PHILIP C. BOWERS", "USER_OPERA": "CB WINE CELLARS", "USER_STREE": "1225 MINNESOTA  ST", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "Owner_cln": "Philip C. Bowers", "Oper_cln": "Cb Wine Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21743", "USER_OWNER": "FORTUNATUS, LLC", "USER_OPERA": "BRAVIUM", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Fortunatus, Llc", "Oper_cln": "Bravium" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17719", "USER_OWNER": "CHRISTOPHER VON HOLT AND  PAMELA VON HOLT", "USER_OPERA": "VON HOLT WINES", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Christopher Von Holt And  Pamela Von Holt", "Oper_cln": "Von Holt Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17424", "USER_OWNER": "FURTHERMORE, LLC", "USER_OPERA": "FURTHERMORE  PINOT NOIR", "USER_STREE": "1225  MINNESOTA ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94107, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Furthermore, Llc", "Oper_cln": "Furthermore  Pinot Noir" }, "geometry": { "type": "Point", "coordinates": [ -122.389455, 37.754939 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17319", "USER_OWNER": "ERISTAVI WINERY LLC", "USER_STREE": "1300 POTRERO  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Eristavi Winery Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.406449, 37.751121 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21933", "USER_OWNER": "PHILIP CUADRA", "USER_OPERA": "HIGHLAWN WINE  COMPANY", "USER_STREE": "540 BARNEVELD  AVE STE K & L", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Philip Cuadra", "Oper_cln": "Highlawn Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-3592", "USER_OWNER": "AUGUST WEST WINES, LLC", "USER_OPERA": "AUGUST WEST", "USER_STREE": "540  BARNEVELD  AVE SUITES K A", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "August West Wines, Llc", "Oper_cln": "August West" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21774", "USER_OWNER": "HERSLY WINES LLC", "USER_OPERA": "HERSLY WINES", "USER_STREE": "540  BARNEVELD  AVE STE K, L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hersly Wines Llc", "Oper_cln": "Hersly Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22069", "USER_OWNER": "RUSSE WINE PARTNERS, LLC", "USER_OPERA": "MONTAGNE RUSSE", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Russe Wine Partners, Llc", "Oper_cln": "Montagne Russe" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21705", "USER_OWNER": "CATHERINE COCHRANE,  COURTNEY COCHRANE, AND  SEAN COCHRANE", "USER_OPERA": "RYAN COCHRANE  WINES", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Catherine Cochrane,  Courtney Cochrane, And  Sean Cochrane", "Oper_cln": "Ryan Cochrane  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21034", "USER_OWNER": "EDWARD S. KURTZMAN", "USER_OPERA": "SANDLER WINE  COMPANY", "USER_STREE": "540  BARNEVELD  AVE STE K AND  L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Edward S. Kurtzman", "Oper_cln": "Sandler Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22040", "USER_OWNER": "THEOPOLIS ENTERPRISES, LLC", "USER_OPERA": "THEOPOLIS  VINEYARDS", "USER_STREE": "540  BARNEVELD  AVE STE K & L", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO  COUNTY", "Owner_cln": "Theopolis Enterprises, Llc", "Oper_cln": "Theopolis  Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.404604, 37.740568 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23518", "USER_OWNER": "BAREBOTTLE BREWING  COMPANY, INC.", "USER_OPERA": "BAREBOTTLE  BREWING COMPANY", "USER_STREE": "1525  CORTLAND AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94110, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barebottle Brewing  Company, Inc.", "Oper_cln": "Barebottle  Brewing Company" }, "geometry": { "type": "Point", "coordinates": [ -122.409067, 37.740076 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23922", "USER_OWNER": "OTTAVINO WINES LLC", "USER_STREE": "495 BARNEVELD  AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "Owner_cln": "Ottavino Wines Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23463", "USER_OWNER": "LES AMERICAINES LLC", "USER_OPERA": "CLAIRE HILL WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Les Americaines Llc", "Oper_cln": "Claire Hill Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17327", "USER_OWNER": "WAITS-MAST FAMILY CELLARS,  LLC", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Waits-mast Family Cellars,  Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22193", "USER_OWNER": "URBAN CELLARS LLC", "USER_OPERA": "URBAN CELLARS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Urban Cellars Llc", "Oper_cln": "Urban Cellars" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22454", "USER_OWNER": "ESS EFF WINES, LLC", "USER_OPERA": "ESS EFF WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCCO", "Owner_cln": "Ess Eff Wines, Llc", "Oper_cln": "Ess Eff Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23055", "USER_OWNER": "MANSFIELD-DUNNE WINES, LLC", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mansfield-dunne Wines, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22247", "USER_OWNER": "CJM WINE GROUP LLC", "USER_OPERA": "FALLON PLACE  WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Cjm Wine Group Llc", "Oper_cln": "Fallon Place  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22595", "USER_OWNER": "JOHN DAVID LOUIS BRY", "USER_OPERA": "PERFUSION  VINEYARD", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "John David Louis Bry", "Oper_cln": "Perfusion  Vineyard" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24254", "USER_OWNER": "DEMEO VINEYARDS INC.", "USER_OPERA": "DEMEO VINEYARDS", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Demeo Vineyards Inc.", "Oper_cln": "Demeo Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17490", "USER_OWNER": "33RD STREET CELLARS, LLC", "USER_OPERA": "CELLARS 33", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "33rd Street Cellars, Llc", "Oper_cln": "Cellars 33" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24286", "USER_OWNER": "OUROBOROS WINES LLC", "USER_OPERA": "OUROBOROS WINES", "USER_STREE": "495  BARNEVELD  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Ouroboros Wines Llc", "Oper_cln": "Ouroboros Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.403402, 37.740381 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15292", "USER_OWNER": "BRYAN RULISON HARRINGTON", "USER_OPERA": "HARRINGTON WINES", "USER_STREE": "1559 CUSTER  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Bryan Rulison Harrington", "Oper_cln": "Harrington Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.390742, 37.745658 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15425", "USER_OWNER": "BARBARA J. GRATTA", "USER_OPERA": "GRATTA WINES", "USER_STREE": "1469 HUDSON  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Barbara J. Gratta", "Oper_cln": "Gratta Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.385893, 37.738464 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21066", "USER_OWNER": "THE SAN FRANCISCO  MEAD COMPANY, LLC", "USER_OPERA": "THE SAN FRANCISCO  MEADERY", "USER_STREE": "1180 SHAFTER AVE", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "USA", "Owner_cln": "The San Francisco  Mead Company, Llc", "Oper_cln": "The San Francisco  Meadery" }, "geometry": { "type": "Point", "coordinates": [ -122.382696, 37.726788 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21765", "USER_OWNER": "MAGIC BAG MEADERY LLC", "USER_OPERA": "MAGIC BAG  MEADERY", "USER_STREE": "1180 SHAFTER  AVE", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94124, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Magic Bag Meadery Llc", "Oper_cln": "Magic Bag  Meadery" }, "geometry": { "type": "Point", "coordinates": [ -122.382696, 37.726788 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 655, "y": 1582 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15779", "USER_OWNER": "KENDRIC VINEYARDS, LLC", "USER_OPERA": "KENDRIC VINEYARDS", "USER_STREE": "401 13TH ST  BUILDING 3", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Kendric Vineyards, Llc", "Oper_cln": "Kendric Vineyards" }, "geometry": { "type": "Point", "coordinates": [ -122.373834, 37.827633 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17255", "USER_OWNER": "MORNINGWOOD VINEYARDS  AND WINERY, INC.", "USER_STREE": "NOT PROVIDED", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 0, "USER_COUNT": "Geocoded_city_Center", "Owner_cln": "Morningwood Vineyards  And Winery, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.372975, 37.824565 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16651", "USER_OWNER": "PB WINES, INC.", "USER_STREE": "1080 AVENUE  M UNIT C", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Pb Wines, Inc." }, "geometry": { "type": "Point", "coordinates": [ -122.368834, 37.829141 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24229", "USER_OWNER": "WILLIAM LANE WINE COMPANY  LLC", "USER_OPERA": "WILLIAM LANE WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201/RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94103, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "William Lane Wine Company  Llc", "Oper_cln": "William Lane Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17548", "USER_OWNER": "HDC WINE COMPANY LLC", "USER_OPERA": "HDC WINE  COMPANY", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Hdc Wine Company Llc", "Oper_cln": "Hdc Wine  Company" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24253", "USER_OWNER": "MAYEAUX GRAPE CLINIC LLC", "USER_OPERA": "STAGIAIRE WINE", "USER_STREE": "995 9TH ST  BLDG 201 RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Mayeaux Grape Clinic Llc", "Oper_cln": "Stagiaire Wine" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21125", "USER_OWNER": "PASSAGGIO WINES LLC", "USER_OPERA": "PASSAGGIO WINES", "USER_STREE": "995 9TH ST  BLDG 201", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Passaggio Wines Llc", "Oper_cln": "Passaggio Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17549", "USER_OWNER": "MORGAN FAMILY WINES LLC", "USER_OPERA": "MORGAN FAMILY  WINES", "USER_STREE": "995 9TH ST  BLDG 201,", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Morgan Family Wines Llc", "Oper_cln": "Morgan Family  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17516", "USER_OWNER": "CASA NO COMPRENDE, INC.", "USER_OPERA": "TREASURE ISLAND  WINES", "USER_STREE": "995 NINTH", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Casa No Comprende, Inc.", "Oper_cln": "Treasure Island  Wines" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-24193", "USER_OWNER": "DE VIN, LLC", "USER_STREE": "995 9TH ST  BLDG 201 RM  104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "De Vin, Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-23993", "USER_OWNER": "JUST ENOUGH WINES LLC", "USER_STREE": "995 9TH ST  UNIT 201  RM104", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Just Enough Wines Llc" }, "geometry": { "type": "Point", "coordinates": [ -122.368984, 37.825769 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-16641", "USER_OWNER": "YERBA BUENA BEVERAGE, LLC", "USER_OPERA": "TREASURE ISLAND  BRANDS", "USER_STREE": "750 6TH ST", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Yerba Buena Beverage, Llc", "Oper_cln": "Treasure Island  Brands" }, "geometry": { "type": "Point", "coordinates": [ -122.367139, 37.824311 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-15973", "USER_OWNER": "SOL ROUGE LLC", "USER_OPERA": "SOL ROUGE", "USER_STREE": "200  CALIFORNIA  AVE BLDG 180  N", "USER_CITY": "SAN  FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Sol Rouge Llc", "Oper_cln": "Sol Rouge" }, "geometry": { "type": "Point", "coordinates": [ -122.369285, 37.818582 ] } }
+,
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-22828", "USER_OWNER": "SURFACE AREA, LLC", "USER_OPERA": "WOODS BEER CO.", "USER_STREE": "422 CLIPPER COVE  WAY", "USER_CITY": "SAN FRANCISCO", "USER_STATE": "CA", "USER_ZIP": 94130, "Owner_cln": "Surface Area, Llc", "Oper_cln": "Woods Beer Co." }, "geometry": { "type": "Point", "coordinates": [ -122.369843, 37.816870 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 660, "y": 1543 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-21971", "USER_OWNER": "SEVEN HILL LLC", "USER_STREE": "28740  INWOOD RD", "USER_CITY": "SHINGLETOWN", "USER_STATE": "CA", "USER_ZIP": 96088, "USER_COUNT": "SAN  FRANCISCO", "Owner_cln": "Seven Hill Llc" }, "geometry": { "type": "Point", "coordinates": [ -121.982489, 40.511238 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 663, "y": 1584 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "CA-W-17266", "USER_OWNER": "DAN BALDWIN", "USER_OPERA": "THE SAN FRANCISCO  BAY WINERY", "USER_STREE": "2029 RESEARCH DR", "USER_CITY": "LIVERMORE", "USER_STATE": "CA", "USER_ZIP": 94550, "USER_COUNT": "ALAMEDA", "Owner_cln": "Dan Baldwin", "Oper_cln": "The San Francisco  Bay Winery" }, "geometry": { "type": "Point", "coordinates": [ -121.721478, 37.679388 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 12, "x": 842, "y": 1612 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "USER_PERMI": "NM-W-21035", "USER_OWNER": "DH WINERY - 139 WSF, LLC", "USER_STREE": "139 W SAN FRANCISCO ST", "USER_CITY": "SANTA FE", "USER_STATE": "NM", "USER_ZIP": 87501, "USER_COUNT": "SANTA FE", "Owner_cln": "Dh Winery - 139 Wsf, Llc" }, "geometry": { "type": "Point", "coordinates": [ -105.940261, 35.687801 ] } }
+] }
+] }
+] }

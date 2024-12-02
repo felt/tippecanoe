@@ -146,8 +146,9 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 	sf.geometry = dv;
 	sf.t = drawvec_type;
 
-	std::vector<std::string> full_keys;
+	std::vector<std::shared_ptr<std::string>> full_keys;
 	std::vector<serial_val> full_values;
+    key_pool key_pool;
 
 	// assume tabular schema with columns in header
 	size_t p_pos = 0;
@@ -243,7 +244,7 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 			fprintf(stderr, "flatgeobuf has unsupported column type %u\n", (unsigned int)col_type);
 			exit(EXIT_IMPOSSIBLE);
 		}
-		full_keys.push_back(h_column_names[col_idx]);
+		full_keys.push_back(key_pool.pool(h_column_names[col_idx]));
 		full_values.push_back(sv);
 	}
 
