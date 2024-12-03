@@ -55,6 +55,8 @@ int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
 std::vector<std::string> unidecode_data;
+std::string join_tile_column;
+std::string join_table_column;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -144,9 +146,9 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		auto tilestats = layermap.find(layer.name);
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
-			mvt_feature feat = layer.features[f];
-			std::set<std::string> exclude_attributes;
+			mvt_feature &feat = layer.features[f];
 
+			std::set<std::string> exclude_attributes;
 			if (filter != NULL && !evaluate(feat, layer, filter, exclude_attributes, z, unidecode_data)) {
 				continue;
 			}
@@ -163,7 +165,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			std::vector<std::string> key_order;
 
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
-				const char *key = layer.keys[feat.tags[t]].c_str();
+				const std::string &key = layer.keys[feat.tags[t]];
 				mvt_value &val = layer.values[feat.tags[t + 1]];
 				serial_val sv = mvt_value_to_serial_val(val);
 
@@ -171,12 +173,15 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					continue;
 				}
 
-				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
+				if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
 					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
 					key_order.push_back(key);
 				}
 
-				if (header.size() > 0 && strcmp(key, header[0].c_str()) == 0) {
+				if (key == join_tile_column) {
+				}
+
+				if (header.size() > 0 && key == header[0]) {
 					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(sv.s);
 
 					if (ii != mapping.end()) {
@@ -1203,8 +1208,6 @@ int main(int argc, char **argv) {
 	json_object *filter = NULL;
 
 	std::string join_sqlite_fname;
-	std::string join_tile_column;
-	std::string join_table_column;
 
 	struct tileset_reader *readers = NULL;
 
