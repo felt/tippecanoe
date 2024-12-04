@@ -38,9 +38,6 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/param.h>
-#include <sys/mount.h>
-#else
-#include <sys/statfs.h>
 #endif
 
 #include "jsonpull/jsonpull.h"
