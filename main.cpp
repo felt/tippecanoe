@@ -121,7 +121,7 @@ size_t CPUS;
 size_t TEMP_FILES;
 long long MAX_FILES;
 size_t memsize;
-static long long diskfree;
+static uintmax_t diskfree;
 char **av;
 
 std::vector<clipbbox> clipbboxes;
@@ -1323,13 +1323,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->file_bbox[2] = r->file_bbox[3] = 0;
 	}
 
-	struct statfs fsstat;
-	if (fstatfs(readers[0].geomfd, &fsstat) != 0) {
-		perror("Warning: fstatfs");
+	std::error_code ec;
+	fs::space_info si = fs::space(fs::path(tmpdir), ec);
+	if (ec) {
 		fprintf(stderr, "Tippecanoe cannot check whether disk space will run out during tiling.\n");
-		diskfree = LLONG_MAX;
+		diskfree = UINTMAX_MAX;
 	} else {
-		diskfree = (long long) fsstat.f_bsize * fsstat.f_bavail;
+		diskfree = si.available;
 	}
 
 	std::atomic<long long> progress_seq(0);
