@@ -1,5 +1,6 @@
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
 #include <fstream>
 #include <string.h>
 #include <algorithm>
@@ -11,6 +12,8 @@
 #include "mvt.hpp"
 #include "write_json.hpp"
 #include "main.hpp"
+
+namespace fs = std::filesystem;
 
 bool pmtiles_has_suffix(const char *filename) {
 	if (filename == nullptr) {
@@ -27,8 +30,7 @@ bool pmtiles_has_suffix(const char *filename) {
 }
 
 void check_pmtiles(const char *filename, char **argv, bool forcetable) {
-	struct stat st;
-	if (stat(filename, &st) == 0) {
+	if (fs::exists(filename)) {
 		fprintf(stderr, "%s: Tileset \"%s\" already exists. You can use --force if you want to delete the old tileset.\n", argv[0], filename);
 		fprintf(stderr, "%s: %s: file exists\n", argv[0], filename);
 
