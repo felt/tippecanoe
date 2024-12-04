@@ -26,6 +26,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <zlib.h>
+#include <filesystem>
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -67,6 +68,8 @@
 #include "attribute.hpp"
 #include "thread.hpp"
 #include "platform.hpp"
+
+namespace fs = std::filesystem;
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -2991,7 +2994,8 @@ int main(int argc, char **argv) {
 	double droprate = 2.5;
 	double gamma = 0;
 	int buffer = 5;
-	const char *tmpdir = "/tmp";
+	std::string tmpdir_path = fs::temp_directory_path().string();
+	const char *tmpdir = tmpdir_path.c_str();
 	const char *attribution = NULL;
 	std::vector<source> sources;
 	const char *prefilter = NULL;
