@@ -57,6 +57,7 @@ bool exclude_all = false;
 std::vector<std::string> unidecode_data;
 std::string join_tile_column;
 std::string join_table_column;
+std::string join_table;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -140,6 +141,27 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 
 				outlayer.extent = layer.extent;
+			}
+		}
+
+		if (db != NULL) {
+			// collect join keys for sql query
+
+			std::vector<mvt_value> join_keys;
+			join_keys.resize(layer.features.size());
+
+			for (size_t f = 0; f < layer.features.size(); f++) {
+				mvt_feature &feat = layer.features[f];
+				join_keys[f].type = mvt_no_such_key;
+
+				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+					const std::string &key = layer.keys[feat.tags[t]];
+					if (key == join_tile_column) {
+						const mvt_value &val = layer.values[feat.tags[t + 1]];
+						join_keys[f] = val;
+						break;
+					}
+				}
 			}
 		}
 
@@ -1263,8 +1285,9 @@ int main(int argc, char **argv) {
 		{"read-from", required_argument, 0, 'r'},
 
 		{"join-sqlite", required_argument, 0, '~'},
-		{"join-tile-key", required_argument, 0, '~'},
-		{"join-table-key", required_argument, 0, '~'},
+		{"join-tile-column", required_argument, 0, '~'},
+		{"join-table-column", required_argument, 0, '~'},
+		{"join-table", required_argument, 0, '~'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
 		{"no-tile-compression", no_argument, &pC, 1},
@@ -1452,6 +1475,12 @@ int main(int argc, char **argv) {
 				unidecode_data = read_unidecode(optarg);
 			} else if (strcmp(opt, "join-sqlite") == 0) {
 				join_sqlite_fname = optarg;
+			} else if (strcmp(opt, "join-table") == 0) {
+				join_table = optarg;
+			} else if (strcmp(opt, "join-table-column") == 0) {
+				join_table_column = optarg;
+			} else if (strcmp(opt, "join-tile-column") == 0) {
+				join_tile_column = optarg;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
