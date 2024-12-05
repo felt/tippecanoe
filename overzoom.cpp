@@ -40,6 +40,26 @@ void usage(char **argv) {
 	exit(EXIT_FAILURE);
 }
 
+std::string read_json_file(const char *fname) {
+	std::string out;
+
+	FILE *f = fopen(fname, "r");
+	if (f == NULL) {
+		perror(optarg);
+		exit(EXIT_OPEN);
+	}
+
+	char buf[2000];
+	size_t nread;
+	while ((nread = fread(buf, sizeof(char), 2000, f)) != 0) {
+		out += std::string(buf, nread);
+	}
+
+	fclose(f);
+
+	return out;
+}
+
 int main(int argc, char **argv) {
 	int i;
 	const char *outtile = NULL;
@@ -73,6 +93,7 @@ int main(int argc, char **argv) {
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
+		{"clip-polygon-file", required_argument, 0, 'm' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -123,24 +144,9 @@ int main(int argc, char **argv) {
 			filter = optarg;
 			break;
 
-		case 'J': {
-			filter = "";
-
-			FILE *f = fopen(optarg, "r");
-			if (f == NULL) {
-				perror(optarg);
-				exit(EXIT_OPEN);
-			}
-
-			char buf[2000];
-			size_t nread;
-			while ((nread = fread(buf, sizeof(char), 2000, f)) != 0) {
-				filter += std::string(buf, nread);
-			}
-
-			fclose(f);
+		case 'J':
+			filter = read_json_file(optarg);
 			break;
-		}
 
 		case 'o' & 0x1F:
 			preserve_input_order = true;
@@ -197,6 +203,12 @@ int main(int argc, char **argv) {
 
 		case 'l' & 0x1F: {
 			clipbbox clip = parse_clip_poly(optarg);
+			clipbboxes.push_back(clip);
+			break;
+		}
+
+		case 'm' & 0x1F: {
+			clipbbox clip = parse_clip_poly(read_json_file(optarg));
 			clipbboxes.push_back(clip);
 			break;
 		}
