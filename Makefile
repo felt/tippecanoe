@@ -326,6 +326,11 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/0-0-0-pop-expr.pbf 0 0 0 > tests/pbf/0-0-0-pop-expr.pbf.json.check
 	cmp tests/pbf/0-0-0-pop-expr.pbf.json.check tests/pbf/0-0-0-pop-expr.pbf.json
 	rm tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop-expr.pbf.json.check
+	# Same filter test, but reading the filter from a file
+	./tippecanoe-overzoom -y NAME -J tests/pbf/scalerank-0-filter.json -o tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-decode tests/pbf/0-0-0-pop-expr.pbf 0 0 0 > tests/pbf/0-0-0-pop-expr.pbf.json.check
+	cmp tests/pbf/0-0-0-pop-expr.pbf.json.check tests/pbf/0-0-0-pop-expr.pbf.json
+	rm tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop-expr.pbf.json.check
 	# Filtering with multiplier
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
 	# 8 features survive into the output, from 9 clusters of 30
@@ -379,6 +384,11 @@ overzoom-test: tippecanoe-overzoom
 	rm tests/pbf/bin-11-327-791-ids.pbf.out.json.check tests/pbf/bin-11-327-791-ids.pbf.out
 	# Binning by id, clipping by polygon
 	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids-clip.pbf.out --clip-polygon='{"coordinates":[[[-122.4527379,37.8128815],[-122.4598853,37.7834743],[-122.4280914,37.7959397],[-122.4527379,37.8128815]]],"type":"Polygon"}' --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
+	./tippecanoe-decode tests/pbf/bin-11-327-791-ids-clip.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check
+	cmp tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out.json
+	rm tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out
+	# Binning by id, clipping by polygon from file
+	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids-clip.pbf.out --clip-polygon-file=tests/pbf/clip-poly.json --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
 	./tippecanoe-decode tests/pbf/bin-11-327-791-ids-clip.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check
 	cmp tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out.json
 	rm tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out

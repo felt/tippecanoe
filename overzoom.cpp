@@ -40,6 +40,26 @@ void usage(char **argv) {
 	exit(EXIT_FAILURE);
 }
 
+std::string read_json_file(const char *fname) {
+	std::string out;
+
+	FILE *f = fopen(fname, "r");
+	if (f == NULL) {
+		perror(optarg);
+		exit(EXIT_OPEN);
+	}
+
+	char buf[2000];
+	size_t nread;
+	while ((nread = fread(buf, sizeof(char), 2000, f)) != 0) {
+		out += std::string(buf, nread);
+	}
+
+	fclose(f);
+
+	return out;
+}
+
 int main(int argc, char **argv) {
 	int i;
 	const char *outtile = NULL;
@@ -60,6 +80,7 @@ int main(int argc, char **argv) {
 		{"output", required_argument, 0, 'o'},
 		{"filter-points-multiplier", no_argument, 0, 'm'},
 		{"feature-filter", required_argument, 0, 'j'},
+		{"feature-filter-file", required_argument, 0, 'J'},
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
 		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
@@ -72,6 +93,7 @@ int main(int argc, char **argv) {
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
+		{"clip-polygon-file", required_argument, 0, 'm' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -120,6 +142,10 @@ int main(int argc, char **argv) {
 
 		case 'j':
 			filter = optarg;
+			break;
+
+		case 'J':
+			filter = read_json_file(optarg);
 			break;
 
 		case 'o' & 0x1F:
@@ -177,6 +203,12 @@ int main(int argc, char **argv) {
 
 		case 'l' & 0x1F: {
 			clipbbox clip = parse_clip_poly(optarg);
+			clipbboxes.push_back(clip);
+			break;
+		}
+
+		case 'm' & 0x1F: {
+			clipbbox clip = parse_clip_poly(read_json_file(optarg));
 			clipbboxes.push_back(clip);
 			break;
 		}
