@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
 		{"output", required_argument, 0, 'o'},
 		{"filter-points-multiplier", no_argument, 0, 'm'},
 		{"feature-filter", required_argument, 0, 'j'},
+		{"feature-filter-file", required_argument, 0, 'J'},
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
 		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
@@ -121,6 +122,25 @@ int main(int argc, char **argv) {
 		case 'j':
 			filter = optarg;
 			break;
+
+		case 'J': {
+			filter = "";
+
+			FILE *f = fopen(optarg, "r");
+			if (f == NULL) {
+				perror(optarg);
+				exit(EXIT_OPEN);
+			}
+
+			char buf[2000];
+			size_t nread;
+			while ((nread = fread(buf, sizeof(char), 2000, f)) != 0) {
+				filter += std::string(buf, nread);
+			}
+
+			fclose(f);
+			break;
+		}
 
 		case 'o' & 0x1F:
 			preserve_input_order = true;
