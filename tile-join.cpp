@@ -83,7 +83,7 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 	ret.resize(join_keys.size());
 
 	// double quotes for table and column identifiers
-	const char *s = sqlite3_mprintf("select * from %w where %w in (", join_table.c_str(), join_table_column.c_str());
+	const char *s = sqlite3_mprintf("select * from \"%w\" where \"%w\" in (", join_table.c_str(), join_table_column.c_str());
 	std::string query = s;
 	sqlite3_free((void *) s);
 
@@ -92,7 +92,7 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 
 		// single quotes for literals
 		if (v.type == mvt_string) {
-			s = sqlite3_mprintf("%q", v.c_str());
+			s = sqlite3_mprintf("'%q'", v.c_str());
 			query += s;
 			sqlite3_free((void *) s);
 		} else {
@@ -105,6 +105,7 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 	}
 
 	query += ");";
+	printf("%s\n", query.c_str());
 
 	return ret;
 }
@@ -1508,6 +1509,10 @@ int main(int argc, char **argv) {
 				unidecode_data = read_unidecode(optarg);
 			} else if (strcmp(opt, "join-sqlite") == 0) {
 				join_sqlite_fname = optarg;
+				if (sqlite3_open(optarg, &db) != SQLITE_OK) {
+					fprintf(stderr, "%s: %s\n", optarg, sqlite3_errmsg(db));
+					exit(EXIT_SQLITE);
+				}
 			} else if (strcmp(opt, "join-table") == 0) {
 				join_table = optarg;
 			} else if (strcmp(opt, "join-table-column") == 0) {
