@@ -78,6 +78,37 @@ struct stats {
 // https://stackoverflow.com/questions/11753871/getting-the-type-of-a-column-in-sqlite
 std::string get_column_types_query = "SELECT m.name AS table_name, UPPER(m.type) AS table_type, p.name AS column_name, p.type AS data_type, CASE p.pk WHEN 1 THEN 'PRIMARY KEY' END AS const FROM sqlite_master AS m INNER JOIN pragma_table_info(m.name) AS p WHERE m.name NOT IN ('sqlite_sequence') ORDER BY m.name, p.cid;";
 
+std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const std::vector<mvt_value> &join_keys) {
+	std::vector<std::map<std::string, mvt_value>> ret;
+	ret.resize(join_keys.size());
+
+	// double quotes for table and column identifiers
+	const char *s = sqlite3_mprintf("select * from %w where %w in (", join_table.c_str(), join_table_column.c_str());
+	std::string query = s;
+	sqlite3_free((void *) s);
+
+	for (size_t i = 0; i < join_keys.size(); i++) {
+		const mvt_value &v = join_keys[i];
+
+		// single quotes for literals
+		if (v.type == mvt_string) {
+			s = sqlite3_mprintf("%q", v.c_str());
+			query += s;
+			sqlite3_free((void *) s);
+		} else {
+			query += v.toString();
+		}
+
+		if (i + 1 < join_keys.size()) {
+			query += ", ";
+		}
+	}
+
+	query += ");";
+
+	return ret;
+}
+
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
@@ -163,6 +194,8 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					}
 				}
 			}
+
+			std::vector<std::map<std::string, mvt_value>> joined = get_joined_rows(db, join_keys);
 		}
 
 		auto tilestats = layermap.find(layer.name);
