@@ -100,7 +100,7 @@ void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
 	fs::permissions(dir, fs::perms::all, fs::perm_options::add, ec);
 	std::string meta = fs::path(dir) / "metadata.json";
 	if (force) {
-		unlink(meta.c_str());  // error OK since it may not exist;
+		fs::remove(meta, ec);  // error OK since it may not exist
 	} else {
 		if (fs::exists(meta)) {
 			fprintf(stderr, "%s: Tileset \"%s\" already exists. You can use --force if you want to delete the old tileset.\n", argv[0], dir);
@@ -122,7 +122,9 @@ void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
 		std::string fn = std::string(dir) + "/" + tiles[i].path();
 
 		if (force) {
-			if (unlink(fn.c_str()) != 0) {
+			std::error_code ec;
+			fs::remove(fn, ec);
+			if (ec) {
 				perror(fn.c_str());
 				exit(EXIT_UNLINK);
 			}
@@ -219,7 +221,9 @@ void dir_erase_zoom(const char *fname, int zoom) {
 						while ((dp3 = readdir(d3)) != NULL) {
 							if (pbfname(dp3->d_name)) {
 								std::string y = x + "/" + dp3->d_name;
-								if (unlink(y.c_str()) != 0) {
+								std::error_code ec;
+								fs::remove(y, ec);
+								if (ec) {
 									perror(y.c_str());
 									exit(EXIT_UNLINK);
 								}

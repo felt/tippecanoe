@@ -755,37 +755,35 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 	for (i = 0; i < splits; i++) {
 		sub_geompos[i] = 0;
 
-		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
-		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+		std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
+		std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
 
-		geomfds[i] = mkstemp_cloexec(geomname);
+		geomfds[i] = mkstemp_cloexec(geomname.data());
 		if (geomfds[i] < 0) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		indexfds[i] = mkstemp_cloexec(indexname);
+		indexfds[i] = mkstemp_cloexec(indexname.data());
 		if (indexfds[i] < 0) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
 
-		geomfiles[i] = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+		geomfiles[i] = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (geomfiles[i] == NULL) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		indexfiles[i] = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+		indexfiles[i] = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (indexfiles[i] == NULL) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
 
 		*availfiles -= 4;
 
-		unlink(geomname);
-		unlink(indexname);
+		fs::remove(geomname);
+		fs::remove(indexname);
 	}
 
 	for (i = 0; i < inputs; i++) {
@@ -1222,79 +1220,74 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	for (size_t i = 0; i < CPUS; i++) {
 		struct reader *r = &readers[i];
 
-		char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-		char treename[strlen(tmpdir) + strlen("/tree.XXXXXXXX") + 1];
-		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		char vertexname[strlen(tmpdir) + strlen("/vertex.XXXXXXXX") + 1];
-		char nodename[strlen(tmpdir) + strlen("/node.XXXXXXXX") + 1];
+		std::string poolname = std::string(tmpdir) + "/pool.XXXXXXXX";
+		std::string treename = std::string(tmpdir) + "/tree.XXXXXXXX";
+		std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
+		std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
+		std::string vertexname = std::string(tmpdir) + "/vertex.XXXXXXXX";
+		std::string nodename = std::string(tmpdir) + "/node.XXXXXXXX";
 
-		snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
-		snprintf(treename, sizeof(treename), "%s%s", tmpdir, "/tree.XXXXXXXX");
-		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
-		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
-		snprintf(vertexname, sizeof(vertexname), "%s%s", tmpdir, "/vertex.XXXXXXXX");
-		snprintf(nodename, sizeof(nodename), "%s%s", tmpdir, "/node.XXXXXXXX");
-
-		r->poolfd = mkstemp_cloexec(poolname);
+		// Since C++11, the returned array from data() is null-terminated
+		r->poolfd = mkstemp_cloexec(poolname.data());
 		if (r->poolfd < 0) {
-			perror(poolname);
+			perror(poolname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->treefd = mkstemp_cloexec(treename);
+		r->treefd = mkstemp_cloexec(treename.data());
 		if (r->treefd < 0) {
-			perror(treename);
+			perror(treename.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->geomfd = mkstemp_cloexec(geomname);
+		r->geomfd = mkstemp_cloexec(geomname.data());
 		if (r->geomfd < 0) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->indexfd = mkstemp_cloexec(indexname);
+		r->indexfd = mkstemp_cloexec(indexname.data());
 		if (r->indexfd < 0) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->vertexfd = mkstemp_cloexec(vertexname);
+		r->vertexfd = mkstemp_cloexec(vertexname.data());
 		if (r->vertexfd < 0) {
-			perror(vertexname);
+			perror(vertexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefd = mkstemp_cloexec(nodename);
+		r->nodefd = mkstemp_cloexec(nodename.data());
 		if (r->nodefd < 0) {
-			perror(nodename);
+			perror(nodename.c_str());
 			exit(EXIT_OPEN);
 		}
 
 		r->poolfile = memfile_open(r->poolfd);
 		if (r->poolfile == NULL) {
-			perror(poolname);
+			perror(poolname.c_str());
 			exit(EXIT_OPEN);
 		}
 		r->treefile = memfile_open(r->treefd);
 		if (r->treefile == NULL) {
-			perror(treename);
+			perror(treename.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->geomfile = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+		r->geomfile = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (r->geomfile == NULL) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->indexfile = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+		r->indexfile = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (r->indexfile == NULL) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->vertexfile = fopen_oflag(vertexname, "w+b", O_RDWR | O_CLOEXEC);
+		r->vertexfile = fopen_oflag(vertexname.c_str(), "w+b", O_RDWR | O_CLOEXEC);
 		if (r->vertexfile == NULL) {
-			perror(("open vertexfile " + std::string(vertexname)).c_str());
+			std::string err = "open vertexfile " + vertexname;
+			perror(err.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefile = fopen_oflag(nodename, "w+b", O_RDWR | O_CLOEXEC);
+		r->nodefile = fopen_oflag(nodename.c_str(), "w+b", O_RDWR | O_CLOEXEC);
 		if (r->nodefile == NULL) {
-			perror(nodename);
+			perror(nodename.c_str());
 			exit(EXIT_OPEN);
 		}
 		r->geompos = 0;
@@ -1302,12 +1295,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->vertexpos = 0;
 		r->nodepos = 0;
 
-		unlink(poolname);
-		unlink(treename);
-		unlink(geomname);
-		unlink(indexname);
-		unlink(vertexname);
-		unlink(nodename);
+		fs::remove(poolname);
+		fs::remove(treename);
+		fs::remove(geomname);
+		fs::remove(indexname);
+		fs::remove(vertexname);
+		fs::remove(nodename);
+
 
 		// To distinguish a null value
 		{
@@ -1717,19 +1711,18 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (read_parallel_this) {
 				// Serial reading of chunks that are then parsed in parallel
 
-				char readname[strlen(tmpdir) + strlen("/read.XXXXXXXX") + 1];
-				snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
-				int readfd = mkstemp_cloexec(readname);
+				std::string readname = std::string(tmpdir) + "/read.XXXXXXXX";
+				int readfd = mkstemp_cloexec(readname.data());
 				if (readfd < 0) {
-					perror(readname);
+					perror(readname.c_str());
 					exit(EXIT_OPEN);
 				}
 				FILE *readfp = fdopen(readfd, "w");
 				if (readfp == NULL) {
-					perror(readname);
+					perror(readname.c_str());
 					exit(EXIT_OPEN);
 				}
-				unlink(readname);
+				fs::remove(readname);
 
 				std::atomic<int> is_parsing(0);
 				long long ahead = 0;
@@ -1771,18 +1764,18 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 							checkdisk(&readers);
 							ahead = 0;
 
-							snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
-							readfd = mkstemp_cloexec(readname);
+							readname = std::string(tmpdir) + "/read.XXXXXXXX";
+							readfd = mkstemp_cloexec(readname.data());
 							if (readfd < 0) {
-								perror(readname);
+								perror(readname.c_str());
 								exit(EXIT_OPEN);
 							}
 							readfp = fdopen(readfd, "w");
 							if (readfp == NULL) {
-								perror(readname);
+								perror(readname.c_str());
 								exit(EXIT_OPEN);
 							}
-							unlink(readname);
+							fs::remove(readname);
 						}
 					}
 				}
@@ -1915,22 +1908,21 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		pool_off[i] = 0;
 	}
 
-	char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-	snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
+	std::string poolname = std::string(tmpdir) + "/pool.XXXXXXXX";
 
-	int poolfd = mkstemp_cloexec(poolname);
+	int poolfd = mkstemp_cloexec(poolname.data());
 	if (poolfd < 0) {
-		perror(poolname);
+		perror(poolname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	FILE *poolfile = fopen_oflag(poolname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *poolfile = fopen_oflag(poolname.data(), "wb", O_WRONLY | O_CLOEXEC);
 	if (poolfile == NULL) {
-		perror(poolname);
+		perror(poolname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	unlink(poolname);
+	fs::remove(poolname);
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -2002,12 +1994,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	// find nodes where the same central point is part of two different vertices
 	{
 		std::string tmpname = std::string(tmpdir) + "/vertex2.XXXXXX";
-		int vertexfd = mkstemp((char *) tmpname.c_str());
+		int vertexfd = mkstemp(tmpname.data());
 		if (vertexfd < 0) {
-			perror(("mkstemp vertexfile " + std::string(tmpname)).c_str());
+			std::string err = "mkstemp vertexfile " + tmpname;
+			perror(err.c_str());
 			exit(EXIT_OPEN);
 		}
-		unlink(tmpname.c_str());
+		fs::remove(tmpname);
 		FILE *vertex_out = fdopen(vertexfd, "w+b");
 		if (vertex_out == NULL) {
 			perror(tmpname.c_str());
@@ -2069,12 +2062,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		// sort
 
 		std::string tmpname = std::string(tmpdir) + "/node2.XXXXXX";
-		int nodefd = mkstemp((char *) tmpname.c_str());
+		int nodefd = mkstemp(tmpname.data());
 		if (nodefd < 0) {
-			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
+			std::string err = "mkstemp nodefile " + tmpname;
+			perror(tmpname.c_str());
 			exit(EXIT_OPEN);
 		}
-		unlink(tmpname.c_str());
+		fs::remove(tmpname);
 		FILE *node_out;
 		node_out = fdopen(nodefd, "w+b");
 		if (node_out == NULL) {
@@ -2102,12 +2096,13 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		// scan
 
 		tmpname = std::string(tmpdir) + "/node3.XXXXXX";
-		nodefd = mkstemp((char *) tmpname.c_str());
+		nodefd = mkstemp(tmpname.data());
 		if (nodefd < 0) {
-			perror(("mkstemp nodefile " + std::string(tmpname)).c_str());
+			std::string err = "mkstemp nodefile " + tmpname;
+			perror(tmpname.c_str());
 			exit(EXIT_OPEN);
 		}
-		unlink(tmpname.c_str());
+		fs::remove(tmpname);
 		shared_nodes = fdopen(nodefd, "w+b");
 		if (shared_nodes == NULL) {
 			perror(tmpname.c_str());
@@ -2158,36 +2153,34 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fprintf(stderr, "Merging index                 \r");
 	}
 
-	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+	std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
 
-	int indexfd = mkstemp_cloexec(indexname);
+	int indexfd = mkstemp_cloexec(indexname.data());
 	if (indexfd < 0) {
-		perror(indexname);
+		perror(indexname.c_str());
 		exit(EXIT_OPEN);
 	}
-	FILE *indexfile = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *indexfile = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (indexfile == NULL) {
-		perror(indexname);
+		perror(indexname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	unlink(indexname);
+	fs::remove(indexname);
 
-	char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-	snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
+	std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
 
-	int geomfd = mkstemp_cloexec(geomname);
+	int geomfd = mkstemp_cloexec(geomname.data());
 	if (geomfd < 0) {
-		perror(geomname);
+		perror(geomname.c_str());
 		exit(EXIT_CLOSE);
 	}
-	FILE *geomfile = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *geomfile = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (geomfile == NULL) {
-		perror(geomname);
+		perror(geomname.c_str());
 		exit(EXIT_OPEN);
 	}
-	unlink(geomname);
+	fs::remove(geomname);
 
 	unsigned iz = 0, ix = 0, iy = 0;
 	choose_first_zoom(file_bbox, file_bbox1, file_bbox2, readers, &iz, &ix, &iy, minzoom, buffer);
@@ -3790,7 +3783,7 @@ int main(int argc, char **argv) {
 
 	if (out_mbtiles != NULL) {
 		if (force) {
-			unlink(out_mbtiles);
+			fs::remove(out_mbtiles);
 		} else {
 			if (pmtiles_has_suffix(out_mbtiles)) {
 				check_pmtiles(out_mbtiles, argv, forcetable);

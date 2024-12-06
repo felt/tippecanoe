@@ -1724,7 +1724,7 @@ int main(int argc, char **argv) {
 
 	if (out_mbtiles != NULL) {
 		if (force) {
-			unlink(out_mbtiles);
+			fs::remove(out_mbtiles);
 		} else {
 			if (pmtiles_has_suffix(out_mbtiles)) {
 				check_pmtiles(out_mbtiles, argv, false);

@@ -332,7 +332,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 		ostream << tmp_istream.rdbuf();
 
 		tmp_istream.close();
-		unlink(tmpname.c_str());
+		fs::remove(tmpname);
 		ostream.close();
 	}
 }
