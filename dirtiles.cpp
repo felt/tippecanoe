@@ -121,7 +121,6 @@ void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
 		std::string fn = std::string(dir) + "/" + tiles[i].path();
 
 		if (force) {
-			std::error_code ec;
 			fs::remove(fn, ec);
 			if (ec) {
 				perror(fn.c_str());
