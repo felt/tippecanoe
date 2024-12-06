@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <limits.h>
-#include <sys/stat.h>
 #include <sqlite3.h>
 #include "jsonpull/jsonpull.h"
 #include "mbtiles.hpp"
