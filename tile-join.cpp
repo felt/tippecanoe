@@ -75,19 +75,17 @@ struct stats {
 	std::vector<struct strategy> strategies{};
 };
 
-// https://stackoverflow.com/questions/11753871/getting-the-type-of-a-column-in-sqlite
-std::string get_column_types_query = "SELECT m.name AS table_name, UPPER(m.type) AS table_type, p.name AS column_name, p.type AS data_type, CASE p.pk WHEN 1 THEN 'PRIMARY KEY' END AS const FROM sqlite_master AS m INNER JOIN pragma_table_info(m.name) AS p WHERE m.name NOT IN ('sqlite_sequence') ORDER BY m.name, p.cid;";
-// select name, type from pragma_table_info('parsed');
-
 std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const std::vector<mvt_value> &join_keys) {
 	std::vector<std::map<std::string, mvt_value>> ret;
 	ret.resize(join_keys.size());
 
 	// double quotes for table and column identifiers
-	const char *s = sqlite3_mprintf("select * from \"%w\" where \"%w\" in (", join_table.c_str(), join_table_column.c_str());
+	const char *s = sqlite3_mprintf("select \"%w\", * from \"%w\" where \"%w\" in (",
+					join_table_column.c_str(), join_table.c_str(), join_table_column.c_str());
 	std::string query = s;
 	sqlite3_free((void *) s);
 
+	std::map<std::string, size_t> key_to_row;
 	for (size_t i = 0; i < join_keys.size(); i++) {
 		const mvt_value &v = join_keys[i];
 
@@ -96,8 +94,11 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 			s = sqlite3_mprintf("'%q'", v.c_str());
 			query += s;
 			sqlite3_free((void *) s);
+			key_to_row.emplace(v.get_string_value(), i);
 		} else {
-			query += v.toString();
+			std::string stringified = v.toString();
+			key_to_row.emplace(stringified, i);
+			query += stringified;
 		}
 
 		if (i + 1 < join_keys.size()) {
@@ -106,7 +107,6 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 	}
 
 	query += ");";
-	printf("%s\n", query.c_str());
 
 	sqlite3_stmt *stmt;
 	if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
@@ -117,21 +117,31 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 		int count = sqlite3_column_count(stmt);
 		std::map<std::string, mvt_value> row;
 
-		for (int i = 0; i < count; i++) {
-			int type = sqlite3_column_type(stmt, i);
-			mvt_value v;
-			v.type = mvt_null;
-
-			if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
-				v = mvt_value(sqlite3_column_double(stmt, i));
-			} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
-				v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+		if (count > 0) {
+			// join key is 0th column of query
+			std::string key = (const char *) sqlite3_column_text(stmt, 0);
+			auto f = key_to_row.find(key);
+			if (f == key_to_row.end()) {
+				fprintf(stderr, "Unexpected join key: %s\n", key.c_str());
+				continue;
 			}
 
-			const char *name = sqlite3_column_name(stmt, i);
-			row.emplace(name, v);
+			for (int i = 1; i < count; i++) {
+				int type = sqlite3_column_type(stmt, i);
+				mvt_value v;
+				v.type = mvt_null;
 
-			printf("%s -> %s\n", name, v.toString().c_str());
+				if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
+					v = mvt_value(sqlite3_column_double(stmt, i));
+				} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
+					v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+				}
+
+				const char *name = sqlite3_column_name(stmt, i);
+				row.emplace(name, v);
+			}
+
+			ret[f->second] = std::move(row);
 		}
 	}
 	if (sqlite3_finalize(stmt) != SQLITE_OK) {
@@ -208,6 +218,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 		}
 
+		std::vector<std::map<std::string, mvt_value>> joined;
 		if (db != NULL) {
 			// collect join keys for sql query
 
@@ -228,7 +239,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 			}
 
-			std::vector<std::map<std::string, mvt_value>> joined = get_joined_rows(db, join_keys);
+			joined = get_joined_rows(db, join_keys);
 		}
 
 		auto tilestats = layermap.find(layer.name);
@@ -266,7 +277,13 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					key_order.push_back(key);
 				}
 
-				if (key == join_tile_column) {
+				if (f < joined.size()) {
+					for (auto const &kv : joined[f]) {
+						if (kv.second.type != mvt_null) {
+							attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
+							key_order.push_back(kv.first);
+						}
+					}
 				}
 
 				if (header.size() > 0 && key == header[0]) {
@@ -312,7 +329,6 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								outsv.type = outval.type;
 								outsv.s = joinval;
 
-								// Convert from double to int if the joined attribute is an integer
 								outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
 
 								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
