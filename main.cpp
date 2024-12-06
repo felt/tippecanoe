@@ -134,7 +134,7 @@ void checkdisk(std::vector<struct reader> *r) {
 
 	static int warned = 0;
 	if (used > diskfree * .9 && !warned) {
-		fprintf(stderr, "You will probably run out of disk space.\n%lld bytes used or committed, of %lld originally available\n", used, diskfree);
+		fprintf(stderr, "You will probably run out of disk space.\n%lld bytes used or committed, of %ju originally available\n", used, diskfree);
 		warned = 1;
 	}
 };
