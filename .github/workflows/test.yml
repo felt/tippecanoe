@@ -4,12 +4,18 @@ on: [push]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest]
         version: ['Release', 'Debug']
     steps:
       - uses: actions/checkout@v3
-      - run: sudo apt-get install libsqlite3-dev
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install libsqlite3-dev
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sqlite3
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
