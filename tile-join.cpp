@@ -77,6 +77,7 @@ struct stats {
 
 // https://stackoverflow.com/questions/11753871/getting-the-type-of-a-column-in-sqlite
 std::string get_column_types_query = "SELECT m.name AS table_name, UPPER(m.type) AS table_type, p.name AS column_name, p.type AS data_type, CASE p.pk WHEN 1 THEN 'PRIMARY KEY' END AS const FROM sqlite_master AS m INNER JOIN pragma_table_info(m.name) AS p WHERE m.name NOT IN ('sqlite_sequence') ORDER BY m.name, p.cid;";
+// select name, type from pragma_table_info('parsed');
 
 std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const std::vector<mvt_value> &join_keys) {
 	std::vector<std::map<std::string, mvt_value>> ret;
@@ -106,6 +107,37 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 
 	query += ");";
 	printf("%s\n", query.c_str());
+
+	sqlite3_stmt *stmt;
+	if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 query %s failed: %s\n", query.c_str(), sqlite3_errmsg(db));
+		exit(EXIT_SQLITE);
+	}
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		int count = sqlite3_column_count(stmt);
+		std::map<std::string, mvt_value> row;
+
+		for (int i = 0; i < count; i++) {
+			int type = sqlite3_column_type(stmt, i);
+			mvt_value v;
+			v.type = mvt_null;
+
+			if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
+				v = mvt_value(sqlite3_column_double(stmt, i));
+			} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
+				v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+			}
+
+			const char *name = sqlite3_column_name(stmt, i);
+			row.emplace(name, v);
+
+			printf("%s -> %s\n", name, v.toString().c_str());
+		}
+	}
+	if (sqlite3_finalize(stmt) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 finalize failed: %s\n", sqlite3_errmsg(db));
+		exit(EXIT_SQLITE);
+	}
 
 	return ret;
 }
