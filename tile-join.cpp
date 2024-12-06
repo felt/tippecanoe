@@ -43,6 +43,7 @@
 #include "errors.hpp"
 #include "geometry.hpp"
 #include "thread.hpp"
+#include "platform.hpp"
 
 int pk = false;
 int pC = false;
@@ -1199,7 +1200,7 @@ int main(int argc, char **argv) {
 
 	struct tileset_reader *readers = NULL;
 
-	CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+	CPUS = get_num_avail_cpus();
 
 	const char *TIPPECANOE_MAX_THREADS = getenv("TIPPECANOE_MAX_THREADS");
 	if (TIPPECANOE_MAX_THREADS != NULL) {
