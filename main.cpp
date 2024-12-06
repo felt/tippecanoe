@@ -21,7 +21,6 @@
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdarg.h>
-#include <sys/resource.h>
 #include <pthread.h>
 #include <getopt.h>
 #include <signal.h>
@@ -67,6 +66,7 @@
 #include "sort.hpp"
 #include "attribute.hpp"
 #include "thread.hpp"
+#include "platform.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -187,7 +187,7 @@ void init_cpus() {
 	if (TIPPECANOE_MAX_THREADS != NULL) {
 		CPUS = atoi_require(TIPPECANOE_MAX_THREADS, "TIPPECANOE_MAX_THREADS");
 	} else {
-		CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+		CPUS = get_num_avail_cpus();
 	}
 
 	if (CPUS < 1) {
@@ -202,13 +202,7 @@ void init_cpus() {
 	// Round down to a power of 2
 	CPUS = 1 << (int) (log(CPUS) / log(2));
 
-	struct rlimit rl;
-	if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-		perror("getrlimit");
-		exit(EXIT_PTHREAD);
-	} else {
-		MAX_FILES = rl.rlim_cur;
-	}
+	MAX_FILES = get_max_open_files();
 
 	// Don't really want too many temporary files, because the file system
 	// will start to bog down eventually
@@ -222,7 +216,7 @@ void init_cpus() {
 	long long fds[MAX_FILES];
 	long long i;
 	for (i = 0; i < MAX_FILES; i++) {
-		fds[i] = open("/dev/null", O_RDONLY | O_CLOEXEC);
+		fds[i] = open(get_null_device(), O_RDONLY | O_CLOEXEC);
 		if (fds[i] < 0) {
 			break;
 		}
@@ -899,7 +893,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
-				int page = sysconf(_SC_PAGESIZE);
+				int page = get_page_size();
 				// Don't try to sort more than 2GB at once,
 				// which used to crash Macs and may still
 				long long max_unit = 2LL * 1024 * 1024 * 1024;
@@ -1067,31 +1061,6 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 
 		ds[i].seq = 0;
 	}
-}
-
-static size_t calc_memsize() {
-	size_t mem;
-
-#ifdef __APPLE__
-	int64_t hw_memsize;
-	size_t len = sizeof(int64_t);
-	if (sysctlbyname("hw.memsize", &hw_memsize, &len, NULL, 0) < 0) {
-		perror("sysctl hw.memsize");
-		exit(EXIT_MEMORY);
-	}
-	mem = hw_memsize;
-#else
-	long long pagesize = sysconf(_SC_PAGESIZE);
-	long long pages = sysconf(_SC_PHYS_PAGES);
-	if (pages < 0 || pagesize < 0) {
-		perror("sysconf _SC_PAGESIZE or _SC_PHYS_PAGES");
-		exit(EXIT_MEMORY);
-	}
-
-	mem = (long long) pages * pagesize;
-#endif
-
-	return mem;
 }
 
 void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
@@ -1446,7 +1415,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	size_t dist_count = 0;
 	double area_sum = 0;
 
-	int files_open_before_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	int files_open_before_reading = open(get_null_device(), O_RDONLY | O_CLOEXEC);
 	if (files_open_before_reading < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -1887,7 +1856,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 	}
 
-	int files_open_after_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	int files_open_after_reading = open(get_null_device(), O_RDONLY | O_CLOEXEC);
 	if (files_open_after_reading < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -3728,7 +3697,7 @@ int main(int argc, char **argv) {
 
 	signal(SIGPIPE, SIG_IGN);
 
-	files_open_at_start = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	files_open_at_start = open(get_null_device(), O_RDONLY | O_CLOEXEC);
 	if (files_open_at_start < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -3878,7 +3847,7 @@ int main(int argc, char **argv) {
 	muntrace();
 #endif
 
-	i = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	i = open(get_null_device(), O_RDONLY | O_CLOEXEC);
 	// i < files_open_at_start is not an error, because reading from a pipe closes stdin
 	if (i > files_open_at_start) {
 		fprintf(stderr, "Internal error: did not close all files: %d\n", i);
