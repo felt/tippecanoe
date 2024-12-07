@@ -9,14 +9,20 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdarg.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <pthread.h>
 #include <vector>
 #include <algorithm>

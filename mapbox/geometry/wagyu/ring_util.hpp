@@ -1,6 +1,7 @@
 #pragma once
 
 #ifdef DEBUG
+#ifndef _WIN32
 #include <iostream>
 // Example debug print for backtrace - only works on IOS
 #include <execinfo.h>
@@ -13,6 +14,7 @@
 //     printf("%s\n", strs[i]);
 // }
 // free(strs);
+#endif
 #endif
 
 #include <algorithm>

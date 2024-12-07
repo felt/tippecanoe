@@ -6,7 +6,11 @@
 #define _DEFAULT_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -43,6 +47,10 @@
 #include "errors.hpp"
 #include "geometry.hpp"
 #include "thread.hpp"
+
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
 
 int pk = false;
 int pC = false;
@@ -1199,7 +1207,13 @@ int main(int argc, char **argv) {
 
 	struct tileset_reader *readers = NULL;
 
+	#ifndef _WIN32
 	CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+	#else
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	CPUS = sysInfo.dwNumberOfProcessors;
+	#endif
 
 	const char *TIPPECANOE_MAX_THREADS = getenv("TIPPECANOE_MAX_THREADS");
 	if (TIPPECANOE_MAX_THREADS != NULL) {

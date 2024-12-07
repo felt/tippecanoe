@@ -10,7 +10,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         version: ['Release', 'Debug']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get install libsqlite3-dev
@@ -19,3 +19,27 @@ jobs:
         run: brew install sqlite3
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
+
+  test-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        version: ['Release', 'Debug']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-sqlite3
+      - shell: msys2 {0}
+        #run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make CXXFLAGS="-static-libgcc -static-libstdc++"
+        run: uname -a; BUILDTYPE=${{ matrix.version }} mingw32-make
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tippecanoe-binary
+          path: ./tippecanoe.exe
+      - shell: msys2 {0}
+        run: mingw32-make test

@@ -13,7 +13,11 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <string.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -21,7 +25,9 @@
 #include <limits.h>
 #include <sqlite3.h>
 #include <stdarg.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <pthread.h>
 #include <getopt.h>
 #include <signal.h>
@@ -40,7 +46,9 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
+#ifndef _WIN32
 #include <sys/statfs.h>
+#endif
 #endif
 
 #include "jsonpull/jsonpull.h"
@@ -67,6 +75,10 @@
 #include "sort.hpp"
 #include "attribute.hpp"
 #include "thread.hpp"
+
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -187,7 +199,13 @@ void init_cpus() {
 	if (TIPPECANOE_MAX_THREADS != NULL) {
 		CPUS = atoi_require(TIPPECANOE_MAX_THREADS, "TIPPECANOE_MAX_THREADS");
 	} else {
+		#ifndef _WIN32
 		CPUS = sysconf(_SC_NPROCESSORS_ONLN);
+		#else
+		SYSTEM_INFO sysInfo;
+		GetSystemInfo(&sysInfo);
+		CPUS = sysInfo.dwNumberOfProcessors;
+		#endif
 	}
 
 	if (CPUS < 1) {
@@ -202,6 +220,7 @@ void init_cpus() {
 	// Round down to a power of 2
 	CPUS = 1 << (int) (log(CPUS) / log(2));
 
+	#ifndef _WIN32
 	struct rlimit rl;
 	if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
 		perror("getrlimit");
@@ -209,6 +228,10 @@ void init_cpus() {
 	} else {
 		MAX_FILES = rl.rlim_cur;
 	}
+	#else
+	MAX_FILES = 16384;
+	MAX_FILES = 250;
+	#endif
 
 	// Don't really want too many temporary files, because the file system
 	// will start to bog down eventually
@@ -222,7 +245,11 @@ void init_cpus() {
 	long long fds[MAX_FILES];
 	long long i;
 	for (i = 0; i < MAX_FILES; i++) {
+		#ifndef _WIN32
 		fds[i] = open("/dev/null", O_RDONLY | O_CLOEXEC);
+		#else
+		fds[i] = open("nul", O_RDONLY | O_CLOEXEC);
+		#endif
 		if (fds[i] < 0) {
 			break;
 		}
@@ -678,11 +705,15 @@ void *run_read_parallel(void *v) {
 		perror("map intermediate input");
 		exit(EXIT_MEMORY);
 	}
+	#ifndef _WIN32
 	madvise(map, rpa->len, MADV_RANDOM);  // sequential, but from several pointers at once
+	#endif
 
 	do_read_parallel(map, rpa->len, rpa->offset, rpa->reading, rpa->readers, rpa->progress_seq, rpa->exclude, rpa->include, rpa->exclude_all, rpa->basezoom, rpa->source, rpa->layermaps, rpa->initialized, rpa->initial_x, rpa->initial_y, rpa->maxzoom, rpa->layername, rpa->uses_gamma, rpa->attribute_types, rpa->separator, rpa->dist_sum, rpa->dist_count, rpa->area_sum, rpa->want_dist, rpa->filters);
 
+	#ifndef _WIN32
 	madvise(map, rpa->len, MADV_DONTNEED);
+	#endif
 	if (munmap(map, rpa->len) != 0) {
 		perror("munmap source file");
 	}
@@ -812,15 +843,19 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				perror("map index");
 				exit(EXIT_STAT);
 			}
+			#ifndef _WIN32
 			madvise(indexmap, indexst.st_size, MADV_SEQUENTIAL);
 			madvise(indexmap, indexst.st_size, MADV_WILLNEED);
+			#endif
 			char *geommap = (char *) mmap(NULL, geomst.st_size, PROT_READ, MAP_PRIVATE, geomfds_in[i], 0);
 			if (geommap == MAP_FAILED) {
 				perror("map geom");
 				exit(EXIT_MEMORY);
 			}
+			#ifndef _WIN32
 			madvise(geommap, geomst.st_size, MADV_SEQUENTIAL);
 			madvise(geommap, geomst.st_size, MADV_WILLNEED);
+			#endif
 
 			for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 				struct index ix = indexmap[a];
@@ -844,12 +879,16 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				fwrite_check(&ix, sizeof(struct index), 1, indexfiles[which], &indexpos, "index");
 			}
 
+			#ifndef _WIN32
 			madvise(indexmap, indexst.st_size, MADV_DONTNEED);
+			#endif
 			if (munmap(indexmap, indexst.st_size) < 0) {
 				perror("unmap index");
 				exit(EXIT_MEMORY);
 			}
+			#ifndef _WIN32
 			madvise(geommap, geomst.st_size, MADV_DONTNEED);
+			#endif
 			if (munmap(geommap, geomst.st_size) < 0) {
 				perror("unmap geom");
 				exit(EXIT_MEMORY);
@@ -899,7 +938,13 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
+				#ifndef _WIN32
 				int page = sysconf(_SC_PAGESIZE);
+				#else
+				SYSTEM_INFO sysInfo;
+				GetSystemInfo(&sysInfo);
+				int page = sysInfo.dwPageSize;
+				#endif
 				// Don't try to sort more than 2GB at once,
 				// which used to crash Macs and may still
 				long long max_unit = 2LL * 1024 * 1024 * 1024;
@@ -955,24 +1000,32 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					perror("map index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_RANDOM);  // sequential, but from several pointers at once
 				madvise(indexmap, indexst.st_size, MADV_WILLNEED);
+				#endif
 				char *geommap = (char *) mmap(NULL, geomst.st_size, PROT_READ, MAP_PRIVATE, geomfds[i], 0);
 				if (geommap == MAP_FAILED) {
 					perror("map geom");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
+				#endif
 
 				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
 
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(indexmap, indexst.st_size) < 0) {
 					perror("unmap index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(geommap, geomst.st_size) < 0) {
 					perror("unmap geom");
 					exit(EXIT_MEMORY);
@@ -984,15 +1037,19 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					perror("map index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_SEQUENTIAL);
 				madvise(indexmap, indexst.st_size, MADV_WILLNEED);
+				#endif
 				char *geommap = (char *) mmap(NULL, geomst.st_size, PROT_READ, MAP_PRIVATE, geomfds[i], 0);
 				if (geommap == MAP_FAILED) {
 					perror("map geom");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
+				#endif
 
 				for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 					struct index ix = indexmap[a];
@@ -1016,12 +1073,16 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					fwrite_check(&ix, sizeof(struct index), 1, indexfile, &indexpos, "index");
 				}
 
+				#ifndef _WIN32
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(indexmap, indexst.st_size) < 0) {
 					perror("unmap index");
 					exit(EXIT_MEMORY);
 				}
+				#ifndef _WIN32
 				madvise(geommap, geomst.st_size, MADV_DONTNEED);
+				#endif
 				if (munmap(geommap, geomst.st_size) < 0) {
 					perror("unmap geom");
 					exit(EXIT_MEMORY);
@@ -1081,8 +1142,21 @@ static size_t calc_memsize() {
 	}
 	mem = hw_memsize;
 #else
+	#ifndef _WIN32
 	long long pagesize = sysconf(_SC_PAGESIZE);
 	long long pages = sysconf(_SC_PHYS_PAGES);
+	#else
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	long long pagesize = sysInfo.dwPageSize;
+	long long pages = 0;
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	if (GlobalMemoryStatusEx(&statex)) {
+		long long totalPhysicalMemory = statex.ullTotalPhys;
+		long long pages = totalPhysicalMemory / pagesize;
+	}
+	#endif
 	if (pages < 0 || pagesize < 0) {
 		perror("sysconf _SC_PAGESIZE or _SC_PHYS_PAGES");
 		exit(EXIT_MEMORY);
@@ -1351,6 +1425,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->file_bbox[2] = r->file_bbox[3] = 0;
 	}
 
+	#ifndef _WIN32
 	struct statfs fsstat;
 	if (fstatfs(readers[0].geomfd, &fsstat) != 0) {
 		perror("Warning: fstatfs");
@@ -1359,6 +1434,17 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	} else {
 		diskfree = (long long) fsstat.f_bsize * fsstat.f_bavail;
 	}
+	#else
+	ULARGE_INTEGER freeBytesAvailable, totalNumberOfBytes, totalNumberOfFreeBytes;
+	// Should try to turn the file descriptor into the path for something more accurate
+	if (!GetDiskFreeSpaceEx(tmpdir, &freeBytesAvailable, &totalNumberOfBytes, &totalNumberOfFreeBytes)) {
+		fprintf(stderr, "Warning: GetDiskFreeSpaceEx failed with error code %lu\n", GetLastError());
+		fprintf(stderr, "Tippecanoe cannot check whether disk space will run out during tiling.\n");
+		diskfree = LLONG_MAX;
+	} else {
+		diskfree = (long long)freeBytesAvailable.QuadPart;
+	}
+	#endif
 
 	std::atomic<long long> progress_seq(0);
 
@@ -1446,7 +1532,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	size_t dist_count = 0;
 	double area_sum = 0;
 
+	#ifndef _WIN32
 	int files_open_before_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	int files_open_before_reading = open("nul", O_RDONLY | O_CLOEXEC);
+	#endif
 	if (files_open_before_reading < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -1692,7 +1782,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 					map = (char *) mmap(NULL, st.st_size - off, PROT_READ, MAP_PRIVATE, fd, off);
 					// No error if MAP_FAILED because check is below
 					if (map != MAP_FAILED) {
+						#ifndef _WIN32
 						madvise(map, st.st_size - off, MADV_RANDOM);  // sequential, but from several pointers at once
+						#endif
 					}
 				}
 			}
@@ -1887,7 +1979,11 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 	}
 
+	#ifndef _WIN32
 	int files_open_after_reading = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	int files_open_after_reading = open("nul", O_RDONLY | O_CLOEXEC);
+	#endif
 	if (files_open_after_reading < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -1993,7 +2089,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				perror("mmap string pool for copy");
 				exit(EXIT_MEMORY);
 			}
+			#ifndef _WIN32
 			madvise(s, readers[i].poolfile->off, MADV_SEQUENTIAL);
+			#endif
 			if (fwrite(s, sizeof(char), readers[i].poolfile->off, poolfile) != readers[i].poolfile->off) {
 				perror("Reunify string pool (split)");
 				exit(EXIT_WRITE);
@@ -2022,7 +2120,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("mmap string pool");
 			exit(EXIT_MEMORY);
 		}
+		#ifndef _WIN32
 		madvise(stringpool, poolpos, MADV_RANDOM);
+		#endif
 	}
 
 	if (!quiet) {
@@ -2290,8 +2390,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		perror("mmap index for basezoom");
 		exit(EXIT_MEMORY);
 	}
+	#ifndef _WIN32
 	madvise(map, indexpos, MADV_SEQUENTIAL);
 	madvise(map, indexpos, MADV_WILLNEED);
+	#endif
 	long long indices = indexpos / sizeof(struct index);
 	bool fix_dropping = false;
 
@@ -2702,8 +2804,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			perror("mmap geom for fixup");
 			exit(EXIT_MEMORY);
 		}
+		#ifndef _WIN32
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
+		#endif
 
 		struct drop_state ds[maxzoom + 1];
 		prep_drop_states(ds, maxzoom, basezoom, droprate);
@@ -2757,7 +2861,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		munmap(geom, geomst.st_size);
 	}
 
+	#ifndef _WIN32
 	madvise(map, indexpos, MADV_DONTNEED);
+	#endif
 	munmap(map, indexpos);
 
 	if (close(indexfd) != 0) {
@@ -2800,7 +2906,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	if (poolpos > 0) {
+		#ifndef _WIN32
 		madvise((void *) stringpool, poolpos, MADV_DONTNEED);
+		#endif
 		if (munmap(stringpool, poolpos) != 0) {
 			perror("munmap stringpool");
 		}
@@ -3022,7 +3130,13 @@ int main(int argc, char **argv) {
 	double droprate = 2.5;
 	double gamma = 0;
 	int buffer = 5;
+	#ifndef _WIN32
 	const char *tmpdir = "/tmp";
+	#else
+	char tempPath[MAX_PATH];
+	GetTempPathA(MAX_PATH, tempPath);
+	const char *tmpdir = tempPath;
+	#endif
 	const char *attribution = NULL;
 	std::vector<source> sources;
 	const char *prefilter = NULL;
@@ -3726,9 +3840,15 @@ int main(int argc, char **argv) {
 		max_tilestats_sample_values = max_tilestats_values;
 	}
 
+	#ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
+	#endif
 
+	#ifndef _WIN32
 	files_open_at_start = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	files_open_at_start = open("nul", O_RDONLY | O_CLOEXEC);
+	#endif
 	if (files_open_at_start < 0) {
 		perror("open /dev/null");
 		exit(EXIT_OPEN);
@@ -3878,7 +3998,11 @@ int main(int argc, char **argv) {
 	muntrace();
 #endif
 
+	#ifndef _WIN32
 	i = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	#else
+	i = open("nul", O_RDONLY | O_CLOEXEC);
+	#endif
 	// i < files_open_at_start is not an error, because reading from a pipe closes stdin
 	if (i > files_open_at_start) {
 		fprintf(stderr, "Internal error: did not close all files: %d\n", i);
@@ -3894,12 +4018,14 @@ int main(int argc, char **argv) {
 
 int mkstemp_cloexec(char *name) {
 	int fd = mkstemp(name);
+	#ifndef _WIN32
 	if (fd >= 0) {
 		if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
 			perror("cloexec for temporary file");
 			exit(EXIT_OPEN);
 		}
 	}
+	#endif
 	return fd;
 }
 

@@ -13,7 +13,11 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include "mman.h"
+#else
 #include <sys/mman.h>
+#endif
 #include <protozero/pbf_reader.hpp>
 #include "mvt.hpp"
 #include "projection.hpp"
@@ -24,6 +28,10 @@
 #include "dirtiles.hpp"
 #include "pmtiles_file.hpp"
 #include "errors.hpp"
+
+#ifdef _WIN32
+#include "win32_hacks.hpp"
+#endif
 
 int minzoom = 0;
 int maxzoom = 32;

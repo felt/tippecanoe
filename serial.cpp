@@ -7,6 +7,10 @@
 #include <sqlite3.h>
 #include <set>
 #include <map>
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
+#include <cmath>
 #include <algorithm>
 #include <limits.h>
 #include <zlib.h>
