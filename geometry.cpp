@@ -1027,3 +1027,49 @@ drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigne
 
 	return out;
 }
+
+const std::pair<double, double> SAME_SLOPE = std::make_pair(-INT_MAX, INT_MAX);
+
+// https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+//
+// beware of
+// https://stackoverflow.com/questions/9043805/test-if-two-lines-intersect-javascript-function/16725715#16725715
+// which does not seem to produce correct results.
+std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, long long p1_x, long long p1_y,
+						long long p2_x, long long p2_y, long long p3_x, long long p3_y) {
+	// bounding box reject, x
+	long long min01x = std::min(p0_x, p1_x);
+	long long max01x = std::max(p0_x, p1_x);
+	long long min23x = std::min(p2_x, p3_x);
+	long long max23x = std::max(p2_x, p3_x);
+	if (max01x < min23x || max23x < min01x) {
+		return std::make_pair(-1, -1);
+	}
+
+	// bounding box reject, y
+	long long min01y = std::min(p0_y, p1_y);
+	long long max01y = std::max(p0_y, p1_y);
+	long long min23y = std::min(p2_y, p3_y);
+	long long max23y = std::max(p2_y, p3_y);
+	if (max01y < min23y || max23y < min01y) {
+		return std::make_pair(-1, -1);
+	}
+
+	long long d01_x, d01_y, d23_x, d23_y;
+	d01_x = p1_x - p0_x;
+	d01_y = p1_y - p0_y;
+	d23_x = p3_x - p2_x;
+	d23_y = p3_y - p2_y;
+
+	long long det = (-d23_x * d01_y + d01_x * d23_y);
+
+	if (det != 0) {
+		double t, s;
+		t = (d23_x * (p0_y - p2_y) - d23_y * (p0_x - p2_x)) / (double) det;
+		s = (-d01_y * (p0_x - p2_x) + d01_x * (p0_y - p2_y)) / (double) det;
+
+		return std::make_pair(t, s);
+	}
+
+	return SAME_SLOPE;
+}
