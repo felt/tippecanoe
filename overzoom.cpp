@@ -10,6 +10,7 @@
 #include "attribute.hpp"
 #include "text.hpp"
 #include "read_json.hpp"
+#include "projection.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -29,6 +30,7 @@ std::string accumulate_numeric;
 std::set<std::string> keep;
 std::set<std::string> exclude;
 std::vector<std::string> exclude_prefix;
+std::vector<clipbbox> clipbboxes;
 
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s -o newtile.pbf.gz tile.pbf.gz oz/ox/oy nz/nx/ny\n", argv[0]);
@@ -36,6 +38,26 @@ void usage(char **argv) {
 	fprintf(stderr, "Usage: %s -o newtile.pbf.gz -t nz/nx/ny tile.pbf.gz oz/ox/oy tile2.pbf.gz oz2/ox2/oy2\n", argv[0]);
 	fprintf(stderr, "to create tile nz/nx/ny from tiles oz/ox/oy and oz2/ox2/oy2\n");
 	exit(EXIT_FAILURE);
+}
+
+std::string read_json_file(const char *fname) {
+	std::string out;
+
+	FILE *f = fopen(fname, "r");
+	if (f == NULL) {
+		perror(optarg);
+		exit(EXIT_OPEN);
+	}
+
+	char buf[2000];
+	size_t nread;
+	while ((nread = fread(buf, sizeof(char), 2000, f)) != 0) {
+		out += std::string(buf, nread);
+	}
+
+	fclose(f);
+
+	return out;
 }
 
 int main(int argc, char **argv) {
@@ -58,6 +80,7 @@ int main(int argc, char **argv) {
 		{"output", required_argument, 0, 'o'},
 		{"filter-points-multiplier", no_argument, 0, 'm'},
 		{"feature-filter", required_argument, 0, 'j'},
+		{"feature-filter-file", required_argument, 0, 'J'},
 		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
 		{"accumulate-attribute", required_argument, 0, 'E'},
 		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
@@ -68,6 +91,9 @@ int main(int argc, char **argv) {
 		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
 		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
+		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
+		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
+		{"clip-polygon-file", required_argument, 0, 'm' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -118,6 +144,10 @@ int main(int argc, char **argv) {
 			filter = optarg;
 			break;
 
+		case 'J':
+			filter = read_json_file(optarg);
+			break;
+
 		case 'o' & 0x1F:
 			preserve_input_order = true;
 			break;
@@ -157,6 +187,31 @@ int main(int argc, char **argv) {
 		case 'd' & 0x1F:
 			do_compress = false;
 			break;
+
+		case 'k' & 0x1F: {
+			clipbbox clip;
+			if (sscanf(optarg, "%lf,%lf,%lf,%lf", &clip.lon1, &clip.lat1, &clip.lon2, &clip.lat2) == 4) {
+				projection->project(clip.lon1, clip.lat1, 32, &clip.minx, &clip.maxy);
+				projection->project(clip.lon2, clip.lat2, 32, &clip.maxx, &clip.miny);
+				clipbboxes.push_back(clip);
+			} else {
+				fprintf(stderr, "%s: Can't parse bounding box --clip-bounding-box=%s\n", argv[0], optarg);
+				exit(EXIT_ARGS);
+			}
+			break;
+		}
+
+		case 'l' & 0x1F: {
+			clipbbox clip = parse_clip_poly(optarg);
+			clipbboxes.push_back(clip);
+			break;
+		}
+
+		case 'm' & 0x1F: {
+			clipbbox clip = parse_clip_poly(read_json_file(optarg));
+			clipbboxes.push_back(clip);
+			break;
+		}
 
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);
@@ -236,6 +291,34 @@ int main(int argc, char **argv) {
 		fclose(f);
 	}
 
+	// clip the clip polygons, if any, to the tile bounds,
+	// to reduce their complexity
+
+	if (clipbboxes.size() > 0) {
+		long long wx1 = (nx - buffer / 256.0) * (1LL << (32 - nz));
+		long long wy1 = (ny - buffer / 256.0) * (1LL << (32 - nz));
+		long long wx2 = (nx + 1 + buffer / 256.0) * (1LL << (32 - nz));
+		long long wy2 = (ny + 1 + buffer / 256.0) * (1LL << (32 - nz));
+
+		drawvec tile_bounds;
+		tile_bounds.emplace_back(VT_MOVETO, wx1, wy1);
+		tile_bounds.emplace_back(VT_LINETO, wx2, wy1);
+		tile_bounds.emplace_back(VT_LINETO, wx2, wy2);
+		tile_bounds.emplace_back(VT_LINETO, wx1, wy2);
+		tile_bounds.emplace_back(VT_LINETO, wx1, wy1);
+
+		for (auto &c : clipbboxes) {
+			c.minx = std::max(c.minx, wx1);
+			c.miny = std::max(c.miny, wy1);
+			c.maxx = std::min(c.maxx, wx2);
+			c.maxy = std::min(c.maxy, wy2);
+
+			if (c.dv.size() > 0) {
+				c.dv = clip_poly_poly(c.dv, tile_bounds);
+			}
+		}
+	}
+
 	json_object *json_filter = NULL;
 	if (filter.size() > 0) {
 		json_filter = parse_filter(filter.c_str());
@@ -262,7 +345,7 @@ int main(int argc, char **argv) {
 		its.push_back(std::move(t));
 	}
 
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX);
+	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

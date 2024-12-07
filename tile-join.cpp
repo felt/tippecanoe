@@ -724,7 +724,8 @@ struct tileset_reader {
 						   std::set<std::string>(), std::set<std::string>(), std::vector<std::string>(),
 						   false, &next_overzoomed_tiles, false, NULL, false,
 						   std::unordered_map<std::string, attribute_op>(), unidecode_data, 0, 0,
-						   std::vector<mvt_layer>(), "", "", SIZE_MAX);
+						   std::vector<mvt_layer>(), "", "", SIZE_MAX,
+						   std::vector<clipbbox>());
 			return ret;
 		}
 

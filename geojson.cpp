@@ -205,7 +205,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	}
 
 	drawvec dv;
-	parse_geometry(t, coordinates, dv, VT_MOVETO, sst->fname, sst->line, feature);
+	parse_coordinates(t, coordinates, dv, VT_MOVETO, sst->fname, sst->line, feature);
 
 	serial_feature sf;
 	sf.layer = layer;

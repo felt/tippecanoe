@@ -1,0 +1,5 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 8, "x": 135, "y": 86 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "ne_10m_admin_0_countries", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "NAME": "Germany" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 11.210518, 50.771208 ], [ 11.304932, 50.271568 ], [ 11.304932, 49.802541 ], [ 9.788818, 49.802541 ], [ 9.788818, 50.771208 ], [ 11.210518, 50.771208 ] ] ] } }
+] }
+] }

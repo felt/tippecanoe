@@ -1,3 +1,11 @@
+# 2.72.0
+
+* Add --clip-polygon-file and --feature-filter-file options to tippecanoe-overzoom
+
+# 2.71.0
+
+* Add --clip-bounding-box and --clip-polygon options to tippecanoe-overzoom
+
 # 2.70.1
 
 * Raise tippecanoe-decode limit on the size of individual tiles
