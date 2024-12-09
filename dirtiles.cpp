@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -8,13 +9,14 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <limits.h>
-#include <sys/stat.h>
 #include <sqlite3.h>
 #include "jsonpull/jsonpull.h"
 #include "mbtiles.hpp"
 #include "dirtiles.hpp"
 #include "errors.hpp"
 #include "write_json.hpp"
+
+namespace fs = std::filesystem;
 
 std::string dir_read_tile(std::string base, struct zxy tile) {
 	std::ifstream pbfFile(base + "/" + tile.path(), std::ios::in | std::ios::binary);
@@ -26,40 +28,43 @@ std::string dir_read_tile(std::string base, struct zxy tile) {
 }
 
 void dir_write_tile(const char *outdir, int z, int tx, int ty, std::string const &pbf) {
-	// Don't check mkdir error returns, since most of these calls to
-	// mkdir will be creating directories that already exist.
-	mkdir(outdir, S_IRWXU | S_IRWXG | S_IRWXO);
+	fs::path dirPath(outdir);
+	fs::path zPath = dirPath / std::to_string(z);
+	fs::path xPath = zPath / std::to_string(tx);
+	fs::path tilePath = xPath / (std::to_string(ty) + ".pbf");
 
-	std::string curdir(outdir);
-	std::string slash("/");
+	// create_directories() does not treat a directory already existing
+	// as an error, which is fine since most directories will already exist.
+	std::error_code ec;
+	fs::create_directories(xPath, ec);
+	if (ec) {
+		fprintf(stderr, "Failed to create directories: %s\n", ec.message().c_str());
+		exit(EXIT_WRITE);
+	}
 
-	std::string newdir = curdir + slash + std::to_string(z);
-	mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	// Set permissions equivalent to S_IRWXU | S_IRWXG | S_IRWXO (0777)
+	fs::permissions(dirPath, fs::perms::all, fs::perm_options::add, ec);
+	fs::permissions(zPath, fs::perms::all, fs::perm_options::add, ec);
+	fs::permissions(xPath, fs::perms::all, fs::perm_options::add, ec);
 
-	newdir = newdir + "/" + std::to_string(tx);
-	mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-
-	newdir = newdir + "/" + std::to_string(ty) + ".pbf";
-
-	struct stat st;
-	if (stat(newdir.c_str(), &st) == 0) {
-		fprintf(stderr, "Can't write tile to already existing %s\n", newdir.c_str());
+	if (fs::exists(tilePath)) {
+		fprintf(stderr, "Can't write tile to already existing %s\n", tilePath.c_str());
 		exit(EXIT_EXISTS);
 	}
 
-	FILE *fp = fopen(newdir.c_str(), "wb");
+	FILE *fp = fopen(tilePath.c_str(), "wb");
 	if (fp == NULL) {
-		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+		fprintf(stderr, "%s: %s\n", tilePath.c_str(), strerror(errno));
 		exit(EXIT_WRITE);
 	}
 
 	if (fwrite(pbf.c_str(), sizeof(char), pbf.size(), fp) != pbf.size()) {
-		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+		fprintf(stderr, "%s: %s\n", tilePath.c_str(), strerror(errno));
 		exit(EXIT_WRITE);
 	}
 
 	if (fclose(fp) != 0) {
-		fprintf(stderr, "%s: %s\n", newdir.c_str(), strerror(errno));
+		fprintf(stderr, "%s: %s\n", tilePath.c_str(), strerror(errno));
 		exit(EXIT_CLOSE);
 	}
 }
@@ -85,14 +90,18 @@ static bool pbfname(const char *s) {
 }
 
 void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
-	struct stat st;
-
-	mkdir(dir, S_IRWXU | S_IRWXG | S_IRWXO);
-	std::string meta = std::string(dir) + "/" + "metadata.json";
+	std::error_code ec;
+	fs::create_directories(dir, ec);
+	if (ec) {
+		fprintf(stderr, "Failed to create directory: %s\n", ec.message().c_str());
+		exit(EXIT_WRITE);
+	}
+	fs::permissions(dir, fs::perms::all, fs::perm_options::add, ec);
+	std::string meta = fs::path(dir) / "metadata.json";
 	if (force) {
-		unlink(meta.c_str());  // error OK since it may not exist;
+		fs::remove(meta, ec);  // error OK since it may not exist
 	} else {
-		if (stat(meta.c_str(), &st) == 0) {
+		if (fs::exists(meta)) {
 			fprintf(stderr, "%s: Tileset \"%s\" already exists. You can use --force if you want to delete the old tileset.\n", argv[0], dir);
 			fprintf(stderr, "%s: %s: file exists\n", argv[0], meta.c_str());
 			if (!forcetable) {
@@ -112,7 +121,8 @@ void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
 		std::string fn = std::string(dir) + "/" + tiles[i].path();
 
 		if (force) {
-			if (unlink(fn.c_str()) != 0) {
+			fs::remove(fn, ec);
+			if (ec) {
 				perror(fn.c_str());
 				exit(EXIT_UNLINK);
 			}
@@ -209,7 +219,9 @@ void dir_erase_zoom(const char *fname, int zoom) {
 						while ((dp3 = readdir(d3)) != NULL) {
 							if (pbfname(dp3->d_name)) {
 								std::string y = x + "/" + dp3->d_name;
-								if (unlink(y.c_str()) != 0) {
+								std::error_code ec;
+								fs::remove(y, ec);
+								if (ec) {
 									perror(y.c_str());
 									exit(EXIT_UNLINK);
 								}
@@ -288,8 +300,7 @@ static void out(json_writer &state, std::string k, std::string v) {
 void dir_write_metadata(const char *outdir, const metadata &m) {
 	std::string metadata = std::string(outdir) + "/metadata.json";
 
-	struct stat st;
-	if (stat(metadata.c_str(), &st) == 0) {
+	if (fs::exists(metadata)) {
 		// Leave existing metadata in place with --allow-existing
 	} else {
 		FILE *fp = fopen(metadata.c_str(), "w");
