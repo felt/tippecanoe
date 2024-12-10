@@ -34,7 +34,7 @@ static std::string mvt_value_to_string(mvt_value const &one, bool &fail, std::ve
 		return "";
 	case mvt_no_such_key:
 	default:
-		fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+		fprintf(stderr, "unhandled mvt_type %d (%s)\n", one.type, one.toString().c_str());
 		exit(EXIT_IMPOSSIBLE);
 	}
 }
@@ -107,7 +107,7 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<
 			fail = true;  // null op number => null
 			return 0;
 		default:
-			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			fprintf(stderr, "unhandled mvt_type %d comparing %s to %s\n", one.type, one.toString().c_str(), json_stringify(two));
 			exit(EXIT_IMPOSSIBLE);
 		}
 
@@ -161,7 +161,7 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<
 
 		case mvt_no_such_key:
 		default:
-			fprintf(stderr, "unhandled mvt_type %d\n", one.type);
+			fprintf(stderr, "unhandled mvt_type %d comparing %s to %s\n", one.type, one.toString().c_str(), json_stringify(two));
 			exit(EXIT_IMPOSSIBLE);
 		}
 
@@ -169,7 +169,7 @@ int compare_fsl(mvt_value const &one, json_object *two, bool &fail, std::vector<
 		return lhs - rhs;
 	}
 
-	fprintf(stderr, "unhandled JSON type %d\n", two->type);
+	fprintf(stderr, "unhandled JSON type %d comparing %s to %s\n", two->type, one.toString().c_str(), json_stringify(two));
 	exit(EXIT_IMPOSSIBLE);
 }
 
@@ -212,7 +212,7 @@ int compare(mvt_value const &one, json_object *two, bool &fail) {
 			break;
 		case mvt_no_such_key:
 		default:
-			fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
+			fprintf(stderr, "Internal error: bad mvt type %d (%s)\n", one.type, one.toString().c_str());
 			exit(EXIT_IMPOSSIBLE);
 		}
 
@@ -248,7 +248,7 @@ int compare(mvt_value const &one, json_object *two, bool &fail) {
 		break;
 	}
 
-	fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
+	fprintf(stderr, "Internal error: bad mvt type %d (%s)\n", one.type, one.toString().c_str());
 	exit(EXIT_IMPOSSIBLE);
 }
 
@@ -445,7 +445,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			return cmp <= 0;
 		}
 
-		fprintf(stderr, "expression fsl comparison: can't happen %s\n", f->value.array.array[1]->value.string.string);
+		fprintf(stderr, "expression fsl comparison: can't happen %s (%s)\n", f->value.array.array[1]->value.string.string, json_stringify(f));
 		exit(EXIT_IMPOSSIBLE);
 	}
 
