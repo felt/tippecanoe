@@ -294,6 +294,7 @@ int main(int argc, char **argv) {
 	// clip the clip polygons, if any, to the tile bounds,
 	// to reduce their complexity
 
+	bool clipped_to_nothing = false;
 	if (clipbboxes.size() > 0) {
 		long long wx1 = (nx - buffer / 256.0) * (1LL << (32 - nz));
 		long long wy1 = (ny - buffer / 256.0) * (1LL << (32 - nz));
@@ -315,37 +316,46 @@ int main(int argc, char **argv) {
 
 			if (c.dv.size() > 0) {
 				c.dv = clip_poly_poly(c.dv, tile_bounds);
+
+				if (c.dv.size() == 0) {
+					clipped_to_nothing = true;
+					break;
+				}
 			}
 		}
 	}
 
-	json_object *json_filter = NULL;
-	if (filter.size() > 0) {
-		json_filter = parse_filter(filter.c_str());
-	}
+	std::string out;
 
-	for (auto const &s : sources) {
-		std::string tile;
-		char buf[1000];
-		int len;
-
-		FILE *f = fopen(s.tile.c_str(), "rb");
-		if (f == NULL) {
-			perror(s.tile.c_str());
-			exit(EXIT_FAILURE);
+	if (!clipped_to_nothing) {
+		json_object *json_filter = NULL;
+		if (filter.size() > 0) {
+			json_filter = parse_filter(filter.c_str());
 		}
 
-		while ((len = fread(buf, sizeof(char), 1000, f)) > 0) {
-			tile.append(std::string(buf, len));
+		for (auto const &s : sources) {
+			std::string tile;
+			char buf[1000];
+			int len;
+
+			FILE *f = fopen(s.tile.c_str(), "rb");
+			if (f == NULL) {
+				perror(s.tile.c_str());
+				exit(EXIT_FAILURE);
+			}
+
+			while ((len = fread(buf, sizeof(char), 1000, f)) > 0) {
+				tile.append(std::string(buf, len));
+			}
+			fclose(f);
+
+			input_tile t = s;
+			t.tile = std::move(tile);
+			its.push_back(std::move(t));
 		}
-		fclose(f);
 
-		input_tile t = s;
-		t.tile = std::move(tile);
-		its.push_back(std::move(t));
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes);
 	}
-
-	std::string out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes);
 
 	FILE *f = fopen(outfile, "wb");
 	if (f == NULL) {

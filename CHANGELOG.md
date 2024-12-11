@@ -1,3 +1,7 @@
+# 2.73.0
+
+* Correctly clip features down to nothing when the clip region doesn't intersect the tile at all
+
 # 2.72.0
 
 * Add --clip-polygon-file and --feature-filter-file options to tippecanoe-overzoom
