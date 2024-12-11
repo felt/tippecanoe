@@ -439,6 +439,10 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/countries-8-135-86-bigclip.pbf 8 135 86 > tests/pbf/countries-8-135-86-bigclip.json.check
 	cmp tests/pbf/countries-8-135-86-bigclip.json.check tests/pbf/countries-8-135-86-bigclip.json
 	rm tests/pbf/countries-8-135-86-bigclip.pbf tests/pbf/countries-8-135-86-bigclip.json.check
+	# Clip region that does not intersect with the tile
+	./tippecanoe-overzoom -o tests/pbf/squirrels-13-2413-3077-clip.pbf --clip-polygon-file tests/pbf/squirrels-clip.json tests/pbf/squirrels-13-2413-3077.pbf 13/2413/3077 13/2413/3077
+	cmp tests/pbf/squirrels-13-2413-3077-clip.pbf /dev/null  # clipped away
+	rm tests/pbf/squirrels-13-2413-3077-clip.pbf
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
