@@ -11,6 +11,8 @@ size_t calc_memsize();
 
 size_t get_max_open_files();
 
-constexpr const char *get_null_device() { return "/dev/null"; }
+constexpr const char *get_null_device() {
+	return "/dev/null";
+}
 
-#endif // PLATFORM_HPP
+#endif	// PLATFORM_HPP
