@@ -55,7 +55,12 @@ int maxzoom = 32;
 int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
+bool exclude_all_tile_attributes = false;
 std::vector<std::string> unidecode_data;
+std::string join_tile_column;
+std::string join_table_column;
+std::string join_table;
+std::string attribute_for_id;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -73,7 +78,84 @@ struct stats {
 	std::vector<struct strategy> strategies{};
 };
 
-void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
+std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const std::vector<mvt_value> &join_keys) {
+	std::vector<std::map<std::string, mvt_value>> ret;
+	ret.resize(join_keys.size());
+
+	// double quotes for table and column identifiers
+	const char *s = sqlite3_mprintf("select \"%w\", * from \"%w\" where \"%w\" in (",
+					join_table_column.c_str(), join_table.c_str(), join_table_column.c_str());
+	std::string query = s;
+	sqlite3_free((void *) s);
+
+	std::map<std::string, size_t> key_to_row;
+	for (size_t i = 0; i < join_keys.size(); i++) {
+		const mvt_value &v = join_keys[i];
+
+		// single quotes for literals
+		if (v.type == mvt_string) {
+			s = sqlite3_mprintf("'%q'", v.c_str());
+			query += s;
+			sqlite3_free((void *) s);
+			key_to_row.emplace(v.get_string_value(), i);
+		} else {
+			std::string stringified = v.toString();
+			key_to_row.emplace(stringified, i);
+			query += stringified;
+		}
+
+		if (i + 1 < join_keys.size()) {
+			query += ", ";
+		}
+	}
+
+	query += ");";
+
+	sqlite3_stmt *stmt;
+	if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 query %s failed: %s\n", query.c_str(), sqlite3_errmsg(db));
+		exit(EXIT_SQLITE);
+	}
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		int count = sqlite3_column_count(stmt);
+		std::map<std::string, mvt_value> row;
+
+		if (count > 0) {
+			// join key is 0th column of query
+			std::string key = (const char *) sqlite3_column_text(stmt, 0);
+			auto f = key_to_row.find(key);
+			if (f == key_to_row.end()) {
+				fprintf(stderr, "Unexpected join key: %s\n", key.c_str());
+				continue;
+			}
+
+			for (int i = 1; i < count; i++) {
+				int type = sqlite3_column_type(stmt, i);
+				mvt_value v;
+				v.type = mvt_null;
+
+				if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
+					v = mvt_value(sqlite3_column_double(stmt, i));
+				} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
+					v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+				}
+
+				const char *name = sqlite3_column_name(stmt, i);
+				row.emplace(name, v);
+			}
+
+			ret[f->second] = std::move(row);
+		}
+	}
+	if (sqlite3_finalize(stmt) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3 finalize failed: %s\n", sqlite3_errmsg(db));
+		exit(EXIT_SQLITE);
+	}
+
+	return ret;
+}
+
+void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
 	mvt_tile tile;
 	int features_added = 0;
 	bool was_compressed;
@@ -139,12 +221,36 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 		}
 
+		std::vector<std::map<std::string, mvt_value>> joined;
+		if (db != NULL) {
+			// collect join keys for sql query
+
+			std::vector<mvt_value> join_keys;
+			join_keys.resize(layer.features.size());
+
+			for (size_t f = 0; f < layer.features.size(); f++) {
+				mvt_feature &feat = layer.features[f];
+				join_keys[f].type = mvt_no_such_key;
+
+				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+					const std::string &key = layer.keys[feat.tags[t]];
+					if (key == join_tile_column) {
+						const mvt_value &val = layer.values[feat.tags[t + 1]];
+						join_keys[f] = val;
+						break;
+					}
+				}
+			}
+
+			joined = get_joined_rows(db, join_keys);
+		}
+
 		auto tilestats = layermap.find(layer.name);
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
-			mvt_feature feat = layer.features[f];
-			std::set<std::string> exclude_attributes;
+			mvt_feature &feat = layer.features[f];
 
+			std::set<std::string> exclude_attributes;
 			if (filter != NULL && !evaluate(feat, layer, filter, exclude_attributes, z, unidecode_data)) {
 				continue;
 			}
@@ -161,7 +267,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			std::vector<std::string> key_order;
 
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
-				const char *key = layer.keys[feat.tags[t]].c_str();
+				const std::string &key = layer.keys[feat.tags[t]];
 				mvt_value &val = layer.values[feat.tags[t + 1]];
 				serial_val sv = mvt_value_to_serial_val(val);
 
@@ -169,12 +275,32 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					continue;
 				}
 
-				if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
-					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
-					key_order.push_back(key);
+				if (!exclude_all_tile_attributes) {
+					if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
+						attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
+						key_order.push_back(key);
+					}
 				}
 
-				if (header.size() > 0 && strcmp(key, header[0].c_str()) == 0) {
+				if (f < joined.size()) {
+					if (joined[f].size() > 0) {
+						matched = true;
+					}
+
+					for (auto const &kv : joined[f]) {
+						if (kv.first == attribute_for_id) {
+							outfeature.has_id = true;
+							outfeature.id = mvt_value_to_long_long(kv.second);
+						} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
+							if (kv.second.type != mvt_null) {
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
+								key_order.push_back(kv.first);
+							}
+						}
+					}
+				}
+
+				if (header.size() > 0 && key == header[0]) {
 					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(sv.s);
 
 					if (ii != mapping.end()) {
@@ -217,7 +343,6 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								outsv.type = outval.type;
 								outsv.s = joinval;
 
-								// Convert from double to int if the joined attribute is an integer
 								outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
 
 								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
@@ -744,6 +869,7 @@ struct arg {
 
 	std::vector<std::string> *header = NULL;
 	std::map<std::string, std::vector<std::string>> *mapping = NULL;
+	sqlite3 *db = NULL;
 	std::set<std::string> *exclude = NULL;
 	std::set<std::string> *include = NULL;
 	std::set<std::string> *keep_layers = NULL;
@@ -760,7 +886,7 @@ void *join_worker(void *v) {
 		mvt_tile tile;
 
 		for (size_t i = 0; i < ai->second.size(); i++) {
-			append_tile(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
+			append_tile(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), a->db, *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
 		}
 
 		ai->second.clear();
@@ -795,7 +921,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers) {
+void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -805,6 +931,7 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 		args[i].layermap = &layermaps[i];
 		args[i].header = &header;
 		args[i].mapping = &mapping;
+		args[i].db = db;
 		args[i].exclude = &exclude;
 		args[i].include = &include;
 		args[i].keep_layers = &keep_layers;
@@ -945,7 +1072,7 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 	}
 }
 
-void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
+void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
 	std::vector<std::map<std::string, layermap_entry>> layermaps;
 	for (size_t i = 0; i < CPUS; i++) {
 		layermaps.push_back(std::map<std::string, layermap_entry>());
@@ -1014,7 +1141,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
 			if (tasks.size() > 100 * CPUS) {
-				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, db, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 				tasks.clear();
 			}
 		}
@@ -1043,7 +1170,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 	st->minlat2 = min(minlat, st->minlat2);
 	st->maxlat2 = max(maxlat, st->maxlat2);
 
-	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, db, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
 	layermap = merge_layermaps(layermaps);
 
 	struct tileset_reader *next;
@@ -1198,6 +1325,8 @@ int main(int argc, char **argv) {
 	int filearg = 0;
 	json_object *filter = NULL;
 
+	std::string join_sqlite_fname;
+
 	struct tileset_reader *readers = NULL;
 
 	CPUS = get_num_avail_cpus();
@@ -1210,8 +1339,14 @@ int main(int argc, char **argv) {
 		CPUS = 1;
 	}
 
+	if (sqlite3_config(SQLITE_CONFIG_SERIALIZED) != SQLITE_OK) {
+		fprintf(stderr, "Could not enable sqlite3 serialized multithreading\n");
+		exit(EXIT_SQLITE);
+	}
+
 	std::vector<std::string> header;
 	std::map<std::string, std::vector<std::string>> mapping;
+	sqlite3 *db = NULL;
 
 	std::set<std::string> exclude;
 	std::set<std::string> include;
@@ -1235,6 +1370,7 @@ int main(int argc, char **argv) {
 		{"exclude", required_argument, 0, 'x'},
 		{"exclude-all", no_argument, 0, 'X'},
 		{"include", required_argument, 0, 'y'},
+		{"exclude-all-tile-attributes", no_argument, 0, '~'},
 		{"layer", required_argument, 0, 'l'},
 		{"exclude-layer", required_argument, 0, 'L'},
 		{"quiet", no_argument, 0, 'q'},
@@ -1244,6 +1380,12 @@ int main(int argc, char **argv) {
 		{"feature-filter", required_argument, 0, 'j'},
 		{"rename-layer", required_argument, 0, 'R'},
 		{"read-from", required_argument, 0, 'r'},
+
+		{"join-sqlite", required_argument, 0, '~'},
+		{"join-tile-column", required_argument, 0, '~'},
+		{"join-table-column", required_argument, 0, '~'},
+		{"join-table", required_argument, 0, '~'},
+		{"use-attribute-for-id", required_argument, 0, '~'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
 		{"no-tile-compression", no_argument, &pC, 1},
@@ -1429,6 +1571,22 @@ int main(int argc, char **argv) {
 				max_tilestats_values = atoi(optarg);
 			} else if (strcmp(opt, "unidecode-data") == 0) {
 				unidecode_data = read_unidecode(optarg);
+			} else if (strcmp(opt, "join-sqlite") == 0) {
+				join_sqlite_fname = optarg;
+				if (sqlite3_open(optarg, &db) != SQLITE_OK) {
+					fprintf(stderr, "%s: %s\n", optarg, sqlite3_errmsg(db));
+					exit(EXIT_SQLITE);
+				}
+			} else if (strcmp(opt, "join-table") == 0) {
+				join_table = optarg;
+			} else if (strcmp(opt, "join-table-column") == 0) {
+				join_table_column = optarg;
+			} else if (strcmp(opt, "join-tile-column") == 0) {
+				join_tile_column = optarg;
+			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
+				attribute_for_id = optarg;
+			} else if (strcmp(opt, "exclude-all-tile-attributes") == 0) {
+				exclude_all_tile_attributes = true;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
@@ -1510,7 +1668,7 @@ int main(int argc, char **argv) {
 	std::string generator_options;
 	std::vector<strategy> strategies;
 
-	decode(readers, layermap, outdb, out_dir, &st, header, mapping, exclude, include, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
+	decode(readers, layermap, outdb, out_dir, &st, header, mapping, db, exclude, include, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
 
 	if (set_attribution.size() != 0) {
 		attribution = set_attribution;
