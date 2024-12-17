@@ -55,6 +55,7 @@ int maxzoom = 32;
 int minzoom = 0;
 std::map<std::string, std::string> renames;
 bool exclude_all = false;
+bool exclude_all_tile_attributes = false;
 std::vector<std::string> unidecode_data;
 std::string join_tile_column;
 std::string join_table_column;
@@ -274,9 +275,11 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					continue;
 				}
 
-				if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
-					attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
-					key_order.push_back(key);
+				if (!exclude_all_tile_attributes) {
+					if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
+						attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
+						key_order.push_back(key);
+					}
 				}
 
 				if (f < joined.size()) {
@@ -1367,6 +1370,7 @@ int main(int argc, char **argv) {
 		{"exclude", required_argument, 0, 'x'},
 		{"exclude-all", no_argument, 0, 'X'},
 		{"include", required_argument, 0, 'y'},
+		{"exclude-all-tile-attributes", no_argument, 0, '~'},
 		{"layer", required_argument, 0, 'l'},
 		{"exclude-layer", required_argument, 0, 'L'},
 		{"quiet", no_argument, 0, 'q'},
@@ -1581,6 +1585,8 @@ int main(int argc, char **argv) {
 				join_tile_column = optarg;
 			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
 				attribute_for_id = optarg;
+			} else if (strcmp(opt, "exclude-all-tile-attributes") == 0) {
+				exclude_all_tile_attributes = true;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
