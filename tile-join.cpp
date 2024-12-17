@@ -279,14 +279,19 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 
 				if (f < joined.size()) {
+					if (joined[f].size() > 0) {
+						matched = true;
+					}
+
 					for (auto const &kv : joined[f]) {
 						if (kv.first == attribute_for_id) {
 							outfeature.has_id = true;
 							outfeature.id = mvt_value_to_long_long(kv.second);
-						} else if (kv.second.type != mvt_null) {
-							attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
-							key_order.push_back(kv.first);
-							matched = true;
+						} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
+							if (kv.second.type != mvt_null) {
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
+								key_order.push_back(kv.first);
+							}
 						}
 					}
 				}
