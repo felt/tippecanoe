@@ -282,6 +282,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 						if (kv.second.type != mvt_null) {
 							attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
 							key_order.push_back(kv.first);
+							matched = true;
 						}
 					}
 				}
