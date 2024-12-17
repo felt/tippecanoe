@@ -59,7 +59,7 @@ C = $(wildcard *.c) $(wildcard *.cpp)
 INCLUDES = -I/usr/local/include -I. -Iclipper2/include
 LIBS = -L/usr/local/lib
 
-tippecanoe: geojson.o jsonpull/jsonpull.o tile.o pool.o mbtiles.o geometry.o projection.o memfile.o mvt.o serial.o main.o text.o dirtiles.o pmtiles_file.o plugin.o read_json.o write_json.o geobuf.o flatgeobuf.o evaluator.o geocsv.o csv.o geojson-loop.o json_logger.o visvalingam.o compression.o clip.o sort.o attribute.o thread.o shared_borders.o clipper2/src/clipper.engine.o
+tippecanoe: geojson.o jsonpull/jsonpull.o tile.o pool.o mbtiles.o geometry.o projection.o memfile.o mvt.o serial.o main.o platform.o text.o dirtiles.o pmtiles_file.o plugin.o read_json.o write_json.o geobuf.o flatgeobuf.o evaluator.o geocsv.o csv.o geojson-loop.o json_logger.o visvalingam.o compression.o clip.o sort.o attribute.o thread.o shared_borders.o clipper2/src/clipper.engine.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 tippecanoe-enumerate: enumerate.o
@@ -68,7 +68,7 @@ tippecanoe-enumerate: enumerate.o
 tippecanoe-decode: decode.o projection.o mvt.o write_json.o text.o jsonpull/jsonpull.o dirtiles.o pmtiles_file.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3
 
-tile-join: tile-join.o projection.o mbtiles.o mvt.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o attribute.o thread.o read_json.o clipper2/src/clipper.engine.o
+tile-join: tile-join.o platform.o projection.o mbtiles.o mvt.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o attribute.o thread.o read_json.o clipper2/src/clipper.engine.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o
@@ -439,6 +439,10 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/countries-8-135-86-bigclip.pbf 8 135 86 > tests/pbf/countries-8-135-86-bigclip.json.check
 	cmp tests/pbf/countries-8-135-86-bigclip.json.check tests/pbf/countries-8-135-86-bigclip.json
 	rm tests/pbf/countries-8-135-86-bigclip.pbf tests/pbf/countries-8-135-86-bigclip.json.check
+	# Clip region that does not intersect with the tile
+	./tippecanoe-overzoom -o tests/pbf/squirrels-13-2413-3077-clip.pbf --clip-polygon-file tests/pbf/squirrels-clip.json tests/pbf/squirrels-13-2413-3077.pbf 13/2413/3077 13/2413/3077
+	cmp tests/pbf/squirrels-13-2413-3077-clip.pbf /dev/null  # clipped away
+	rm tests/pbf/squirrels-13-2413-3077-clip.pbf
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
