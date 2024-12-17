@@ -58,6 +58,7 @@ std::vector<std::string> unidecode_data;
 std::string join_tile_column;
 std::string join_table_column;
 std::string join_table;
+std::string attribute_for_id;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -279,7 +280,10 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 
 				if (f < joined.size()) {
 					for (auto const &kv : joined[f]) {
-						if (kv.second.type != mvt_null) {
+						if (kv.first == attribute_for_id) {
+							outfeature.has_id = true;
+							outfeature.id = mvt_value_to_long_long(kv.second);
+						} else if (kv.second.type != mvt_null) {
 							attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
 							key_order.push_back(kv.first);
 							matched = true;
@@ -1371,6 +1375,7 @@ int main(int argc, char **argv) {
 		{"join-tile-column", required_argument, 0, '~'},
 		{"join-table-column", required_argument, 0, '~'},
 		{"join-table", required_argument, 0, '~'},
+		{"use-attribute-for-id", required_argument, 0, '~'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
 		{"no-tile-compression", no_argument, &pC, 1},
@@ -1568,6 +1573,8 @@ int main(int argc, char **argv) {
 				join_table_column = optarg;
 			} else if (strcmp(opt, "join-tile-column") == 0) {
 				join_tile_column = optarg;
+			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
+				attribute_for_id = optarg;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
