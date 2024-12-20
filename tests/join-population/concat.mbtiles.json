@@ -1,6 +1,6 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-180.000000,-85.051129,180.000000,85.051129",
-"bounds": "-180.000000,-85.051129,180.000000,85.051129",
+"antimeridian_adjusted_bounds": "-122.255859,37.718590,-122.080078,37.857507",
+"bounds": "-122.255859,37.718590,-122.080078,37.857507",
 "center": "-122.104097,37.695438,0",
 "description": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
 "format": "pbf",

@@ -1,6 +1,6 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-175.781250,-42.032974,180.000000,64.168107",
-"bounds": "-175.781250,-42.032974,180.000000,64.168107",
+"antimeridian_adjusted_bounds": "-175.220947,-41.302571,179.217224,64.168107",
+"bounds": "-175.220947,-41.302571,179.217224,64.168107",
 "center": "-62.578125,17.307462,8",
 "description": "tests/feature-filter/out/places.mbtiles",
 "format": "pbf",
