@@ -1012,16 +1012,16 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 	for (size_t i = 0; i < CPUS; i++) {
 		void *retval;
 
+		if (pthread_join(pthreads[i], &retval) != 0) {
+			perror("pthread_join");
+		}
+
 		*minlat = std::min(*minlat, args[i].minlat);
 		*minlon = std::min(*minlon, args[i].minlon);
 		*maxlat = std::max(*maxlat, args[i].maxlat);
 		*maxlon = std::max(*maxlon, args[i].maxlon);
 		*minlon2 = std::min(*minlon2, args[i].minlon2);
 		*maxlon2 = std::max(*maxlon2, args[i].maxlon2);
-
-		if (pthread_join(pthreads[i], &retval) != 0) {
-			perror("pthread_join");
-		}
 
 		for (auto ai = args[i].outputs.begin(); ai != args[i].outputs.end(); ++ai) {
 			if (outdb != NULL) {
