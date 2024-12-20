@@ -1,6 +1,6 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-122.343750,37.857507,-122.255859,37.926868",
-"bounds": "-122.343750,37.857507,-122.255859,37.926868",
+"antimeridian_adjusted_bounds": "-135.000000,37.881357,-122.280579,40.979898",
+"bounds": "-135.000000,37.881357,-122.280579,40.979898",
 "center": "-122.299805,37.892187,12",
 "description": "tests/join-population/tabblock_06001420.mbtiles",
 "format": "pbf",

@@ -155,7 +155,29 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 	return ret;
 }
 
-void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter) {
+struct arg {
+	std::map<zxy, std::vector<std::string>> inputs{};
+	std::map<zxy, std::string> outputs{};
+
+	std::map<std::string, layermap_entry> *layermap = NULL;
+
+	std::vector<std::string> *header = NULL;
+	std::map<std::string, std::vector<std::string>> *mapping = NULL;
+	sqlite3 *db = NULL;
+	std::set<std::string> *exclude = NULL;
+	std::set<std::string> *include = NULL;
+	std::set<std::string> *keep_layers = NULL;
+	std::set<std::string> *remove_layers = NULL;
+	int ifmatched = 0;
+	json_object *filter = NULL;
+	struct tileset_reader *readers = NULL;
+
+	double minlat, minlon;
+	double maxlat, maxlon;
+	double minlon2, maxlon2;
+};
+
+void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter, struct arg *a) {
 	mvt_tile tile;
 	int features_added = 0;
 	bool was_compressed;
@@ -246,6 +268,12 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		}
 
 		auto tilestats = layermap.find(layer.name);
+
+		long long minx = LLONG_MAX;
+		long long miny = LLONG_MAX;
+		long long maxx = LLONG_MIN;
+		long long maxy = LLONG_MIN;
+		bool features_added_to_layer = false;
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
 			mvt_feature &feat = layer.features[f];
@@ -382,7 +410,20 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					}
 				}
 
+				for (auto const &g : outfeature.geometry) {
+					// pin to the tile extent, since we don't want bounds bigger than the earth
+					long long gx = std::min((long long) outlayer.extent, std::max(0LL, g.x));
+					long long gy = std::min((long long) outlayer.extent, std::max(0LL, g.y));
+
+					// initially keep bounds in tile coordinates
+					minx = std::min(minx, gx);
+					miny = std::min(miny, gy);
+					maxx = std::max(maxx, gx);
+					maxy = std::max(maxy, gy);
+				}
+
 				features_added++;
+				features_added_to_layer = true;
 				outlayer.features.push_back(outfeature);
 
 				if (z < tilestats->second.minzoom) {
@@ -401,26 +442,42 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 			}
 		}
+
+		if (features_added_to_layer) {
+			// to world scale
+			minx = minx * (1LL << (32 - z)) / outlayer.extent;
+			miny = miny * (1LL << (32 - z)) / outlayer.extent;
+			maxx = maxx * (1LL << (32 - z)) / outlayer.extent;
+			maxy = maxy * (1LL << (32 - z)) / outlayer.extent;
+
+			// to world offset
+			minx += (1LL << (32 - z)) * x;
+			maxx += (1LL << (32 - z)) * x;
+			miny += (1LL << (32 - z)) * y;
+			maxy += (1LL << (32 - z)) * y;
+
+			double lat1, lon1;
+			double lat2, lon2;
+			tile2lonlat(minx, maxy, 32, &lon1, &lat1);
+			tile2lonlat(maxx, miny, 32, &lon2, &lat2);
+
+			a->minlat = std::min(a->minlat, std::min(lat1, lat2));
+			a->minlon = std::min(a->minlon, std::min(lon1, lon2));
+			a->maxlat = std::max(a->maxlat, std::max(lat1, lat2));
+			a->maxlon = std::max(a->maxlon, std::max(lon1, lon2));
+
+			if (lon1 < 0 || lon2 < 0) {
+				lon1 += 360;
+				lon2 += 360;
+			}
+
+			a->minlon2 = std::min(a->minlon2, std::min(lon1, lon2));
+			a->maxlon2 = std::max(a->maxlon2, std::max(lon1, lon2));
+		}
 	}
 
 	if (features_added == 0) {
 		return;
-	}
-}
-
-double min(double a, double b) {
-	if (a < b) {
-		return a;
-	} else {
-		return b;
-	}
-}
-
-double max(double a, double b) {
-	if (a > b) {
-		return a;
-	} else {
-		return b;
 	}
 }
 
@@ -861,24 +918,6 @@ struct tileset_reader *begin_reading(char *fname) {
 	return r;
 }
 
-struct arg {
-	std::map<zxy, std::vector<std::string>> inputs{};
-	std::map<zxy, std::string> outputs{};
-
-	std::map<std::string, layermap_entry> *layermap = NULL;
-
-	std::vector<std::string> *header = NULL;
-	std::map<std::string, std::vector<std::string>> *mapping = NULL;
-	sqlite3 *db = NULL;
-	std::set<std::string> *exclude = NULL;
-	std::set<std::string> *include = NULL;
-	std::set<std::string> *keep_layers = NULL;
-	std::set<std::string> *remove_layers = NULL;
-	int ifmatched = 0;
-	json_object *filter = NULL;
-	struct tileset_reader *readers = NULL;
-};
-
 void *join_worker(void *v) {
 	arg *a = (arg *) v;
 
@@ -886,7 +925,7 @@ void *join_worker(void *v) {
 		mvt_tile tile;
 
 		for (size_t i = 0; i < ai->second.size(); i++) {
-			append_tile(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), a->db, *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter);
+			append_tile(ai->second[i], ai->first.z, ai->first.x, ai->first.y, *(a->layermap), *(a->header), *(a->mapping), a->db, *(a->exclude), *(a->include), *(a->keep_layers), *(a->remove_layers), a->ifmatched, tile, a->filter, a);
 		}
 
 		ai->second.clear();
@@ -921,7 +960,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers) {
+void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers, double *minlat, double *minlon, double *maxlat, double *maxlon, double *minlon2, double *maxlon2) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -939,6 +978,12 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 		args[i].ifmatched = ifmatched;
 		args[i].filter = filter;
 		args[i].readers = readers;
+		args[i].minlat = *minlat;
+		args[i].minlon = *minlon;
+		args[i].maxlat = *maxlat;
+		args[i].maxlon = *maxlon;
+		args[i].minlon2 = *minlon2;
+		args[i].maxlon2 = *maxlon2;
 	}
 
 	size_t count = 0;
@@ -966,6 +1011,13 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 
 	for (size_t i = 0; i < CPUS; i++) {
 		void *retval;
+
+		*minlat = std::min(*minlat, args[i].minlat);
+		*minlon = std::min(*minlon, args[i].minlon);
+		*maxlat = std::max(*maxlat, args[i].maxlat);
+		*maxlon = std::max(*maxlon, args[i].maxlon);
+		*minlon2 = std::min(*minlon2, args[i].minlon2);
+		*maxlon2 = std::max(*maxlon2, args[i].maxlon2);
 
 		if (pthread_join(pthreads[i], &retval) != 0) {
 			perror("pthread_join");
@@ -1085,35 +1137,9 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 	double maxlon = INT_MIN;
 	double minlon2 = INT_MAX;
 	double maxlon2 = INT_MIN;
-	int zoom_for_bbox = -1;
 
 	while (readers != NULL && !readers->all_done()) {
 		std::pair<zxy, std::string> current = readers->current();
-
-		if (current.first.z != zoom_for_bbox) {
-			// Only use highest zoom for bbox calculation
-			// to avoid z0 always covering the world
-
-			minlat = minlon = minlon2 = INT_MAX;
-			maxlat = maxlon = maxlon2 = INT_MIN;
-			zoom_for_bbox = current.first.z;
-		}
-
-		double lat1, lon1, lat2, lon2;
-		tile2lonlat(current.first.x, current.first.y, current.first.z, &lon1, &lat1);
-		tile2lonlat(current.first.x + 1, current.first.y + 1, current.first.z, &lon2, &lat2);
-		minlat = min(lat2, minlat);
-		minlon = min(lon1, minlon);
-		maxlat = max(lat1, maxlat);
-		maxlon = max(lon2, maxlon);
-
-		if (lon1 < 0) {
-			lon1 += 360;
-			lon2 += 360;
-		}
-
-		minlon2 = min(lon1, minlon2);
-		maxlon2 = max(lon2, maxlon2);
 
 		if (current.first.z >= minzoom && current.first.z <= maxzoom) {
 			zxy tile = current.first;
@@ -1141,7 +1167,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 
 		if (readers == NULL || readers->zoom != current.first.z || readers->x != current.first.x || readers->y != current.first.y) {
 			if (tasks.size() > 100 * CPUS) {
-				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, db, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+				dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, db, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers, &minlat, &minlon, &maxlat, &maxlon, &minlon2, &maxlon2);
 				tasks.clear();
 			}
 		}
@@ -1160,18 +1186,18 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		*rr = r;
 	}
 
-	st->minlon = min(minlon, st->minlon);
-	st->maxlon = max(maxlon, st->maxlon);
-	st->minlat = min(minlat, st->minlat);
-	st->maxlat = max(maxlat, st->maxlat);
-
-	st->minlon2 = min(minlon2, st->minlon2);
-	st->maxlon2 = max(maxlon2, st->maxlon2);
-	st->minlat2 = min(minlat, st->minlat2);
-	st->maxlat2 = max(maxlat, st->maxlat2);
-
-	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, db, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers);
+	dispatch_tasks(tasks, layermaps, outdb, outdir, header, mapping, db, exclude, include, ifmatched, keep_layers, remove_layers, filter, readers, &minlat, &minlon, &maxlat, &maxlon, &minlon2, &maxlon2);
 	layermap = merge_layermaps(layermaps);
+
+	st->minlon = std::min(minlon, st->minlon);
+	st->maxlon = std::max(maxlon, st->maxlon);
+	st->minlat = std::min(minlat, st->minlat);
+	st->maxlat = std::max(maxlat, st->maxlat);
+
+	st->minlon2 = std::min(minlon2, st->minlon2);
+	st->maxlon2 = std::max(maxlon2, st->maxlon2);
+	st->minlat2 = std::min(minlat, st->minlat2);
+	st->maxlat2 = std::max(maxlat, st->maxlat2);
 
 	struct tileset_reader *next;
 	for (struct tileset_reader *r = readers; r != NULL; r = next) {
@@ -1181,14 +1207,14 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 		sqlite3_stmt *stmt;
 		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'minzoom'", -1, &stmt, NULL) == SQLITE_OK) {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
-				int minz = max(sqlite3_column_int(stmt, 0), minzoom);
-				st->minzoom = min(st->minzoom, minz);
+				int minz = std::max(sqlite3_column_int(stmt, 0), minzoom);
+				st->minzoom = std::min(st->minzoom, minz);
 			}
 			sqlite3_finalize(stmt);
 		}
 		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'maxzoom'", -1, &stmt, NULL) == SQLITE_OK) {
 			if (sqlite3_step(stmt) == SQLITE_ROW) {
-				int maxz = min(sqlite3_column_int(stmt, 0), maxzoom);
+				int maxz = std::min(sqlite3_column_int(stmt, 0), maxzoom);
 
 				if (!want_overzoom) {
 					if (st->maxzoom >= 0 && maxz != st->maxzoom) {
@@ -1196,7 +1222,7 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 					}
 				}
 
-				st->maxzoom = max(st->maxzoom, maxz);
+				st->maxzoom = std::max(st->maxzoom, maxz);
 			}
 			sqlite3_finalize(stmt);
 		}
@@ -1238,20 +1264,6 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 						if (proposed.size() < 255) {
 							name = proposed;
 						}
-					}
-				}
-			}
-			sqlite3_finalize(stmt);
-		}
-		if (sqlite3_prepare_v2(r->db, "SELECT value from metadata where name = 'bounds'", -1, &stmt, NULL) == SQLITE_OK) {
-			if (sqlite3_step(stmt) == SQLITE_ROW) {
-				const unsigned char *s = sqlite3_column_text(stmt, 0);
-				if (s != NULL) {
-					if (sscanf((char *) s, "%lf,%lf,%lf,%lf", &minlon, &minlat, &maxlon, &maxlat) == 4) {
-						st->minlon = min(minlon, st->minlon);
-						st->maxlon = max(maxlon, st->maxlon);
-						st->minlat = min(minlat, st->minlat);
-						st->maxlat = max(maxlat, st->maxlat);
 					}
 				}
 			}
