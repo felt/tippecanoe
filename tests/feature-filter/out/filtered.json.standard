@@ -1,6 +1,6 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-180.000000,0.000000,0.966797,85.051129",
-"bounds": "-180.000000,0.000000,0.966797,85.051129",
+"antimeridian_adjusted_bounds": "-100.019531,0.000000,0.966797,0.966751",
+"bounds": "-100.019531,0.000000,0.966797,0.966751",
 "center": "0.000000,0.000000,0",
 "description": "tests/feature-filter/out/all.mbtiles",
 "format": "pbf",

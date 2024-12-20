@@ -411,15 +411,17 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 
 				for (auto const &g : outfeature.geometry) {
-					// pin to the tile extent, since we don't want bounds bigger than the earth
-					long long gx = std::min((long long) outlayer.extent, std::max(0LL, g.x));
-					long long gy = std::min((long long) outlayer.extent, std::max(0LL, g.y));
+					if (g.op == mvt_moveto || g.op == mvt_lineto) {
+						// pin to the tile extent, since we don't want bounds bigger than the earth
+						long long gx = std::min((long long) outlayer.extent, std::max(0LL, g.x));
+						long long gy = std::min((long long) outlayer.extent, std::max(0LL, g.y));
 
-					// initially keep bounds in tile coordinates
-					minx = std::min(minx, gx);
-					miny = std::min(miny, gy);
-					maxx = std::max(maxx, gx);
-					maxy = std::max(maxy, gy);
+						// initially keep bounds in tile coordinates
+						minx = std::min(minx, gx);
+						miny = std::min(miny, gy);
+						maxx = std::max(maxx, gx);
+						maxy = std::max(maxy, gy);
+					}
 				}
 
 				features_added++;
