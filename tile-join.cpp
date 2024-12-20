@@ -1711,6 +1711,10 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	if (st.maxlon < st.minlon) {
+		st.maxlon = st.minlon = st.maxlat = st.minlat = st.minlon2 = st.maxlon2 = st.minlat2 = st.maxlat2 = 0;
+	}
+
 	if (st.maxlon - st.minlon <= st.maxlon2 - st.minlon2) {
 		st.minlon2 = st.minlon;
 		st.maxlon2 = st.maxlon;
