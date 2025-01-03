@@ -83,8 +83,10 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 	ret.resize(join_keys.size());
 
 	// double quotes for table and column identifiers
-	const char *s = sqlite3_mprintf("select \"%w\", * from \"%w\" where \"%w\" in (",
-					join_table_column.c_str(), join_table.c_str(), join_table_column.c_str());
+	const char *s = sqlite3_mprintf("select LOWER(LTRIM(SUBSTR(\"%w\",1,LENGTH(\"%w\")-3),'0')||SUBSTR(\"%w\",-3,3)), * from \"%w\" where LOWER(LTRIM(SUBSTR(\"%w\",1,LENGTH(\"%w\")-3),'0')||SUBSTR(\"%w\",-3,3)) in (",
+					join_table_column.c_str(), join_table_column.c_str(), join_table_column.c_str(),
+					join_table.c_str(),
+					join_table_column.c_str(), join_table_column.c_str(), join_table_column.c_str());
 	std::string query = s;
 	sqlite3_free((void *) s);
 
