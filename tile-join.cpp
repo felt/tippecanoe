@@ -57,8 +57,8 @@ std::map<std::string, std::string> renames;
 bool exclude_all = false;
 bool exclude_all_tile_attributes = false;
 std::vector<std::string> unidecode_data;
-std::string join_tile_column;
-std::string join_table_column;
+std::string join_tile_attribute;
+std::string join_table_expression;
 std::string join_table;
 std::string attribute_for_id;
 
@@ -83,10 +83,8 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 	ret.resize(join_keys.size());
 
 	// double quotes for table and column identifiers
-	const char *s = sqlite3_mprintf("select LOWER(LTRIM(SUBSTR(\"%w\",1,LENGTH(\"%w\")-3),'0')||SUBSTR(\"%w\",-3,3)), * from \"%w\" where LOWER(LTRIM(SUBSTR(\"%w\",1,LENGTH(\"%w\")-3),'0')||SUBSTR(\"%w\",-3,3)) in (",
-					join_table_column.c_str(), join_table_column.c_str(), join_table_column.c_str(),
-					join_table.c_str(),
-					join_table_column.c_str(), join_table_column.c_str(), join_table_column.c_str());
+	const char *s = sqlite3_mprintf("select %s, * from \"%w\" where %s in (",
+					join_table_expression.c_str(), join_table.c_str(), join_table_expression.c_str());
 	std::string query = s;
 	sqlite3_free((void *) s);
 
@@ -258,7 +256,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 
 				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
 					const std::string &key = layer.keys[feat.tags[t]];
-					if (key == join_tile_column) {
+					if (key == join_tile_attribute) {
 						const mvt_value &val = layer.values[feat.tags[t + 1]];
 						join_keys[f] = val;
 						break;
@@ -1398,8 +1396,8 @@ int main(int argc, char **argv) {
 		{"read-from", required_argument, 0, 'r'},
 
 		{"join-sqlite", required_argument, 0, '~'},
-		{"join-tile-column", required_argument, 0, '~'},
-		{"join-table-column", required_argument, 0, '~'},
+		{"join-tile-attribute", required_argument, 0, '~'},
+		{"join-table-expression", required_argument, 0, '~'},
 		{"join-table", required_argument, 0, '~'},
 		{"use-attribute-for-id", required_argument, 0, '~'},
 
@@ -1595,10 +1593,10 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(opt, "join-table") == 0) {
 				join_table = optarg;
-			} else if (strcmp(opt, "join-table-column") == 0) {
-				join_table_column = optarg;
-			} else if (strcmp(opt, "join-tile-column") == 0) {
-				join_tile_column = optarg;
+			} else if (strcmp(opt, "join-table-expression") == 0) {
+				join_table_expression = optarg;
+			} else if (strcmp(opt, "join-tile-attribute") == 0) {
+				join_tile_attribute = optarg;
 			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
 				attribute_for_id = optarg;
 			} else if (strcmp(opt, "exclude-all-tile-attributes") == 0) {

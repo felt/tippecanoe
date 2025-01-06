@@ -581,7 +581,7 @@ join-test: tippecanoe tippecanoe-decode tile-join
 	#
 	# Test sql join
 	#
-	./tile-join -i -f -o tests/join-sql/countries.pmtiles --join-sqlite tests/join-sql/countries.gpkg --join-table countries --join-tile-column ne10-admin0:name_en --join-table-column country tests/join-sql/bboxes.pmtiles
+	./tile-join -i -f -o tests/join-sql/countries.pmtiles --join-sqlite tests/join-sql/countries.gpkg --join-table countries --join-tile-attribute ne10-admin0:name_en --join-table-expression 'lower(country)' tests/join-sql/bboxes.pmtiles
 	./tippecanoe-decode -x generator tests/join-sql/countries.pmtiles > tests/join-sql/countries.pmtiles.json.check
 	cmp tests/join-sql/countries.pmtiles.json.check tests/join-sql/countries.pmtiles.json
 	rm -f tests/join-sql/countries.pmtiles tests/join-sql/countries.pmtiles.json.check
