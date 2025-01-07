@@ -305,6 +305,26 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
 			std::vector<std::string> key_order;
 
+			if (f < joined.size()) {
+				if (joined[f].size() > 0) {
+					matched = true;
+				}
+
+				for (auto const &joined_feature : joined[f]) {
+					for (auto const &kv : joined_feature) {
+						if (kv.first == attribute_for_id) {
+							outfeature.has_id = true;
+							outfeature.id = mvt_value_to_long_long(kv.second);
+						} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
+							if (kv.second.type != mvt_null) {
+								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
+								key_order.push_back(kv.first);
+							}
+						}
+					}
+				}
+			}
+
 			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
 				const std::string &key = layer.keys[feat.tags[t]];
 				mvt_value &val = layer.values[feat.tags[t + 1]];
@@ -318,26 +338,6 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
 						attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
 						key_order.push_back(key);
-					}
-				}
-
-				if (f < joined.size()) {
-					if (joined[f].size() > 0) {
-						matched = true;
-					}
-
-					for (auto const &joined_feature : joined[f]) {
-						for (auto const &kv : joined_feature) {
-							if (kv.first == attribute_for_id) {
-								outfeature.has_id = true;
-								outfeature.id = mvt_value_to_long_long(kv.second);
-							} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
-								if (kv.second.type != mvt_null) {
-									attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
-									key_order.push_back(kv.first);
-								}
-							}
-						}
 					}
 				}
 
