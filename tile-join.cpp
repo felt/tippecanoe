@@ -60,6 +60,7 @@ std::vector<std::string> unidecode_data;
 std::string join_tile_attribute;
 std::string join_table_expression;
 std::string join_table;
+size_t join_count_limit = 1;
 std::string attribute_for_id;
 
 bool want_overzoom = false;
@@ -78,8 +79,11 @@ struct stats {
 	std::vector<struct strategy> strategies{};
 };
 
-std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const std::vector<mvt_value> &join_keys) {
-	std::vector<std::map<std::string, mvt_value>> ret;
+// list, per feature in the tile,
+// of lists of features in the sqlite response,
+// each of which is a mapping from keys to values
+std::vector<std::vector<std::map<std::string, mvt_value>>> get_joined_rows(sqlite3 *db, const std::vector<mvt_value> &join_keys) {
+	std::vector<std::vector<std::map<std::string, mvt_value>>> ret;
 	ret.resize(join_keys.size());
 
 	// double quotes for table and column identifiers
@@ -109,6 +113,8 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 		}
 	}
 
+	// this doesn't add a LIMIT to the query because our limit
+	// is per tiled feature, not a limit on the entire query response.
 	query += ");";
 
 	sqlite3_stmt *stmt;
@@ -129,22 +135,24 @@ std::vector<std::map<std::string, mvt_value>> get_joined_rows(sqlite3 *db, const
 				continue;
 			}
 
-			for (int i = 1; i < count; i++) {
-				int type = sqlite3_column_type(stmt, i);
-				mvt_value v;
-				v.type = mvt_null;
+			if (ret[f->second].size() < join_count_limit) {
+				for (int i = 1; i < count; i++) {
+					int type = sqlite3_column_type(stmt, i);
+					mvt_value v;
+					v.type = mvt_null;
 
-				if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
-					v = mvt_value(sqlite3_column_double(stmt, i));
-				} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
-					v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+					if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
+						v = mvt_value(sqlite3_column_double(stmt, i));
+					} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
+						v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+					}
+
+					const char *name = sqlite3_column_name(stmt, i);
+					row.emplace(name, v);
 				}
 
-				const char *name = sqlite3_column_name(stmt, i);
-				row.emplace(name, v);
+				ret[f->second].push_back(std::move(row));
 			}
-
-			ret[f->second] = std::move(row);
 		}
 	}
 	if (sqlite3_finalize(stmt) != SQLITE_OK) {
@@ -243,7 +251,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			}
 		}
 
-		std::vector<std::map<std::string, mvt_value>> joined;
+		std::vector<std::vector<std::map<std::string, mvt_value>>> joined;
 		if (db != NULL) {
 			// collect join keys for sql query
 
@@ -318,14 +326,16 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 						matched = true;
 					}
 
-					for (auto const &kv : joined[f]) {
-						if (kv.first == attribute_for_id) {
-							outfeature.has_id = true;
-							outfeature.id = mvt_value_to_long_long(kv.second);
-						} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
-							if (kv.second.type != mvt_null) {
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
-								key_order.push_back(kv.first);
+					for (auto const &joined_feature : joined[f]) {
+						for (auto const &kv : joined_feature) {
+							if (kv.first == attribute_for_id) {
+								outfeature.has_id = true;
+								outfeature.id = mvt_value_to_long_long(kv.second);
+							} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
+								if (kv.second.type != mvt_null) {
+									attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
+									key_order.push_back(kv.first);
+								}
 							}
 						}
 					}
@@ -1403,6 +1413,7 @@ int main(int argc, char **argv) {
 		{"join-tile-attribute", required_argument, 0, '~'},
 		{"join-table-expression", required_argument, 0, '~'},
 		{"join-table", required_argument, 0, '~'},
+		{"join-count-limit", required_argument, 0, '~'},
 		{"use-attribute-for-id", required_argument, 0, '~'},
 
 		{"no-tile-size-limit", no_argument, &pk, 1},
@@ -1605,6 +1616,8 @@ int main(int argc, char **argv) {
 				attribute_for_id = optarg;
 			} else if (strcmp(opt, "exclude-all-tile-attributes") == 0) {
 				exclude_all_tile_attributes = true;
+			} else if (strcmp(opt, "join-count-limit") == 0) {
+				join_count_limit = atoi(optarg);
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
