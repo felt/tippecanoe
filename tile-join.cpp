@@ -273,6 +273,9 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		long long miny = LLONG_MAX;
 		long long maxx = LLONG_MIN;
 		long long maxy = LLONG_MIN;
+
+		long long minx2 = LLONG_MAX;
+		long long maxx2 = LLONG_MIN;
 		bool features_added_to_layer = false;
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
@@ -416,11 +419,26 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 						long long gx = std::min((long long) outlayer.extent, std::max(0LL, g.x));
 						long long gy = std::min((long long) outlayer.extent, std::max(0LL, g.y));
 
-						// initially keep bounds in tile coordinates
+						// to world scale
+						gx = gx * (1LL << (32 - z)) / outlayer.extent;
+						gy = gy * (1LL << (32 - z)) / outlayer.extent;
+
+						// to world offset
+						gx += (1LL << (32 - z)) * x;
+						gy += (1LL << (32 - z)) * y;
+
 						minx = std::min(minx, gx);
 						miny = std::min(miny, gy);
 						maxx = std::max(maxx, gx);
 						maxy = std::max(maxy, gy);
+
+						// if in the western hemisphere, try shifting to east
+						if (gx < (1LL << 31)) {
+							gx += 1LL << 32;
+						}
+
+						minx2 = std::min(minx2, gx);
+						maxx2 = std::max(maxx2, gx);
 					}
 				}
 
@@ -446,18 +464,6 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		}
 
 		if (features_added_to_layer) {
-			// to world scale
-			minx = minx * (1LL << (32 - z)) / outlayer.extent;
-			miny = miny * (1LL << (32 - z)) / outlayer.extent;
-			maxx = maxx * (1LL << (32 - z)) / outlayer.extent;
-			maxy = maxy * (1LL << (32 - z)) / outlayer.extent;
-
-			// to world offset
-			minx += (1LL << (32 - z)) * x;
-			maxx += (1LL << (32 - z)) * x;
-			miny += (1LL << (32 - z)) * y;
-			maxy += (1LL << (32 - z)) * y;
-
 			double lat1, lon1;
 			double lat2, lon2;
 			tile2lonlat(minx, maxy, 32, &lon1, &lat1);
@@ -468,10 +474,8 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			a->maxlat = std::max(a->maxlat, std::max(lat1, lat2));
 			a->maxlon = std::max(a->maxlon, std::max(lon1, lon2));
 
-			if (lon1 < 0 || lon2 < 0) {
-				lon1 += 360;
-				lon2 += 360;
-			}
+			tile2lonlat(minx2, maxy, 32, &lon1, &lat1);
+			tile2lonlat(maxx2, miny, 32, &lon2, &lat2);
 
 			a->minlon2 = std::min(a->minlon2, std::min(lon1, lon2));
 			a->maxlon2 = std::max(a->maxlon2, std::max(lon1, lon2));
