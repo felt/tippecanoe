@@ -15,11 +15,11 @@
 }, "features": [
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "parsed-bboxes", "version": 2, "extent": 1073741824 }, "features": [
-{ "type": "Feature", "id": 322, "properties": { "another": "yes", "country": "Germany", "fid": 1, "something": "blah", "ne10-admin0:name_en": "germany", "ne10-admin0:iso_a2_eh": "de", "ne10-admin0:iso_a3_eh": "deu", "felt:cluster_size": 1 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 15.022060, 47.271121 ], [ 5.852490, 47.271121 ], [ 5.852490, 55.065334 ], [ 15.022060, 55.065334 ], [ 15.022060, 47.271121 ] ] ] } }
+{ "type": "Feature", "id": 322, "properties": { "ne10-admin0:name_en": "germany", "ne10-admin0:iso_a2_eh": "de", "ne10-admin0:iso_a3_eh": "deu", "felt:cluster_size": 1, "another": "yes", "country": "Germany", "fid": 1, "something": "blah" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 15.022060, 47.271121 ], [ 5.852490, 47.271121 ], [ 5.852490, 55.065334 ], [ 15.022060, 55.065334 ], [ 15.022060, 47.271121 ] ] ] } }
 ,
-{ "type": "Feature", "id": 435, "properties": { "another": "why", "country": "France", "fid": 2, "something": "what", "ne10-admin0:name_en": "france", "ne10-admin0:iso_a2_eh": "fr", "ne10-admin0:iso_a3_eh": "fra", "felt:cluster_size": 1 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -61.797841, -21.370782 ], [ -61.797841, 51.087541 ], [ 55.854503, 51.087541 ], [ 55.854503, -21.370782 ], [ -61.797841, -21.370782 ] ] ] } }
+{ "type": "Feature", "id": 435, "properties": { "ne10-admin0:name_en": "france", "ne10-admin0:iso_a2_eh": "fr", "ne10-admin0:iso_a3_eh": "fra", "felt:cluster_size": 1, "another": "why", "country": "France", "fid": 2, "something": "what" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -61.797841, -21.370782 ], [ -61.797841, 51.087541 ], [ 55.854503, 51.087541 ], [ 55.854503, -21.370782 ], [ -61.797841, -21.370782 ] ] ] } }
 ,
-{ "type": "Feature", "id": 650, "properties": { "another": "bar", "country": "Italy", "fid": 3, "something": "foo", "ne10-admin0:name_en": "italy", "ne10-admin0:iso_a2_eh": "it", "ne10-admin0:iso_a3_eh": "ita", "felt:cluster_size": 1 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 18.517426, 35.489244 ], [ 6.602728, 35.489244 ], [ 6.602728, 47.085215 ], [ 18.517426, 47.085215 ], [ 18.517426, 35.489244 ] ] ] } }
+{ "type": "Feature", "id": 650, "properties": { "ne10-admin0:name_en": "italy", "ne10-admin0:iso_a2_eh": "it", "ne10-admin0:iso_a3_eh": "ita", "felt:cluster_size": 1, "another": "bar", "country": "Italy", "fid": 3, "something": "foo" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 18.517426, 35.489244 ], [ 6.602728, 35.489244 ], [ 6.602728, 47.085215 ], [ 18.517426, 47.085215 ], [ 18.517426, 35.489244 ] ] ] } }
 ] }
 ] }
 ] }

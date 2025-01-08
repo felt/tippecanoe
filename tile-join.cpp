@@ -294,16 +294,17 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				continue;
 			}
 
-			mvt_feature outfeature;
-			int matched = 0;
+			struct match {
+				bool has_id = false;
+				unsigned long long id;
+				std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
+				std::vector<std::string> key_order;
+			};
 
-			if (feat.has_id) {
-				outfeature.has_id = true;
-				outfeature.id = feat.id;
-			}
+			std::vector<match> matches;
+			bool matched = false;
 
-			std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
-			std::vector<std::string> key_order;
+			// start filling out sql matches
 
 			if (f < joined.size()) {
 				if (joined[f].size() > 0) {
@@ -311,90 +312,149 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				}
 
 				for (auto const &joined_feature : joined[f]) {
+					match m;
+					m.has_id = feat.has_id;
+					m.id = feat.id;
+
+					if (!exclude_all_tile_attributes) {
+						for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+							const std::string &key = layer.keys[feat.tags[t]];
+							mvt_value &val = layer.values[feat.tags[t + 1]];
+							serial_val sv = mvt_value_to_serial_val(val);
+
+							if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
+								m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
+								m.key_order.push_back(key);
+							}
+						}
+					}
+
 					for (auto const &kv : joined_feature) {
 						if (kv.first == attribute_for_id) {
-							outfeature.has_id = true;
-							outfeature.id = mvt_value_to_long_long(kv.second);
+							m.has_id = true;
+							m.id = mvt_value_to_long_long(kv.second);
 						} else if (include.count(kv.first) || (!exclude_all && exclude.count(kv.first) == 0 && exclude_attributes.count(kv.first) == 0)) {
 							if (kv.second.type != mvt_null) {
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
-								key_order.push_back(kv.first);
+								m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(kv.first, std::pair<mvt_value, serial_val>(kv.second, mvt_value_to_serial_val(kv.second))));
+								m.key_order.push_back(kv.first);
+							}
+						}
+					}
+
+					matches.push_back(m);
+				}
+			}
+
+			// look for csv matches and start filling them out
+
+			if (!matched) {
+				match m;
+				m.id = feat.id;
+				m.has_id = feat.has_id;
+				// populate attributes and key_order as we look for matches,
+				// because apparently at some point i thought it was important
+				// to insert the joined attributes at the point in the sequence
+				// where the join key had been
+
+				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+					const std::string &key = layer.keys[feat.tags[t]];
+					mvt_value &val = layer.values[feat.tags[t + 1]];
+					serial_val sv = mvt_value_to_serial_val(val);
+
+					if (val.type == mvt_null) {
+						continue;
+					}
+
+					if (!exclude_all_tile_attributes) {
+						if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
+							m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
+							m.key_order.push_back(key);
+						}
+					}
+
+					if (header.size() > 0 && key == header[0]) {
+						std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(sv.s);
+
+						if (ii != mapping.end()) {
+							std::vector<std::string> fields = ii->second;
+							matched = true;
+
+							for (size_t i = 1; i < fields.size(); i++) {
+								std::string joinkey = header[i];
+								std::string joinval = fields[i];
+								int attr_type = mvt_string;
+
+								if (joinval.size() > 0) {
+									if (joinval[0] == '"') {
+										joinval = csv_dequote(joinval);
+									} else if (is_number(joinval)) {
+										attr_type = mvt_double;
+									}
+								} else if (pe) {
+									attr_type = mvt_null;
+								}
+
+								const char *sjoinkey = joinkey.c_str();
+
+								if (include.count(joinkey) || (!exclude_all && exclude.count(joinkey) == 0 && exclude_attributes.count(joinkey) == 0 && attr_type != mvt_null)) {
+									mvt_value outval;
+									if (attr_type == mvt_string) {
+										outval.type = mvt_string;
+										outval.set_string_value(joinval);
+									} else {
+										outval.type = mvt_double;
+										outval.numeric_value.double_value = atof(joinval.c_str());
+									}
+
+									auto fa = m.attributes.find(sjoinkey);
+									if (fa != m.attributes.end()) {
+										m.attributes.erase(fa);
+									}
+
+									serial_val outsv;
+									outsv.type = outval.type;
+									outsv.s = joinval;
+
+									outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
+
+									m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
+									m.key_order.push_back(joinkey);
+								}
 							}
 						}
 					}
 				}
+
+				if (matched) {
+					matches.push_back(m);
+				}
 			}
 
-			for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
-				const std::string &key = layer.keys[feat.tags[t]];
-				mvt_value &val = layer.values[feat.tags[t + 1]];
-				serial_val sv = mvt_value_to_serial_val(val);
+			if (!matched && !ifmatched) {
+				// no matches, but they said to keep even unmatched tile features,
+				// so make one that is just the original feature
 
-				if (sv.type == mvt_null) {
-					continue;
-				}
+				match m;
+				m.id = feat.id;
+				m.has_id = feat.has_id;
 
 				if (!exclude_all_tile_attributes) {
-					if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
-						attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
-						key_order.push_back(key);
-					}
-				}
+					for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
+						const std::string &key = layer.keys[feat.tags[t]];
+						mvt_value &val = layer.values[feat.tags[t + 1]];
+						serial_val sv = mvt_value_to_serial_val(val);
 
-				if (header.size() > 0 && key == header[0]) {
-					std::map<std::string, std::vector<std::string>>::iterator ii = mapping.find(sv.s);
-
-					if (ii != mapping.end()) {
-						std::vector<std::string> fields = ii->second;
-						matched = 1;
-
-						for (size_t i = 1; i < fields.size(); i++) {
-							std::string joinkey = header[i];
-							std::string joinval = fields[i];
-							int attr_type = mvt_string;
-
-							if (joinval.size() > 0) {
-								if (joinval[0] == '"') {
-									joinval = csv_dequote(joinval);
-								} else if (is_number(joinval)) {
-									attr_type = mvt_double;
-								}
-							} else if (pe) {
-								attr_type = mvt_null;
-							}
-
-							const char *sjoinkey = joinkey.c_str();
-
-							if (include.count(joinkey) || (!exclude_all && exclude.count(joinkey) == 0 && exclude_attributes.count(joinkey) == 0 && attr_type != mvt_null)) {
-								mvt_value outval;
-								if (attr_type == mvt_string) {
-									outval.type = mvt_string;
-									outval.set_string_value(joinval);
-								} else {
-									outval.type = mvt_double;
-									outval.numeric_value.double_value = atof(joinval.c_str());
-								}
-
-								auto fa = attributes.find(sjoinkey);
-								if (fa != attributes.end()) {
-									attributes.erase(fa);
-								}
-
-								serial_val outsv;
-								outsv.type = outval.type;
-								outsv.s = joinval;
-
-								outval = stringified_to_mvt_value(outval.type, joinval.c_str(), tile_stringpool);
-
-								attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(joinkey, std::pair<mvt_value, serial_val>(outval, outsv)));
-								key_order.push_back(joinkey);
-							}
+						if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
+							m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
+							m.key_order.push_back(key);
 						}
 					}
 				}
+
+				matches.push_back(m);
 			}
 
-			if (matched || !ifmatched) {
+			for (auto &m : matches) {
 				if (tilestats == layermap.end()) {
 					layermap.insert(std::pair<std::string, layermap_entry>(layer.name, layermap_entry(layermap.size())));
 					tilestats = layermap.find(layer.name);
@@ -402,14 +462,18 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 					tilestats->second.maxzoom = z;
 				}
 
-				// To keep attributes in their original order instead of alphabetical
-				for (auto k : key_order) {
-					auto fa = attributes.find(k);
+				mvt_feature outfeature;
+				outfeature.id = m.id;
+				outfeature.has_id = m.has_id;
 
-					if (fa != attributes.end()) {
+				// To keep attributes in their original order instead of alphabetical
+				for (auto k : m.key_order) {
+					auto fa = m.attributes.find(k);
+
+					if (fa != m.attributes.end()) {
 						outlayer.tag(outfeature, k, fa->second.first);
 						add_to_tilestats(tilestats->second.tilestats, k, fa->second.second);
-						attributes.erase(fa);
+						m.attributes.erase(fa);
 					}
 				}
 
