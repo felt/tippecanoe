@@ -585,6 +585,13 @@ join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe-decode -x generator tests/join-sql/countries.pmtiles > tests/join-sql/countries.pmtiles.json.check
 	cmp tests/join-sql/countries.pmtiles.json.check tests/join-sql/countries.pmtiles.json
 	rm -f tests/join-sql/countries.pmtiles tests/join-sql/countries.pmtiles.json.check
+	#
+	# Test sql join with limit
+	#
+	./tile-join --join-count-limit 3 -i -f -o tests/join-sql/countries-limit3.pmtiles --join-sqlite tests/join-sql/countries.gpkg --join-table countries --join-tile-attribute ne10-admin0:name_en --join-table-expression 'lower(country)' tests/join-sql/bboxes.pmtiles
+	./tippecanoe-decode -x generator tests/join-sql/countries-limit3.pmtiles > tests/join-sql/countries-limit3.pmtiles.json.check
+	cmp tests/join-sql/countries-limit3.pmtiles.json.check tests/join-sql/countries-limit3.pmtiles.json
+	rm -f tests/join-sql/countries-limit3.pmtiles tests/join-sql/countries-limit3.pmtiles.json.check
 
 accumulate-test:
 	# there are 144 features with POP1950 in the original dataset
