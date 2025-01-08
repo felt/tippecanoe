@@ -92,7 +92,7 @@ std::vector<std::vector<std::map<std::string, mvt_value>>> get_joined_rows(sqlit
 	std::string query = s;
 	sqlite3_free((void *) s);
 
-	std::map<std::string, size_t> key_to_row;
+	std::multimap<std::string, size_t> key_to_row;
 	for (size_t i = 0; i < join_keys.size(); i++) {
 		const mvt_value &v = join_keys[i];
 
@@ -129,29 +129,31 @@ std::vector<std::vector<std::map<std::string, mvt_value>>> get_joined_rows(sqlit
 		if (count > 0) {
 			// join key is 0th column of query
 			std::string key = (const char *) sqlite3_column_text(stmt, 0);
-			auto f = key_to_row.find(key);
-			if (f == key_to_row.end()) {
+			auto f = key_to_row.equal_range(key);
+			if (f.first == f.second) {
 				fprintf(stderr, "Unexpected join key: %s\n", key.c_str());
 				continue;
 			}
 
-			if (ret[f->second].size() < join_count_limit) {
-				for (int i = 1; i < count; i++) {
-					int type = sqlite3_column_type(stmt, i);
-					mvt_value v;
-					v.type = mvt_null;
+			for (auto ff = f.first; ff != f.second; ++ff) {
+				if (ret[ff->second].size() < join_count_limit) {
+					for (int i = 1; i < count; i++) {
+						int type = sqlite3_column_type(stmt, i);
+						mvt_value v;
+						v.type = mvt_null;
 
-					if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
-						v = mvt_value(sqlite3_column_double(stmt, i));
-					} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
-						v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+						if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
+							v = mvt_value(sqlite3_column_double(stmt, i));
+						} else if (type == SQLITE_TEXT || type == SQLITE_BLOB) {
+							v.set_string_value((const char *) sqlite3_column_text(stmt, i));
+						}
+
+						const char *name = sqlite3_column_name(stmt, i);
+						row.emplace(name, v);
 					}
 
-					const char *name = sqlite3_column_name(stmt, i);
-					row.emplace(name, v);
+					ret[ff->second].push_back(row);
 				}
-
-				ret[f->second].push_back(std::move(row));
 			}
 		}
 	}
