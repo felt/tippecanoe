@@ -1,3 +1,7 @@
+# 2.74.0
+
+* Add the option to join attributes from a sqlite database in tile-join
+
 # 2.73.0
 
 * Correctly clip features down to nothing when the clip region doesn't intersect the tile at all
