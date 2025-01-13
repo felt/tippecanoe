@@ -1,6 +1,7 @@
 # 2.74.0
 
 * Add the option to join attributes from a sqlite database in tile-join
+* Improve tile-join's tileset bounding box calculations
 
 # 2.73.0
 
