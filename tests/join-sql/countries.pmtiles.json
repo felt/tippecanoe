@@ -1,0 +1,29 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-63.146840,-21.370782,55.854503,55.065334",
+"bounds": "-63.146840,-21.370782,55.854503,55.065334",
+"center": "0.000000,0.000000,0",
+"description": "/tmp/tmp588djzw6/bboxes.pmtiles",
+"format": "pbf",
+"generator_options": "tippecanoe '--tile-stats-values-limit=1' -o /tmp/tmp588djzw6/bboxes.pmtiles -l parsed-bboxes -U1 '--smallest-maximum-zoom-guess=7' -Bg --drop-fraction-as-needed -P --hilbert --generate-variable-depth-tile-pyramid -rp -b0 '--extend-zooms-if-still-dropping-maximum=3' '--extra-detail=30' -D10 '--tiny-polygon-size=1' --no-tiny-polygon-reduction-at-maximum-zoom '--simplification=1' '--simplification-at-maximum-zoom=0.25' --detect-longitude-wraparound --preserve-input-order '--maximum-tile-bytes=2621440' '--maximum-string-attribute-length=65536' --preserve-point-density-threshold 64 --set-attribute '{\"felt:cluster_size\": 1}' --accumulate-attribute '{\"felt:cluster_size\": \"sum\"}' --preserve-multiplier-density-threshold 512 '--accumulate-numeric-attributes=felt' /tmp/tmpg9jf8evz/parsed.geojsonseq.gz; ./tile-join -i -f -o tests/join-sql/countries.pmtiles --join-sqlite tests/join-sql/countries.gpkg --join-table countries --join-tile-attribute ne10-admin0:name_en --join-table-expression 'lower(country)' tests/join-sql/bboxes.pmtiles",
+"json": "{\"vector_layers\":[{\"id\":\"parsed-bboxes\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":0,\"fields\":{\"another\":\"String\",\"country\":\"String\",\"felt:cluster_size\":\"Number\",\"fid\":\"Number\",\"ne10-admin0:iso_a2_eh\":\"String\",\"ne10-admin0:iso_a3_eh\":\"String\",\"ne10-admin0:name_en\":\"String\",\"something\":\"String\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"parsed-bboxes\",\"count\":5,\"geometry\":\"Polygon\",\"attributeCount\":8,\"attributes\":[{\"attribute\":\"another\",\"count\":4,\"type\":\"string\",\"values\":[\"bar\",\"hey\",\"why\",\"yes\"]},{\"attribute\":\"country\",\"count\":4,\"type\":\"string\",\"values\":[\"France\",\"Germany\",\"Italy\",\"saint-martin\"]},{\"attribute\":\"felt:cluster_size\",\"count\":1,\"type\":\"number\",\"values\":[1],\"min\":1,\"max\":1},{\"attribute\":\"fid\",\"count\":4,\"type\":\"number\",\"values\":[1,2,3,7],\"min\":1,\"max\":7},{\"attribute\":\"ne10-admin0:iso_a2_eh\",\"count\":5,\"type\":\"string\",\"values\":[\"de\",\"fr\",\"it\",\"mf\",\"sx\"]},{\"attribute\":\"ne10-admin0:iso_a3_eh\",\"count\":5,\"type\":\"string\",\"values\":[\"deu\",\"fra\",\"ita\",\"maf\",\"sxm\"]},{\"attribute\":\"ne10-admin0:name_en\",\"count\":4,\"type\":\"string\",\"values\":[\"france\",\"germany\",\"italy\",\"saint-martin\"]},{\"attribute\":\"something\",\"count\":4,\"type\":\"string\",\"values\":[\"blah\",\"foo\",\"hey\",\"what\"]}]}]}}",
+"maxzoom": "0",
+"minzoom": "0",
+"name": "/tmp/tmp588djzw6/bboxes.pmtiles",
+"strategies": "[{\"truncated_zooms\":1}]",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "parsed-bboxes", "version": 2, "extent": 1073741824 }, "features": [
+{ "type": "Feature", "id": 322, "properties": { "ne10-admin0:name_en": "germany", "ne10-admin0:iso_a2_eh": "de", "ne10-admin0:iso_a3_eh": "deu", "felt:cluster_size": 1, "another": "yes", "country": "Germany", "fid": 1, "something": "blah" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 15.022060, 47.271121 ], [ 5.852490, 47.271121 ], [ 5.852490, 55.065334 ], [ 15.022060, 55.065334 ], [ 15.022060, 47.271121 ] ] ] } }
+,
+{ "type": "Feature", "id": 435, "properties": { "ne10-admin0:name_en": "france", "ne10-admin0:iso_a2_eh": "fr", "ne10-admin0:iso_a3_eh": "fra", "felt:cluster_size": 1, "another": "why", "country": "France", "fid": 2, "something": "what" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -61.797841, -21.370782 ], [ -61.797841, 51.087541 ], [ 55.854503, 51.087541 ], [ 55.854503, -21.370782 ], [ -61.797841, -21.370782 ] ] ] } }
+,
+{ "type": "Feature", "id": 650, "properties": { "ne10-admin0:name_en": "italy", "ne10-admin0:iso_a2_eh": "it", "ne10-admin0:iso_a3_eh": "ita", "felt:cluster_size": 1, "another": "bar", "country": "Italy", "fid": 3, "something": "foo" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 18.517426, 35.489244 ], [ 6.602728, 35.489244 ], [ 6.602728, 47.085215 ], [ 18.517426, 47.085215 ], [ 18.517426, 35.489244 ] ] ] } }
+,
+{ "type": "Feature", "id": 1546, "properties": { "ne10-admin0:name_en": "saint-martin", "ne10-admin0:iso_a2_eh": "mf", "ne10-admin0:iso_a3_eh": "maf", "felt:cluster_size": 1, "another": "hey", "country": "saint-martin", "fid": 7, "something": "hey" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -63.010731, 18.033391 ], [ -63.146840, 18.033391 ], [ -63.146840, 18.122138 ], [ -63.010731, 18.122138 ], [ -63.010731, 18.033391 ] ] ] } }
+,
+{ "type": "Feature", "id": 1611, "properties": { "ne10-admin0:name_en": "saint-martin", "ne10-admin0:iso_a2_eh": "sx", "ne10-admin0:iso_a3_eh": "sxm", "felt:cluster_size": 1, "another": "hey", "country": "saint-martin", "fid": 7, "something": "hey" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -63.017568, 18.019110 ], [ -63.118886, 18.019110 ], [ -63.118886, 18.062120 ], [ -63.017568, 18.062120 ], [ -63.017568, 18.019110 ] ] ] } }
+] }
+] }
+] }

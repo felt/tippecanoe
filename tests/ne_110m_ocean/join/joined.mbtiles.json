@@ -1,5 +1,5 @@
 { "type": "FeatureCollection", "properties": {
-"antimeridian_adjusted_bounds": "-180.000000,-85.051129,180.000000,85.051129",
+"antimeridian_adjusted_bounds": "0.000000,-85.051129,359.912109,85.051129",
 "bounds": "-180.000000,-85.051129,180.000000,85.051129",
 "center": "-45.000000,33.256630,4",
 "description": "tests/ne_110m_ocean/join/ocean.mbtiles",
