@@ -714,19 +714,6 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	}
 
 	bbox_index = encode_index(midx, midy);
-
-	if (use_h3_index.size() > 0) {
-		for (size_t i = 0; i < sf.full_keys.size(); i++) {
-			if (*(sf.full_keys[i]) == use_h3_index) {
-				unsigned long long h3_index = atoll(sf.full_values[i].s.c_str());
-				// the top 52 bits of the feature index are the H3 index;
-				// the bottom 12 bits are retained from what otherwise would have been the index.
-				bbox_index = ((h3_index & ((1LL << 52) - 1)) << 12) | (bbox_index & ((1 << 12) - 1));
-				break;
-			}
-		}
-	}
-
 	if (additional[A_CALCULATE_INDEX]) {
 		sf.full_keys.push_back(key_pool.pool("tippecanoe:index"));
 
