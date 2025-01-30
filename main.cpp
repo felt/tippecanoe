@@ -99,6 +99,7 @@ int retain_points_multiplier = 1;
 std::vector<std::string> unidecode_data;
 size_t maximum_string_attribute_length = 0;
 std::string accumulate_numeric;
+std::string use_h3_index;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -3128,6 +3129,7 @@ int main(int argc, char **argv) {
 		{"coalesce", no_argument, &additional[A_COALESCE], 1},
 		{"reverse", no_argument, &additional[A_REVERSE], 1},
 		{"hilbert", no_argument, &additional[A_HILBERT], 1},
+		{"use-h3-index", required_argument, 0, '~'},
 		{"order-by", required_argument, 0, '~'},
 		{"order-descending-by", required_argument, 0, '~'},
 		{"order-smallest-first", no_argument, 0, '~'},
@@ -3269,6 +3271,8 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "%s: --extra-detail can be at most 30\n", argv[0]);
 					exit(EXIT_ARGS);
 				}
+			} else if (strcmp(opt, "use-h3-index") == 0) {
+				use_h3_index = optarg;
 			} else if (strcmp(opt, "order-by") == 0) {
 				order_by.push_back(order_field(optarg, false));
 			} else if (strcmp(opt, "order-descending-by") == 0) {
