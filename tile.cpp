@@ -2458,7 +2458,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				for (size_t x = 1; x < layer_features.size(); x++) {
 					size_t y = out - 1;
 
-					if (out > 0 && coalcmp(&layer_features[x], &layer_features[y]) == 0) {
+					if (out > 0 && coalcmp(&*layer_features[x], &*layer_features[y]) == 0) {
 						for (size_t g = 0; g < layer_features[x]->geometry.size(); g++) {
 							layer_features[y]->geometry.push_back(std::move(layer_features[x]->geometry[g]));
 						}
