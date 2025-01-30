@@ -80,7 +80,7 @@ struct serial_val {
 		}
 	}
 
-	void set_double_accum(double v, size_t c) {
+	void set_double_count(double v, size_t c) {
 		type = mvt_double;
 		s = milo::dtoa_milo(v) + '\0' + std::to_string(c);
 	}

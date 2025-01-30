@@ -120,19 +120,13 @@ static void preserve_attribute1(attribute_op const &op, std::string const &key, 
 			}
 
 			case op_mean: {
-				auto state = attribute_accum_state.find(key);
-				if (state == attribute_accum_state.end()) {
-					accum_state s;
-					s.sum = full_values[i].to_double() + val.to_double();
-					s.count = 2;
-					attribute_accum_state.insert(std::pair<std::string, accum_state>(key, s));
-
-					full_values[i] = (s.sum / s.count);
+				size_t count = full_values[i].get_count();
+				if (count <= 1) {
+					full_values[i].set_double_count((full_values[i].to_double() + val.to_double()) / 2, 2);
 				} else {
-					state->second.sum += val.to_double();
-					state->second.count += 1;
-
-					full_values[i] = (state->second.sum / state->second.count);
+					double sum = full_values[i].to_double() * count + val.to_double();
+					count++;
+					full_values[i].set_double_count(sum / count, count);
 				}
 				return;
 			}

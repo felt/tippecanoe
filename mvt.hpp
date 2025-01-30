@@ -159,7 +159,7 @@ struct mvt_value {
 		this->count = 0;
 	}
 
-	void set_double_accum(double v, size_t c) {
+	void set_double_count(double v, size_t c) {
 		this->type = mvt_double;
 		this->numeric_value.double_value = v;
 		this->count = c;

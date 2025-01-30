@@ -2370,6 +2370,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (p.need_tilestats.size() > 0) {
 					for (size_t j = 0; j < p.full_keys.size(); j++) {
 						if (p.need_tilestats.count(*p.full_keys[j]) > 0) {
+							// remove accumulation state
+							size_t found = p.full_values[j].s.find('\0');
+							if (found != std::string::npos) {
+								p.full_values[j].s = p.full_values[j].s.substr(0, found);
+							}
 							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, *p.full_keys[j], p.full_values[j]);
 						}
 					}
