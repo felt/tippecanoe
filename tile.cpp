@@ -1500,7 +1500,7 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 			sv.s = sf.stringpool + sf.values[i] + 1;
 
 			promote_attribute(key, p, key_pool);
-			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
+			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, key_pool);
 		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
 			for (auto const &operation : numeric_operations) {
 				serial_val sv;
@@ -1509,7 +1509,7 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
 				promote_attribute_prefix(key, prefixed_key, p, key_pool);
-				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
+				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, key_pool);
 			}
 		}
 	}
@@ -1522,12 +1522,12 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 			const serial_val &sv = sf.full_values[i];
 
 			promote_attribute(key, p, key_pool);  // promotes it in the target feature
-			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
+			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, key_pool);
 		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
 			for (auto const &operation : numeric_operations) {
 				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
 				promote_attribute_prefix(key, prefixed_key, p, key_pool);
-				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, p.attribute_accum_state, key_pool);
+				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, key_pool);
 			}
 		}
 	}

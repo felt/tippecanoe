@@ -166,7 +166,6 @@ struct serial_feature {
 	const char *stringpool;			       // string pool for keys/values lookup
 	std::shared_ptr<std::string> tile_stringpool;  // string pool for mvt_value construction
 	std::set<std::string> need_tilestats;
-	std::unordered_map<std::string, accum_state> attribute_accum_state;
 
 	int z;	// tile being produced
 	int tx;
