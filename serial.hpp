@@ -70,6 +70,20 @@ struct serial_val {
 		type = mvt_string;
 		s = val;
 	}
+
+	size_t get_count() const {
+		size_t found = s.find('\0');
+		if (found == std::string::npos) {
+			return 0;
+		} else {
+			return atoll(s.c_str() + found + 1);
+		}
+	}
+
+	void set_double_accum(double v, size_t c) {
+		type = mvt_double;
+		s = milo::dtoa_milo(v) + '\0' + std::to_string(c);
+	}
 };
 
 struct key_pool {
