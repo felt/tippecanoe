@@ -316,6 +316,10 @@ struct sorted_value {
 
 		return false;
 	}
+
+	bool operator()(const std::shared_ptr<sorted_value> &a, const std::shared_ptr<sorted_value> &b) {
+		return *a < *b;
+	}
 };
 
 std::string mvt_tile::encode() {
@@ -334,7 +338,7 @@ std::string mvt_tile::encode() {
 			layer_writer.add_string(3, layers[i].keys[j]); /* key */
 		}
 
-		std::vector<sorted_value> sorted_values;
+		std::vector<std::shared_ptr<sorted_value>> sorted_values;
 
 		for (size_t v = 0; v < layers[i].values.size(); v++) {
 			std::string value_string;
@@ -371,29 +375,33 @@ std::string mvt_tile::encode() {
 				exit(EXIT_IMPOSSIBLE);
 			}
 
-			sorted_value sv;
-			sv.val = std::move(value_string);
-			sv.orig = v;
+			std::shared_ptr<sorted_value> sv = std::make_shared<sorted_value>();
+			sv->val = std::move(value_string);
+			sv->orig = v;
 			sorted_values.push_back(std::move(sv));
 		}
 
-		std::stable_sort(sorted_values.begin(), sorted_values.end());
+		std::stable_sort(sorted_values.begin(), sorted_values.end(), sorted_value());
 		std::vector<size_t> mapping;
 		mapping.resize(sorted_values.size());
 
 		size_t value_index = 0;
 		for (size_t v = 0; v < sorted_values.size(); v++) {
-			mapping[sorted_values[v].orig] = value_index;
-			layer_writer.add_message(4, sorted_values[v].val);
+			mapping[sorted_values[v]->orig] = value_index;
+			layer_writer.add_message(4, sorted_values[v]->val);
 
 			// crunch out duplicates that were missed by the hashing
-			while (v + 1 < sorted_values.size() && sorted_values[v].val == sorted_values[v + 1].val) {
-				mapping[sorted_values[v + 1].orig] = value_index;
+			while (v + 1 < sorted_values.size() && sorted_values[v]->val == sorted_values[v + 1]->val) {
+				sorted_values[v]->val.clear();
+				mapping[sorted_values[v + 1]->orig] = value_index;
 				v++;
 			}
 
+			sorted_values[v]->val.clear();
 			value_index++;
 		}
+
+		sorted_values.clear();
 
 		for (size_t f = 0; f < layers[i].features.size(); f++) {
 			std::string feature_string;

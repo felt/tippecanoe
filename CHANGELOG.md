@@ -1,3 +1,7 @@
+# 2.75.1
+
+* Further reduce memory consumption in attribute sorting and tilestats tracking
+
 # 2.75.0
 
 * Reduce memory consumption in attribute accumulation and feature sorting

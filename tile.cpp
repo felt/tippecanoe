@@ -1405,10 +1405,6 @@ void add_tilestats(std::string const &layername, int z, std::vector<std::map<std
 }
 
 void promote_attribute(std::string const &key, serial_feature &p, key_pool &key_pool) {
-	if (p.need_tilestats.count(key) == 0) {
-		p.need_tilestats.insert(key);
-	}
-
 	// If the feature being merged into has this key as a metadata reference,
 	// promote it to a full_key so it can be modified
 
@@ -1430,10 +1426,6 @@ void promote_attribute(std::string const &key, serial_feature &p, key_pool &key_
 }
 
 void promote_attribute_prefix(std::string const &key, std::string const &prefixed_key, serial_feature &p, key_pool &key_pool) {
-	if (p.need_tilestats.count(prefixed_key) == 0) {
-		p.need_tilestats.insert(prefixed_key);
-	}
-
 	// does the prefixed attribute already exist as a full key?
 	ssize_t found_as = -1;
 	for (size_t i = 0; i < p.full_keys.size(); i++) {
@@ -1450,6 +1442,7 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 	if (found_as >= 0) {
 		p.full_keys.push_back(key_pool.pool(prefixed_key));
 		p.full_values.push_back(p.full_values[found_as]);
+
 		return;
 	}
 
@@ -2300,8 +2293,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::vector<std::shared_ptr<serial_feature>> &features = kv.second.features;
 
 			if (retain_points_multiplier > 1) {
-				add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "tippecanoe:retain_points_multiplier_first", serial_val(mvt_bool, "true"));
-
 				// mapping from input sequence to current sequence within this tile
 				std::vector<std::pair<size_t, size_t>> feature_sequences;
 
@@ -2322,8 +2313,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					features[j]->full_keys.push_back(key_pool.pool("tippecanoe:retain_points_multiplier_sequence"));
 					features[j]->full_values.push_back(sv);
-
-					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, *features[j]->full_keys.back(), sv);
 				}
 			}
 
@@ -2340,21 +2329,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					sv.s = "true";
 					p.full_values.push_back(sv);
 
-					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "clustered", sv);
-
 					p.full_keys.push_back(key_pool.pool("point_count"));
 					sv2.type = mvt_double;
 					sv2.s = std::to_string(point_count);
 					p.full_values.push_back(sv2);
 
-					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count", sv2);
-
 					p.full_keys.push_back(key_pool.pool("sqrt_point_count"));
 					sv3.type = mvt_double;
 					sv3.s = std::to_string(round(100 * sqrt(point_count)) / 100.0);
 					p.full_values.push_back(sv3);
-
-					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "sqrt_point_count", sv3);
 
 					p.full_keys.push_back(key_pool.pool("point_count_abbreviated"));
 					sv4.type = mvt_string;
@@ -2367,21 +2350,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 					sv4.s = abbrev;
 					p.full_values.push_back(sv4);
-
-					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, "point_count_abbreviated", sv4);
 				}
 
-				if (p.need_tilestats.size() > 0) {
-					for (size_t j = 0; j < p.full_keys.size(); j++) {
-						if (p.need_tilestats.count(*p.full_keys[j]) > 0) {
-							// remove accumulation state
-							size_t found = p.full_values[j].s.find('\0');
-							if (found != std::string::npos) {
-								p.full_values[j].s = p.full_values[j].s.substr(0, found);
-							}
-							add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, *p.full_keys[j], p.full_values[j]);
-						}
+				for (size_t j = 0; j < p.full_keys.size(); j++) {
+					// remove accumulation state
+					size_t found = p.full_values[j].s.find('\0');
+					if (found != std::string::npos) {
+						p.full_values[j].s = p.full_values[j].s.substr(0, found);
 					}
+					add_tilestats(layername, z, layermaps, tiling_seg, layer_unmaps, *p.full_keys[j], p.full_values[j]);
 				}
 			}
 
@@ -2573,6 +2550,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 					layer.tag(feature, *layer_features[x]->full_keys[a], v);
 				}
+
+				layer_features[x]->full_keys.clear();
+				layer_features[x]->full_values.clear();
 
 				if (additional[A_CALCULATE_FEATURE_DENSITY]) {
 					int glow = 255;
