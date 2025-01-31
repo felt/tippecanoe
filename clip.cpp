@@ -1371,13 +1371,12 @@ static void add_mean(mvt_feature &feature, mvt_layer &layer, std::string const &
 };
 
 // accumulate :sum:, :min:, :max:, and :count: versions of the specified attribute
-static void preserve_numeric(const std::string &key, const mvt_value &val,			   // numeric attribute being accumulated
-			     std::vector<std::shared_ptr<std::string>> &full_keys,		   // keys of feature being accumulated onto
-			     std::vector<mvt_value> &full_values,				   // values of features being accumulated onto
-			     const std::string &accumulate_numeric,				   // prefix of accumulations
-			     std::set<std::string> &keys,					   // key presence in the source feature
-			     std::map<std::string, size_t> &numeric_out_field,			   // key index in the output feature
-			     std::unordered_map<std::string, accum_state> &attribute_accum_state,  // accumulation state for preserve_attribute()
+static void preserve_numeric(const std::string &key, const mvt_value &val,	    // numeric attribute being accumulated
+			     std::vector<std::shared_ptr<std::string>> &full_keys,  // keys of feature being accumulated onto
+			     std::vector<mvt_value> &full_values,		    // values of features being accumulated onto
+			     const std::string &accumulate_numeric,		    // prefix of accumulations
+			     std::set<std::string> &keys,			    // key presence in the source feature
+			     std::map<std::string, size_t> &numeric_out_field,	    // key index in the output feature
 			     key_pool &key_pool,
 			     std::set<std::string> const &keep, std::set<std::string> const &exclude,
 			     std::vector<std::string> const &exclude_prefix) {
@@ -1457,7 +1456,7 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			   
 						full_values.push_back(v);
 					} else {
 						full_values.push_back(full_values[out_attr->second]);
-						preserve_attribute(op.second, prefixed, val, full_keys, full_values, attribute_accum_state, key_pool);
+						preserve_attribute(op.second, prefixed, val, full_keys, full_values, key_pool);
 					}
 				}
 			} else {
@@ -1470,7 +1469,7 @@ static void preserve_numeric(const std::string &key, const mvt_value &val,			   
 						full_values[prefixed_attr->second] = mvt_value(mvt_value_to_long_long(full_values[prefixed_attr->second]) + 1);
 					}
 				} else {
-					preserve_attribute(op.second, prefixed, val, full_keys, full_values, attribute_accum_state, key_pool);
+					preserve_attribute(op.second, prefixed, val, full_keys, full_values, key_pool);
 				}
 			}
 		}
@@ -1597,7 +1596,6 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			// attributes from the other features of the
 			// multiplier cluster accumulated onto them
 
-			std::unordered_map<std::string, accum_state> attribute_accum_state;
 			std::vector<std::shared_ptr<std::string>> full_keys;
 			std::vector<mvt_value> full_values;
 			std::map<std::string, size_t> numeric_out_field;
@@ -1642,13 +1640,13 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 						auto found = attribute_accum.find(key);
 						if (found != attribute_accum.end()) {
 							mvt_value val = features[i].layer->values[features[i].tags[j + 1]];
-							preserve_attribute(found->second, key, val, full_keys, full_values, attribute_accum_state, key_pool);
+							preserve_attribute(found->second, key, val, full_keys, full_values, key_pool);
 						} else if (accumulate_numeric.size() > 0) {
 							const mvt_value &val = features[i].layer->values[features[i].tags[j + 1]];
 							if (val.is_numeric()) {
 								preserve_numeric(key, val, full_keys, full_values,
 										 accumulate_numeric,
-										 keys, numeric_out_field, attribute_accum_state, key_pool,
+										 keys, numeric_out_field, key_pool,
 										 keep, exclude, exclude_prefix);
 							}
 						}

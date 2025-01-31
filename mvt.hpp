@@ -81,7 +81,8 @@ struct mvt_value;
 double mvt_value_to_double(mvt_value const &v);
 
 struct mvt_value {
-	mvt_value_type type;
+	long /* mvt_value_type */ type : 5;
+	long count : 64 - 5;
 	std::shared_ptr<std::string> s;
 
 	union {
@@ -138,6 +139,10 @@ struct mvt_value {
 		return mvt_value_to_double(*this);
 	}
 
+	size_t get_count() const {
+		return count;
+	}
+
 	bool operator<(const mvt_value &o) const;
 	bool operator==(const mvt_value &o) const;
 	std::string toString() const;
@@ -145,11 +150,19 @@ struct mvt_value {
 	mvt_value() {
 		this->type = mvt_double;
 		this->numeric_value.double_value = 0;
+		this->count = 0;
 	}
 
 	mvt_value(double v) {
 		this->type = mvt_double;
 		this->numeric_value.double_value = v;
+		this->count = 0;
+	}
+
+	void set_double_count(double v, size_t c) {
+		this->type = mvt_double;
+		this->numeric_value.double_value = v;
+		this->count = c;
 	}
 };
 

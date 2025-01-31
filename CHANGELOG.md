@@ -1,3 +1,7 @@
+# 2.75.0
+
+* Reduce memory consumption in attribute accumulation and feature sorting
+
 # 2.74.0
 
 * Add the option to join attributes from a sqlite database in tile-join

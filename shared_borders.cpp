@@ -83,13 +83,13 @@ bool edges_same(std::pair<std::vector<edge>::iterator, std::vector<edge>::iterat
 	return true;
 }
 
-bool find_common_edges(std::vector<serial_feature> &features, int z, int line_detail, double simplification, int maxzoom, double merge_fraction) {
+bool find_common_edges(std::vector<std::shared_ptr<serial_feature>> &features, int z, int line_detail, double simplification, int maxzoom, double merge_fraction) {
 	size_t merge_count = ceil((1 - merge_fraction) * features.size());
 
 	for (size_t i = 0; i < features.size(); i++) {
-		if (features[i].t == VT_POLYGON) {
+		if (features[i]->t == VT_POLYGON) {
 			{
-				drawvec &g = features[i].geometry;
+				drawvec &g = features[i]->geometry;
 				drawvec out;
 
 				for (size_t k = 0; k < g.size(); k++) {
@@ -100,7 +100,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 					}
 				}
 
-				features[i].geometry = out;
+				features[i]->geometry = out;
 			}
 		}
 	}
@@ -112,21 +112,21 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 	std::vector<edge> edges;
 	size_t ring = 0;
 	for (size_t i = 0; i < features.size(); i++) {
-		if (features[i].t == VT_POLYGON) {
+		if (features[i]->t == VT_POLYGON) {
 			{
-				for (size_t k = 0; k + 1 < features[i].geometry.size(); k++) {
-					if (features[i].geometry[k].op == VT_MOVETO) {
+				for (size_t k = 0; k + 1 < features[i]->geometry.size(); k++) {
+					if (features[i]->geometry[k].op == VT_MOVETO) {
 						ring++;
 					}
 
-					if (features[i].geometry[k + 1].op == VT_LINETO) {
+					if (features[i]->geometry[k + 1].op == VT_LINETO) {
 						drawvec dv;
-						if (features[i].geometry[k] < features[i].geometry[k + 1]) {
-							dv.push_back(features[i].geometry[k]);
-							dv.push_back(features[i].geometry[k + 1]);
+						if (features[i]->geometry[k] < features[i]->geometry[k + 1]) {
+							dv.push_back(features[i]->geometry[k]);
+							dv.push_back(features[i]->geometry[k + 1]);
 						} else {
-							dv.push_back(features[i].geometry[k + 1]);
-							dv.push_back(features[i].geometry[k]);
+							dv.push_back(features[i]->geometry[k + 1]);
+							dv.push_back(features[i]->geometry[k]);
 						}
 
 						edges.push_back(edge(dv[0].x, dv[0].y, dv[1].x, dv[1].y, ring));
@@ -143,9 +143,9 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 	// is not the same as the set of rings using the edge on the other side.
 
 	for (size_t i = 0; i < features.size(); i++) {
-		if (features[i].t == VT_POLYGON) {
+		if (features[i]->t == VT_POLYGON) {
 			{
-				drawvec &g = features[i].geometry;
+				drawvec &g = features[i]->geometry;
 
 				for (size_t k = 0; k < g.size(); k++) {
 					g[k].necessary = 0;
@@ -223,9 +223,9 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 	// Roll rings that include a necessary point around so they start at one
 
 	for (size_t i = 0; i < features.size(); i++) {
-		if (features[i].t == VT_POLYGON) {
+		if (features[i]->t == VT_POLYGON) {
 			{
-				drawvec &g = features[i].geometry;
+				drawvec &g = features[i]->geometry;
 
 				for (size_t k = 0; k < g.size(); k++) {
 					if (necessaries.count(g[k]) != 0) {
@@ -315,21 +315,21 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 									// Add new arc
 									size_t added = arcs.size() + 1;
 									arcs.insert(std::pair<drawvec, size_t>(arc, added));
-									features[i].arc_polygon.push_back(added);
+									features[i]->arc_polygon.push_back(added);
 									merge_candidates.insert(std::pair<ssize_t, size_t>(added, i));
 								} else {
-									features[i].arc_polygon.push_back(-(ssize_t) f2->second);
+									features[i]->arc_polygon.push_back(-(ssize_t) f2->second);
 									merge_candidates.insert(std::pair<ssize_t, size_t>(-(ssize_t) f2->second, i));
 								}
 							} else {
-								features[i].arc_polygon.push_back(f->second);
+								features[i]->arc_polygon.push_back(f->second);
 								merge_candidates.insert(std::pair<ssize_t, size_t>(f->second, i));
 							}
 
 							m = n - 1;
 						}
 
-						features[i].arc_polygon.push_back(0);
+						features[i]->arc_polygon.push_back(0);
 
 						k = l - 1;
 					}
@@ -385,10 +385,10 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 				if (r1i->second != r2i->second) {
 					merge_order mo;
 					mo.edge = i;
-					if (features[r1i->second].index > features[r2i->second].index) {
-						mo.gap = features[r1i->second].index - features[r2i->second].index;
+					if (features[r1i->second]->index > features[r2i->second]->index) {
+						mo.gap = features[r1i->second]->index - features[r2i->second]->index;
 					} else {
-						mo.gap = features[r2i->second].index - features[r1i->second].index;
+						mo.gap = features[r2i->second]->index - features[r1i->second]->index;
 					}
 					mo.p1 = r1i->second;
 					mo.p2 = r2i->second;
@@ -406,19 +406,19 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 		}
 
 		size_t i = order[o].p1;
-		while (features[i].renamed >= 0) {
-			i = features[i].renamed;
+		while (features[i]->renamed >= 0) {
+			i = features[i]->renamed;
 		}
 		size_t i2 = order[o].p2;
-		while (features[i2].renamed >= 0) {
-			i2 = features[i2].renamed;
+		while (features[i2]->renamed >= 0) {
+			i2 = features[i2]->renamed;
 		}
 
-		for (size_t j = 0; j < features[i].arc_polygon.size() && merged < merge_count; j++) {
-			if (features[i].arc_polygon[j] == order[o].edge) {
+		for (size_t j = 0; j < features[i]->arc_polygon.size() && merged < merge_count; j++) {
+			if (features[i]->arc_polygon[j] == order[o].edge) {
 				{
 					// XXX snap links
-					if (features[order[o].p2].arc_polygon.size() > 0) {
+					if (features[order[o].p2]->arc_polygon.size() > 0) {
 						// This has to merge the ring that contains the anti-arc to this arc
 						// into the current ring, and then add whatever other rings were in
 						// that feature on to the end.
@@ -427,11 +427,11 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 						// the rings in order, but Wagyu should sort that out later
 
 						std::vector<ssize_t> additions;
-						std::vector<ssize_t> &here = features[i].arc_polygon;
-						std::vector<ssize_t> &other = features[i2].arc_polygon;
+						std::vector<ssize_t> &here = features[i]->arc_polygon;
+						std::vector<ssize_t> &other = features[i2]->arc_polygon;
 
 #if 0
-						printf("seeking %zd\n", features[i].arc_polygon[j]);
+						printf("seeking %zd\n", features[i]->arc_polygon[j]);
 						printf("before: ");
 						for (size_t k = 0; k < here.size(); k++) {
 							printf("%zd ", here[k]);
@@ -464,7 +464,7 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 
 							size_t m;
 							for (m = k; m <= l; m++) {
-								if (other[m] == -features[i].arc_polygon[j]) {
+								if (other[m] == -features[i]->arc_polygon[j]) {
 									break;
 								}
 							}
@@ -494,12 +494,12 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 							k = l;
 						}
 
-						features[i2].arc_polygon.clear();
-						features[i2].renamed = i;
+						features[i2]->arc_polygon.clear();
+						features[i2]->renamed = i;
 						merged++;
 
 						for (size_t k = 0; k < additions.size(); k++) {
-							features[i].arc_polygon.push_back(additions[k]);
+							features[i]->arc_polygon.push_back(additions[k]);
 						}
 
 #if 0
@@ -528,37 +528,37 @@ bool find_common_edges(std::vector<serial_feature> &features, int z, int line_de
 	// Turn the arc representations of the polygons back into standard polygon geometries
 
 	for (size_t i = 0; i < features.size(); i++) {
-		if (features[i].t == VT_POLYGON) {
-			features[i].geometry.clear();
+		if (features[i]->t == VT_POLYGON) {
+			features[i]->geometry.clear();
 			bool at_start = true;
 			draw first(-1, 0, 0);
 
-			for (size_t j = 0; j < features[i].arc_polygon.size(); j++) {
-				ssize_t p = features[i].arc_polygon[j];
+			for (size_t j = 0; j < features[i]->arc_polygon.size(); j++) {
+				ssize_t p = features[i]->arc_polygon[j];
 
 				if (p == 0) {
 					if (first.op >= 0) {
-						features[i].geometry.push_back(first);
+						features[i]->geometry.push_back(first);
 						first = draw(-1, 0, 0);
 					}
 					at_start = true;
 				} else if (p > 0) {
 					for (size_t k = 0; k + 1 < simplified_arcs[p].size(); k++) {
 						if (at_start) {
-							features[i].geometry.push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
+							features[i]->geometry.push_back(draw(VT_MOVETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
 							first = draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y);
 						} else {
-							features[i].geometry.push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
+							features[i]->geometry.push_back(draw(VT_LINETO, simplified_arcs[p][k].x, simplified_arcs[p][k].y));
 						}
 						at_start = 0;
 					}
 				} else { /* p < 0 */
 					for (ssize_t k = simplified_arcs[-p].size() - 1; k > 0; k--) {
 						if (at_start) {
-							features[i].geometry.push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
+							features[i]->geometry.push_back(draw(VT_MOVETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
 							first = draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y);
 						} else {
-							features[i].geometry.push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
+							features[i]->geometry.push_back(draw(VT_LINETO, simplified_arcs[-p][k].x, simplified_arcs[-p][k].y));
 						}
 						at_start = 0;
 					}
