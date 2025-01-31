@@ -1850,8 +1850,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		strategy strategy;
 		strategy.detail_reduced = detail_reduced;
 
-		fprintf(stderr, "@@@@@ reading features in %d/%d/%d\n", z, tx, ty);
-
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
@@ -2216,8 +2214,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			coalesced_area = 0;
 		}
 
-		fprintf(stderr, "@@@@@ done reading features in %d/%d/%d\n", z, tx, ty);
-
 		// We are done reading the features.
 		// Close the prefilter if it was opened.
 		// Close the output files for the next zoom level.
@@ -2290,15 +2286,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		// Reorder and coalesce.
 		// Sort back into input order or by attribute value
 
-		fprintf(stderr, "@@@@ sorting shared nodes in %d/%d/%d\n", z, tx, ty);
 		std::stable_sort(shared_nodes.begin(), shared_nodes.end());
-		fprintf(stderr, "@@@@ done sorting shared nodes in %d/%d/%d\n", z, tx, ty);
 
 		for (auto &kv : layers) {
 			std::string const &layername = kv.first;
 			std::vector<std::shared_ptr<serial_feature>> &features = kv.second.features;
-
-			fprintf(stderr, "@@@@ doing retain_points_multiplier in %d/%d/%d\n", z, tx, ty);
 
 			if (retain_points_multiplier > 1) {
 				// mapping from input sequence to current sequence within this tile
@@ -2323,8 +2315,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					features[j]->full_values.push_back(sv);
 				}
 			}
-
-			fprintf(stderr, "@@@@ doing cluster stuff in %d/%d/%d\n", z, tx, ty);
 
 			for (size_t i = 0; i < features.size(); i++) {
 				serial_feature &p = *features[i];
@@ -2372,8 +2362,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			fprintf(stderr, "@@@@ doing detect shared borders in %d/%d/%d\n", z, tx, ty);
-
 			if (additional[A_DETECT_SHARED_BORDERS]) {
 				find_common_edges(features, z, line_detail, simplification, maxzoom, merge_fraction);
 			}
@@ -2382,8 +2370,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (tasks < 1) {
 				tasks = 1;
 			}
-
-			fprintf(stderr, "@@@@ doing simplification in %d/%d/%d\n", z, tx, ty);
 
 			{
 				pthread_t pthreads[tasks];
@@ -2434,13 +2420,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			std::vector<std::shared_ptr<serial_feature>> &layer_features = features;
 
-			fprintf(stderr, "@@@@ doing reorder in %d/%d/%d\n", z, tx, ty);
-
 			if (additional[A_REORDER]) {
 				std::stable_sort(layer_features.begin(), layer_features.end(), coalindexcmp_comparator());
 			}
-
-			fprintf(stderr, "@@@@ doing coalesce in %d/%d/%d\n", z, tx, ty);
 
 			if (additional[A_COALESCE]) {
 				// coalesce adjacent identical features if requested
@@ -2465,8 +2447,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				layer_features.resize(out);
 			}
-
-			fprintf(stderr, "@@@@ doing coalesce cleanup in %d/%d/%d\n", z, tx, ty);
 
 			{
 				// clean up coalesced linestrings by simplification
@@ -2503,23 +2483,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				layer_features.resize(out);
 			}
 
-			fprintf(stderr, "@@@@ doing input order in %d/%d/%d\n", z, tx, ty);
-
 			if (prevent[P_INPUT_ORDER]) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
 				std::stable_sort(clustered.begin(), clustered.end(), preservecmp);
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
 
-			fprintf(stderr, "@@@@ doing size order in %d/%d/%d\n", z, tx, ty);
-
 			if (order_by.size() != 0) {
 				auto clustered = assemble_multiplier_clusters(layer_features);
 				std::stable_sort(clustered.begin(), clustered.end(), ordercmp());
 				layer_features = disassemble_multiplier_clusters(clustered);
 			}
-
-			fprintf(stderr, "@@@@ doing limit in %d/%d/%d\n", z, tx, ty);
 
 			if (z == maxzoom && limit_tile_feature_count_at_maxzoom != 0) {
 				if (layer_features.size() > limit_tile_feature_count_at_maxzoom) {
@@ -2544,8 +2518,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		for (auto layer_iterator = layers.begin(); layer_iterator != layers.end(); ++layer_iterator) {
 			std::vector<std::shared_ptr<serial_feature>> &layer_features = layer_iterator->second.features;
 			feature_count += layer_features.size();
-
-			fprintf(stderr, "@@@@ doing conversion to mvt_layer %d/%d/%d\n", z, tx, ty);
 
 			mvt_layer layer;
 			layer.name = layer_iterator->first;
@@ -2638,8 +2610,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// didn't work, try a lower detail
 			continue;
 		}
-
-		fprintf(stderr, "@@@@ doing feature count check mvt_layer %d/%d/%d\n", z, tx, ty);
 
 		// Again, adjust the retabulated feature count to estimate
 		// how many total features there would have been if we hadn't
@@ -2738,22 +2708,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			fprintf(stderr, "@@@@ doing tile_encoding %d/%d/%d\n", z, tx, ty);
-
 			std::string compressed;
 			std::string pbf = tile.encode();
 
 			tile.layers.clear();
-
-			fprintf(stderr, "@@@@ doing tile compression %d/%d/%d\n", z, tx, ty);
 
 			if (!prevent[P_TILE_COMPRESSION]) {
 				compress(pbf, compressed, true);
 			} else {
 				compressed = pbf;
 			}
-
-			fprintf(stderr, "@@@@ doing size checks %d/%d/%d\n", z, tx, ty);
 
 			// And similarly, adjust the compressed byte size to estimate
 			// what it would have been if we hadn't stopped dropping features early
@@ -2859,15 +2823,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					exit(EXIT_IMPOSSIBLE);
 				}
 
-				fprintf(stderr, "@@@@ writing to mbtiles %d/%d/%d\n", z, tx, ty);
-
 				if (outdb != NULL) {
 					mbtiles_write_tile(outdb, z, tx, ty, compressed.data(), compressed.size());
 				} else if (outdir != NULL) {
 					dir_write_tile(outdir, z, tx, ty, compressed);
 				}
-
-				fprintf(stderr, "@@@@ done writing to mbtiles %d/%d/%d\n", z, tx, ty);
 
 				if (pthread_mutex_unlock(&db_lock) != 0) {
 					perror("pthread_mutex_unlock");
