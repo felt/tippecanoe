@@ -2574,6 +2574,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					layer.tag(feature, *layer_features[x]->full_keys[a], v);
 				}
 
+				layer_features[x]->full_keys.clear();
+				layer_features[x]->full_values.clear();
+
 				if (additional[A_CALCULATE_FEATURE_DENSITY]) {
 					int glow = 255;
 					if (layer_features[x]->spacing > 0) {
