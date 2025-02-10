@@ -70,6 +70,20 @@ struct serial_val {
 		type = mvt_string;
 		s = val;
 	}
+
+	size_t get_count() const {
+		size_t found = s.find('\0');
+		if (found == std::string::npos) {
+			return 0;
+		} else {
+			return atoll(s.c_str() + found + 1);
+		}
+	}
+
+	void set_double_count(double v, size_t c) {
+		type = mvt_double;
+		s = milo::dtoa_milo(v) + '\0' + std::to_string(c);
+	}
 };
 
 struct key_pool {
@@ -151,8 +165,6 @@ struct serial_feature {
 	long long clustered;			       // does this feature need the clustered/point_count attributes?
 	const char *stringpool;			       // string pool for keys/values lookup
 	std::shared_ptr<std::string> tile_stringpool;  // string pool for mvt_value construction
-	std::set<std::string> need_tilestats;
-	std::unordered_map<std::string, accum_state> attribute_accum_state;
 
 	int z;	// tile being produced
 	int tx;
