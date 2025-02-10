@@ -211,13 +211,13 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
-		serialize_ulong_long(s, sf->wx);
-		serialize_ulong_long(s, sf->wy);
+		serialize_uint(s, sf->wx);
+		serialize_uint(s, sf->wy);
 		serialize_ulong_long(s, sf->gap);
 	}
 	if ((sf->label_x | sf->label_y) != 0) {
-		serialize_ulong_long(s, sf->label_x);
-		serialize_ulong_long(s, sf->label_y);
+		serialize_uint(s, sf->label_x);
+		serialize_uint(s, sf->label_y);
 	}
 	if (sf->extent != 0) {
 		serialize_long_long(s, sf->extent);
@@ -271,20 +271,14 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
-		unsigned long long wx, wy;
 		deserialize_ulong_long(&cp, &sf.index);
-		deserialize_ulong_long(&cp, &wx);
-		deserialize_ulong_long(&cp, &wy);
-		sf.wx = wx;
-		sf.wy = wy;
+		deserialize_uint(&cp, &sf.wx);
+		deserialize_uint(&cp, &sf.wy);
 		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		unsigned long long wx, wy;
-		deserialize_ulong_long(&cp, &wx);
-		deserialize_ulong_long(&cp, &wy);
-		sf.label_x = wx;
-		sf.label_y = wy;
+		deserialize_uint(&cp, &sf.label_x);
+		deserialize_uint(&cp, &sf.label_y);
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
 		deserialize_long_long(&cp, &sf.extent);
