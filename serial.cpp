@@ -186,7 +186,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	long long layer = 0;
 	layer |= sf->layer << FLAG_LAYER;
-	layer |= (sf->label_point != 0) << FLAG_LABEL_POINT;
+	layer |= ((sf->label_x | sf->label_y) != 0) << FLAG_LABEL_POINT;
 	layer |= (sf->index != 0) << FLAG_INDEX;
 	layer |= (sf->extent != 0) << FLAG_EXTENT;
 	layer |= sf->has_id << FLAG_ID;
@@ -211,10 +211,13 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
+		serialize_ulong_long(s, sf->wx);
+		serialize_ulong_long(s, sf->wy);
 		serialize_ulong_long(s, sf->gap);
 	}
-	if (sf->label_point != 0) {
-		serialize_ulong_long(s, sf->label_point);
+	if ((sf->label_x | sf->label_y) != 0) {
+		serialize_ulong_long(s, sf->label_x);
+		serialize_ulong_long(s, sf->label_y);
 	}
 	if (sf->extent != 0) {
 		serialize_long_long(s, sf->extent);
@@ -261,17 +264,27 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	sf.index = 0;
 	sf.gap = 0;
-	sf.label_point = 0;
+	sf.label_x = 0;
+	sf.label_y = 0;
 	sf.extent = 0;
 
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
+		unsigned long long wx, wy;
 		deserialize_ulong_long(&cp, &sf.index);
+		deserialize_ulong_long(&cp, &wx);
+		deserialize_ulong_long(&cp, &wy);
+		sf.wx = wx;
+		sf.wy = wy;
 		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		deserialize_ulong_long(&cp, &sf.label_point);
+		unsigned long long wx, wy;
+		deserialize_ulong_long(&cp, &wx);
+		deserialize_ulong_long(&cp, &wy);
+		sf.label_x = wx;
+		sf.label_y = wy;
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
 		deserialize_long_long(&cp, &sf.extent);
@@ -741,7 +754,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		if (dv.size() > 0) {
 			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << 32) - 1);
 			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << 32) - 1);
-			sf.label_point = encode_index(dv[0].x, dv[0].y);
+			sf.label_x = dv[0].x;
+			sf.label_y = dv[0].y;
 		}
 	}
 

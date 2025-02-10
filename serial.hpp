@@ -118,8 +118,9 @@ struct serial_feature {
 
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
+	unsigned wx = 0, wy = 0;
 	unsigned long long gap = 0;  // filled in during z0. square of planar distance
-	unsigned long long label_point = 0;
+	unsigned label_x = 0, label_y = 0;
 	long long extent = 0;
 
 	// These fields are not directly serialized, but are used

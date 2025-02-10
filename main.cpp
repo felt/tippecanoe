@@ -2499,6 +2499,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		long long ip;
 		for (ip = 0; ip < indices; ip++) {
 			unsigned xx, yy;
+			// XXX this will behave oddly if the index is actually H3
 			decode_index(map[ip].ix, &xx, &yy);
 
 			long long nprogress = 100 * ip / indices;

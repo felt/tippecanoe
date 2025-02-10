@@ -714,7 +714,7 @@ static void *simplification_worker(void *v) {
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 			t = (*features)[i]->t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_point);
+			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_x, (*features)[i]->label_y);
 			to_tile_scale(geom, z, out_detail);
 		}
 
@@ -1131,6 +1131,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				unsigned wx1, wy1;
 				decode_index(next_feature_state.previndex, &wx1, &wy1);
 
+				// find the furthest distance of a vertex in this feature
+				// from the representative point of the previous feature
 				for (auto const &g : sf.geometry) {
 					long long dx = (long long) wx1 - (g.x + ox);
 					long long dy = (long long) wy1 - (g.y + oy);
@@ -2819,7 +2821,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (skipped > 0 || too_many_bytes || too_many_features) {
-					fprintf(stderr, "Can't happen: writing tile even though we skipped\n");
+					fprintf(stderr, "Can't happen: writing tile even though we skipped (%zu %d %d)\n", skipped, too_many_bytes, too_many_features);
 					exit(EXIT_IMPOSSIBLE);
 				}
 

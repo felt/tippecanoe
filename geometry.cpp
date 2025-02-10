@@ -944,12 +944,10 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 	return drawvec();
 }
 
-drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point) {
+drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned wx, unsigned wy) {
 	drawvec out;
 
-	// anchor point in world coordinates
-	unsigned wx, wy;
-	decode_index(label_point, &wx, &wy);
+	// wx,wy is anchor point in world coordinates
 
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
