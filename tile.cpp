@@ -1059,6 +1059,7 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 
 struct next_feature_state {
 	unsigned long long previndex = 0;
+	unsigned prevx = 0, prevy = 0;
 	unsigned long long prev_not_dropped_index = 0;
 };
 
@@ -1128,8 +1129,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				long long ox = (1LL << (32 - z)) * tx;
 				long long oy = (1LL << (32 - z)) * ty;
 
-				unsigned wx1, wy1;
-				decode_index(next_feature_state.previndex, &wx1, &wy1);
+				unsigned wx1 = next_feature_state.prevx;
+				unsigned wy1 = next_feature_state.prevy;
 
 				// find the furthest distance of a vertex in this feature
 				// from the representative point of the previous feature
@@ -1145,6 +1146,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 		}
 		next_feature_state.previndex = sf.index;
+		next_feature_state.prevx = sf.wx;
+		next_feature_state.prevy = sf.wy;
 
 		if (clip_to_tile(sf, z, buffer)) {
 			continue;

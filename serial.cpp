@@ -775,8 +775,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	    preserve_multiplier_density_threshold > 0 ||
 	    cluster_distance != 0) {
 		sf.index = bbox_index;
+		sf.wx = midx;
+		sf.wy = midy;
 	} else {
 		sf.index = 0;
+		sf.wx = 0;
+		sf.wy = 0;
 	}
 
 	if (sst->layermap->count(layername) == 0) {
