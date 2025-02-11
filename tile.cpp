@@ -377,7 +377,7 @@ struct ordercmp {
 static std::vector<std::vector<std::shared_ptr<serial_feature>>> assemble_multiplier_clusters(std::vector<std::shared_ptr<serial_feature>> const &features) {
 	std::vector<std::vector<std::shared_ptr<serial_feature>>> clusters;
 
-	if (retain_points_multiplier == 1) {
+	if (!(retain_points_multiplier > 1 || preserve_multiplier_density_threshold != 0 || preserve_multiplier_density_bits_by_zoom.size() > 0)) {
 		for (auto const &feature : features) {
 			std::vector<std::shared_ptr<serial_feature>> cluster;
 			cluster.push_back(std::move(feature));
@@ -2152,7 +2152,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						sf.dropped = FEATURE_KEPT;
 					}
 
-					if (sf.dropped == FEATURE_KEPT && retain_points_multiplier > 1) {
+					if (sf.dropped == FEATURE_KEPT && (retain_points_multiplier > 1 || preserve_multiplier_density_threshold != 0 || preserve_multiplier_density_bits_by_zoom.size() > 0)) {
 						sf.full_keys.push_back(key_pool.pool("tippecanoe:retain_points_multiplier_first"));
 						sf.full_values.emplace_back(mvt_bool, "true");
 					}
@@ -2302,7 +2302,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::string const &layername = kv.first;
 			std::vector<std::shared_ptr<serial_feature>> &features = kv.second.features;
 
-			if (retain_points_multiplier > 1) {
+			if ((retain_points_multiplier > 1 || preserve_multiplier_density_threshold != 0 || preserve_multiplier_density_bits_by_zoom.size() > 0)) {
 				// mapping from input sequence to current sequence within this tile
 				std::vector<std::pair<size_t, size_t>> feature_sequences;
 
