@@ -1255,6 +1255,11 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			} else if (preserve_multiplier_density_threshold > 0 &&
 				   sf.index - next_feature_state.prev_not_dropped_index > ((1LL << (32 - z)) / preserve_multiplier_density_threshold) * ((1LL << (32 - z)) / preserve_multiplier_density_threshold)) {
 				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
+			} else if (preserve_multiplier_density_bits_by_zoom.size() > 0 &&
+				   (size_t) z < preserve_multiplier_density_bits_by_zoom.size() &&
+				   (sf.index >> (64 - preserve_multiplier_density_bits_by_zoom[z])) !=
+					   (next_feature_state.prev_not_dropped_index >> (64 - preserve_multiplier_density_bits_by_zoom[z]))) {
+				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
 			} else {
 				sf.dropped = FEATURE_DROPPED;
 			}

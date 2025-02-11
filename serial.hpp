@@ -58,6 +58,10 @@ struct serial_val {
 		s = milo::dtoa_milo(val);
 	}
 
+	std::string toString() const {
+		return s;
+	}
+
 	double to_double() const {
 		return atof(s.c_str());
 	}
