@@ -94,6 +94,7 @@ unsigned int drop_denser = 0;
 std::map<std::string, serial_val> set_attributes;
 unsigned long long preserve_point_density_threshold = 0;
 unsigned long long preserve_multiplier_density_threshold = 0;
+std::vector<int> preserve_multiplier_density_bits_by_zoom;
 long long extend_zooms_max = 0;
 int retain_points_multiplier = 1;
 std::vector<std::string> unidecode_data;
@@ -3089,6 +3090,7 @@ int main(int argc, char **argv) {
 		{"cluster-maxzoom", required_argument, 0, 'k'},
 		{"preserve-point-density-threshold", required_argument, 0, '~'},
 		{"preserve-multiplier-density-threshold", required_argument, 0, '~'},
+		{"preserve-multiplier-density-bits-by-zoom", required_argument, 0, '~'},
 
 		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
 		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
@@ -3305,6 +3307,21 @@ int main(int argc, char **argv) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else if (strcmp(opt, "preserve-multiplier-density-threshold") == 0) {
 				preserve_multiplier_density_threshold = atoll_require(optarg, "Preserve multiplier density threshold");
+			} else if (strcmp(opt, "preserve-multiplier-density-bits-by-zoom") == 0) {
+				const char *cp = optarg;
+				while (*cp != '\0') {
+					if (!isdigit(*cp)) {
+						fprintf(stderr, "%s: unexpected multiplier density bits by zoom %s\n", argv[0], cp);
+						exit(EXIT_ARGS);
+					}
+					preserve_multiplier_density_bits_by_zoom.push_back(atoi(cp));
+					while (isdigit(*cp)) {
+						cp++;
+					}
+					if (*cp == ',') {
+						cp++;
+					}
+				}
 			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
 			} else if (strcmp(opt, "retain-points-multiplier") == 0) {
