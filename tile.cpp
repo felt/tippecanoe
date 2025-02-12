@@ -1360,7 +1360,7 @@ void *run_prefilter(void *v) {
 		}
 
 		decode_meta(sf, tmp_layer, tmp_feature);
-		tmp_layer.features.push_back(tmp_feature);
+		tmp_layer.features.push_back(std::make_shared<mvt_feature>(tmp_feature));
 
 		layer_to_geojson(tmp_layer, 0, 0, 0, false, true, false, true, sf.index, sf.seq, sf.extent, true, state, 0, std::set<std::string>());
 	}
@@ -2575,7 +2575,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					add_tilestats(layer.name, z, layermaps, tiling_seg, layer_unmaps, "tippecanoe_feature_density", sv);
 				}
 
-				layer.features.push_back(std::move(feature));
+				layer.features.push_back(std::make_shared<mvt_feature>(feature));
 				layer_features[x] = std::make_shared<serial_feature>();
 			}
 
