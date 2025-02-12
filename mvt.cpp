@@ -278,7 +278,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 						}
 					}
 
-					layer.features.push_back(std::move(feature));
+					layer.features.push_back(std::make_shared<mvt_feature>(feature));
 					break;
 				}
 
@@ -407,16 +407,16 @@ std::string mvt_tile::encode() {
 			std::string feature_string;
 			protozero::pbf_writer feature_writer(feature_string);
 
-			feature_writer.add_enum(3, layers[i].features[f].type);
+			feature_writer.add_enum(3, layers[i].features[f]->type);
 
-			std::vector<unsigned> sorted_tags = layers[i].features[f].tags;
+			std::vector<unsigned> sorted_tags = layers[i].features[f]->tags;
 			for (size_t v = 1; v < sorted_tags.size(); v += 2) {
 				sorted_tags[v] = mapping[sorted_tags[v]];
 			}
 			feature_writer.add_packed_uint32(2, std::begin(sorted_tags), std::end(sorted_tags));
 
-			if (layers[i].features[f].has_id) {
-				feature_writer.add_uint64(1, layers[i].features[f].id);
+			if (layers[i].features[f]->has_id) {
+				feature_writer.add_uint64(1, layers[i].features[f]->id);
 			}
 
 			std::vector<uint32_t> geometry;
@@ -426,7 +426,7 @@ std::string mvt_tile::encode() {
 			int cmd = -1;
 			int length = 0;
 
-			std::vector<mvt_geometry> &geom = layers[i].features[f].geometry;
+			std::vector<mvt_geometry> &geom = layers[i].features[f]->geometry;
 
 			for (size_t g = 0; g < geom.size(); g++) {
 				int op = geom[g].op;

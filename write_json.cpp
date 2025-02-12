@@ -270,7 +270,7 @@ void write_coords(json_writer &state, lonlat const &ll, double scale) {
 
 void layer_to_geojson(mvt_layer const &layer, unsigned z, unsigned x, unsigned y, bool comma, bool name, bool zoom, bool write_dropped, unsigned long long index, long long sequence, long long extent, bool complain, json_writer &state, double scale, std::set<std::string> const &include_attr) {
 	for (size_t f = 0; f < layer.features.size(); f++) {
-		mvt_feature const &feat = layer.features[f];
+		mvt_feature const &feat = *layer.features[f];
 
 		state.json_write_hash();
 		state.json_write_string("type");
