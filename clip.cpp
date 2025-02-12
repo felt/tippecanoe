@@ -1810,48 +1810,9 @@ mvt_tile assign_to_bins(mvt_tile &features,
 			std::set<std::string> exclude,
 			std::vector<std::string> exclude_prefix,
 			int buffer, std::vector<clipbbox> const &clipbboxes) {
-	std::vector<index_event> events;
-	key_pool key_pool;
-
 	if (bins.size() == 0) {
 		return mvt_tile();
 	}
-
-	// Index bins
-	for (size_t i = 0; i < bins.size(); i++) {
-		for (size_t j = 0; j < bins[i].features.size(); j++) {
-			long long xmin, ymin, xmax, ymax;
-			unsigned long long start, end;
-
-			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, bins[i].detail());
-			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-			events.emplace_back(start, index_event::ENTER, i, j, xmin, ymin, xmax, ymax);
-			events.emplace_back(end, index_event::EXIT, i, j, xmin, ymin, xmax, ymax);
-		}
-	}
-
-	std::map<unsigned long long, std::pair<size_t, size_t>> fid_to_feature;
-
-	// Index points
-	for (size_t i = 0; i < features.layers.size(); i++) {
-		for (size_t j = 0; j < features.layers[i].features.size(); j++) {
-			long long xmin, ymin, xmax, ymax;
-			unsigned long long start, end;
-
-			if (features.layers[i].features[j].geometry.size() > 0) {
-				if (features.layers[i].features[j].has_id) {
-					fid_to_feature.emplace(features.layers[i].features[j].id, std::make_pair(i, j));
-				}
-
-				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, features.layers[i].detail());
-				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-				events.emplace_back(start, index_event::CHECK, i, j, xmin, ymin, xmax, ymax);
-			}
-		}
-	}
-
-	std::sort(events.begin(), events.end());
-	std::set<active_bin> active;
 
 	mvt_layer outlayer;
 	outlayer.extent = bins[0].extent;
@@ -1860,36 +1821,39 @@ mvt_tile assign_to_bins(mvt_tile &features,
 
 	std::vector<std::vector<tile_feature>> outfeatures;
 
-	for (auto &e : events) {
-		if (e.kind == index_event::ENTER) {
-			active_bin a(e.layer, e.feature);
-			a.xmin = e.xmin;
-			a.ymin = e.ymin;
-			a.xmax = e.xmax;
-			a.ymax = e.ymax;
-
-			const mvt_feature &bin = bins[e.layer].features[e.feature];
-
-			{
-				tile_feature outfeature;
-				for (auto const &g : bin.geometry) {
-					outfeature.geom.emplace_back(g.op, g.x, g.y);
+	if (bin_by_id_list.size() > 0) {
+		std::map<unsigned long long, std::pair<size_t, size_t>> fid_to_feature;
+		for (size_t i = 0; i < features.layers.size(); i++) {
+			for (size_t j = 0; j < features.layers[i].features.size(); j++) {
+				if (features.layers[i].features[j].geometry.size() > 0) {
+					if (features.layers[i].features[j].has_id) {
+						fid_to_feature.emplace(features.layers[i].features[j].id, std::make_pair(i, j));
+					}
 				}
-				outfeature.t = bin.type;
-				outfeature.has_id = bin.has_id;
-				outfeature.id = bin.id;
-				outfeature.tags = bin.tags;
-				outfeature.layer = &bins[e.layer];
-				outfeature.seq = e.feature;
-
-				a.outfeature = outfeatures.size();
-				outfeatures.push_back({std::move(outfeature)});
 			}
+		}
 
-			if (bin_by_id_list.size() > 0) {
+		for (auto &binlayer : bins) {
+            size_t seq = 0;
+			for (auto &bin : binlayer.features) {
+				{
+					tile_feature outfeature;
+					for (auto const &g : bin.geometry) {
+						outfeature.geom.emplace_back(g.op, g.x, g.y);
+					}
+					outfeature.t = bin.type;
+					outfeature.has_id = bin.has_id;
+					outfeature.id = bin.id;
+					outfeature.tags = bin.tags;
+					outfeature.layer = &binlayer;
+					outfeature.seq = seq++;
+
+					outfeatures.push_back({std::move(outfeature)});
+				}
+
 				for (size_t k = 0; k < bin.tags.size(); k += 2) {
-					if (bins[e.layer].keys[bin.tags[k]] == bin_by_id_list) {
-						std::vector<size_t> ids = parse_ids_string(bins[e.layer].values[bin.tags[k + 1]]);
+					if (binlayer.keys[bin.tags[k]] == bin_by_id_list) {
+						std::vector<size_t> ids = parse_ids_string(binlayer.values[bin.tags[k + 1]]);
 						for (auto &id : ids) {
 							auto f = fid_to_feature.find(id);
 							if (f != fid_to_feature.end()) {
@@ -1904,8 +1868,8 @@ mvt_tile assign_to_bins(mvt_tile &features,
 									outfeature.has_id = feature.has_id;
 									outfeature.id = feature.id;
 									outfeature.tags = feature.tags;
-									outfeature.layer = &features.layers[e.layer];
-									outfeature.seq = e.feature;
+									outfeature.layer = &features.layers[f->second.first];
+									outfeature.seq = f->second.second;
 									outfeatures.back().push_back(std::move(outfeature));
 								}
 							}
@@ -1914,60 +1878,121 @@ mvt_tile assign_to_bins(mvt_tile &features,
 					}
 				}
 			}
+		}
+	} else {
+		std::vector<index_event> events;
 
-			active.insert(std::move(a));
-		} else if (e.kind == index_event::CHECK) {
-			if (bin_by_id_list.size() > 0) {
-				continue;  // only bin by id, not geometrically
+		// Index bins
+		for (size_t i = 0; i < bins.size(); i++) {
+			for (size_t j = 0; j < bins[i].features.size(); j++) {
+				long long xmin, ymin, xmax, ymax;
+				unsigned long long start, end;
+
+				get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, bins[i].detail());
+				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
+				events.emplace_back(start, index_event::ENTER, i, j, xmin, ymin, xmax, ymax);
+				events.emplace_back(end, index_event::EXIT, i, j, xmin, ymin, xmax, ymax);
 			}
+		}
 
-			auto const &feature = features.layers[e.layer].features[e.feature];
+		// Index points
+		for (size_t i = 0; i < features.layers.size(); i++) {
+			for (size_t j = 0; j < features.layers[i].features.size(); j++) {
+				long long xmin, ymin, xmax, ymax;
+				unsigned long long start, end;
 
-			if (feature.geometry.size() == 0) {
-				// already assigned by ID
-				continue;
+				if (features.layers[i].features[j].geometry.size() > 0) {
+					get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, features.layers[i].detail());
+					get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
+					events.emplace_back(start, index_event::CHECK, i, j, xmin, ymin, xmax, ymax);
+				}
 			}
+		}
 
-			// if we can't find a real match,
-			// assign points to the most nearby bin
-			ssize_t which_outfeature = outfeatures.size() - 1;
+		std::sort(events.begin(), events.end());
+		std::set<active_bin> active;
 
-			for (auto const &a : active) {
-				auto const &bin = bins[a.layer].features[a.feature];
+		for (auto &e : events) {
+			if (e.kind == index_event::ENTER) {
+				active_bin a(e.layer, e.feature);
+				a.xmin = e.xmin;
+				a.ymin = e.ymin;
+				a.xmax = e.xmax;
+				a.ymax = e.ymax;
 
-				if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
-						    a.xmin, a.ymin, a.xmax, a.ymax)) {
-					if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
-						which_outfeature = a.outfeature;
-						break;
+				const mvt_feature &bin = bins[e.layer].features[e.feature];
+
+				{
+					tile_feature outfeature;
+					for (auto const &g : bin.geometry) {
+						outfeature.geom.emplace_back(g.op, g.x, g.y);
+					}
+					outfeature.t = bin.type;
+					outfeature.has_id = bin.has_id;
+					outfeature.id = bin.id;
+					outfeature.tags = bin.tags;
+					outfeature.layer = &bins[e.layer];
+					outfeature.seq = e.feature;
+
+					a.outfeature = outfeatures.size();
+					outfeatures.push_back({std::move(outfeature)});
+				}
+
+				active.insert(std::move(a));
+			} else if (e.kind == index_event::CHECK) {
+				if (bin_by_id_list.size() > 0) {
+					continue;  // only bin by id, not geometrically
+				}
+
+				auto const &feature = features.layers[e.layer].features[e.feature];
+
+				if (feature.geometry.size() == 0) {
+					// already assigned by ID
+					continue;
+				}
+
+				// if we can't find a real match,
+				// assign points to the most nearby bin
+				ssize_t which_outfeature = outfeatures.size() - 1;
+
+				for (auto const &a : active) {
+					auto const &bin = bins[a.layer].features[a.feature];
+
+					if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
+							    a.xmin, a.ymin, a.xmax, a.ymax)) {
+						if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
+							which_outfeature = a.outfeature;
+							break;
+						}
 					}
 				}
-			}
 
-			if (which_outfeature >= 0) {
-				tile_feature outfeature;
-				for (auto const &g : feature.geometry) {
-					outfeature.geom.emplace_back(g.op, g.x, g.y);
+				if (which_outfeature >= 0) {
+					tile_feature outfeature;
+					for (auto const &g : feature.geometry) {
+						outfeature.geom.emplace_back(g.op, g.x, g.y);
+					}
+					outfeature.t = feature.type;
+					outfeature.has_id = feature.has_id;
+					outfeature.id = feature.id;
+					outfeature.tags = feature.tags;
+					outfeature.layer = &features.layers[e.layer];
+					outfeature.seq = e.feature;
+					outfeatures[which_outfeature].push_back(std::move(outfeature));
 				}
-				outfeature.t = feature.type;
-				outfeature.has_id = feature.has_id;
-				outfeature.id = feature.id;
-				outfeature.tags = feature.tags;
-				outfeature.layer = &features.layers[e.layer];
-				outfeature.seq = e.feature;
-				outfeatures[which_outfeature].push_back(std::move(outfeature));
-			}
-		} else /* EXIT */ {
-			auto const &found = active.find({e.layer, e.feature});
-			if (found != active.end()) {
-				active.erase(found);
-			} else {
-				fprintf(stderr, "event mismatch: can't happen\n");
-				exit(EXIT_IMPOSSIBLE);
+			} else /* EXIT */ {
+				auto const &found = active.find({e.layer, e.feature});
+				if (found != active.end()) {
+					active.erase(found);
+				} else {
+					fprintf(stderr, "event mismatch: can't happen\n");
+					exit(EXIT_IMPOSSIBLE);
+				}
 			}
 		}
 	}
 
+	key_pool key_pool;
 	for (size_t i = 0; i < outfeatures.size(); i++) {
 		if (outfeatures[i].size() > 1) {
 			if (feature_out(outfeatures[i], outlayer,
