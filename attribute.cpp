@@ -162,10 +162,13 @@ static void preserve_attribute1(attribute_op const &op, std::string const &key, 
 		v = val;
 		break;
 
-	case op_count: {
+	case op_count:
 		v.set_double_count(1, 1);
 		break;
-	}
+
+	case op_mean:
+		v.set_double_count(val.to_double(), 1);
+		break;
 
 	default:
 		fprintf(stderr, "can't happen: operation that isn't used by --accumulate-numeric-attributes\n");
