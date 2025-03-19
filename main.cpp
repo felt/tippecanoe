@@ -3097,6 +3097,7 @@ int main(int argc, char **argv) {
 		{"coalesce-smallest-as-needed", no_argument, &additional[A_COALESCE_SMALLEST_AS_NEEDED], 1},
 		{"force-feature-limit", no_argument, &prevent[P_DYNAMIC_DROP], 1},
 		{"cluster-densest-as-needed", no_argument, &additional[A_CLUSTER_DENSEST_AS_NEEDED], 1},
+		{"keep-point-cluster-position", no_argument, &additional[A_KEEP_POINT_CLUSTER_POSITION], 1},
 
 		{"Dropping tightly overlapping features", 0, 0, 0},
 		{"gamma", required_argument, 0, 'g'},
