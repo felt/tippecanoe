@@ -1,0 +1,2 @@
+{"type":"Feature","properties":{"explanation":"in z0, the value at 0,0 will get averaged onto this point at -10,-10 even though the attribute isn't present in this feature"},"geometry":{"type":"Point","coordinates":[-10,-10]}}
+{"type":"Feature","properties":{"value":5},"geometry":{"type":"Point","coordinates":[0,0]}}
