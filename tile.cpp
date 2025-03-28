@@ -1948,7 +1948,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						features[which_serial_feature]->clustered++;
 
-						if (features[which_serial_feature]->t == VT_POINT &&
+						if (!additional[A_KEEP_POINT_CLUSTER_POSITION] &&
+						    features[which_serial_feature]->t == VT_POINT &&
 						    features[which_serial_feature]->geometry.size() == 1 &&
 						    sf.geometry.size() == 1) {
 							double x = (double) features[which_serial_feature]->geometry[0].x * features[which_serial_feature]->clustered;

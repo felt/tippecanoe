@@ -28,6 +28,7 @@
 #define A_VARIABLE_DEPTH_PYRAMID ((int) 't')
 #define A_VISVALINGAM ((int) 'v')
 #define A_DETECT_WRAPAROUND ((int) 'w')
+#define A_KEEP_POINT_CLUSTER_POSITION ((int) 'a')
 
 #define P_TILE_COMPRESSION ((int) 'C')
 #define P_DUPLICATION ((int) 'D')

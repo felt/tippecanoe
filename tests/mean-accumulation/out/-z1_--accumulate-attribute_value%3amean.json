@@ -1,0 +1,47 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-10.000000,-10.000000,0.000000,0.000000",
+"bounds": "-10.000000,-10.000000,0.000000,0.000000",
+"center": "-10.000000,-10.000000,1",
+"description": "tests/mean-accumulation/out/-z1_--accumulate-attribute_value%3amean.json.check.mbtiles",
+"format": "pbf",
+"generator_options": "./tippecanoe -q -a@ -f -o tests/mean-accumulation/out/-z1_--accumulate-attribute_value%3amean.json.check.mbtiles -z1 --accumulate-attribute value:mean tests/mean-accumulation/in.json",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":1,\"fields\":{\"explanation\":\"String\",\"value\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":2,\"geometry\":\"Point\",\"attributeCount\":2,\"attributes\":[{\"attribute\":\"explanation\",\"count\":1,\"type\":\"string\",\"values\":[\"in z0, the value at 0,0 will get averaged onto this point at -10,-10 even though the attribute isn't present in this feature\"]},{\"attribute\":\"value\",\"count\":1,\"type\":\"number\",\"values\":[5],\"min\":5,\"max\":5}]}]}}",
+"maxzoom": "1",
+"minzoom": "0",
+"name": "tests/mean-accumulation/out/-z1_--accumulate-attribute_value%3amean.json.check.mbtiles",
+"strategies": "[{\"dropped_by_rate\":1},{}]",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "explanation": "in z0, the value at 0,0 will get averaged onto this point at -10,-10 even though the attribute isn't present in this feature", "value": 5 }, "geometry": { "type": "Point", "coordinates": [ -10.019531, -10.055403 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 1 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "explanation": "in z0, the value at 0,0 will get averaged onto this point at -10,-10 even though the attribute isn't present in this feature" }, "geometry": { "type": "Point", "coordinates": [ -10.019531, -10.012130 ] } }
+,
+{ "type": "Feature", "properties": { "value": 5 }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "value": 5 }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 1 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "value": 5 }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 1, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "value": 5 }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+] }
+] }
+] }
