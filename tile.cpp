@@ -377,7 +377,7 @@ struct ordercmp {
 static std::vector<std::vector<std::shared_ptr<serial_feature>>> assemble_multiplier_clusters(std::vector<std::shared_ptr<serial_feature>> const &features) {
 	std::vector<std::vector<std::shared_ptr<serial_feature>>> clusters;
 
-	if (retain_points_multiplier == 1) {
+	if (!(retain_points_multiplier > 1 || preserve_multiplier_density_threshold != 0 || preserve_multiplier_density_bits_by_zoom.size() > 0)) {
 		for (auto const &feature : features) {
 			std::vector<std::shared_ptr<serial_feature>> cluster;
 			cluster.push_back(std::move(feature));
@@ -714,7 +714,7 @@ static void *simplification_worker(void *v) {
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 			t = (*features)[i]->t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_point);
+			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_x, (*features)[i]->label_y);
 			to_tile_scale(geom, z, out_detail);
 		}
 
@@ -1059,6 +1059,7 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 
 struct next_feature_state {
 	unsigned long long previndex = 0;
+	unsigned prevx = 0, prevy = 0;
 	unsigned long long prev_not_dropped_index = 0;
 };
 
@@ -1128,9 +1129,11 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				long long ox = (1LL << (32 - z)) * tx;
 				long long oy = (1LL << (32 - z)) * ty;
 
-				unsigned wx1, wy1;
-				decode_index(next_feature_state.previndex, &wx1, &wy1);
+				unsigned wx1 = next_feature_state.prevx;
+				unsigned wy1 = next_feature_state.prevy;
 
+				// find the furthest distance of a vertex in this feature
+				// from the representative point of the previous feature
 				for (auto const &g : sf.geometry) {
 					long long dx = (long long) wx1 - (g.x + ox);
 					long long dy = (long long) wy1 - (g.y + oy);
@@ -1143,6 +1146,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 		}
 		next_feature_state.previndex = sf.index;
+		next_feature_state.prevx = sf.wx;
+		next_feature_state.prevy = sf.wy;
 
 		if (clip_to_tile(sf, z, buffer)) {
 			continue;
@@ -1249,6 +1254,11 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				sf.dropped = count->second;
 			} else if (preserve_multiplier_density_threshold > 0 &&
 				   sf.index - next_feature_state.prev_not_dropped_index > ((1LL << (32 - z)) / preserve_multiplier_density_threshold) * ((1LL << (32 - z)) / preserve_multiplier_density_threshold)) {
+				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
+			} else if (preserve_multiplier_density_bits_by_zoom.size() > 0 &&
+				   (size_t) z < preserve_multiplier_density_bits_by_zoom.size() &&
+				   (sf.index >> (64 - preserve_multiplier_density_bits_by_zoom[z])) !=
+					   (next_feature_state.prev_not_dropped_index >> (64 - preserve_multiplier_density_bits_by_zoom[z]))) {
 				sf.dropped = FEATURE_ADDED_FOR_MULTIPLIER_DENSITY;
 			} else {
 				sf.dropped = FEATURE_DROPPED;
@@ -2143,7 +2153,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						sf.dropped = FEATURE_KEPT;
 					}
 
-					if (sf.dropped == FEATURE_KEPT && retain_points_multiplier > 1) {
+					if (sf.dropped == FEATURE_KEPT && (retain_points_multiplier > 1 || preserve_multiplier_density_threshold != 0 || preserve_multiplier_density_bits_by_zoom.size() > 0)) {
 						sf.full_keys.push_back(key_pool.pool("tippecanoe:retain_points_multiplier_first"));
 						sf.full_values.emplace_back(mvt_bool, "true");
 					}
@@ -2293,7 +2303,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			std::string const &layername = kv.first;
 			std::vector<std::shared_ptr<serial_feature>> &features = kv.second.features;
 
-			if (retain_points_multiplier > 1) {
+			if ((retain_points_multiplier > 1 || preserve_multiplier_density_threshold != 0 || preserve_multiplier_density_bits_by_zoom.size() > 0)) {
 				// mapping from input sequence to current sequence within this tile
 				std::vector<std::pair<size_t, size_t>> feature_sequences;
 
@@ -2820,7 +2830,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (skipped > 0 || too_many_bytes || too_many_features) {
-					fprintf(stderr, "Can't happen: writing tile even though we skipped\n");
+					fprintf(stderr, "Can't happen: writing tile even though we skipped (%zu %d %d)\n", skipped, too_many_bytes, too_many_features);
 					exit(EXIT_IMPOSSIBLE);
 				}
 
