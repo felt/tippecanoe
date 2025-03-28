@@ -204,7 +204,7 @@ struct std::hash<mvt_value> {
 struct mvt_layer {
 	int version = 0;
 	std::string name = "";
-	std::vector<mvt_feature> features{};
+	std::vector<std::shared_ptr<mvt_feature>> features{};
 	std::vector<std::string> keys{};
 	std::vector<mvt_value> values{};
 	long long extent = 0;

@@ -398,7 +398,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 				}
 			}
 
-			l->second.features.push_back(feature);
+			l->second.features.push_back(std::make_shared<mvt_feature>(feature));
 		}
 
 		json_free(j);
