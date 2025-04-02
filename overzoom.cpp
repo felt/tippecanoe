@@ -19,7 +19,7 @@ int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 bool demultiply = false;
 bool do_compress = true;
-bool deduplicate_by_id = true;
+bool deduplicate_by_id = false;
 
 std::string filter;
 bool preserve_input_order = false;
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
 		{"clip-polygon-file", required_argument, 0, 'm' & 0x1F},
-		{"deduplicate-by-id", required_argument, 0, 'i' & 0x1F},
+		{"deduplicate-by-id", no_argument, 0, 'i' & 0x1F},
 
 		{0, 0, 0, 0},
 	};

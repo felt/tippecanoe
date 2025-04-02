@@ -443,6 +443,16 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-overzoom -o tests/pbf/squirrels-13-2413-3077-clip.pbf --clip-polygon-file tests/pbf/squirrels-clip.json tests/pbf/squirrels-13-2413-3077.pbf 13/2413/3077 13/2413/3077
 	cmp tests/pbf/squirrels-13-2413-3077-clip.pbf /dev/null  # clipped away
 	rm tests/pbf/squirrels-13-2413-3077-clip.pbf
+	# Deduplication by feature ID
+	./tippecanoe -z0 -f -e tests/pbf/1.json.dir -l layer tests/pbf/1.json
+	./tippecanoe -z0 -f -e tests/pbf/2.json.dir -l layer tests/pbf/2.json
+	./tippecanoe-overzoom -o tests/pbf/merged-nodedup.pbf -t 0/0/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
+	./tippecanoe-decode tests/pbf/merged-nodedup.pbf 0 0 0 > tests/pbf/merged-nodedup.pbf.json.check
+	cmp tests/pbf/merged-nodedup.pbf.json.check tests/pbf/merged-nodedup.pbf.json
+	./tippecanoe-overzoom --deduplicate-by-id -o tests/pbf/merged-dedup.pbf -t 0/0/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
+	./tippecanoe-decode tests/pbf/merged-dedup.pbf 0 0 0 > tests/pbf/merged-dedup.pbf.json.check
+	cmp tests/pbf/merged-dedup.pbf.json.check tests/pbf/merged-dedup.pbf.json
+	rm -r tests/pbf/1.json.dir tests/pbf/2.json.dir tests/pbf/merged-nodedup.pbf tests/pbf/merged-nodedup.pbf.json.check tests/pbf/merged-dedup.pbf.json.check
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
