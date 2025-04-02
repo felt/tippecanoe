@@ -19,6 +19,7 @@ int detail = 12;  // tippecanoe-style: mvt extent == 1 << detail
 int buffer = 5;	  // tippecanoe-style: mvt buffer == extent * buffer / 256;
 bool demultiply = false;
 bool do_compress = true;
+bool deduplicate_by_id = true;
 
 std::string filter;
 bool preserve_input_order = false;
@@ -94,6 +95,7 @@ int main(int argc, char **argv) {
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
 		{"clip-polygon-file", required_argument, 0, 'm' & 0x1F},
+		{"deduplicate-by-id", required_argument, 0, 'i' & 0x1F},
 
 		{0, 0, 0, 0},
 	};
@@ -210,6 +212,11 @@ int main(int argc, char **argv) {
 		case 'm' & 0x1F: {
 			clipbbox clip = parse_clip_poly(read_json_file(optarg));
 			clipbboxes.push_back(clip);
+			break;
+		}
+
+		case 'i' & 0x1F: {
+			deduplicate_by_id = true;
 			break;
 		}
 
@@ -354,7 +361,7 @@ int main(int argc, char **argv) {
 			its.push_back(std::move(t));
 		}
 
-		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes);
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes, deduplicate_by_id);
 	}
 
 	FILE *f = fopen(outfile, "wb");

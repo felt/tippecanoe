@@ -147,7 +147,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes);
+		     std::vector<clipbbox> const &clipbboxes,
+		     bool deduplicate_by_id);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer,
@@ -162,7 +163,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes);
+		     std::vector<clipbbox> const &clipbboxes,
+		     bool deduplicate_by_id);
 
 draw center_of_mass_mp(const drawvec &dv);
 
