@@ -186,7 +186,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	long long layer = 0;
 	layer |= sf->layer << FLAG_LAYER;
-	layer |= (sf->label_point != 0) << FLAG_LABEL_POINT;
+	layer |= ((sf->label_x | sf->label_y) != 0) << FLAG_LABEL_POINT;
 	layer |= (sf->index != 0) << FLAG_INDEX;
 	layer |= (sf->extent != 0) << FLAG_EXTENT;
 	layer |= sf->has_id << FLAG_ID;
@@ -211,10 +211,13 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	if (sf->index != 0) {
 		serialize_ulong_long(s, sf->index);
+		serialize_uint(s, sf->wx);
+		serialize_uint(s, sf->wy);
 		serialize_ulong_long(s, sf->gap);
 	}
-	if (sf->label_point != 0) {
-		serialize_ulong_long(s, sf->label_point);
+	if ((sf->label_x | sf->label_y) != 0) {
+		serialize_uint(s, sf->label_x);
+		serialize_uint(s, sf->label_y);
 	}
 	if (sf->extent != 0) {
 		serialize_long_long(s, sf->extent);
@@ -261,17 +264,21 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	sf.index = 0;
 	sf.gap = 0;
-	sf.label_point = 0;
+	sf.label_x = 0;
+	sf.label_y = 0;
 	sf.extent = 0;
 
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
 
 	if (sf.layer & (1 << FLAG_INDEX)) {
 		deserialize_ulong_long(&cp, &sf.index);
+		deserialize_uint(&cp, &sf.wx);
+		deserialize_uint(&cp, &sf.wy);
 		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		deserialize_ulong_long(&cp, &sf.label_point);
+		deserialize_uint(&cp, &sf.label_x);
+		deserialize_uint(&cp, &sf.label_y);
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
 		deserialize_long_long(&cp, &sf.extent);
@@ -714,6 +721,19 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	}
 
 	bbox_index = encode_index(midx, midy);
+
+	if (use_h3_index.size() > 0) {
+		for (size_t i = 0; i < sf.full_keys.size(); i++) {
+			if (*(sf.full_keys[i]) == use_h3_index) {
+				unsigned long long h3_index = atoll(sf.full_values[i].s.c_str());
+				// the top 52 bits of the feature index are the H3 index;
+				// the bottom 12 bits are retained from what otherwise would have been the index.
+				bbox_index = ((h3_index & ((1LL << 52) - 1)) << 12) | (bbox_index & ((1 << 12) - 1));
+				break;
+			}
+		}
+	}
+
 	if (additional[A_CALCULATE_INDEX]) {
 		sf.full_keys.push_back(key_pool.pool("tippecanoe:index"));
 
@@ -728,7 +748,8 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		if (dv.size() > 0) {
 			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << 32) - 1);
 			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << 32) - 1);
-			sf.label_point = encode_index(dv[0].x, dv[0].y);
+			sf.label_x = dv[0].x;
+			sf.label_y = dv[0].y;
 		}
 	}
 
@@ -748,8 +769,12 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	    preserve_multiplier_density_threshold > 0 ||
 	    cluster_distance != 0) {
 		sf.index = bbox_index;
+		sf.wx = midx;
+		sf.wy = midy;
 	} else {
 		sf.index = 0;
+		sf.wx = 0;
+		sf.wy = 0;
 	}
 
 	if (sst->layermap->count(layername) == 0) {
