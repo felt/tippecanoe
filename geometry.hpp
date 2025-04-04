@@ -173,4 +173,7 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 
 clipbbox parse_clip_poly(std::string arg);
 
+std::pair<double, double> get_line_intersection(long long p0_x, long long p0_y, long long p1_x, long long p1_y,
+						long long p2_x, long long p2_y, long long p3_x, long long p3_y);
+
 #endif
