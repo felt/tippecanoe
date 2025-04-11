@@ -1073,15 +1073,15 @@ static double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
 }
 
-static void calc_zooms_and_dropping(const int indexfd, const std::atomic<long long> &indexpos,
-				    const int geomfd,
-				    const bool guess_maxzoom, const bool guess_cluster_maxzoom,
-				    const double dist_sum, const size_t dist_count,
-				    const double area_sum,
-				    sqlite3 *outdb, const char *pgm,
-				    int &maxzoom, const int minimum_maxzoom, int &basezoom, const int minzoom,
-				    const int basezoom_marker_width,
-				    double &droprate, const double gamma) {
+static struct index *calc_zooms_and_dropping(const int indexfd, const std::atomic<long long> &indexpos,
+					     const bool guess_maxzoom, const bool guess_cluster_maxzoom,
+					     const double dist_sum, const size_t dist_count,
+					     const double area_sum,
+					     sqlite3 *outdb, const char *pgm,
+					     int &maxzoom, const int minimum_maxzoom, int &basezoom, const int minzoom,
+					     const int basezoom_marker_width,
+					     double &droprate, const double gamma,
+					     bool &fix_dropping) {
 	struct index *map = (struct index *) mmap(NULL, indexpos, PROT_READ, MAP_PRIVATE, indexfd, 0);
 	if (map == MAP_FAILED) {
 		perror("mmap index for basezoom");
@@ -1090,7 +1090,6 @@ static void calc_zooms_and_dropping(const int indexfd, const std::atomic<long lo
 	madvise(map, indexpos, MADV_SEQUENTIAL);
 	madvise(map, indexpos, MADV_WILLNEED);
 	long long indices = indexpos / sizeof(struct index);
-	bool fix_dropping = false;
 
 	if (guess_maxzoom) {
 		double mean = 0;
@@ -1484,6 +1483,15 @@ static void calc_zooms_and_dropping(const int indexfd, const std::atomic<long lo
 
 		fix_dropping = true;
 	}
+
+	return map;
+}
+
+void fix_feature_minzooms(const bool fix_dropping, const int geomfd,
+			  const int indexfd, const std::atomic<long long> &indexpos,
+			  struct index *map,
+			  const int maxzoom, const int basezoom, const double droprate, const double gamma) {
+	long long indices = indexpos / sizeof(struct index);
 
 	if (fix_dropping || drop_denser > 0) {
 		// Fix up the minzooms for features, now that we really know the base zoom
@@ -2785,15 +2793,21 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		exit(EXIT_NODATA);
 	}
 
-	calc_zooms_and_dropping(indexfd, indexpos,
-				geomfd,
-				guess_maxzoom, guess_cluster_maxzoom,
-				dist_sum, dist_count,
-				area_sum,
-				outdb, pgm,
-				maxzoom, minimum_maxzoom, basezoom, minzoom,
-				basezoom_marker_width,
-				droprate, gamma);
+	bool fix_dropping = false;
+	struct index *map = calc_zooms_and_dropping(indexfd, indexpos,
+						    guess_maxzoom, guess_cluster_maxzoom,
+						    dist_sum, dist_count,
+						    area_sum,
+						    outdb, pgm,
+						    maxzoom, minimum_maxzoom, basezoom, minzoom,
+						    basezoom_marker_width,
+						    droprate, gamma,
+						    fix_dropping);
+
+	fix_feature_minzooms(fix_dropping, geomfd,
+			     indexfd, indexpos,
+			     map,
+			     maxzoom, basezoom, droprate, gamma);
 
 	/* Traverse and split the geometries for each zoom level */
 
