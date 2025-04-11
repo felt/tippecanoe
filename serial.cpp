@@ -883,6 +883,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	index.start = geomstart;
 	index.end = r->geompos;
 	index.seq = *(sst->layer_seq);
+	index.segment = sst->segment;
 	index.t = sf.t;
 	index.ix = bbox_index;
 

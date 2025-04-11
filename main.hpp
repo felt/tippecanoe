@@ -13,10 +13,11 @@
 struct index {
 	long long start = 0;  // offset of data in geom file
 	long long end = 0;
-	unsigned long long ix = 0;		// quadkey or hilbert index
-	unsigned short t : 2;			// geometry type
-	unsigned short dup : 8;			// instance number of identical geometry
-	unsigned long long seq : (64 - 2 - 8);	// input sequence number; pack with t and dup to stay in 32 bytes
+	unsigned long long ix = 0;		     // quadkey or hilbert index
+	unsigned short segment;			     // which reader thread produced this feature
+	unsigned short t : 2;			     // geometry type
+	unsigned short dup : 8;			     // instance number of identical geometry
+	unsigned long long seq : (64 - 16 - 2 - 8);  // input sequence number; pack with segment and t and dup to stay in 32 bytes
 
 	index()
 	    : t(0),
