@@ -246,6 +246,12 @@ int indexcmp(const void *v1, const void *v2) {
 	const struct index *i1 = (const struct index *) v1;
 	const struct index *i2 = (const struct index *) v2;
 
+	if (i1->dup < i2->dup) {
+		return -1;
+	} else if (i1->dup > i2->dup) {
+		return 1;
+	}
+
 	if (i1->ix < i2->ix) {
 		return -1;
 	} else if (i1->ix > i2->ix) {
