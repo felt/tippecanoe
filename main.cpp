@@ -1073,24 +1073,16 @@ static double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
 }
 
-static struct index *calc_zooms_and_dropping(const int indexfd, const std::atomic<long long> &indexpos,
-					     const bool guess_maxzoom, const bool guess_cluster_maxzoom,
-					     const double dist_sum, const size_t dist_count,
-					     const double area_sum,
-					     sqlite3 *outdb, const char *pgm,
-					     int &maxzoom, const int minimum_maxzoom, int &basezoom, const int minzoom,
-					     const int basezoom_marker_width,
-					     double &droprate, const double gamma,
-					     bool &fix_dropping) {
-	struct index *map = (struct index *) mmap(NULL, indexpos, PROT_READ, MAP_PRIVATE, indexfd, 0);
-	if (map == MAP_FAILED) {
-		perror("mmap index for basezoom");
-		exit(EXIT_MEMORY);
-	}
-	madvise(map, indexpos, MADV_SEQUENTIAL);
-	madvise(map, indexpos, MADV_WILLNEED);
-	long long indices = indexpos / sizeof(struct index);
-
+void calc_zooms_and_dropping(
+	struct index *map, const long long indices,
+	const bool guess_maxzoom, const bool guess_cluster_maxzoom,
+	const double dist_sum, const size_t dist_count,
+	const double area_sum,
+	sqlite3 *outdb, const char *pgm,
+	int &maxzoom, const int minimum_maxzoom, int &basezoom, const int minzoom,
+	const int basezoom_marker_width,
+	double &droprate, const double gamma,
+	bool &fix_dropping) {
 	if (guess_maxzoom) {
 		double mean = 0;
 		size_t count = 0;
@@ -1483,16 +1475,11 @@ static struct index *calc_zooms_and_dropping(const int indexfd, const std::atomi
 
 		fix_dropping = true;
 	}
-
-	return map;
 }
 
 void fix_feature_minzooms(const bool fix_dropping, const int geomfd,
-			  const int indexfd, const std::atomic<long long> &indexpos,
-			  struct index *map,
+			  struct index *map, const long long indices,
 			  const int maxzoom, const int basezoom, const double droprate, const double gamma) {
-	long long indices = indexpos / sizeof(struct index);
-
 	if (fix_dropping || drop_denser > 0) {
 		// Fix up the minzooms for features, now that we really know the base zoom
 		// and drop rate.
@@ -1507,8 +1494,6 @@ void fix_feature_minzooms(const bool fix_dropping, const int geomfd,
 			perror("mmap geom for fixup");
 			exit(EXIT_MEMORY);
 		}
-		madvise(geom, indexpos, MADV_SEQUENTIAL);
-		madvise(geom, indexpos, MADV_WILLNEED);
 
 		struct drop_state ds[maxzoom + 1];
 		prep_drop_states(ds, maxzoom, basezoom, droprate);
@@ -1560,13 +1545,6 @@ void fix_feature_minzooms(const bool fix_dropping, const int geomfd,
 		}
 
 		munmap(geom, geomst.st_size);
-	}
-
-	madvise(map, indexpos, MADV_DONTNEED);
-	munmap(map, indexpos);
-
-	if (close(indexfd) != 0) {
-		perror("close sorted index");
 	}
 }
 
@@ -2793,21 +2771,36 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		exit(EXIT_NODATA);
 	}
 
+	struct index *map = (struct index *) mmap(NULL, indexpos, PROT_READ, MAP_PRIVATE, indexfd, 0);
+	if (map == MAP_FAILED) {
+		perror("mmap index for basezoom");
+		exit(EXIT_MEMORY);
+	}
+	madvise(map, indexpos, MADV_SEQUENTIAL);
+	madvise(map, indexpos, MADV_WILLNEED);
+	long long indices = indexpos / sizeof(struct index);
+
 	bool fix_dropping = false;
-	struct index *map = calc_zooms_and_dropping(indexfd, indexpos,
-						    guess_maxzoom, guess_cluster_maxzoom,
-						    dist_sum, dist_count,
-						    area_sum,
-						    outdb, pgm,
-						    maxzoom, minimum_maxzoom, basezoom, minzoom,
-						    basezoom_marker_width,
-						    droprate, gamma,
-						    fix_dropping);
+	calc_zooms_and_dropping(map, indices,
+				guess_maxzoom, guess_cluster_maxzoom,
+				dist_sum, dist_count,
+				area_sum,
+				outdb, pgm,
+				maxzoom, minimum_maxzoom, basezoom, minzoom,
+				basezoom_marker_width,
+				droprate, gamma,
+				fix_dropping);
 
 	fix_feature_minzooms(fix_dropping, geomfd,
-			     indexfd, indexpos,
-			     map,
+			     map, indices,
 			     maxzoom, basezoom, droprate, gamma);
+
+	madvise(map, indexpos, MADV_DONTNEED);
+	munmap(map, indexpos);
+
+	if (close(indexfd) != 0) {
+		perror("close sorted index");
+	}
 
 	/* Traverse and split the geometries for each zoom level */
 
