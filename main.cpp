@@ -1555,6 +1555,19 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 		fprintf(stderr, "Sorting index                 \r");
 	}
 
+	// The plan:
+	//
+	// Sort index by quadkey
+	// Calculate maxzoom and drop rate
+	// Run through index, setting feature_minzoom and dup
+	// Sort index back by segment+offset
+	// Run through index and geom in parallel
+	//   adding dup and feature_minzoom to geom
+	//   and sharding index and geom out by dup+quadkey as radix
+	// Go through each shard, either
+	//   sorting it directly in memory, or
+	//   sharding it further before sorting again
+
 	std::vector<FILE *> indexfps;
 	for (ssize_t i = 0; i < nreaders; i++) {
 		FILE *fp = fdopen(readers[i].indexfd, "rb");
