@@ -2469,3 +2469,68 @@ drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding)
 
 	return out;
 }
+
+drawvec coalesce_linestring(drawvec const &geom) {
+	std::multimap<draw, drawvec> segments;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			drawvec seg;
+			seg.push_back(geom[i]);
+
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+
+				seg.push_back(geom[j]);
+			}
+
+			segments.emplace(seg[0], seg);
+			i = j - 1;
+		}
+	}
+
+	drawvec out;
+	while (segments.size() != 0) {
+		// choose an arbitrary starting segment
+		auto current = segments.begin();
+		const drawvec &v = current->second;
+
+		if (out.size() > 0 && v.back() == out.front()) {
+			// if the end of it would connect to the current union,
+			// put it on the front
+			drawvec tmp = std::move(out);
+			out = v;
+			for (const draw &d : tmp) {
+				out.push_back(d);
+			}
+		} else {
+			// otherwise, put it on the back
+			for (const draw &d : v) {
+				out.push_back(d);
+			}
+		}
+		segments.erase(current);
+
+		while (true) {
+			// now look for other segments that would chain to the end
+			// of the current union, until we run out of links
+			current = segments.find(out.back());
+			if (current != segments.end()) {
+				const drawvec &vv = current->second;
+				for (const draw &d : vv) {
+					out.push_back(d);
+				}
+				segments.erase(current);
+			} else {
+				// go back and pull another arbitrary starting segment
+				// off the pile
+				break;
+			}
+		}
+	}
+
+	return out;
+}

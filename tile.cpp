@@ -2493,6 +2493,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				for (size_t x = 0; x < layer_features.size(); x++) {
 					if (layer_features[x]->coalesced && layer_features[x]->t == VT_LINE) {
+						layer_features[x]->geometry = coalesce_linestring(layer_features[x]->geometry);
+
 						layer_features[x]->geometry = remove_noop(layer_features[x]->geometry, layer_features[x]->t, 0);
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
 							// XXX revisit: why does this not take zoom into account?
@@ -2853,6 +2855,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else {
+					if (!quiet) {
+						fprintf(stderr, "Going to try detail %d\n", line_detail - 1);
+					}
+
 					detail_reduced++;
 				}
 			} else {
