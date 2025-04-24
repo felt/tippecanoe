@@ -1881,12 +1881,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				break;
 			}
 
-			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
-				if (line_is_too_small(sf.geometry, z, line_detail, simplification)) {
-					continue;
-				}
-			}
-
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
 				layers.emplace(layername, layer_features());
@@ -2107,6 +2101,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			} else {
 				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
+			}
+
+			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
+				if (line_is_too_small(sf.geometry, z, line_detail, simplification)) {
+					continue;
+				}
 			}
 
 			unsigned long long sfindex = sf.index;
@@ -2681,6 +2681,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature gap threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
@@ -2696,6 +2699,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature extent threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					// The 95% is a guess to avoid too many retries
@@ -2716,6 +2722,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;	// to keep it the same when the loop decrements it
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature fraction threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else {
 					fprintf(stderr, "Try using --drop-fraction-as-needed or --drop-densest-as-needed.\n");
@@ -2791,6 +2800,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature gap threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
@@ -2806,6 +2818,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature extent threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
@@ -2823,12 +2838,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature fraction threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else {
-					if (!quiet) {
-						fprintf(stderr, "Going to try detail %d\n", line_detail - 1);
-					}
-
 					detail_reduced++;
 				}
 			} else {

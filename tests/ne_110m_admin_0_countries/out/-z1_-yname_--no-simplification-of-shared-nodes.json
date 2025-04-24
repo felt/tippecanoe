@@ -9,6 +9,7 @@
 "maxzoom": "1",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-z1_-yname_--no-simplification-of-shared-nodes.json.check.mbtiles",
+"strategies": "[{},{\"tiny_polygons\":1}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

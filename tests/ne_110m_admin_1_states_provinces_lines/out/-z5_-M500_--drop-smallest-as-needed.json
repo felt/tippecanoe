@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_1_states_provinces_lines/out/-z5_-M500_--drop-smallest-as-needed.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":92,\"tile_size_desired\":1385},{\"dropped_as_needed\":96,\"tile_size_desired\":1739},{\"dropped_as_needed\":115,\"tile_size_desired\":1304},{\"dropped_as_needed\":126,\"tile_size_desired\":1154},{\"dropped_as_needed\":105,\"tile_size_desired\":1228},{\"dropped_as_needed\":106,\"tile_size_desired\":1077}]",
+"strategies": "[{\"dropped_as_needed\":92,\"tile_size_desired\":1385},{\"dropped_as_needed\":96,\"tile_size_desired\":1739},{\"dropped_as_needed\":115,\"tile_size_desired\":1304},{\"dropped_as_needed\":127,\"tile_size_desired\":1154},{\"dropped_as_needed\":105,\"tile_size_desired\":1228},{\"dropped_as_needed\":106,\"tile_size_desired\":1077}]",
 "type": "overlay",
 "version": "2"
 }, "features": [

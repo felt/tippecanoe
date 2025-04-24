@@ -10,7 +10,7 @@
 "maxzoom": "11",
 "minzoom": "5",
 "name": "macarthur name",
-"strategies": "[{\"tiny_polygons\":46},{\"tiny_polygons\":4},{\"tiny_polygons\":44},{\"tiny_polygons\":90},{\"tiny_polygons\":132},{\"tiny_polygons\":209},{\"tiny_polygons\":231},{\"tiny_polygons\":149},{\"tiny_polygons\":75},{\"tiny_polygons\":47}]",
+"strategies": "[{\"tiny_polygons\":260},{\"tiny_polygons\":260},{\"tiny_polygons\":260},{\"tiny_polygons\":260},{\"tiny_polygons\":258},{\"tiny_polygons\":255},{\"tiny_polygons\":248},{\"tiny_polygons\":151},{\"tiny_polygons\":75},{\"tiny_polygons\":47}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
