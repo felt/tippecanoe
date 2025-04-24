@@ -1561,8 +1561,8 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail, double
 
 	for (size_t i = 0; i < geometry.size(); i++) {
 		if (geometry[i].op == VT_MOVETO) {
-			long long x = std::round((double) geometry[i].x / (1LL << (32 - detail - z)));
-			long long y = std::round((double) geometry[i].y / (1LL << (32 - detail - z)));
+			long long x = std::llround((double) geometry[i].x / (1LL << (32 - detail - z)));
+			long long y = std::llround((double) geometry[i].y / (1LL << (32 - detail - z)));
 
 			size_t j;
 			for (j = i + 1; j < geometry.size(); j++) {
@@ -1570,14 +1570,26 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail, double
 					break;
 				}
 
-				long long x1 = std::round((double) geometry[j].x / (1LL << (32 - detail - z)));
-				long long y1 = std::round((double) geometry[j].y / (1LL << (32 - detail - z)));
+				long long vx = std::llround((double) geometry[j].x / (1LL << (32 - detail - z)));
+				long long vy = std::llround((double) geometry[j].y / (1LL << (32 - detail - z)));
 
-				long long dx = x - x1;
-				long long dy = y - y1;
+				long long dx = vx - x;
+				long long dy = vy - y;
 				if (dx * dx + dy * dy >= simplification) {
+					// some point along the way is further from the starting point
+					// than the simplification threshold, so we've got to keep it
 					return false;
 				}
+			}
+
+			// check the end vertex against the start
+			long long x2 = std::llround((double) geometry[j - 1].x / (1LL << (32 - detail - z)));
+			long long y2 = std::llround((double) geometry[j - 1].y / (1LL << (32 - detail - z)));
+
+			if (x != x2 || y != y2) {
+				// line starts and ends in different pixels, so we've got to keep it
+				// even if that distance is less than the simplification threshold
+				return false;
 			}
 
 			i = j - 1;
