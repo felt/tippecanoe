@@ -1551,20 +1551,36 @@ bool find_feature_to_accumulate_onto(std::vector<std::shared_ptr<serial_feature>
 	return false;
 }
 
-static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
+// Are any vertices of this feature beyond the simplification threshold?
+static bool line_is_too_small(drawvec const &geometry, int z, int detail, double simplification) {
+	simplification = simplification * simplification;
+
 	if (geometry.size() == 0) {
 		return true;
 	}
 
-	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
-	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
+	for (size_t i = 0; i < geometry.size(); i++) {
+		if (geometry[i].op == VT_MOVETO) {
+			long long x = std::round((double) geometry[i].x / (1LL << (32 - detail - z)));
+			long long y = std::round((double) geometry[i].y / (1LL << (32 - detail - z)));
 
-	for (auto &g : geometry) {
-		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
-		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
+			size_t j;
+			for (j = i + 1; j < geometry.size(); j++) {
+				if (geometry[j].op != VT_LINETO) {
+					break;
+				}
 
-		if (xx != x || yy != y) {
-			return false;
+				long long x1 = std::round((double) geometry[j].x / (1LL << (32 - detail - z)));
+				long long y1 = std::round((double) geometry[j].y / (1LL << (32 - detail - z)));
+
+				long long dx = x - x1;
+				long long dy = y - y1;
+				if (dx * dx + dy * dy >= simplification) {
+					return false;
+				}
+			}
+
+			i = j - 1;
 		}
 	}
 
@@ -1864,6 +1880,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				break;
 			}
 
+			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
+				if (line_is_too_small(sf.geometry, z, line_detail, simplification)) {
+					continue;
+				}
+			}
+
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
 				layers.emplace(layername, layer_features());
@@ -2086,12 +2108,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
 			}
 
-			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
-				if (line_is_too_small(sf.geometry, z, line_detail)) {
-					continue;
-				}
-			}
-
 			unsigned long long sfindex = sf.index;
 
 			if (sf.geometry.size() > 0) {
@@ -2127,9 +2143,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// Even being maximally conservative, each feature is still going to be
 					// at least one byte in the output tile, so this can't possibly work.
 					skipped++;
+					if (!too_many_bytes) {
+						fprintf(stderr, "Too many bytes: adjusted count %zu > limit %zu\n", adjusted_feature_count, adjusted_max_tile_size);
+					}
 					too_many_bytes = true;
 				} else if (too_many_features || ((adjusted_feature_count > adjusted_max_tile_features) && !prevent[P_FEATURE_LIMIT])) {
 					skipped++;
+					if (!too_many_features) {
+						fprintf(stderr, "Too many features: adjusted count %zu > limit %zu\n", adjusted_feature_count, adjusted_max_tile_size);
+					}
 					too_many_features = true;
 				} else {
 					kept++;
@@ -2215,6 +2237,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			coalesced_area = 0;
 		}
 
+		for (auto const &l : layers) {
+			printf("read %zu features in layer\n", l.second.features.size());
+		}
+
 		// We are done reading the features.
 		// Close the prefilter if it was opened.
 		// Close the output files for the next zoom level.
@@ -2292,6 +2318,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		for (auto &kv : layers) {
 			std::string const &layername = kv.first;
 			std::vector<std::shared_ptr<serial_feature>> &features = kv.second.features;
+
+			printf("%zu serial_feature pointers\n", features.size());
 
 			if (retain_points_multiplier > 1) {
 				// mapping from input sequence to current sequence within this tile
@@ -2373,6 +2401,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			{
+				size_t n = 0;
+				for (size_t i = 0; i < features.size(); i++) {
+					signed char t = features[i]->t;
+
+					{
+						if (t == VT_POINT || draws_something(features[i]->geometry)) {
+							// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
+
+							features[i]->coalesced = false;
+							n++;
+						}
+					}
+				}
+				printf("before simplification, %zu meet the draws_something test\n", n);
+			}
+
+			{
 				pthread_t pthreads[tasks];
 				std::vector<simplification_worker_arg> args;
 				args.resize(tasks);
@@ -2407,6 +2452,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
+			size_t n = 0;
 			for (size_t i = 0; i < features.size(); i++) {
 				signed char t = features[i]->t;
 
@@ -2415,9 +2461,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
 
 						features[i]->coalesced = false;
+						n++;
 					}
 				}
 			}
+			printf("%zu meet the draws_something test\n", n);
 
 			std::vector<std::shared_ptr<serial_feature>> &layer_features = features;
 
@@ -2447,6 +2495,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer_features.resize(out);
+				printf("after coalescing %zu\n", layer_features.size());
 			}
 
 			{
@@ -2482,6 +2531,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer_features.resize(out);
+				printf("after simplification %zu\n", layer_features.size());
 			}
 
 			if (prevent[P_INPUT_ORDER]) {
@@ -2524,6 +2574,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			layer.name = layer_iterator->first;
 			layer.version = 2;
 			layer.extent = 1 << tile_detail;
+
+			printf("%zu serial_features\n", layer_features.size());
 
 			for (size_t x = 0; x < layer_features.size(); x++) {
 				mvt_feature feature;
@@ -2579,6 +2631,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				layer.features.push_back(std::move(feature));
 				layer_features[x] = std::make_shared<serial_feature>();
 			}
+
+			printf("%zu features in layer\n", layer.features.size());
 
 			if (layer.features.size() > 0) {
 				tile.layers.push_back(std::move(layer));
@@ -2710,6 +2764,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			std::string compressed;
+			for (auto const &l : tile.layers) {
+				printf("encoding %zu features\n", l.features.size());
+			}
 			std::string pbf = tile.encode();
 
 			tile.layers.clear();

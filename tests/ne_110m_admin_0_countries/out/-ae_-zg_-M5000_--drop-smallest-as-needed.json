@@ -9,7 +9,7 @@
 "maxzoom": "5",
 "minzoom": "0",
 "name": "tests/ne_110m_admin_0_countries/out/-ae_-zg_-M5000_--drop-smallest-as-needed.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":174,\"tile_size_desired\":39239},{\"dropped_as_needed\":200,\"tile_size_desired\":25163},{\"dropped_as_needed\":187,\"tiny_polygons\":1,\"tile_size_desired\":21214},{\"dropped_as_needed\":154,\"tile_size_desired\":10758},{\"dropped_as_needed\":79,\"tile_size_desired\":6601},{\"tiny_polygons\":2}]",
+"strategies": "[{\"dropped_as_needed\":174,\"tile_size_desired\":39239},{\"dropped_as_needed\":199,\"tile_size_desired\":25163},{\"dropped_as_needed\":187,\"tiny_polygons\":1,\"tile_size_desired\":21214},{\"dropped_as_needed\":154,\"tile_size_desired\":10758},{\"dropped_as_needed\":79,\"tile_size_desired\":6601},{\"tiny_polygons\":2}]",
 "tippecanoe_decisions": "{\"basezoom\":0,\"droprate\":2.5,\"retain_points_multiplier\":1}",
 "type": "overlay",
 "version": "2"
