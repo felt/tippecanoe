@@ -2599,10 +2599,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 		}
 
-		if (too_many_features || too_many_bytes) {
-			fprintf(stderr, "got past encoding time with too many\n");
-		}
-
 		if (postfilter != NULL) {
 			tile.layers = filter_layers(postfilter, tile.layers, z, tx, ty, layermaps, tiling_seg, layer_unmaps, 1 << tile_detail);
 		}
