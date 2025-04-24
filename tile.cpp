@@ -79,17 +79,6 @@ static std::vector<mvt_geometry> to_feature(drawvec const &geom) {
 	return out;
 }
 
-// does this geometry have any non-zero-length linetos?
-static bool draws_something(drawvec const &geom) {
-	for (size_t i = 1; i < geom.size(); i++) {
-		if (geom[i].op == VT_LINETO && (geom[i].x != geom[i - 1].x || geom[i].y != geom[i - 1].y)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 // comparator for --preserve-input-order, to reorder features back to their original input sequence
 static struct preservecmp {
 	bool operator()(const std::vector<std::shared_ptr<serial_feature>> &a, const std::vector<std::shared_ptr<serial_feature>> &b) {
@@ -2441,18 +2430,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			for (size_t i = 0; i < features.size(); i++) {
-				signed char t = features[i]->t;
-
-				{
-					if (t == VT_POINT || draws_something(features[i]->geometry)) {
-						// printf("segment %d layer %lld is %s\n", features[i].segment, features[i].layer, (*layer_unmaps)[features[i].segment][features[i].layer].c_str());
-
-						features[i]->coalesced = false;
-					}
-				}
-			}
-
 			std::vector<std::shared_ptr<serial_feature>> &layer_features = features;
 
 			if (additional[A_REORDER]) {
@@ -2497,7 +2474,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 						layer_features[x]->geometry = remove_noop(layer_features[x]->geometry, layer_features[x]->t, 0);
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
-							// XXX revisit: why does this not take zoom into account?
+							// Why does this not take zoom into account?
+							// It's because we are already in tile coordinates by this point
 							layer_features[x]->geometry = simplify_lines(layer_features[x]->geometry, 32, 0, 0, 0,
 												     !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x]->t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
 						}
@@ -2547,10 +2525,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
 				}
 			}
-		}
-
-		if (too_many_features || too_many_bytes) {
-			fprintf(stderr, "got to encoding time with too many\n");
 		}
 
 		mvt_tile tile;
@@ -2862,10 +2836,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					detail_reduced++;
 				}
 			} else {
-				if (too_many_features || too_many_bytes) {
-					fprintf(stderr, "got to writing time with too many\n");
-				}
-
 				if (pthread_mutex_lock(&db_lock) != 0) {
 					perror("pthread_mutex_lock");
 					exit(EXIT_PTHREAD);

@@ -244,6 +244,7 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	sf.tippecanoe_minzoom = -1;
 	sf.tippecanoe_maxzoom = -1;
+	sf.coalesced = false;
 	sf.id = 0;
 	sf.has_id = false;
 	if (sf.layer & (1 << FLAG_MINZOOM)) {
