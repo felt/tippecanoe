@@ -1,3 +1,8 @@
+# 2.78.0
+
+* Fix potential infinite loops in as-needed dropping and coalescing. When the threshold cannot be increased,
+  it is now an error, rather than falling back to trying to lower the detail.
+
 # 2.77.0
 
 * Add --deduplicate-by-id option to tippecanoe-overzoom

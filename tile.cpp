@@ -769,7 +769,7 @@ static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, d
 	std::stable_sort(gaps.begin(), gaps.end());
 
 	size_t ix = (gaps.size() - 1) * (1 - f);
-	while (ix + 1 < gaps.size() && gaps[ix] == existing_gap) {
+	while (ix + 1 < gaps.size() && gaps[ix] <= existing_gap) {
 		ix++;
 	}
 
@@ -809,7 +809,7 @@ static long long choose_minextent(std::vector<long long> &extents, double f, lon
 	std::stable_sort(extents.begin(), extents.end());
 
 	size_t ix = (extents.size() - 1) * (1 - f);
-	while (ix + 1 < extents.size() && extents[ix] == existing_extent) {
+	while (ix + 1 < extents.size() && extents[ix] <= existing_extent) {
 		ix++;
 	}
 
@@ -824,7 +824,7 @@ static unsigned long long choose_mindrop_sequence(std::vector<unsigned long long
 	std::stable_sort(drop_sequences.begin(), drop_sequences.end());
 
 	size_t ix = (drop_sequences.size() - 1) * (1 - f);
-	while (ix + 1 < drop_sequences.size() && drop_sequences[ix] == existing_drop_sequence) {
+	while (ix + 1 < drop_sequences.size() && drop_sequences[ix] <= existing_drop_sequence) {
 		ix++;
 	}
 
@@ -2656,7 +2656,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
-					if (m != mingap) {
+					if (m > mingap) {
 						mingap = m;
 						if (mingap > arg->mingap_out) {
 							arg->mingap_out = mingap;
@@ -2667,11 +2667,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature gap threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
-					if (m != minextent) {
+					if (m > minextent) {
 						minextent = m;
 						if (minextent > arg->minextent_out) {
 							arg->minextent_out = minextent;
@@ -2682,6 +2685,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature extent threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					// The 95% is a guess to avoid too many retries
@@ -2689,7 +2695,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
-					if (m != mindrop_sequence) {
+					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
 						if (mindrop_sequence > arg->mindrop_sequence_out) {
 							if (!prevent[P_DYNAMIC_DROP]) {
@@ -2702,6 +2708,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;	// to keep it the same when the loop decrements it
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature fraction threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else {
 					fprintf(stderr, "Try using --drop-fraction-as-needed or --drop-densest-as-needed.\n");
@@ -2766,7 +2775,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80;
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
-					if (m != mingap) {
+					if (m > mingap) {
 						mingap = m;
 						if (mingap > arg->mingap_out) {
 							arg->mingap_out = mingap;
@@ -2777,11 +2786,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature gap threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
-					if (m != minextent) {
+					if (m > minextent) {
 						minextent = m;
 						if (minextent > arg->minextent_out) {
 							arg->minextent_out = minextent;
@@ -2792,11 +2804,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature extent threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
-					if (m != mindrop_sequence) {
+					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
 						if (mindrop_sequence > arg->mindrop_sequence_out) {
 							if (!prevent[P_DYNAMIC_DROP]) {
@@ -2809,6 +2824,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature fraction threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else {
 					detail_reduced++;
