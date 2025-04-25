@@ -1556,15 +1556,18 @@ static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 		return true;
 	}
 
-	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
-	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
-
+	long long x = 0, y = 0;
 	for (auto &g : geometry) {
-		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
-		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
+		if (g.op == VT_MOVETO) {
+			x = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			y = std::llround((double) g.y / (1LL << (32 - detail - z)));
+		} else {
+			long long xx = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			long long yy = std::llround((double) g.y / (1LL << (32 - detail - z)));
 
-		if (xx != x || yy != y) {
-			return false;
+			if (xx != x || yy != y) {
+				return false;
+			}
 		}
 	}
 
