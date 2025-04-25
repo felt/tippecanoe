@@ -2469,3 +2469,26 @@ drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding)
 
 	return out;
 }
+
+bool line_is_too_small(drawvec const &geometry, int z, int detail) {
+	if (geometry.size() == 0) {
+		return true;
+	}
+
+	long long x = 0, y = 0;
+	for (auto &g : geometry) {
+		if (g.op == VT_MOVETO) {
+			x = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			y = std::llround((double) g.y / (1LL << (32 - detail - z)));
+		} else {
+			long long xx = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			long long yy = std::llround((double) g.y / (1LL << (32 - detail - z)));
+
+			if (xx != x || yy != y) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}

@@ -172,5 +172,6 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 			unsigned long long *start, unsigned long long *end);
 
 clipbbox parse_clip_poly(std::string arg);
+bool line_is_too_small(drawvec const &geometry, int z, int detail);
 
 #endif
