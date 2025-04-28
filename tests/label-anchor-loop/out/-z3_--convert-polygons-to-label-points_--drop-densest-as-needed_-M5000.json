@@ -9,7 +9,7 @@
 "maxzoom": "3",
 "minzoom": "0",
 "name": "tests/label-anchor-loop/out/-z3_--convert-polygons-to-label-points_--drop-densest-as-needed_-M5000.json.check.mbtiles",
-"strategies": "[{\"dropped_as_needed\":8347,\"tile_size_desired\":1149},{\"dropped_as_needed\":16694,\"tiny_polygons\":10,\"tile_size_desired\":3433},{\"dropped_as_needed\":25593,\"tiny_polygons\":6,\"tile_size_desired\":2907},{\"dropped_as_needed\":28765,\"tile_size_desired\":4799}]",
+"strategies": "[{\"dropped_as_needed\":8347,\"tile_size_desired\":1149},{\"dropped_as_needed\":16694,\"tiny_polygons\":10,\"tile_size_desired\":3399},{\"dropped_as_needed\":25593,\"tiny_polygons\":6,\"tile_size_desired\":2907},{\"dropped_as_needed\":28765,\"tile_size_desired\":4799}]",
 "type": "overlay",
 "version": "2"
 }, "features": [
