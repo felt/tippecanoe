@@ -1876,6 +1876,60 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
+			// polygon dust needs to happen before we exclude too-small polygons
+			bool still_need_simplification_after_reduction = false;
+			if (sf.t == VT_POLYGON) {
+				bool simplified_away_by_reduction = false;
+
+				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
+						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
+				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
+					if (simplified_away_by_reduction) {
+						strategy.tiny_polygons++;
+					}
+					if (sf.geometry.size() == 0) {
+						continue;
+					}
+				} else {
+					still_need_simplification_after_reduction = true;  // reduction skipped, so always simplify
+				}
+			} else {
+				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
+			}
+
+			// excluding too-small polygons needs to happen before label anchors
+			// (so we don't try to label impossibly small features)
+			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
+				if (line_is_too_small(sf.geometry, z, line_detail)) {
+					continue;
+				}
+				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
+					continue;
+				}
+			}
+
+			// Make label anchors early in tiling, even though it requires simplifying early,
+			// so that if there is no label anchor for this feature in this tile,
+			// we find out now rather than after we have already decided that there
+			// are too_many_bytes.
+			//
+			// label anchors also need to happen before as-needed dropping and coalescing,
+			// so that the geometry type matches for find_feature_to_accumulate_onto.
+			// (or it could happen much later, after all the features are accumulated,
+			// but then it would be too late for too_many_bytes)
+			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				drawvec ngeom = simplify_lines(sf.geometry, z, tx, ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), sf.simplification, sf.t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
+				if (ngeom.size() == 0) {
+					continue;
+				}
+				sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point);
+				if (sf.geometry.size() == 0) {
+					continue;
+				}
+				sf.t = VT_POINT;
+			}
+
 			unsigned long long drop_sequence = 0;
 			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
 				drop_sequence = calculate_drop_sequence(sf);
@@ -2054,52 +2108,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (!manage_gap(sf.index, &density_previndex, scale, 1, &density_gap)) {
 					spacing = (sf.index - o_density_previndex) / scale;
 				}
-			}
-
-			bool still_need_simplification_after_reduction = false;
-			if (sf.t == VT_POLYGON) {
-				bool simplified_away_by_reduction = false;
-
-				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
-						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
-				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
-					if (simplified_away_by_reduction) {
-						strategy.tiny_polygons++;
-					}
-					if (sf.geometry.size() == 0) {
-						continue;
-					}
-				} else {
-					still_need_simplification_after_reduction = true;  // reduction skipped, so always simplify
-				}
-			} else {
-				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
-			}
-
-			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
-				if (line_is_too_small(sf.geometry, z, line_detail)) {
-					continue;
-				}
-				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
-					continue;
-				}
-			}
-
-			// Make label anchors early in tiling, even though it requires simplifying early,
-			// so that if there is no label anchor for this feature in this tile,
-			// we find out now rather than after we have already decided that there
-			// are too_many_bytes.
-			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-				drawvec ngeom = simplify_lines(sf.geometry, z, tx, ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), sf.simplification, sf.t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
-				if (ngeom.size() == 0) {
-					continue;
-				}
-				sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point);
-				if (sf.geometry.size() == 0) {
-					continue;
-				}
-				sf.t = VT_POINT;
 			}
 
 			unsigned long long sfindex = sf.index;
@@ -2665,7 +2673,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = std::min(1.0, mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80);
+					mingap_fraction = mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80;
+					if (mingap_fraction > 1.0) {
+						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
+						exit(EXIT_IMPOSSIBLE);
+					}
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m > mingap) {
 						mingap = m;
@@ -2683,7 +2695,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = std::min(1.0, minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75);
+					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
+					if (minextent_fraction > 1.0) {
+						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
+						exit(EXIT_IMPOSSIBLE);
+					}
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m > minextent) {
 						minextent = m;
@@ -2704,7 +2720,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
-					mindrop_sequence_fraction = std::min(1.0, mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95);
+					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95;
+					if (mindrop_sequence_fraction > 1.0) {
+						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
+						exit(EXIT_IMPOSSIBLE);
+					}
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
@@ -2753,8 +2773,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					arg->tile_size_out = adjusted_tile_size;
 				}
 
+				if (too_many_bytes && adjusted_tile_size < adjusted_feature_count) {
+					// the tile is not actually too big, but we bailed out early because
+					// we were convinced that it was going to be.
+					adjusted_tile_size = adjusted_feature_count;
+				}
+
 				if (!quiet) {
-					if (adjusted_tile_size == compressed.size()) {
+					if (adjusted_tile_size != compressed.size()) {
 						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %zu) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), adjusted_tile_size, line_detail, adjusted_max_tile_size);
 					} else {
 						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, adjusted_max_tile_size);
@@ -2785,7 +2811,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = std::min(1.0, mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80);
+					mingap_fraction = mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80;
+					if (mingap_fraction > 1.0) {
+						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
+						exit(EXIT_IMPOSSIBLE);
+					}
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m > mingap) {
 						mingap = m;
@@ -2803,7 +2833,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = std::min(1.0, minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75);
+					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					if (minextent_fraction > 1.0) {
+						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
+						exit(EXIT_IMPOSSIBLE);
+					}
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m > minextent) {
 						minextent = m;
@@ -2821,7 +2855,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
-					mindrop_sequence_fraction = std::min(1.0, mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75);
+					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					if (mindrop_sequence_fraction > 1.0) {
+						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
+						exit(EXIT_IMPOSSIBLE);
+					}
+
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
