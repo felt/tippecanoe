@@ -687,15 +687,7 @@ static void *simplification_worker(void *v) {
 		int out_detail = (*features)[i]->extra_detail;
 
 		drawvec geom = (*features)[i]->geometry;
-		if (geom.size() == 0) {
-			fprintf(stderr, "0 after simplification\n");
-		}
-
 		to_tile_scale(geom, z, out_detail);
-
-		if (geom.size() == 0) {
-			fprintf(stderr, "0 after scale\n");
-		}
 
 		if (t == VT_POLYGON) {
 			// Scaling may have made the polygon degenerate.
@@ -727,19 +719,10 @@ static void *simplification_worker(void *v) {
 			}
 		}
 
-		if (geom.size() == 0) {
-			fprintf(stderr, "0 after cleaning, area had been %f\n", area);
-		}
-
-		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-			t = (*features)[i]->t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_point);
-			to_tile_scale(geom, z, out_detail);
-		}
-
 		if ((*features)[i]->index == 0) {
 			(*features)[i]->index = i;
 		}
+#if 0
 		if (geom.size() == 0 && !additional[A_GRID_LOW_ZOOMS]) {
 			fprintf(stderr, "simplified away to nothing\n");
 			for (auto const &g : geom) {
@@ -748,6 +731,7 @@ static void *simplification_worker(void *v) {
 			fprintf(stderr, "\n");
 			exit(EXIT_FAILURE);
 		}
+#endif
 		(*features)[i]->geometry = std::move(geom);
 	}
 
@@ -2100,6 +2084,22 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
 					continue;
 				}
+			}
+
+			// Make label anchors early in tiling, even though it requires simplifying early,
+			// so that if there is no label anchor for this feature in this tile,
+			// we find out now rather than after we have already decided that there
+			// are too_many_bytes.
+			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				drawvec ngeom = simplify_lines(sf.geometry, z, tx, ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), sf.simplification, sf.t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
+				if (ngeom.size() == 0) {
+					continue;
+				}
+				sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point);
+				if (sf.geometry.size() == 0) {
+					continue;
+				}
+				sf.t = VT_POINT;
 			}
 
 			unsigned long long sfindex = sf.index;
