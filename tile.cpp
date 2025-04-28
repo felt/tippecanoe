@@ -2212,7 +2212,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// have been assembled globally, although that also means that simplification
 						// may not be very effective for reducing memory usage.
 
-						fprintf(stderr, "simplifying through\n");
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
 							simplify_feature(&*features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, shared_nodes_bloom);
 
