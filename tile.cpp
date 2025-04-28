@@ -676,7 +676,9 @@ static void *simplification_worker(void *v) {
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
 		double area = 0;
-		if (!a->trying_to_stop_early) {
+		if (a->trying_to_stop_early) {
+			area = get_mp_area((*features)[i]->geometry);
+		} else {
 			area = simplify_feature(&*((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
 		}
 
@@ -685,7 +687,15 @@ static void *simplification_worker(void *v) {
 		int out_detail = (*features)[i]->extra_detail;
 
 		drawvec geom = (*features)[i]->geometry;
+		if (geom.size() == 0) {
+			fprintf(stderr, "0 after simplification\n");
+		}
+
 		to_tile_scale(geom, z, out_detail);
+
+		if (geom.size() == 0) {
+			fprintf(stderr, "0 after scale\n");
+		}
 
 		if (t == VT_POLYGON) {
 			// Scaling may have made the polygon degenerate.
@@ -701,8 +711,13 @@ static void *simplification_worker(void *v) {
 					}
 
 					if (geom.size() < 3) {
-						if (area > 0) {
+						if (area > 0 && !additional[A_GRID_LOW_ZOOMS]) {
 							// area is in world coordinates, calculated before scaling down
+							//
+							// Don't revive if we are gridding low zooms, because
+							// the expectation there is that only the features that
+							// happen to span integer divisions of the tile grid
+							// will survive
 							geom = revive_polygon(before, area, z, out_detail);
 						} else {
 							geom.clear();
@@ -710,6 +725,10 @@ static void *simplification_worker(void *v) {
 					}
 				}
 			}
+		}
+
+		if (geom.size() == 0) {
+			fprintf(stderr, "0 after cleaning, area had been %f\n", area);
 		}
 
 		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
@@ -720,6 +739,14 @@ static void *simplification_worker(void *v) {
 
 		if ((*features)[i]->index == 0) {
 			(*features)[i]->index = i;
+		}
+		if (geom.size() == 0 && !additional[A_GRID_LOW_ZOOMS]) {
+			fprintf(stderr, "simplified away to nothing\n");
+			for (auto const &g : geom) {
+				fprintf(stderr, "(%d)%lld,%lld ", g.op, g.x, g.y);
+			}
+			fprintf(stderr, "\n");
+			exit(EXIT_FAILURE);
 		}
 		(*features)[i]->geometry = std::move(geom);
 	}
@@ -2070,6 +2097,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (line_is_too_small(sf.geometry, z, line_detail)) {
 					continue;
 				}
+				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
+					continue;
+				}
 			}
 
 			unsigned long long sfindex = sf.index;
@@ -2174,6 +2204,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// have been assembled globally, although that also means that simplification
 						// may not be very effective for reducing memory usage.
 
+						fprintf(stderr, "simplifying through\n");
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
 							simplify_feature(&*features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, shared_nodes_bloom);
 
@@ -2752,6 +2783,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						fprintf(stderr, "Going to try gamma of %0.3f to make it fit\n", gamma);
 					}
 					line_detail++;	// to keep it the same when the loop decrements it
+					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = std::min(1.0, mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80);
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
