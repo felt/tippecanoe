@@ -1584,18 +1584,6 @@ void add_sample_to(std::vector<T> &vals, T val, size_t &increment, size_t seq) {
 }
 
 void coalesce_geometry(serial_feature &p, serial_feature &sf) {
-// XXX need another way to deduplicate here
-#if 0
-// if the geometry being coalesced on is an exact duplicate
-// of an existing geometry, just drop it
-
-for (size_t i = 0; i < p.geometries.size(); i++) {
-if (p.geometries[i] == sf.geometry) {
-return;
-}
-}
-#endif
-
 	size_t s = p.geometry.size();
 	p.geometry.resize(s + sf.geometry.size());
 	for (size_t i = 0; i < sf.geometry.size(); i++) {
@@ -1637,9 +1625,6 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
-	double mingap_fraction = 1;
-	double minextent_fraction = 1;
-	double mindrop_sequence_fraction = 1;
 
 	static std::atomic<double> oprogress(0);
 	long long og = *geompos_in;
@@ -1714,7 +1699,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		std::vector<unsigned long long> drop_sequences;
 		size_t drop_sequences_increment = 1;
 
-		double coalesced_area = 0;
 		drawvec shared_nodes;
 
 		int tile_detail = line_detail;
@@ -2012,17 +1996,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
-					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
 						can_stop_early = false;
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
 							continue;
 						}
+					} else {
+						add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					}
 				} else if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					// this is now just like coalesce-densest, except that instead of unioning the geometry,
 					// it averages the point locations
-					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						features[which_serial_feature]->clustered++;
 
@@ -2041,51 +2025,54 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						continue;
+					} else {
+						add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					}
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
-					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						coalesce_geometry(*features[which_serial_feature], sf);
 						features[which_serial_feature]->coalesced = true;
-						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
+					} else {
+						add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
-					add_sample_to(extents, sf.extent, extents_increment, seq);
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
-					if (minextent != 0 && sf.extent + coalesced_area <= minextent) {
+					if (minextent != 0 && sf.extent <= minextent) {
 						can_stop_early = false;
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
 							continue;
 						}
+					} else {
+						add_sample_to(extents, sf.extent, extents_increment, seq);
 					}
 				} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					add_sample_to(extents, sf.extent, extents_increment, seq);
-					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent)) {
+					if (minextent != 0 && sf.extent <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent)) {
 						coalesce_geometry(*features[which_serial_feature], sf);
 						features[which_serial_feature]->coalesced = true;
-						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
+					} else {
+						add_sample_to(extents, sf.extent, extents_increment, seq);
 					}
 				} else if (additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
-					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence) {
 						can_stop_early = false;
 						if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
 							continue;
 						}
+					} else {
+						add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					}
 				} else if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
-					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						coalesce_geometry(*features[which_serial_feature], sf);
 						features[which_serial_feature]->coalesced = true;
@@ -2094,6 +2081,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						drop_rest = true;
 						can_stop_early = false;
 						continue;
+					} else {
+						add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					}
 				}
 			}
@@ -2230,7 +2219,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			merge_previndex = sfindex;
-			coalesced_area = 0;
 		}
 
 		// We are done reading the features.
@@ -2672,7 +2660,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80;
+					double mingap_fraction = 0.70 * adjusted_max_tile_features / adjusted_feature_count;
 					if (mingap_fraction > 1.0) {
 						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
 						exit(EXIT_IMPOSSIBLE);
@@ -2694,7 +2682,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
+					double minextent_fraction = 0.70 * adjusted_max_tile_features / adjusted_feature_count;
 					if (minextent_fraction > 1.0) {
 						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
 						exit(EXIT_IMPOSSIBLE);
@@ -2707,7 +2695,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							arg->still_dropping = true;
 						}
 						if (!quiet) {
-							fprintf(stderr, "Going to try keeping the biggest %0.2f%% of the features to make it fit\n", minextent_fraction * 100.0);
+							fprintf(stderr, "Going to try keeping the biggest %0.2f%% of the features to make it fit (>%lld)\n", minextent_fraction * 100.0, minextent);
 						}
 						line_detail++;
 						continue;
@@ -2716,10 +2704,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
-					// The 95% is a guess to avoid too many retries
-					// and probably actually varies based on how much duplicated metadata there is
-
-					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95;
+					double mindrop_sequence_fraction = 0.70 * adjusted_max_tile_features / adjusted_feature_count;
 					if (mindrop_sequence_fraction > 1.0) {
 						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
 						exit(EXIT_IMPOSSIBLE);
@@ -2810,7 +2795,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
-					mingap_fraction = mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80;
+					double mingap_fraction = 0.70 * adjusted_max_tile_size / adjusted_tile_size;
 					if (mingap_fraction > 1.0) {
 						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
 						exit(EXIT_IMPOSSIBLE);
@@ -2832,7 +2817,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
-					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					double minextent_fraction = 0.70 * adjusted_max_tile_size / adjusted_tile_size;
 					if (minextent_fraction > 1.0) {
 						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
 						exit(EXIT_IMPOSSIBLE);
@@ -2845,7 +2830,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							arg->still_dropping = true;
 						}
 						if (!quiet) {
-							fprintf(stderr, "Going to try keeping the biggest %0.2f%% of the features to make it fit\n", minextent_fraction * 100.0);
+							fprintf(stderr, "Going to try keeping the biggest %0.2f%% of the features to make it fit (>%lld)\n", minextent_fraction * 100.0, minextent);
 						}
 						line_detail++;
 						continue;
@@ -2854,7 +2839,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
-					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					double mindrop_sequence_fraction = 0.70 * adjusted_max_tile_size / adjusted_tile_size;
 					if (mindrop_sequence_fraction > 1.0) {
 						fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
 						exit(EXIT_IMPOSSIBLE);
