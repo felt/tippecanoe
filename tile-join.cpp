@@ -140,6 +140,7 @@ std::vector<std::vector<std::map<std::string, mvt_value>>> get_joined_rows(sqlit
 					for (int i = 1; i < count; i++) {
 						int type = sqlite3_column_type(stmt, i);
 						mvt_value v;
+						v.numeric_value.null_value = 0;
 						v.type = mvt_null;
 
 						if (type == SQLITE_INTEGER || type == SQLITE_FLOAT) {
