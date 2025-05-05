@@ -257,8 +257,8 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 	}
 }
 
-drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling) {
-	geom = remove_noop(geom, VT_POLYGON, 0);
+drawvec clean_or_clip_poly(const drawvec &geom_in, int z, int buffer, bool clip, bool try_scaling) {
+	drawvec geom = remove_noop(geom_in, VT_POLYGON, 0);
 	mapbox::geometry::multi_polygon<long long> result;
 
 	double scale = 16.0;
@@ -2491,4 +2491,126 @@ bool line_is_too_small(drawvec const &geometry, int z, int detail) {
 	}
 
 	return true;
+}
+
+drawvec coalesce_linestring(drawvec const &geom) {
+	std::multimap<draw, drawvec> segments;
+
+	for (size_t i = 0; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			drawvec seg;
+			seg.push_back(geom[i]);
+
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+
+				seg.push_back(geom[j]);
+			}
+
+			segments.emplace(seg[0], seg);
+			i = j - 1;
+		}
+	}
+
+	drawvec out;
+	while (segments.size() != 0) {
+		// choose an arbitrary starting segment
+		auto current = segments.begin();
+		const drawvec &v = current->second;
+
+		if (out.size() > 0 && v.back() == out.front()) {
+			// if the end of it would connect to the current union,
+			// put it on the front
+			drawvec tmp = std::move(out);
+			out = v;
+			for (const draw &d : tmp) {
+				out.push_back(d);
+			}
+		} else {
+			// otherwise, put it on the back
+			for (const draw &d : v) {
+				out.push_back(d);
+			}
+		}
+		segments.erase(current);
+
+		while (true) {
+			// now look for other segments that would chain to the end
+			// of the current union, until we run out of links
+			current = segments.find(out.back());
+			if (current != segments.end()) {
+				const drawvec &vv = current->second;
+				for (const draw &d : vv) {
+					out.push_back(d);
+				}
+				segments.erase(current);
+			} else {
+				// go back and pull another arbitrary starting segment
+				// off the pile
+				break;
+			}
+		}
+	}
+
+	return out;
+}
+
+drawvec coalesce_polygon(drawvec const &geom) {
+	// wagyu should be able to straightforwardly handle
+	// anything under a few hundred thousand vertices
+	if (geom.size() < 100000) {
+		return clean_or_clip_poly(geom, 0, 0, false, false);
+	}
+
+	// These geometries were assembled in geometric order,
+	// so sub-batches of them should hopefully union into
+	// reasonable sets.
+	//
+	// Find the first outer ring after halfway point.
+
+	for (size_t i = geom.size() / 2; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			if (get_area(geom, i, j) > 0) {
+				// If we have an outer ring, split there
+				// and coalesce the two halves
+
+				std::vector<draw> geom1;
+				geom1.resize(i);
+				for (size_t k = 0; k < i; k++) {
+					geom1[k] = geom[k];
+				}
+				geom1 = coalesce_polygon(geom1);
+
+				std::vector<draw> geom2;
+				geom2.resize(i);
+				for (size_t k = i; k < geom.size(); k++) {
+					geom2[k - i] = geom[k];
+				}
+				geom2 = coalesce_polygon(geom2);
+
+				size_t brk = geom1.size();
+				geom1.resize(brk + geom2.size());
+				for (size_t k = 0; k < geom2.size(); k++) {
+					geom1[brk + k] = geom2[k];
+				}
+
+				return clean_or_clip_poly(geom1, 0, 0, false, false);
+			}
+
+			i = j - 1;
+		}
+	}
+
+	// Can't find a breakpoint; take what we can get.
+	return clean_or_clip_poly(geom, 0, 0, false, false);
 }

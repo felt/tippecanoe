@@ -633,13 +633,17 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 			}
 
 			if (!already_marked) {
-				if (p->coalesced && t == VT_POLYGON) {
+				if (p->coalesced) {
 					// clean coalesced polygons before simplification to avoid
 					// introducing shards between shapes that otherwise would have
-					// unioned exactly
-					//
-					// don't try to scale up because these are still world coordinates
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					// unioned exactly.
+					if (t == VT_POLYGON) {
+						geom = coalesce_polygon(geom);
+					} else if (t == VT_LINE) {
+						geom = coalesce_linestring(geom);
+					}
+
+					p->coalesced = false;
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -2467,6 +2471,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (layer_features[x]->coalesced && layer_features[x]->t == VT_LINE) {
 						layer_features[x]->geometry = remove_noop(layer_features[x]->geometry, layer_features[x]->t, 0);
 						if (!(prevent[P_SIMPLIFY] || (z == maxzoom && prevent[P_SIMPLIFY_LOW]))) {
+							layer_features[x]->geometry = coalesce_linestring(layer_features[x]->geometry);
 							// XXX revisit: why does this not take zoom into account?
 							layer_features[x]->geometry = simplify_lines(layer_features[x]->geometry, 32, 0, 0, 0,
 												     !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), simplification, layer_features[x]->t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
@@ -2475,8 +2480,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					if (layer_features[x]->t == VT_POLYGON) {
 						if (layer_features[x]->coalesced) {
-							// we can try scaling up because this is tile coordinates
-							layer_features[x]->geometry = clean_or_clip_poly(layer_features[x]->geometry, 0, 0, false, true);
+							layer_features[x]->geometry = coalesce_polygon(layer_features[x]->geometry);
 						}
 
 						layer_features[x]->geometry = close_poly(layer_features[x]->geometry);

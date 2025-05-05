@@ -72,7 +72,7 @@ void to_tile_scale(drawvec &geom, int z, int detail);
 drawvec from_tile_scale(drawvec const &geom, int z, int detail);
 drawvec remove_noop(drawvec geom, int type, int shift);
 drawvec clip_point(drawvec &geom, int z, long long buffer);
-drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
+drawvec clean_or_clip_poly(const drawvec &geom, int z, int buffer, bool clip, bool try_scaling);
 drawvec close_poly(drawvec &geom);
 drawvec reduce_tiny_poly(const drawvec &geom, int z, int detail, bool *still_needs_simplification, bool *reduced_away, double *accum_area, double tiny_polygon_size);
 int clip(long long *x0, long long *y0, long long *x1, long long *y1, long long xmin, long long ymin, long long xmax, long long ymax);
@@ -173,5 +173,7 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 
 clipbbox parse_clip_poly(std::string arg);
 bool line_is_too_small(drawvec const &geometry, int z, int detail);
+drawvec coalesce_polygon(drawvec const &geom);
+drawvec coalesce_linestring(drawvec const &geom);
 
 #endif
