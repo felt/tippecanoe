@@ -2333,7 +2333,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (p.clustered > 0) {
 					serial_val sv, sv2, sv3, sv4;
 					long long point_count = p.clustered + 1;
-					char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
+					char abbrev[30];
 
 					p.full_keys.push_back(key_pool.pool("clustered"));
 					sv.type = mvt_bool;

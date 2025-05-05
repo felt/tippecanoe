@@ -2592,7 +2592,7 @@ drawvec coalesce_polygon(drawvec const &geom) {
 				geom1 = coalesce_polygon(geom1);
 
 				std::vector<draw> geom2;
-				geom2.resize(i);
+				geom2.resize(geom.size() - i);
 				for (size_t k = i; k < geom.size(); k++) {
 					geom2[k - i] = geom[k];
 				}
