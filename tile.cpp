@@ -1864,39 +1864,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
-			// polygon dust needs to happen before we exclude too-small polygons
-			bool still_need_simplification_after_reduction = false;
-			if (sf.t == VT_POLYGON) {
-				bool simplified_away_by_reduction = false;
-
-				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
-						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
-				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
-					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
-					if (simplified_away_by_reduction) {
-						strategy.tiny_polygons++;
-					}
-					if (sf.geometry.size() == 0) {
-						continue;
-					}
-				} else {
-					still_need_simplification_after_reduction = true;  // reduction skipped, so always simplify
-				}
-			} else {
-				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
-			}
-
-			// excluding too-small polygons needs to happen before label anchors
-			// (so we don't try to label impossibly small features)
-			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
-				if (line_is_too_small(sf.geometry, z, line_detail)) {
-					continue;
-				}
-				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
-					continue;
-				}
-			}
-
 			// Make label anchors early in tiling, even though it requires simplifying early,
 			// so that if there is no label anchor for this feature in this tile,
 			// we find out now rather than after we have already decided that there
@@ -1907,6 +1874,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// (or it could happen much later, after all the features are accumulated,
 			// but then it would be too late for too_many_bytes)
 			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				// exclude features that are invisibly small at this zoom level
+				if (line_is_too_small(sf.geometry, z, line_detail)) {
+					continue;
+				}
+				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
+					continue;
+				}
+
 				drawvec ngeom = simplify_lines(sf.geometry, z, tx, ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), sf.simplification, sf.t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
 				if (ngeom.size() == 0) {
 					continue;
@@ -2100,6 +2075,37 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				double o_density_previndex = density_previndex;
 				if (!manage_gap(sf.index, &density_previndex, scale, 1, &density_gap)) {
 					spacing = (sf.index - o_density_previndex) / scale;
+				}
+			}
+
+			// polygon dust needs to happen before we exclude too-small polygons
+			bool still_need_simplification_after_reduction = false;
+			if (sf.t == VT_POLYGON) {
+				bool simplified_away_by_reduction = false;
+
+				bool prevent_tiny = prevent[P_TINY_POLYGON_REDUCTION] ||
+						    (prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM] && z == maxzoom);
+				if (!prevent_tiny && !additional[A_GRID_LOW_ZOOMS]) {
+					sf.geometry = reduce_tiny_poly(sf.geometry, z, line_detail, &still_need_simplification_after_reduction, &simplified_away_by_reduction, &accum_area, tiny_polygon_size);
+					if (simplified_away_by_reduction) {
+						strategy.tiny_polygons++;
+					}
+					if (sf.geometry.size() == 0) {
+						continue;
+					}
+				} else {
+					still_need_simplification_after_reduction = true;  // reduction skipped, so always simplify
+				}
+			} else {
+				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
+			}
+
+			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
+				if (line_is_too_small(sf.geometry, z, line_detail)) {
+					continue;
+				}
+				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
+					continue;
 				}
 			}
 
