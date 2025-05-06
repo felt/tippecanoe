@@ -2524,6 +2524,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					layer_features.resize(limit_tile_feature_count_at_maxzoom);
 					too_many_features = false;  // don't try to drop; we have already truncated
 					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
+					too_many_features = too_many_bytes = false;
 				}
 			} else if (limit_tile_feature_count != 0) {
 				if (layer_features.size() > limit_tile_feature_count) {
@@ -2531,6 +2532,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					layer_features.resize(limit_tile_feature_count);
 					too_many_features = false;  // don't try to drop; we have already truncated
 					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
+					too_many_features = too_many_bytes = false;
 				}
 			}
 		}
