@@ -638,7 +638,8 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 					// introducing shards between shapes that otherwise would have
 					// unioned exactly.
 					if (t == VT_POLYGON) {
-						geom = coalesce_polygon(geom);
+						// don't scale up since this is still world coordinates
+						geom = coalesce_polygon(geom, false);
 					} else if (t == VT_LINE) {
 						geom = coalesce_linestring(geom);
 					}
@@ -700,8 +701,8 @@ static void *simplification_worker(void *v) {
 				drawvec before = geom;
 
 				if (!a->trying_to_stop_early) {
-					// we can try scaling up because this is now tile scale
-					geom = clean_or_clip_poly(geom, 0, 0, false, true);
+					// scale up since this is now tile coordinates
+					geom = coalesce_polygon(geom, true);
 					if (additional[A_DEBUG_POLYGON]) {
 						check_polygon(geom);
 					}
@@ -2218,15 +2219,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// may not be very effective for reducing memory usage.
 
 						for (; simplified_geometry_through < features.size(); simplified_geometry_through++) {
-							simplify_feature(&*features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, shared_nodes_bloom);
-
-							if (features[simplified_geometry_through]->t == VT_POLYGON) {
-								drawvec to_clean = features[simplified_geometry_through]->geometry;
-
-								// don't scale up because this is still world coordinates
-								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
-								features[simplified_geometry_through]->geometry = std::move(to_clean);
+							if (features[simplified_geometry_through]->coalesced) {
+								if (features[simplified_geometry_through]->t == VT_POLYGON) {
+									// don't scale up since this is still world coordinates
+									// hopefully wagyu won't break the shared nodes
+									features[simplified_geometry_through]->geometry = coalesce_polygon(features[simplified_geometry_through]->geometry, false);
+								} else if (features[simplified_geometry_through]->t == VT_LINE) {
+									features[simplified_geometry_through]->geometry = coalesce_linestring(features[simplified_geometry_through]->geometry);
+								}
 							}
+
+							simplify_feature(&*features[simplified_geometry_through], shared_nodes, shared_nodes_map, nodepos, shared_nodes_bloom);
 						}
 
 						unsimplified_geometry_size = 0;
@@ -2492,7 +2495,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					if (layer_features[x]->t == VT_POLYGON) {
 						if (layer_features[x]->coalesced) {
-							layer_features[x]->geometry = coalesce_polygon(layer_features[x]->geometry);
+							// scale up since this is now tile coordinates
+							layer_features[x]->geometry = coalesce_polygon(layer_features[x]->geometry, true);
 						}
 
 						layer_features[x]->geometry = close_poly(layer_features[x]->geometry);

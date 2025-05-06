@@ -173,7 +173,7 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 
 clipbbox parse_clip_poly(std::string arg);
 bool line_is_too_small(drawvec const &geometry, int z, int detail);
-drawvec coalesce_polygon(drawvec const &geom);
+drawvec coalesce_polygon(drawvec const &geom, bool scale_up);
 drawvec coalesce_linestring(drawvec const &geom);
 
 #endif

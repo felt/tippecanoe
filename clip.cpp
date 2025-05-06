@@ -2558,11 +2558,11 @@ drawvec coalesce_linestring(drawvec const &geom) {
 	return out;
 }
 
-drawvec coalesce_polygon(drawvec const &geom) {
+drawvec coalesce_polygon(drawvec const &geom, bool scale_up) {
 	// wagyu should be able to straightforwardly handle
 	// anything under a few hundred thousand vertices
 	if (geom.size() < 100000) {
-		return clean_or_clip_poly(geom, 0, 0, false, false);
+		return clean_or_clip_poly(geom, 0, 0, false, scale_up);
 	}
 
 	// These geometries were assembled in geometric order,
@@ -2589,14 +2589,14 @@ drawvec coalesce_polygon(drawvec const &geom) {
 				for (size_t k = 0; k < i; k++) {
 					geom1[k] = geom[k];
 				}
-				geom1 = coalesce_polygon(geom1);
+				geom1 = coalesce_polygon(geom1, scale_up);
 
 				std::vector<draw> geom2;
 				geom2.resize(geom.size() - i);
 				for (size_t k = i; k < geom.size(); k++) {
 					geom2[k - i] = geom[k];
 				}
-				geom2 = coalesce_polygon(geom2);
+				geom2 = coalesce_polygon(geom2, scale_up);
 
 				size_t brk = geom1.size();
 				geom1.resize(brk + geom2.size());
@@ -2604,6 +2604,7 @@ drawvec coalesce_polygon(drawvec const &geom) {
 					geom1[brk + k] = geom2[k];
 				}
 
+				geom2.clear();
 				return clean_or_clip_poly(geom1, 0, 0, false, false);
 			}
 
