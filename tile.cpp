@@ -643,8 +643,6 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 					} else if (t == VT_LINE) {
 						geom = coalesce_linestring(geom);
 					}
-
-					p->coalesced = false;
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -681,9 +679,7 @@ static void *simplification_worker(void *v) {
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
 		double area = 0;
-		if (a->trying_to_stop_early) {
-			area = get_mp_area((*features)[i]->geometry);
-		} else {
+		if (!a->trying_to_stop_early) {
 			area = simplify_feature(&*((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
 		}
 
