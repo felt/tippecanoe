@@ -1,7 +1,21 @@
 # 2.78.0
 
-* Fix potential infinite loops in as-needed dropping and coalescing. When the threshold cannot be increased,
-  it is now an error, rather than falling back to trying to lower the detail.
+* Fix potential infinite loops in as-needed dropping and coalescing.
+  When the threshold cannot be increased, it is now an error, rather than
+  falling back to trying to lower the detail.
+* Smallest-as-needed dropping and coalescing now operates entirely by
+  the original size of the geometry, not the size of the coalesced geometry.
+* The iterative search for the dropping/coalescing threshold now considers
+  only the features that survived the previous iteration, and converges
+  at a consistent rate between strategies.
+* When LineStrings are coalesced, they are reordered to try to make
+  subsegments connect rather than leaving the original geometries as
+  separate LineStrings within the MultiLineString.
+* Cleaning of complex polygon geometries now happens in stages
+  to avoid performance problems when there are very large numbers
+  of vertices.
+* Label point generation happens earlier in tiling, to avoid doing slow
+  operations on polygons that will not be retained anyway.
 
 # 2.77.0
 

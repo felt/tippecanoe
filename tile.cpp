@@ -727,16 +727,6 @@ static void *simplification_worker(void *v) {
 		if ((*features)[i]->index == 0) {
 			(*features)[i]->index = i;
 		}
-#if 0
-		if (geom.size() == 0 && !additional[A_GRID_LOW_ZOOMS]) {
-			fprintf(stderr, "simplified away to nothing\n");
-			for (auto const &g : geom) {
-				fprintf(stderr, "(%d)%lld,%lld ", g.op, g.x, g.y);
-			}
-			fprintf(stderr, "\n");
-			exit(EXIT_FAILURE);
-		}
-#endif
 		(*features)[i]->geometry = std::move(geom);
 	}
 
