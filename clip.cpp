@@ -571,8 +571,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 				}
 
 				if (geom[i + 1].op == VT_CLOSEPATH) {
-					// followed by closepath: not possible
-					fprintf(stderr, "Shouldn't happen\n");
+					// followed by closepath: only possible after close_poly()
 					i++;  // also remove unused closepath
 					continue;
 				}
@@ -2468,4 +2467,88 @@ drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding)
 	}
 
 	return out;
+}
+
+bool line_is_too_small(drawvec const &geometry, int z, int detail) {
+	if (geometry.size() == 0) {
+		return true;
+	}
+
+	long long x = 0, y = 0;
+	for (auto &g : geometry) {
+		if (g.op == VT_MOVETO) {
+			x = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			y = std::llround((double) g.y / (1LL << (32 - detail - z)));
+		} else {
+			long long xx = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			long long yy = std::llround((double) g.y / (1LL << (32 - detail - z)));
+
+			if (xx != x || yy != y) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void coalesce_polygon(drawvec &geom, bool scale_up) {
+	// wagyu should be able to straightforwardly handle
+	// anything under a few hundred thousand vertices
+	if (geom.size() < 100000) {
+		geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
+		return;
+	}
+
+	// These geometries were assembled in geometric order,
+	// so sub-batches of them should hopefully union into
+	// reasonable sets.
+	//
+	// Find the first outer ring after halfway point.
+
+	for (size_t i = geom.size() / 2; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			if (get_area(geom, i, j) > 0) {
+				// If we have an outer ring, split there
+				// and coalesce the two halves
+
+				// Copy second half to new vector
+				std::vector<draw> geom2;
+				geom2.resize(geom.size() - i);
+				for (size_t k = i; k < geom.size(); k++) {
+					geom2[k - i] = geom[k];
+				}
+
+				// Resize vector to include only first half
+				geom.resize(i);
+
+				// Clean each half individually
+				coalesce_polygon(geom, scale_up);
+				coalesce_polygon(geom2, scale_up);
+
+				// Copy second half back with first
+				size_t brk = geom.size();
+				geom.resize(brk + geom2.size());
+				for (size_t k = 0; k < geom2.size(); k++) {
+					geom[brk + k] = geom2[k];
+				}
+				geom2.clear();
+
+				// Clean the combined geometry
+				geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
+			}
+
+			i = j - 1;
+		}
+	}
+
+	// Can't find a breakpoint; take what we can get.
+	geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
 }

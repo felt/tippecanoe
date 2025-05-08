@@ -639,7 +639,7 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 					// unioned exactly
 					//
 					// don't try to scale up because these are still world coordinates
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					coalesce_polygon(geom, false);
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -695,7 +695,7 @@ static void *simplification_worker(void *v) {
 
 				if (!a->trying_to_stop_early) {
 					// we can try scaling up because this is now tile scale
-					geom = clean_or_clip_poly(geom, 0, 0, false, true);
+					coalesce_polygon(geom, true);
 					if (additional[A_DEBUG_POLYGON]) {
 						check_polygon(geom);
 					}
@@ -1551,26 +1551,6 @@ bool find_feature_to_accumulate_onto(std::vector<std::shared_ptr<serial_feature>
 	return false;
 }
 
-static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
-	if (geometry.size() == 0) {
-		return true;
-	}
-
-	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
-	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
-
-	for (auto &g : geometry) {
-		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
-		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
-
-		if (xx != x || yy != y) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 // Keep only a sample of 100K extents for feature dropping,
 // to avoid spending lots of memory on a complete list when there are
 // hundreds of millions of features.
@@ -2201,7 +2181,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 								drawvec to_clean = features[simplified_geometry_through]->geometry;
 
 								// don't scale up because this is still world coordinates
-								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
+								coalesce_polygon(to_clean, false);
 								features[simplified_geometry_through]->geometry = std::move(to_clean);
 							}
 						}
@@ -2470,7 +2450,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (layer_features[x]->t == VT_POLYGON) {
 						if (layer_features[x]->coalesced) {
 							// we can try scaling up because this is tile coordinates
-							layer_features[x]->geometry = clean_or_clip_poly(layer_features[x]->geometry, 0, 0, false, true);
+							coalesce_polygon(layer_features[x]->geometry, true);
 						}
 
 						layer_features[x]->geometry = close_poly(layer_features[x]->geometry);
