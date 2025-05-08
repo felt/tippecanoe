@@ -712,12 +712,6 @@ static void *simplification_worker(void *v) {
 			}
 		}
 
-		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-			t = (*features)[i]->t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_point);
-			to_tile_scale(geom, z, out_detail);
-		}
-
 		if ((*features)[i]->index == 0) {
 			(*features)[i]->index = i;
 		}
@@ -1863,6 +1857,35 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				extent_previndex = sf.index;
+			}
+
+			// Make label anchors early in tiling, even though it requires simplifying early,
+			// so that if there is no label anchor for this feature in this tile,
+			// we find out now rather than after we have already decided that there
+			// are too_many_bytes.
+			//
+			// label anchors also need to happen before as-needed dropping and coalescing,
+			// so that the geometry type matches for find_feature_to_accumulate_onto.
+			// (or it could happen much later, after all the features are accumulated,
+			// but then it would be too late for too_many_bytes)
+			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				// exclude features that are invisibly small at this zoom level
+				if (line_is_too_small(sf.geometry, z, line_detail)) {
+					continue;
+				}
+				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
+					continue;
+				}
+
+				drawvec ngeom = simplify_lines(sf.geometry, z, tx, ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), sf.simplification, sf.t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
+				if (ngeom.size() == 0) {
+					continue;
+				}
+				sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point);
+				if (sf.geometry.size() == 0) {
+					continue;
+				}
+				sf.t = VT_POINT;
 			}
 
 			unsigned long long drop_sequence = 0;
