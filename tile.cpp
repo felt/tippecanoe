@@ -2635,6 +2635,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80;
+					if (mingap_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
+						}
+						mingap_fraction = 0.80;
+					}
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m > mingap) {
 						mingap = m;
@@ -2653,6 +2659,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
+					if (minextent_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
+						}
+						minextent_fraction = 0.80;
+					}
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m > minextent) {
 						minextent = m;
@@ -2674,6 +2686,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// and probably actually varies based on how much duplicated metadata there is
 
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95;
+					if (mindrop_sequence_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
+						}
+						mindrop_sequence_fraction = 0.80;
+					}
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
@@ -2754,6 +2772,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80;
+					if (mingap_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
+						}
+						mingap_fraction = 0.80;
+					}
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
 					if (m > mingap) {
 						mingap = m;
@@ -2772,6 +2796,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					if (minextent_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
+						}
+						minextent_fraction = 0.80;
+					}
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
 					if (m > minextent) {
 						minextent = m;
@@ -2790,6 +2820,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					if (mindrop_sequence_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
+						}
+						mindrop_sequence_fraction = 0.80;
+					}
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
 					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
