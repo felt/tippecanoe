@@ -2003,7 +2003,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
-						coalesce_geometry(*features[which_serial_feature], sf);
+						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
+							coalesce_geometry(*features[which_serial_feature], sf);
+						}
 						features[which_serial_feature]->coalesced = true;
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -2025,7 +2027,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					add_sample_to(extents, sf.extent, extents_increment, seq);
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent)) {
-						coalesce_geometry(*features[which_serial_feature], sf);
+						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
+							coalesce_geometry(*features[which_serial_feature], sf);
+						}
 						features[which_serial_feature]->coalesced = true;
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -2045,7 +2049,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
-						coalesce_geometry(*features[which_serial_feature], sf);
+						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
+							coalesce_geometry(*features[which_serial_feature], sf);
+						}
 						features[which_serial_feature]->coalesced = true;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
