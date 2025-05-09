@@ -639,7 +639,7 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 					// unioned exactly
 					//
 					// don't try to scale up because these are still world coordinates
-					geom = clean_or_clip_poly(geom, 0, 0, false, false);
+					coalesce_polygon(geom, false);
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -695,7 +695,7 @@ static void *simplification_worker(void *v) {
 
 				if (!a->trying_to_stop_early) {
 					// we can try scaling up because this is now tile scale
-					geom = clean_or_clip_poly(geom, 0, 0, false, true);
+					coalesce_polygon(geom, true);
 					if (additional[A_DEBUG_POLYGON]) {
 						check_polygon(geom);
 					}
@@ -710,12 +710,6 @@ static void *simplification_worker(void *v) {
 					}
 				}
 			}
-		}
-
-		if (t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
-			t = (*features)[i]->t = VT_POINT;
-			geom = checkerboard_anchors(from_tile_scale(geom, z, out_detail), (*features)[i]->tx, (*features)[i]->ty, z, (*features)[i]->label_point);
-			to_tile_scale(geom, z, out_detail);
 		}
 
 		if ((*features)[i]->index == 0) {
@@ -769,7 +763,7 @@ static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, d
 	std::stable_sort(gaps.begin(), gaps.end());
 
 	size_t ix = (gaps.size() - 1) * (1 - f);
-	while (ix + 1 < gaps.size() && gaps[ix] == existing_gap) {
+	while (ix + 1 < gaps.size() && gaps[ix] <= existing_gap) {
 		ix++;
 	}
 
@@ -809,7 +803,7 @@ static long long choose_minextent(std::vector<long long> &extents, double f, lon
 	std::stable_sort(extents.begin(), extents.end());
 
 	size_t ix = (extents.size() - 1) * (1 - f);
-	while (ix + 1 < extents.size() && extents[ix] == existing_extent) {
+	while (ix + 1 < extents.size() && extents[ix] <= existing_extent) {
 		ix++;
 	}
 
@@ -824,7 +818,7 @@ static unsigned long long choose_mindrop_sequence(std::vector<unsigned long long
 	std::stable_sort(drop_sequences.begin(), drop_sequences.end());
 
 	size_t ix = (drop_sequences.size() - 1) * (1 - f);
-	while (ix + 1 < drop_sequences.size() && drop_sequences[ix] == existing_drop_sequence) {
+	while (ix + 1 < drop_sequences.size() && drop_sequences[ix] <= existing_drop_sequence) {
 		ix++;
 	}
 
@@ -1551,26 +1545,6 @@ bool find_feature_to_accumulate_onto(std::vector<std::shared_ptr<serial_feature>
 	return false;
 }
 
-static bool line_is_too_small(drawvec const &geometry, int z, int detail) {
-	if (geometry.size() == 0) {
-		return true;
-	}
-
-	long long x = std::round((double) geometry[0].x / (1LL << (32 - detail - z)));
-	long long y = std::round((double) geometry[0].y / (1LL << (32 - detail - z)));
-
-	for (auto &g : geometry) {
-		long long xx = std::round((double) g.x / (1LL << (32 - detail - z)));
-		long long yy = std::round((double) g.y / (1LL << (32 - detail - z)));
-
-		if (xx != x || yy != y) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 // Keep only a sample of 100K extents for feature dropping,
 // to avoid spending lots of memory on a complete list when there are
 // hundreds of millions of features.
@@ -1885,6 +1859,35 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				extent_previndex = sf.index;
 			}
 
+			// Make label anchors early in tiling, even though it requires simplifying early,
+			// so that if there is no label anchor for this feature in this tile,
+			// we find out now rather than after we have already decided that there
+			// are too_many_bytes.
+			//
+			// label anchors also need to happen before as-needed dropping and coalescing,
+			// so that the geometry type matches for find_feature_to_accumulate_onto.
+			// (or it could happen much later, after all the features are accumulated,
+			// but then it would be too late for too_many_bytes)
+			if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
+				// exclude features that are invisibly small at this zoom level
+				if (line_is_too_small(sf.geometry, z, line_detail)) {
+					continue;
+				}
+				if (sf.t == VT_POLYGON && get_mp_area(sf.geometry) <= 0) {
+					continue;
+				}
+
+				drawvec ngeom = simplify_lines(sf.geometry, z, tx, ty, line_detail, !(prevent[P_CLIPPING] || prevent[P_DUPLICATION]), sf.simplification, sf.t == VT_POLYGON ? 4 : 0, shared_nodes, NULL, 0, "");
+				if (ngeom.size() == 0) {
+					continue;
+				}
+				sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point);
+				if (sf.geometry.size() == 0) {
+					continue;
+				}
+				sf.t = VT_POINT;
+			}
+
 			unsigned long long drop_sequence = 0;
 			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
 				drop_sequence = calculate_drop_sequence(sf);
@@ -2000,7 +2003,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
-						coalesce_geometry(*features[which_serial_feature], sf);
+						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
+							coalesce_geometry(*features[which_serial_feature], sf);
+						}
 						features[which_serial_feature]->coalesced = true;
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -2022,7 +2027,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					add_sample_to(extents, sf.extent, extents_increment, seq);
 					if (minextent != 0 && sf.extent + coalesced_area <= minextent && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, minextent)) {
-						coalesce_geometry(*features[which_serial_feature], sf);
+						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
+							coalesce_geometry(*features[which_serial_feature], sf);
+						}
 						features[which_serial_feature]->coalesced = true;
 						coalesced_area += sf.extent;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -2042,7 +2049,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else if (additional[A_COALESCE_FRACTION_AS_NEEDED]) {
 					add_sample_to(drop_sequences, drop_sequence, drop_sequences_increment, seq);
 					if (mindrop_sequence != 0 && drop_sequence <= mindrop_sequence && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
-						coalesce_geometry(*features[which_serial_feature], sf);
+						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
+							coalesce_geometry(*features[which_serial_feature], sf);
+						}
 						features[which_serial_feature]->coalesced = true;
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
@@ -2201,7 +2210,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 								drawvec to_clean = features[simplified_geometry_through]->geometry;
 
 								// don't scale up because this is still world coordinates
-								to_clean = clean_or_clip_poly(to_clean, 0, 0, false, false);
+								coalesce_polygon(to_clean, false);
 								features[simplified_geometry_through]->geometry = std::move(to_clean);
 							}
 						}
@@ -2470,7 +2479,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (layer_features[x]->t == VT_POLYGON) {
 						if (layer_features[x]->coalesced) {
 							// we can try scaling up because this is tile coordinates
-							layer_features[x]->geometry = clean_or_clip_poly(layer_features[x]->geometry, 0, 0, false, true);
+							coalesce_polygon(layer_features[x]->geometry, true);
 						}
 
 						layer_features[x]->geometry = close_poly(layer_features[x]->geometry);
@@ -2501,6 +2510,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// this is maxzoom; ok to stop early still because they said to limit abruptly
 					layer_features.resize(limit_tile_feature_count_at_maxzoom);
 					too_many_features = false;  // don't try to drop; we have already truncated
+					too_many_bytes = false;	    // don't try to drop; we have already truncated
 					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
 				}
 			} else if (limit_tile_feature_count != 0) {
@@ -2508,6 +2518,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					can_stop_early = false;
 					layer_features.resize(limit_tile_feature_count);
 					too_many_features = false;  // don't try to drop; we have already truncated
+					too_many_bytes = false;	    // don't try to drop; we have already truncated
 					skipped = 0;		    // doesn't matter that we skipped features; we have truncated
 				}
 			}
@@ -2655,8 +2666,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.80;
+					if (mingap_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
+						}
+						mingap_fraction = 0.80;
+					}
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
-					if (m != mingap) {
+					if (m > mingap) {
 						mingap = m;
 						if (mingap > arg->mingap_out) {
 							arg->mingap_out = mingap;
@@ -2667,11 +2684,20 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature gap threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.75;
+					if (minextent_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
+						}
+						minextent_fraction = 0.80;
+					}
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
-					if (m != minextent) {
+					if (m > minextent) {
 						minextent = m;
 						if (minextent > arg->minextent_out) {
 							arg->minextent_out = minextent;
@@ -2682,14 +2708,23 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature area threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					// The 95% is a guess to avoid too many retries
 					// and probably actually varies based on how much duplicated metadata there is
 
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_features / adjusted_feature_count * 0.95;
+					if (mindrop_sequence_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
+						}
+						mindrop_sequence_fraction = 0.80;
+					}
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
-					if (m != mindrop_sequence) {
+					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
 						if (mindrop_sequence > arg->mindrop_sequence_out) {
 							if (!prevent[P_DYNAMIC_DROP]) {
@@ -2702,6 +2737,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;	// to keep it the same when the loop decrements it
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature count threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else {
 					fprintf(stderr, "Try using --drop-fraction-as-needed or --drop-densest-as-needed.\n");
@@ -2734,7 +2772,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (!quiet) {
-					if (adjusted_tile_size == compressed.size()) {
+					if (adjusted_tile_size != compressed.size()) {
 						fprintf(stderr, "tile %d/%u/%u size is %lld (probably really %zu) with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), adjusted_tile_size, line_detail, adjusted_max_tile_size);
 					} else {
 						fprintf(stderr, "tile %d/%u/%u size is %lld with detail %d, >%zu    \n", z, tx, ty, (long long) compressed.size(), line_detail, adjusted_max_tile_size);
@@ -2765,8 +2803,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					line_detail++;	// to keep it the same when the loop decrements it
 				} else if (mingap < ULONG_MAX && (additional[A_DROP_DENSEST_AS_NEEDED] || additional[A_COALESCE_DENSEST_AS_NEEDED] || additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
 					mingap_fraction = mingap_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.80;
+					if (mingap_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mingap_fraction * 100.0);
+						}
+						mingap_fraction = 0.80;
+					}
 					unsigned long long m = choose_mingap(gaps, mingap_fraction, mingap);
-					if (m != mingap) {
+					if (m > mingap) {
 						mingap = m;
 						if (mingap > arg->mingap_out) {
 							arg->mingap_out = mingap;
@@ -2777,11 +2821,20 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature gap threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (additional[A_DROP_SMALLEST_AS_NEEDED] || additional[A_COALESCE_SMALLEST_AS_NEEDED]) {
 					minextent_fraction = minextent_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					if (minextent_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", minextent_fraction * 100.0);
+						}
+						minextent_fraction = 0.80;
+					}
 					long long m = choose_minextent(extents, minextent_fraction, minextent);
-					if (m != minextent) {
+					if (m > minextent) {
 						minextent = m;
 						if (minextent > arg->minextent_out) {
 							arg->minextent_out = minextent;
@@ -2792,11 +2845,20 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature area threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else if (feature_count > layers.size() && (additional[A_DROP_FRACTION_AS_NEEDED] || additional[A_COALESCE_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP])) {
 					mindrop_sequence_fraction = mindrop_sequence_fraction * adjusted_max_tile_size / adjusted_tile_size * 0.75;
+					if (mindrop_sequence_fraction > 0.80) {
+						if (!quiet) {
+							fprintf(stderr, "Need to drop features, but calculated that we should keep %.1f%% of features\n", mindrop_sequence_fraction * 100.0);
+						}
+						mindrop_sequence_fraction = 0.80;
+					}
 					unsigned long long m = choose_mindrop_sequence(drop_sequences, mindrop_sequence_fraction, mindrop_sequence);
-					if (m != mindrop_sequence) {
+					if (m > mindrop_sequence) {
 						mindrop_sequence = m;
 						if (mindrop_sequence > arg->mindrop_sequence_out) {
 							if (!prevent[P_DYNAMIC_DROP]) {
@@ -2809,6 +2871,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						line_detail++;
 						continue;
+					} else {
+						fprintf(stderr, "Can't increase feature count threshold further\n");
+						exit(EXIT_INCOMPLETE);
 					}
 				} else {
 					detail_reduced++;

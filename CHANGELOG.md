@@ -1,3 +1,14 @@
+# 2.78.0
+
+* Fix potential infinite loops in as-needed dropping and coalescing.
+  When the threshold cannot be increased, it is now an error, rather than
+  falling back to trying to lower the detail.
+* Cleaning of complex polygon geometries now happens in stages
+  to avoid performance problems when there are very large numbers
+  of vertices.
+* Label point generation happens earlier in tiling, to avoid doing slow
+  operations on polygons that will not be retained anyway.
+
 # 2.77.0
 
 * Add --deduplicate-by-id option to tippecanoe-overzoom
