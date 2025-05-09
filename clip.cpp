@@ -2543,6 +2543,7 @@ void coalesce_polygon(drawvec &geom, bool scale_up) {
 
 				// Clean the combined geometry
 				geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
+				return;
 			}
 
 			i = j - 1;
