@@ -732,7 +732,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 	}
 
-	if (additional[A_DROP_DENSEST_AS_NEEDED] ||
+	if (true || additional[A_DROP_DENSEST_AS_NEEDED] ||
 	    additional[A_COALESCE_DENSEST_AS_NEEDED] ||
 	    additional[A_CLUSTER_DENSEST_AS_NEEDED] ||
 	    additional[A_CALCULATE_FEATURE_DENSITY] ||

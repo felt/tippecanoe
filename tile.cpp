@@ -1054,6 +1054,9 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 struct next_feature_state {
 	unsigned long long previndex = 0;
 	unsigned long long prev_not_dropped_index = 0;
+
+	std::vector<FILE *> deferrals;
+	size_t which_deferral = 0;
 };
 
 // This function is called repeatedly from write_tile() to retrieve the next feature
@@ -1076,6 +1079,12 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			sf.t = -2;
+
+			for (auto const fp : next_feature_state.deferrals) {
+				if (fp != NULL) {
+					fclose(fp);
+				}
+			}
 			return sf;
 		}
 
@@ -1089,6 +1098,31 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
+
+		if (sf.index == next_feature_state.previndex) {
+			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
+				std::string tmpname = "/tmp/XXXXXXXXXX";
+				int fd = mkstemp((char *) tmpname.c_str());
+				if (fd < 0) {
+					fprintf(stderr, "Can't create temporary file %zu for feature deferral: %s\n", next_feature_state.which_deferral, strerror(errno));
+					exit(EXIT_OPEN);
+				}
+				FILE *fp = fdopen(fd, "wb+");
+				if (fp == NULL) {
+					fprintf(stderr, "Can't reopen temporary file for feature deferral: %s\n", strerror(errno));
+					exit(EXIT_OPEN);
+				}
+				next_feature_state.deferrals.resize(next_feature_state.which_deferral + 1);
+				next_feature_state.deferrals[next_feature_state.which_deferral] = fp;
+			}
+
+			fwrite(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]);
+			fwrite(s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]);
+			next_feature_state.which_deferral++;
+			continue;
+		} else {
+			next_feature_state.which_deferral = 0;
+		}
 
 		// with fractional zoom level, so we can target a specific number
 		// of features to keep with retain-points-multiplier, not just the
