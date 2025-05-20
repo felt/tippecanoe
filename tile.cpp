@@ -1088,7 +1088,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			s.resize(len);
-			if (fread((void *) s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]) != len) {
+			if (fread((void *) s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]) != (size_t) len) {
 				fprintf(stderr, "short read in deferred deserialization: %s\n", strerror(errno));
 				exit(EXIT_READ);
 			}
@@ -1123,7 +1123,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
-		if (!next_feature_state.doing_deferrals && sf.index == next_feature_state.previndex) {
+		if (!next_feature_state.doing_deferrals && additional[A_DISTINGUISH_DUPLICATES] && sf.index == next_feature_state.previndex) {
 			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
 				std::string tmpname = "/tmp/XXXXXXXXXX";
 				int fd = mkstemp((char *) tmpname.c_str());

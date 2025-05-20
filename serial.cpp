@@ -732,7 +732,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 	}
 
-	if (true || additional[A_DROP_DENSEST_AS_NEEDED] ||
+	if (additional[A_DROP_DENSEST_AS_NEEDED] ||
 	    additional[A_COALESCE_DENSEST_AS_NEEDED] ||
 	    additional[A_CLUSTER_DENSEST_AS_NEEDED] ||
 	    additional[A_CALCULATE_FEATURE_DENSITY] ||
@@ -743,6 +743,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	    prevent[P_DYNAMIC_DROP] ||
 	    additional[A_INCREASE_GAMMA_AS_NEEDED] ||
 	    additional[A_GENERATE_POLYGON_LABEL_POINTS] ||
+	    additional[A_DISTINGUISH_DUPLICATES] ||
 	    sst->uses_gamma ||
 	    retain_points_multiplier > 1 ||
 	    preserve_multiplier_density_threshold > 0 ||
