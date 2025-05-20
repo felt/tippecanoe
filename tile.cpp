@@ -1057,6 +1057,7 @@ struct next_feature_state {
 
 	std::vector<FILE *> deferrals;
 	size_t which_deferral = 0;
+	bool doing_deferrals = false;
 };
 
 // This function is called repeatedly from write_tile() to retrieve the next feature
@@ -1068,38 +1069,61 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 	while (1) {
 		serial_feature sf;
 		long long len;
+		std::string s;
 
-		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
-			fprintf(stderr, "Unexpected physical EOF in feature stream\n");
-			exit(EXIT_READ);
-		}
-		if (len <= 0) {
-			if (compressed) {
-				geoms->end(geompos_in);
-			}
-
-			sf.t = -2;
-
-			for (auto const fp : next_feature_state.deferrals) {
-				if (fp != NULL) {
+		if (next_feature_state.doing_deferrals) {
+			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
+				// done with direct deserialization, done with deferred deserialization
+				for (auto const fp : next_feature_state.deferrals) {
 					fclose(fp);
 				}
-			}
-			return sf;
-		}
 
-		std::string s;
-		s.resize(len);
-		size_t n = geoms->fread((void *) s.c_str(), sizeof(char), s.size(), geompos_in);
-		if (n != s.size()) {
-			fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
-			exit(EXIT_READ);
+				sf.t = -2;
+				return sf;
+			}
+
+			if (fread(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]) != 1) {
+				next_feature_state.which_deferral++;
+				continue;
+			}
+
+			s.resize(len);
+			if (fread((void *) s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]) != len) {
+				fprintf(stderr, "short read in deferred deserialization: %s\n", strerror(errno));
+				exit(EXIT_READ);
+			}
+		} else {
+			if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
+				fprintf(stderr, "Unexpected physical EOF in feature stream\n");
+				exit(EXIT_READ);
+			}
+			if (len <= 0) {
+				if (compressed) {
+					geoms->end(geompos_in);
+				}
+
+				next_feature_state.doing_deferrals = true;
+				next_feature_state.which_deferral = 0;
+
+				for (auto const fp : next_feature_state.deferrals) {
+					rewind(fp);
+				}
+
+				continue;
+			}
+
+			s.resize(len);
+			size_t n = geoms->fread((void *) s.c_str(), sizeof(char), s.size(), geompos_in);
+			if (n != s.size()) {
+				fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
+				exit(EXIT_READ);
+			}
 		}
 
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
-		if (sf.index == next_feature_state.previndex) {
+		if (!next_feature_state.doing_deferrals && sf.index == next_feature_state.previndex) {
 			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
 				std::string tmpname = "/tmp/XXXXXXXXXX";
 				int fd = mkstemp((char *) tmpname.c_str());
