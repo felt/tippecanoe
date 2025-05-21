@@ -1076,7 +1076,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
 				// done with direct deserialization, done with deferred deserialization
 				for (auto const fp : next_feature_state.deferrals) {
-					fclose(fp);
+					if (fclose(fp) != 0) {
+						perror("fclose deferral");
+						exit(EXIT_CLOSE);
+					}
 				}
 
 				sf.t = -2;
@@ -1084,6 +1087,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			if (fread(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]) != 1) {
+				if (ferror(next_feature_state.deferrals[next_feature_state.which_deferral])) {
+					perror("read deferral");
+					exit(EXIT_READ);
+				}
 				next_feature_state.which_deferral++;
 				continue;
 			}
@@ -1107,7 +1114,12 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				next_feature_state.which_deferral = 0;
 
 				for (auto const fp : next_feature_state.deferrals) {
+					errno = 0;
 					rewind(fp);
+					if (errno != 0) {
+						perror("rewind deferral");
+						exit(EXIT_SEEK);
+					}
 				}
 
 				continue;
@@ -1141,8 +1153,14 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				next_feature_state.deferrals[next_feature_state.which_deferral] = fp;
 			}
 
-			fwrite(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]);
-			fwrite(s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]);
+			if (fwrite(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]) != 1) {
+				perror("write deferral length");
+				exit(EXIT_WRITE);
+			}
+			if (fwrite(s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]) != (size_t) len) {
+				perror("write deferral");
+				exit(EXIT_WRITE);
+			}
 
 			// limit the maximum depth of deferral,
 			// because even at z0 we will run out of file descriptors
