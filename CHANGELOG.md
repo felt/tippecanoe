@@ -1,3 +1,7 @@
+# 2.79.0
+
+* Add --distinguish-duplicates option
+
 # 2.78.0
 
 * Fix potential infinite loops in as-needed dropping and coalescing.

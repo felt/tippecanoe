@@ -518,10 +518,12 @@ If the type is \fB\fCint\fR and the original attribute was floating\-point, it i
 that are dropped, coalesced\-as\-needed, or clustered. The \fIoperation\fP may be
 \fB\fCsum\fR, \fB\fCproduct\fR, \fB\fCmean\fR, \fB\fCmax\fR, \fB\fCmin\fR, \fB\fCconcat\fR, or \fB\fCcomma\fR
 to specify how the named \fIattribute\fP is accumulated onto the attribute of the same name in a feature that does survive.
-The attributes and operations may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute='{"attr": "operation", "attr2", "operation2"}'\fR\&.
+The attributes and operations may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute='{"attr": "operation", "attr2": "operation2"}'\fR\&.
+.IP \(bu 2
+\fB\fC\-\-accumulate\-numeric\-attributes\fR \fIprefix\fP: Accumulate sum, count, min, and max for all numeric attributes into new attributes with the specified \fIprefix\fP\&.
 .IP \(bu 2
 \fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
-The attributes and values may also be specified as JSON keys and values: \fB\fC\-\-set\-attribute='{"attr": value, "attr2", value}'\fR\&.
+The attributes and values may also be specified as JSON keys and values: \fB\fC\-\-set\-attribute='{"attr": value, "attr2": value}'\fR\&.
 .IP \(bu 2
 \fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .IP \(bu 2
@@ -539,6 +541,8 @@ The attributes and values may also be specified as JSON keys and values: \fB\fC\
 \fB\fC\-j\fR \fIfilter\fP or \fB\fC\-\-feature\-filter\fR=\fIfilter\fP: Check features against a per\-layer filter (as defined in the Mapbox GL Style Specification \[la]https://docs.mapbox.com/mapbox-gl-js/style-spec/#other-filter\[ra] or in a Felt filter specification still to be finalized) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB\fC"*"\fR apply to all layers. The special variable \fB\fC$zoom\fR refers to the current zoom level.
 .IP \(bu 2
 \fB\fC\-J\fR \fIfilter\-file\fP or \fB\fC\-\-feature\-filter\-file\fR=\fIfilter\-file\fP: Like \fB\fC\-j\fR, but read the filter from a file.
+.IP \(bu 2
+\fB\fC\-\-unidecode\-data\fR \fIfile\fP: Specify transliterations that will be used when evaluating expressions, in the format from \[la]https://metacpan.org/pod/Text::Unidecode\[ra]
 .RE
 .PP
 Example: to find the Natural Earth countries with low \fB\fCscalerank\fR but high \fB\fCLABELRANK\fR:
@@ -587,7 +591,7 @@ compensate for the larger marker, or \fB\fC\-Bf\fR\fInumber\fP to allow at most 
 \fB\fC\-\-retain\-points\-multiplier=\fR\fImultiple\fP: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the \fB\fC\-m\fR option to \fB\fCtippecanoe\-overzoom\fR\&. The start of each cluster is marked in the feature sequence by the \fB\fCtippecanoe:retain_points_multiplier_first\fR attribute. The \fB\fC\-\-tile\-size\-limit\fR will also be extended at low zoom levels to allow for the multiplied features.
 .IP \(bu 2
 \fB\fC\-\-drop\-denser=\fR\fIpercentage\fP: When dropping dots at zoom levels below the base zoom, give the specified \fIpercentage\fP
-preference to retaining points in sparse areas and dropping points in dense areas.
+preference to retaining points in sparse areas and dropping points in dense areas. Use \fB\fC\-\-preserve\-point\-density\-threshold\fR instead.
 .IP \(bu 2
 \fB\fC\-\-limit\-base\-zoom\-to\-maximum\-zoom\fR or \fB\fC\-Pb\fR: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
 .IP \(bu 2
@@ -601,7 +605,11 @@ preference to retaining points in sparse areas and dropping points in dense area
 .IP \(bu 2
 \fB\fC\-kg\fR or \fB\fC\-\-cluster\-maxzoom=g\fR: Set \fB\fC\-\-cluster\-maxzoom=\fR to \fB\fCmaxzoom \- 1\fR so that all features are visible at the maximum zoom level.
 .IP \(bu 2
+\fB\fC\-\-keep\-point\-cluster\-position\fR: Do not average the location of points as they are clustered.
+.IP \(bu 2
 \fB\fC\-\-preserve\-point\-density\-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specfied drop rate would normally call for it, so that low\-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
+.IP \(bu 2
+\fB\fC\-\-preserve\-multiplier\-density\-threshold=\fR\fIlevel\fP: Preserve a minimum point density, but as \fB\fC\-\-retain\-points\-multiplier\fR features, not primary features.
 .RE
 .SS Dropping a fraction of features to keep under tile size limits
 .RS
@@ -621,11 +629,13 @@ preference to retaining points in sparse areas and dropping points in dense area
 \fB\fC\-pd\fR or \fB\fC\-\-force\-feature\-limit\fR: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like \fB\fC\-ad\fR but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
 .IP \(bu 2
 \fB\fC\-aC\fR or \fB\fC\-\-cluster\-densest\-as\-needed\fR: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a \fB\fC"clustered": true\fR attribute to indicate that it represents a cluster, a \fB\fC"point_count"\fR attribute to indicate the number of features that were clustered into it, and a \fB\fC"sqrt_point_count"\fR attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations; otherwise, one of the original features will be left as the representative.
+.IP \(bu 2
+\fB\fC\-\-distinguish\-duplicates\fR: Treat sets of up to 50 exact duplicate locations as sub\-layers, which will be accumulated or coalesced into other features of their own sub\-layer instead of into their duplicates.
 .RE
 .SS Dropping tightly overlapping features
 .RS
 .IP \(bu 2
-\fB\fC\-g\fR \fIgamma\fP or \fB\fC\-\-gamma=_gamma\fR_: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.
+\fB\fC\-g\fR \fIgamma\fP or \fB\fC\-\-gamma=\fR\fIgamma\fP: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.
 .IP \(bu 2
 \fB\fC\-aG\fR or \fB\fC\-\-increase\-gamma\-as\-needed\fR: If a tile is too large, try to reduce it to under 500K by increasing the \fB\fC\-g\fR gamma. The discovered gamma applies to the entire zoom level. You probably want to use \fB\fC\-\-drop\-densest\-as\-needed\fR instead.
 .RE
