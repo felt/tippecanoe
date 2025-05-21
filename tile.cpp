@@ -904,6 +904,7 @@ struct write_tile_args {
 	atomic_strategy *strategy = NULL;
 	int zoom = -1;
 	bool compressed;
+	bool first_zoom;
 	node *shared_nodes_map;
 	size_t nodepos;
 	std::string const *shared_nodes_bloom;
@@ -1063,7 +1064,7 @@ struct next_feature_state {
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, next_feature_state &next_feature_state, double droprate) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, bool first_zoom, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, next_feature_state &next_feature_state, double droprate) {
 	double extra_multiplier_zooms = log(retain_points_multiplier) / log(droprate);
 
 	while (1) {
@@ -1123,9 +1124,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
-		if (!next_feature_state.doing_deferrals && additional[A_DISTINGUISH_DUPLICATES] && sf.index == next_feature_state.previndex) {
+		if (!next_feature_state.doing_deferrals && first_zoom && additional[A_DISTINGUISH_DUPLICATES] && sf.index == next_feature_state.previndex) {
 			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
-				std::string tmpname = "/tmp/XXXXXXXXXX";
+				std::string tmpname = std::string(tmpdir) + std::string("/deferralXXXXXXXXXX");
 				int fd = mkstemp((char *) tmpname.c_str());
 				if (fd < 0) {
 					fprintf(stderr, "Can't create temporary file %zu for feature deferral: %s\n", next_feature_state.which_deferral, strerror(errno));
@@ -1142,7 +1143,13 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 			fwrite(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]);
 			fwrite(s.c_str(), 1, len, next_feature_state.deferrals[next_feature_state.which_deferral]);
-			next_feature_state.which_deferral++;
+
+			// limit the maximum depth of deferral,
+			// because even at z0 we will run out of file descriptors
+			// (and tile space) if there are large numbers of duplicates
+			if (next_feature_state.which_deferral < 50) {
+				next_feature_state.which_deferral++;
+			}
 			continue;
 		} else {
 			next_feature_state.which_deferral = 0;
@@ -1369,6 +1376,7 @@ struct run_prefilter_args {
 	std::vector<std::string> const *unidecode_data;
 	bool first_time = false;
 	bool compressed = false;
+	bool first_zoom = false;
 	double droprate = 1;
 };
 
@@ -1380,7 +1388,7 @@ void *run_prefilter(void *v) {
 	next_feature_state next_feature_state;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, rpa->first_zoom, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1676,7 +1684,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, bool first_zoom, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1855,6 +1863,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.unidecode_data = &unidecode_data;
 			rpa.first_time = first_time;
 			rpa.compressed = compressed_input;
+			rpa.first_zoom = first_zoom;
 			rpa.droprate = arg->droprate;
 
 			// this does need to be a real thread, so we can pipe both to and from it
@@ -1887,7 +1896,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, first_zoom, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
@@ -3075,7 +3084,7 @@ exit(EXIT_IMPOSSIBLE);
 				len = 1;
 			} else {
 				arg->wrote_zoom = z;
-				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
+				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->first_zoom, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
 			}
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
@@ -3141,7 +3150,7 @@ exit(EXIT_IMPOSSIBLE);
 	return err_or_null;
 }
 
-int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, int basezoom, double droprate, std::vector<std::string> const &unidecode_data) {
+int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, int basezoom, double droprate, std::vector<std::string> const &unidecode_data) {
 	last_progress = 0;
 
 	// The existing layermaps are one table per input thread.
@@ -3333,6 +3342,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].strategy = &strategy;
 				args[thread].zoom = z;
 				args[thread].compressed = (z != iz);
+				args[thread].first_zoom = (z == iz);
 				args[thread].shared_nodes_map = shared_nodes_map;
 				args[thread].nodepos = nodepos;
 				args[thread].shared_nodes_bloom = &shared_nodes_bloom;
