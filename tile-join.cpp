@@ -243,9 +243,9 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				// scaling up is safe while scaling down requires geometry cleaning.
 
 				for (size_t i = 0; i < outlayer.features.size(); i++) {
-					for (size_t j = 0; j < outlayer.features[i].geometry.size(); j++) {
-						outlayer.features[i].geometry[j].x = outlayer.features[i].geometry[j].x * layer.extent / outlayer.extent;
-						outlayer.features[i].geometry[j].y = outlayer.features[i].geometry[j].y * layer.extent / outlayer.extent;
+					for (size_t j = 0; j < outlayer.features[i]->geometry.size(); j++) {
+						outlayer.features[i]->geometry[j].x = outlayer.features[i]->geometry[j].x * layer.extent / outlayer.extent;
+						outlayer.features[i]->geometry[j].y = outlayer.features[i]->geometry[j].y * layer.extent / outlayer.extent;
 					}
 				}
 
@@ -261,7 +261,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			join_keys.resize(layer.features.size());
 
 			for (size_t f = 0; f < layer.features.size(); f++) {
-				mvt_feature &feat = layer.features[f];
+				mvt_feature &feat = *layer.features[f];
 				join_keys[f].type = mvt_no_such_key;
 
 				for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
@@ -289,7 +289,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 		bool features_added_to_layer = false;
 
 		for (size_t f = 0; f < layer.features.size(); f++) {
-			mvt_feature &feat = layer.features[f];
+			mvt_feature &feat = *layer.features[f];
 
 			std::set<std::string> exclude_attributes;
 			if (filter != NULL && !evaluate(feat, layer, filter, exclude_attributes, z, unidecode_data)) {
@@ -520,7 +520,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 
 				features_added++;
 				features_added_to_layer = true;
-				outlayer.features.push_back(outfeature);
+				outlayer.features.push_back(std::make_shared<mvt_feature>(outfeature));
 
 				if (z < tilestats->second.minzoom) {
 					tilestats->second.minzoom = z;

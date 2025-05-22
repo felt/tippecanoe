@@ -119,17 +119,17 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 		}
 
 		for (auto const &feature : layer.features) {
-			if (feature.type == mvt_point) {
+			if (feature->type == mvt_point) {
 				ts->second.points++;
-			} else if (feature.type == mvt_linestring) {
+			} else if (feature->type == mvt_linestring) {
 				ts->second.lines++;
-			} else if (feature.type == mvt_polygon) {
+			} else if (feature->type == mvt_polygon) {
 				ts->second.polygons++;
 			}
 
-			for (size_t i = 0; i + 1 < feature.tags.size(); i += 2) {
-				const std::string &key = layer.keys[feature.tags[i]];
-				const mvt_value &val = layer.values[feature.tags[i + 1]];
+			for (size_t i = 0; i + 1 < feature->tags.size(); i += 2) {
+				const std::string &key = layer.keys[feature->tags[i]];
+				const mvt_value &val = layer.values[feature->tags[i + 1]];
 
 				// Nulls can be excluded here because this is the postfilter
 				// and it is nearly time to create the vector representation

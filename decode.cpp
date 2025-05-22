@@ -60,11 +60,11 @@ void do_stats(mvt_tile &tile, size_t size, bool compressed, int z, unsigned x, u
 
 		size_t points = 0, lines = 0, polygons = 0;
 		for (size_t j = 0; j < tile.layers[i].features.size(); j++) {
-			if (tile.layers[i].features[j].type == mvt_point) {
+			if (tile.layers[i].features[j]->type == mvt_point) {
 				points++;
-			} else if (tile.layers[i].features[j].type == mvt_linestring) {
+			} else if (tile.layers[i].features[j]->type == mvt_linestring) {
 				lines++;
-			} else if (tile.layers[i].features[j].type == mvt_polygon) {
+			} else if (tile.layers[i].features[j]->type == mvt_polygon) {
 				polygons++;
 			}
 		}
