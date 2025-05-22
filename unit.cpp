@@ -152,3 +152,12 @@ TEST_CASE("mvt_geometry bbox") {
 	REQUIRE(start == 0x1c84fc0000000000);
 	REQUIRE(end == 0x1c84ffffffffffff);
 }
+
+TEST_CASE("line_is_too_small") {
+	drawvec dv;
+	dv.emplace_back(VT_MOVETO, 4243099709, 2683872952);
+	dv.emplace_back(VT_LINETO, 4243102487, 2683873977);
+	dv.emplace_back(VT_MOVETO, -51867587, 2683872952);
+	dv.emplace_back(VT_LINETO, -51864809, 2683873977);
+	REQUIRE(line_is_too_small(dv, 0, 10));
+}

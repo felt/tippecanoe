@@ -1,0 +1,13 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "layer", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "what": "no id" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+,
+{ "type": "Feature", "id": 12345, "properties": { "what": "will survive" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+,
+{ "type": "Feature", "id": 12346, "properties": { "what": "will win over the duplicate" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+,
+{ "type": "Feature", "properties": { "what": "no id again" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+,
+{ "type": "Feature", "id": 12347, "properties": { "what": "will be added" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+] }
+] }

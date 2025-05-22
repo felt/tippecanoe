@@ -571,8 +571,7 @@ drawvec remove_noop(drawvec geom, int type, int shift) {
 				}
 
 				if (geom[i + 1].op == VT_CLOSEPATH) {
-					// followed by closepath: not possible
-					fprintf(stderr, "Shouldn't happen\n");
+					// followed by closepath: only possible after close_poly()
 					i++;  // also remove unused closepath
 					continue;
 				}
@@ -1269,7 +1268,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes) {
+		     std::vector<clipbbox> const &clipbboxes,
+		     bool deduplicate_by_id) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1295,7 +1295,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit, clipbboxes);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, feature_limit, clipbboxes, deduplicate_by_id);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1499,7 +1499,8 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &accumulate_numeric,
 			key_pool &key_pool, int buffer, bool include_nonaggregate,
-			std::vector<clipbbox> const &clipbboxes, int nz, int nx, int ny) {
+			std::vector<clipbbox> const &clipbboxes, int nz, int nx, int ny,
+			std::set<unsigned long long> *deduplicate_ids) {
 	// Add geometry to output feature
 
 	drawvec geom = features[0].geom;
@@ -1581,6 +1582,14 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 	}
 
 	// ID and attributes, if it didn't get clipped away
+
+	if (features[0].has_id && deduplicate_ids != NULL) {
+		if (deduplicate_ids->find(features[0].id) != deduplicate_ids->end()) {
+			outfeature.geometry.clear();
+		} else {
+			deduplicate_ids->insert(features[0].id);
+		}
+	}
 
 	if (outfeature.geometry.size() > 0) {
 		if (features[0].has_id) {
@@ -2001,7 +2010,7 @@ mvt_tile assign_to_bins(mvt_tile &features,
 			if (feature_out(outfeatures[i], outlayer,
 					keep, exclude, exclude_prefix, attribute_accum,
 					accumulate_numeric, key_pool, buffer, true,
-					clipbboxes, z, x, y)) {
+					clipbboxes, z, x, y, NULL)) {
 				mvt_feature &nfeature = *outlayer.features.back();
 				mvt_value val;
 				val.type = mvt_uint;
@@ -2038,9 +2047,13 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes) {
+		     std::vector<clipbbox> const &clipbboxes,
+		     bool deduplicate_by_id) {
 	mvt_tile outtile;
 	key_pool key_pool;
+
+	// map from layer name to ids used in that layer
+	std::map<std::string, std::set<unsigned long long>> deduplicate_ids;
 
 	for (auto const &tile : tiles) {
 		for (auto const &layer : tile.tile.layers) {
@@ -2066,6 +2079,16 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				outtile.layers.push_back(newlayer);
 				outlayer = &outtile.layers.back();
+			}
+
+			std::set<unsigned long long> *deduplicate_by_id_set = NULL;
+			if (deduplicate_by_id) {
+				auto layer_deduplicate_ids = deduplicate_ids.find(layer.name);
+				if (layer_deduplicate_ids == deduplicate_ids.end()) {
+					deduplicate_ids.emplace(layer.name, std::set<unsigned long long>());
+					layer_deduplicate_ids = deduplicate_ids.find(layer.name);
+				}
+				deduplicate_by_id_set = &layer_deduplicate_ids->second;
 			}
 
 			std::vector<tile_feature> pending_tile_features;
@@ -2190,7 +2213,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny, deduplicate_by_id_set);
 						if (outlayer->features.size() >= feature_limit) {
 							break;
 						}
@@ -2250,7 +2273,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, accumulate_numeric, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny, deduplicate_by_id_set);
 				pending_tile_features.clear();
 				if (outlayer->features.size() >= feature_limit) {
 					break;
@@ -2290,7 +2313,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 								     detail_or_unspecified, buffer, keep, exclude, exclude_prefix, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data,
 								     simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric,
-								     1, clipbboxes);
+								     1, clipbboxes, deduplicate_by_id);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}
@@ -2473,4 +2496,89 @@ drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding)
 	}
 
 	return out;
+}
+
+bool line_is_too_small(drawvec const &geometry, int z, int detail) {
+	if (geometry.size() == 0) {
+		return true;
+	}
+
+	long long x = 0, y = 0;
+	for (auto &g : geometry) {
+		if (g.op == VT_MOVETO) {
+			x = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			y = std::llround((double) g.y / (1LL << (32 - detail - z)));
+		} else {
+			long long xx = std::llround((double) g.x / (1LL << (32 - detail - z)));
+			long long yy = std::llround((double) g.y / (1LL << (32 - detail - z)));
+
+			if (xx != x || yy != y) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void coalesce_polygon(drawvec &geom, bool scale_up) {
+	// wagyu should be able to straightforwardly handle
+	// anything under a few hundred thousand vertices
+	if (geom.size() < 100000) {
+		geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
+		return;
+	}
+
+	// These geometries were assembled in geometric order,
+	// so sub-batches of them should hopefully union into
+	// reasonable sets.
+	//
+	// Find the first outer ring after halfway point.
+
+	for (size_t i = geom.size() / 2; i < geom.size(); i++) {
+		if (geom[i].op == VT_MOVETO) {
+			size_t j;
+			for (j = i + 1; j < geom.size(); j++) {
+				if (geom[j].op != VT_LINETO) {
+					break;
+				}
+			}
+
+			if (get_area(geom, i, j) > 0) {
+				// If we have an outer ring, split there
+				// and coalesce the two halves
+
+				// Copy second half to new vector
+				std::vector<draw> geom2;
+				geom2.resize(geom.size() - i);
+				for (size_t k = i; k < geom.size(); k++) {
+					geom2[k - i] = geom[k];
+				}
+
+				// Resize vector to include only first half
+				geom.resize(i);
+
+				// Clean each half individually
+				coalesce_polygon(geom, scale_up);
+				coalesce_polygon(geom2, scale_up);
+
+				// Copy second half back with first
+				size_t brk = geom.size();
+				geom.resize(brk + geom2.size());
+				for (size_t k = 0; k < geom2.size(); k++) {
+					geom[brk + k] = geom2[k];
+				}
+				geom2.clear();
+
+				// Clean the combined geometry
+				geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
+				return;
+			}
+
+			i = j - 1;
+		}
+	}
+
+	// Can't find a breakpoint; take what we can get.
+	geom = clean_or_clip_poly(geom, 0, 0, false, scale_up);
 }

@@ -1,0 +1,3 @@
+{"type":"Feature","properties":{"what":"no id"},"geometry":{"type":"Point","coordinates":[0,0]}}
+{"type":"Feature","id":12345,"properties":{"what":"will survive"},"geometry":{"type":"Point","coordinates":[0,0]}}
+{"type":"Feature","id":12346,"properties":{"what":"will win over the duplicate"},"geometry":{"type":"Point","coordinates":[0,0]}}
