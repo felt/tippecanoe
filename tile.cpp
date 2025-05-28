@@ -541,7 +541,6 @@ struct simplification_worker_arg {
 	std::vector<std::shared_ptr<serial_feature>> *features = NULL;
 	int task = 0;
 	int tasks = 0;
-	bool trying_to_stop_early = false;
 
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
@@ -676,9 +675,7 @@ static void *simplification_worker(void *v) {
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
 		double area = 0;
-		if (!a->trying_to_stop_early) {
-			area = simplify_feature(&*((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
-		}
+		area = simplify_feature(&*((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
 
 		signed char t = (*features)[i]->t;
 		int z = (*features)[i]->z;
@@ -693,20 +690,18 @@ static void *simplification_worker(void *v) {
 			{
 				drawvec before = geom;
 
-				if (!a->trying_to_stop_early) {
-					// we can try scaling up because this is now tile scale
-					coalesce_polygon(geom, true);
-					if (additional[A_DEBUG_POLYGON]) {
-						check_polygon(geom);
-					}
+				// we can try scaling up because this is now tile scale
+				coalesce_polygon(geom, true);
+				if (additional[A_DEBUG_POLYGON]) {
+					check_polygon(geom);
+				}
 
-					if (geom.size() < 3) {
-						if (area > 0) {
-							// area is in world coordinates, calculated before scaling down
-							geom = revive_polygon(before, area, z, out_detail);
-						} else {
-							geom.clear();
-						}
+				if (geom.size() < 3) {
+					if (area > 0) {
+						// area is in world coordinates, calculated before scaling down
+						geom = revive_polygon(before, area, z, out_detail);
+					} else {
+						geom.clear();
 					}
 				}
 			}
@@ -2185,6 +2180,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					sf.clustered = 0;
 					sf.tile_stringpool = tile_stringpool;
 
+					if (trying_to_stop_early && line_detail == first_detail) {
+						// only remove collinearities;
+						// leave all other vertices for extreme overzooming
+						sf.simplification = 0;
+					}
+
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						sf.extra_detail = extra_detail;
 						// maximum allowed coordinate delta in geometries is 2^31 - 1
@@ -2381,8 +2382,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				tasks = 1;
 			}
 
-            printf("doing %d/%d/%d, detail %d, thresh %lld\n", z, tx, ty, line_detail, mingap);
-
 			{
 				pthread_t pthreads[tasks];
 				std::vector<simplification_worker_arg> args;
@@ -2395,7 +2394,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					args[i].shared_nodes_map = shared_nodes_map;
 					args[i].nodepos = nodepos;
 					args[i].shared_nodes_bloom = &shared_nodes_bloom;
-					args[i].trying_to_stop_early = trying_to_stop_early && line_detail == first_detail;
 
 					if (tasks > 1) {
 						if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
@@ -2783,7 +2781,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (trying_to_stop_early && line_detail == first_detail) {
 					// didn't work, try a lower detail
-					detail_reduced++;
 					continue;
 				}
 
