@@ -2381,6 +2381,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				tasks = 1;
 			}
 
+            printf("doing %d/%d/%d, detail %d, thresh %lld\n", z, tx, ty, line_detail, mingap);
+
 			{
 				pthread_t pthreads[tasks];
 				std::vector<simplification_worker_arg> args;
@@ -2393,7 +2395,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					args[i].shared_nodes_map = shared_nodes_map;
 					args[i].nodepos = nodepos;
 					args[i].shared_nodes_bloom = &shared_nodes_bloom;
-					args[i].trying_to_stop_early = trying_to_stop_early;
+					args[i].trying_to_stop_early = trying_to_stop_early && line_detail == first_detail;
 
 					if (tasks > 1) {
 						if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
