@@ -1638,6 +1638,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		exit(EXIT_IMPOSSIBLE);
 	}
 
+	// z seems to be used to find zoom level?
 	int nextzoom = z + 1;
 	if (nextzoom < minzoom) {
 		if (z + max_zoom_increment > minzoom) {
