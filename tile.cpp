@@ -1638,7 +1638,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	// z seems to be used to find zoom level?
+	// DEREK: z seems to be used to find zoom level?
 	int nextzoom = z + 1;
 	if (nextzoom < minzoom) {
 		if (z + max_zoom_increment > minzoom) {
@@ -1891,7 +1891,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			unsigned long long drop_sequence = 0;
 			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
-				drop_sequence = calculate_drop_sequence(sf);
+				drop_sequence = calculate_drop_sequence(sf); // DEREK: will need to edit calculate_drop_sequence I think to keep high priority features
 			}
 
 			if (sf.feature_minzoom > z + 1) {
@@ -1914,6 +1914,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// primary features)
 					// If so, we have to drop this one, even if it would potentially qualify
 					// as a secondary feature to be exposed by filtering
+
+					// DEREK: Can't let it drop high priority features 
 					if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) {
 						sf.dropped = FEATURE_DROPPED;
 					}
@@ -1932,7 +1934,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
 			// cluster down with it by setting drop_rest).
-			if (sf.dropped == FEATURE_KEPT) {
+			if (sf.dropped == FEATURE_KEPT) { // DEREK: Don't drop high priority
 				if (gamma > 0) {
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -1949,6 +1951,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// distances between points that are subject to dot-dropping,
 					// rather than wanting each feature to have a consistent
 					// idea of density between zooms.
+
+					// DEREK: Again, make sure not to drop high priority
 					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						features[which_serial_feature]->clustered++;
 
@@ -1970,7 +1974,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						can_stop_early = false;
 						continue;
 					}
-				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {
+				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {  // DEREK
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap) {
 						can_stop_early = false;
@@ -1978,7 +1982,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							continue;
 						}
 					}
-				} else if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED])) {
+				} else if (z <= cluster_maxzoom && (additional[A_CLUSTER_DENSEST_AS_NEEDED])) { // DEREK
 					// this is now just like coalesce-densest, except that instead of unioning the geometry,
 					// it averages the point locations
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
@@ -2001,7 +2005,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						drop_rest = true;
 						continue;
 					}
-				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) {
+				} else if (additional[A_COALESCE_DENSEST_AS_NEEDED]) { // DEREK
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
 					if (sf.gap < mingap && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						if (sf.t == VT_POINT || !line_is_too_small(sf.geometry, z, line_detail)) {
@@ -2015,7 +2019,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						can_stop_early = false;
 						continue;
 					}
-				} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) {
+				} else if (additional[A_DROP_SMALLEST_AS_NEEDED]) { // DEREK
 					add_sample_to(extents, sf.extent, extents_increment, seq);
 					// search here is for LLONG_MAX, not minextent, because we are dropping features, not coalescing them,
 					// so we shouldn't expect to find anything small that we can related this feature to.
