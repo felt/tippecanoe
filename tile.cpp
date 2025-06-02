@@ -1648,7 +1648,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
 	bool can_stop_early = true;
-	if (additional[A_VARIABLE_DEPTH_PYRAMID]) {
+	if (additional[A_VARIABLE_DEPTH_PYRAMID] && mingap == 0 && minextent == 0 && mindrop_sequence == 0) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 
@@ -3011,7 +3011,21 @@ exit(EXIT_IMPOSSIBLE);
 			long long len;
 
 			struct zxy parent(z - 1, x / 2, y / 2);
+			bool skip = false;
 			if (arg->skip_children->count(parent) > 0) {
+				if (arg->mingap != 0 || arg->minextent != 0 || arg->mindrop_sequence != 0) {
+					// revive if we are trying to drop features and we still have the data
+					skip = false;
+				} else {
+					// skip if the parent tile finished at the last zoom level and we aren't trying to drop
+					skip = true;
+				}
+			} else {
+				// do the tile if the parent didn't finish early
+				skip = false;
+			}
+
+			if (skip) {
 				skip_tile(&dc, &geompos, arg->compressed);
 				len = 1;
 			} else {
