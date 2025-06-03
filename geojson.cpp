@@ -40,7 +40,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 
-int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string const &layername) {
+int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string const &layername, json_object *priority) {
 	json_object *geometry_type = json_hash_get(geometry, "type");
 	if (geometry_type == NULL) {
 		static int warned = 0;
@@ -177,6 +177,19 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		}
 	}
 
+	int priority_value = 0;
+	// DEREK: Getting the actual number value out of priority
+	if (priority != NULL) {
+		if (priority->type == JSON_NUMBER) {
+			if (priority->value.number.number >= 0) {
+				priority_value = priority->value.number.number;
+				// char *err = NULL;
+				// std::string priority_number = milo::dtoa_milo(priority->value.number.number);
+				// priority_value = strtoull(priority_number.c_str(), &err, 10);
+			}
+		}
+	}
+
 	size_t nprop = 0;
 	if (properties != NULL && properties->type == JSON_HASH) {
 		nprop = properties->value.object.length;
@@ -207,6 +220,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.t = mb_geometry[t];
 	sf.has_id = has_id;
 	sf.id = id_value;
+	sf.priority = priority_value;
 	sf.tippecanoe_minzoom = tippecanoe_minzoom;
 	sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
 	sf.geometry = dv;
@@ -240,17 +254,17 @@ struct json_serialize_action : json_feature_action {
 	serialization_state *sst;
 	int layer;
 	std::string layername;
-
-	int add_feature(json_object *geometry, bool geometrycollection, json_object *properties, json_object *id, json_object *tippecanoe, json_object *feature) {
+// DEREK: Edit parameters
+	int add_feature(json_object *geometry, bool geometrycollection, json_object *properties, json_object *id, json_object *tippecanoe, json_object *feature, json_object *priority) {
 		sst->line = geometry->parser->line;
 		if (geometrycollection) {
 			int ret = 1;
 			for (size_t g = 0; g < geometry->value.array.length; g++) {
-				ret &= serialize_geojson_feature(sst, geometry->value.array.array[g], properties, id, layer, tippecanoe, feature, layername);
+				ret &= serialize_geojson_feature(sst, geometry->value.array.array[g], properties, id, layer, tippecanoe, feature, layername, priority);
 			}
 			return ret;
 		} else {
-			return serialize_geojson_feature(sst, geometry, properties, id, layer, tippecanoe, feature, layername);
+			return serialize_geojson_feature(sst, geometry, properties, id, layer, tippecanoe, feature, layername, priority);
 		}
 	}
 

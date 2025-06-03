@@ -120,7 +120,7 @@ void parse_json(json_feature_action *jfa, json_pull *jp) {
 				}
 				found_geometries++;
 
-				jfa->add_feature(j, false, NULL, NULL, NULL, j);
+				jfa->add_feature(j, false, NULL, NULL, NULL, j, NULL);
 				json_free(j);
 				continue;
 			}
@@ -177,11 +177,15 @@ void parse_json(json_feature_action *jfa, json_pull *jp) {
 		json_object *tippecanoe = json_hash_get(j, "tippecanoe");
 		json_object *id = json_hash_get(j, "id");
 
+		// DEREK: add this to get the priority from the json
+		json_object *priority = json_hash_get(j, "priority");
+
 		json_object *geometries = json_hash_get(geometry, "geometries");
 		if (geometries != NULL && geometries->type == JSON_ARRAY) {
-			jfa->add_feature(geometries, true, properties, id, tippecanoe, j);
+			// DEREK: modify calls to include the priority
+			jfa->add_feature(geometries, true, properties, id, tippecanoe, j, priority);
 		} else {
-			jfa->add_feature(geometry, false, properties, id, tippecanoe, j);
+			jfa->add_feature(geometry, false, properties, id, tippecanoe, j, priority);
 		}
 
 		json_free(j);
