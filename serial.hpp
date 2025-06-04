@@ -114,7 +114,7 @@ struct serial_feature {
 	unsigned long long id = 0;
 
 	// DEREK: Adding a priority field in here. Higher number = higher priority.
-	unsigned int priority;
+	unsigned int priority = 0;
 
 	int tippecanoe_minzoom = -1;
 	int tippecanoe_maxzoom = -1;

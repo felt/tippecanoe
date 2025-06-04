@@ -1862,7 +1862,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			// DEREK: testing if passing priority works
 			if (sf.priority != 0) {
-				printf("%d", sf.priority);
+				printf("\n%d\n", sf.priority);
 			}
 
 
