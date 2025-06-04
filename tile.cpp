@@ -1839,6 +1839,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				break;
 			}
 
+			// DEREK: testing if passing priority works
+			if (sf.priority != 0) {
+				printf("%d", sf.priority);
+			}
+
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
 				layers.emplace(layername, layer_features());
@@ -1859,6 +1864,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				extent_previndex = sf.index;
 			}
+
 
 			// Make label anchors early in tiling, even though it requires simplifying early,
 			// so that if there is no label anchor for this feature in this tile,

@@ -177,8 +177,8 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		}
 	}
 
-	int priority_value = 0;
 	// DEREK: Getting the actual number value out of priority
+	int priority_value = 0;
 	if (priority != NULL) {
 		if (priority->type == JSON_NUMBER) {
 			if (priority->value.number.number >= 0) {
@@ -211,6 +211,17 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		}
 	}
 
+	// DEREK: Just here fore testing purposes
+	serial_val sv;
+	full_keys.emplace_back(key_pool.pool("priority"));
+	if (priority == NULL) {
+		sv = serial_val(0);
+		values.push_back(std::move(sv));
+	} else {
+		sv = stringify_value(priority, sst->fname, sst->line, feature);
+		values.push_back(std::move(sv));
+	}
+
 	drawvec dv;
 	parse_coordinates(t, coordinates, dv, VT_MOVETO, sst->fname, sst->line, feature);
 
@@ -220,7 +231,8 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.t = mb_geometry[t];
 	sf.has_id = has_id;
 	sf.id = id_value;
-	sf.priority = priority_value;
+	sf.priority = priority_value; // DEREK: Set priority in the serial_feature
+	//printf("%d", sf.priority);
 	sf.tippecanoe_minzoom = tippecanoe_minzoom;
 	sf.tippecanoe_maxzoom = tippecanoe_maxzoom;
 	sf.geometry = dv;

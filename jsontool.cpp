@@ -376,12 +376,11 @@ void join_csv(json_object *j) {
 }
 
 struct json_join_action : json_feature_action {
-	int add_feature(json_object *geometry, bool, json_object *, json_object *, json_object *, json_object *feature) {
+	int add_feature(json_object *geometry, bool, json_object *, json_object *, json_object *, json_object *feature, json_object *priority) {
 		if (feature != geometry) {  // a real feature, not a bare geometry
 			if (csvfile != NULL) {
 				join_csv(feature);
 			}
-
 			char *s = json_stringify(feature);
 			out(s, 1, json_hash_get(feature, "properties"));
 			free(s);
