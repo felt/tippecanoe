@@ -1839,11 +1839,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				break;
 			}
 
-			// DEREK: testing if passing priority works
-			if (sf.priority != 0) {
-				printf("%d", sf.priority);
-			}
-
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
 				layers.emplace(layername, layer_features());
@@ -1863,6 +1858,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				extent_previndex = sf.index;
+			}
+
+			// DEREK: testing if passing priority works
+			if (sf.priority != 0) {
+				printf("%d", sf.priority);
 			}
 
 
