@@ -205,6 +205,9 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 		serialize_ulong_long(s, sf->id);
 	}
 
+	// DEREK: I think this is the correct spot to do this
+	serialize_uint(s, sf->priority);
+
 	serialize_int(s, sf->segment);
 
 	write_geometry(sf->geometry, s, wx, wy);
@@ -256,6 +259,8 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 		sf.has_id = true;
 		deserialize_ulong_long(&cp, &sf.id);
 	}
+
+	deserialize_uint(&cp, &sf.priority);
 
 	deserialize_int(&cp, &sf.segment);
 
@@ -909,6 +914,9 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	}
 	(*(sst->progress_seq))++;
 	(*(sst->layer_seq))++;
+
+	// DEREK: Testing
+	// printf("%d", sf.priority);
 
 	return 1;
 }
