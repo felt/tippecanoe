@@ -1839,6 +1839,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				break;
 			}
 
+			// DEREK: Make sure anything with non-zero priority is set to not dropped
+			if (sf.priority != 0) {
+				sf.dropped = FEATURE_KEPT;
+				drop_rest = false;
+			}
+
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
 				layers.emplace(layername, layer_features());
@@ -1861,9 +1867,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			// DEREK: testing if passing priority works
-			if (sf.priority != 0) {
-				printf("\n%d\n", sf.priority);
-			}
+			// if (sf.priority != 0) {
+			// 	printf("%d", sf.priority);
+			// }
 
 
 			// Make label anchors early in tiling, even though it requires simplifying early,
@@ -1896,7 +1902,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			unsigned long long drop_sequence = 0;
-			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) {
+			if (additional[A_COALESCE_FRACTION_AS_NEEDED] || additional[A_DROP_FRACTION_AS_NEEDED] || prevent[P_DYNAMIC_DROP]) { // DEREK: simply do not calculate drop sequence if this is high priority
 				drop_sequence = calculate_drop_sequence(sf); // DEREK: will need to edit calculate_drop_sequence I think to keep high priority features
 			}
 
@@ -1913,7 +1919,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			} else {
 				can_stop_early = false;
 
-				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY) {
+				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY  && sf.priority == 0 ) { // DEREK: prevent it from dropping this feature if priority is not 0
 					// Does the current multiplier cluster already have too many features?
 					// (Because we are dropping dynamically, and we have already filled the
 					// cluster with features that were dynamically dropped from being
@@ -1928,7 +1934,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			if (sf.dropped == FEATURE_DROPPED || drop_rest) {
+			if ((sf.dropped == FEATURE_DROPPED || drop_rest) && sf.priority == 0 ) { // DEREK: Do not let it drop if priority is not zero
 				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 					preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 					strategy.dropped_by_rate++;
@@ -1940,8 +1946,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
 			// cluster down with it by setting drop_rest).
-			if (sf.dropped == FEATURE_KEPT) { // DEREK: Don't drop high priority
-				if (gamma > 0) {
+			if (sf.dropped == FEATURE_KEPT && sf.priority == 0) {  // DEREK: do not consider dropping if priority is not 0
+				if (gamma > 0) { // DEREK 
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						strategy.dropped_by_gamma++;
