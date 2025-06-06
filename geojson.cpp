@@ -211,7 +211,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		}
 	}
 
-	// DEREK: Just here fore testing purposes
+	// DEREK: Just here for testing purposes
 	serial_val sv;
 	full_keys.emplace_back(key_pool.pool("priority"));
 	if (priority == NULL) {

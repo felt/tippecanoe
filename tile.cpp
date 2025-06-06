@@ -1840,10 +1840,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			// DEREK: Make sure anything with non-zero priority is set to not dropped
-			if (sf.priority != 0) {
-				sf.dropped = FEATURE_KEPT;
-				drop_rest = false;
-			}
+			// if (sf.priority != 0) {
+			// 	sf.dropped = FEATURE_KEPT;
+			// 	drop_rest = false;
+			// }
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
@@ -1867,9 +1867,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			// DEREK: testing if passing priority works
-			// if (sf.priority != 0) {
-			// 	printf("%d", sf.priority);
-			// }
+			if (sf.priority != 0) {
+				printf("%d", sf.priority);
+			}
 
 
 			// Make label anchors early in tiling, even though it requires simplifying early,
@@ -2907,7 +2907,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (outdb != NULL) {
-					mbtiles_write_tile(outdb, z, tx, ty, compressed.data(), compressed.size());
+					mbtiles_write_tile(outdb, z, tx, ty, compressed.data(), compressed.size()); // DEREK: This is where it's actually writing the output? Try getting the data and printing it before it is compressed
+																								// to a human readable file so we can see if it is working
 				} else if (outdir != NULL) {
 					dir_write_tile(outdir, z, tx, ty, compressed);
 				}
