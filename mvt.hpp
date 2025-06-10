@@ -58,6 +58,8 @@ struct mvt_feature {
 	int dropped = 0;
 	size_t seq = 0;	 // used for ordering in overzoom
 
+	unsigned int priority = 0; // DEREK: add priority field
+
 	mvt_feature() {
 		has_id = false;
 		id = 0;

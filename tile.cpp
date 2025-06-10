@@ -1867,9 +1867,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			// DEREK: testing if passing priority works
-			if (sf.priority != 0) {
-				printf("%d", sf.priority);
-			}
+			// if (sf.priority != 0) {
+			// 	printf("%d", sf.priority);
+			// }
 
 
 			// Make label anchors early in tiling, even though it requires simplifying early,
@@ -2572,6 +2572,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				feature.id = layer_features[x]->id;
 				feature.has_id = layer_features[x]->has_id;
+				feature.priority = layer_features[x]->priority;
 
 				decode_meta(*layer_features[x], layer, feature);
 				for (size_t a = 0; a < layer_features[x]->full_keys.size(); a++) {
@@ -2609,6 +2610,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (layer.features.size() > 0) {
+				for (int i = 0; i < layer.features.size(); i++) {
+					if (layer.features[i].priority) {
+						printf("%llu\n", layer.features[i].id);
+					}
+				}
 				tile.layers.push_back(std::move(layer));
 			}
 		}

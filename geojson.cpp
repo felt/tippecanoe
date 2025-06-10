@@ -42,6 +42,7 @@
 
 int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string const &layername, json_object *priority) {
 	json_object *geometry_type = json_hash_get(geometry, "type");
+	static unsigned int count = 1;
 	if (geometry_type == NULL) {
 		static int warned = 0;
 		if (!warned) {
@@ -204,6 +205,8 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
+			// if (strcmp(properties->value.object.keys[i]->value.string.string, "id") == 0) {
+			// }
 			serial_val sv = stringify_value(properties->value.object.values[i], sst->fname, sst->line, feature);
 
 			full_keys.emplace_back(key_pool.pool(properties->value.object.keys[i]->value.string.string));
@@ -229,8 +232,15 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.layer = layer;
 	sf.segment = sst->segment;
 	sf.t = mb_geometry[t];
-	sf.has_id = has_id;
-	sf.id = id_value;
+	// DEREK: To get actual usable ids without modifying dblp
+	if (id == NULL) {
+		sf.has_id = true;
+		sf.id = count++;
+	}
+	else {
+		sf.has_id = has_id;
+		sf.id = id_value;
+	}
 	sf.priority = priority_value; // DEREK: Set priority in the serial_feature
 	//printf("%d", sf.priority);
 	sf.tippecanoe_minzoom = tippecanoe_minzoom;
