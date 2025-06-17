@@ -826,6 +826,8 @@ static unsigned long long choose_mindrop_sequence(std::vector<unsigned long long
 }
 
 static unsigned long long calculate_drop_sequence(serial_feature const &sf) {
+	//DEREK: Testing
+	printf("got here\n");
 	unsigned long long zoom = std::min(std::max((unsigned long long) sf.feature_minzoom, 0ULL), 31ULL);
 	unsigned long long out = zoom << (64 - 5);	      // top bits are the zoom level: top-priority features are those that appear in the low zooms
 	out |= bit_reverse(sf.index) & ~(31ULL << (64 - 5));  // remaining bits are from the inverted indes, which should incrementally fill in spatially
@@ -1619,6 +1621,11 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 }
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+	// DEREK: Testing
+	// if (mindrop_sequence != 0) {
+	// 	printf("mindrop sequence: %llu\n", mindrop_sequence);
+	// }
+	
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1831,6 +1838,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (prefilter == NULL) {
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
+				if (sf.dropped == FEATURE_DROPPED || sf.dropped == FEATURE_ADDED_FOR_MULTIPLIER_DENSITY) {
+						printf("%d\n", sf.dropped);
+					}
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
@@ -1868,7 +1878,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			// DEREK: testing if passing priority works
 			// if (sf.priority != 0) {
-			// 	printf("%d", sf.priority);
+			// 	printf("%d\n", sf.priority);
 			// }
 
 
@@ -1919,7 +1929,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			} else {
 				can_stop_early = false;
 
-				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY  && sf.priority == 0 ) { // DEREK: prevent it from dropping this feature if priority is not 0
+				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY && sf.priority == 0 ) { // DEREK: prevent it from dropping this feature if priority is not 0
 					// Does the current multiplier cluster already have too many features?
 					// (Because we are dropping dynamically, and we have already filled the
 					// cluster with features that were dynamically dropped from being
@@ -1934,8 +1944,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			if ((sf.dropped == FEATURE_DROPPED || drop_rest) && sf.priority == 0 ) { // DEREK: Do not let it drop if priority is not zero
-				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
+			if ((sf.dropped == FEATURE_DROPPED || drop_rest) && sf.priority == 0 ) { // DEREK: True at least sometimes. Do not let it drop if priority is not zero
+				if (find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // True at least some of the time
 					preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 					strategy.dropped_by_rate++;
 					can_stop_early = false;
@@ -1965,7 +1975,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// idea of density between zooms.
 
 					// DEREK: Again, make sure not to drop high priority
-					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
+					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
 						features[which_serial_feature]->clustered++;
 
 						if (!additional[A_KEEP_POINT_CLUSTER_POSITION] &&
@@ -2610,9 +2620,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			if (layer.features.size() > 0) {
+				// DEREK: check that the features with priority > 0 are in a tile at each zoom level
 				for (int i = 0; i < layer.features.size(); i++) {
 					if (layer.features[i].priority) {
-						printf("%llu\n", layer.features[i].id);
+						printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
 					}
 				}
 				tile.layers.push_back(std::move(layer));
