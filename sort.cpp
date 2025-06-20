@@ -7,6 +7,8 @@
 #define MAX_MEMORY (1024 * 1024 * 1024)	 // 1 GB
 
 void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem) {
+	// DEREK: Testing
+	// printf("fqsort\n");
 	std::string pivot;
 	FILE *fp1, *fp2;
 

@@ -1837,10 +1837,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
+				// DEREK: next_feature often returns with feature set to dropped. Try to see why
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
-				if (sf.dropped == FEATURE_DROPPED || sf.dropped == FEATURE_ADDED_FOR_MULTIPLIER_DENSITY) {
-						printf("%d\n", sf.dropped);
-					}
+				// if (sf.dropped != FEATURE_KEPT) {
+				// 	printf("%d       \n", sf.dropped);
+				// }
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
@@ -1929,7 +1930,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			} else {
 				can_stop_early = false;
 
-				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY && sf.priority == 0 ) { // DEREK: prevent it from dropping this feature if priority is not 0
+				if (sf.dropped != FEATURE_DROPPED && sf.dropped != FEATURE_ADDED_FOR_MULTIPLIER_DENSITY) { // DEREK: prevent it from dropping this feature if priority is not 0. Never true for dblp
 					// Does the current multiplier cluster already have too many features?
 					// (Because we are dropping dynamically, and we have already filled the
 					// cluster with features that were dynamically dropped from being
@@ -1938,8 +1939,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// as a secondary feature to be exposed by filtering
 
 					// DEREK: Can't let it drop high priority features 
-					if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) {
+					if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) { // DEREK: Never true with dblp app
 						sf.dropped = FEATURE_DROPPED;
+						//DEREK: Testing
+						printf("got here\n");
 					}
 				}
 			}
@@ -1952,6 +1955,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				}
 			}
+
+			// DEREK: Testing
+			// if (sf.dropped != FEATURE_KEPT) {
+			// 		printf("%d/%llu                                \n", sf.dropped, sf.id);
+			// 	}
 
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
@@ -2622,9 +2630,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (layer.features.size() > 0) {
 				// DEREK: check that the features with priority > 0 are in a tile at each zoom level
 				for (int i = 0; i < layer.features.size(); i++) {
-					if (layer.features[i].priority) {
-						printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
-					}
+					// if (layer.features[i].priority) {
+					// 	printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
+					// }
 				}
 				tile.layers.push_back(std::move(layer));
 			}
