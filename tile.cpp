@@ -826,8 +826,6 @@ static unsigned long long choose_mindrop_sequence(std::vector<unsigned long long
 }
 
 static unsigned long long calculate_drop_sequence(serial_feature const &sf) {
-	//DEREK: Testing
-	printf("got here\n");
 	unsigned long long zoom = std::min(std::max((unsigned long long) sf.feature_minzoom, 0ULL), 31ULL);
 	unsigned long long out = zoom << (64 - 5);	      // top bits are the zoom level: top-priority features are those that appear in the low zooms
 	out |= bit_reverse(sf.index) & ~(31ULL << (64 - 5));  // remaining bits are from the inverted indes, which should incrementally fill in spatially
@@ -1235,7 +1233,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			// DEREK: If we have some features with priorities, do not need to keep first one all the time
 			if (count == multiplier_state->count.end()) {
 				// if (z == 0 && sf.t == VT_POINT) {
-				// 	printf("got here  %llu    \n", sf.id);
+				// 	printf("  %llu    \n", sf.id);
 				// }
 				
 				multiplier_state->count.emplace(layername, 0);
@@ -1246,9 +1244,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			}
 
 			if (z >= feature_minzoom || sf.dropped == FEATURE_KEPT) {
-				if (sf.t == VT_POINT) {
-					printf("got here    %d     %llu,   %lf\n", sf.dropped, sf.id, feature_minzoom); 
-				}
+				// if (sf.t == VT_POINT) {
+				// 	printf("got here    %d     %llu,   %lf\n", sf.dropped, sf.id, feature_minzoom); 
+				// }
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
 			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
@@ -1961,8 +1959,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// DEREK: Can't let it drop high priority features 
 					if (layer.multiplier_cluster_size >= (size_t) retain_points_multiplier) { // DEREK: Never true with dblp app
 						sf.dropped = FEATURE_DROPPED;
-						//DEREK: Testing
-						printf("got here\n");
 					}
 				}
 			}
