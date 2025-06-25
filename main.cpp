@@ -99,6 +99,8 @@ int retain_points_multiplier = 1;
 std::vector<std::string> unidecode_data;
 size_t maximum_string_attribute_length = 0;
 std::string accumulate_numeric;
+// DEREK: Add a variable to track if there are nodes with priority
+bool has_priorities = false;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -1450,7 +1452,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		size_t layer = a->second.id;
 
 		// geobuf
-		if (sources[source].format == "fgb" || (sources[source].file.size() > 4 && sources[source].file.substr(sources[source].file.size() - 4) == std::string(".fgb"))) {
+		if (sources[source].format == "fgb" || (sources[source].file.size() > 4 && sources[source].file.substr(sources[source].file.size() - 4) == std::string(".fgb"))) { // DEREK: Never true for this testing
 			struct stat st;
 			if (fstat(fd, &st) != 0) {
 				perror("fstat");
@@ -1523,7 +1525,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			continue;
 		}
 
-		if (sources[source].format == "geobuf" || (sources[source].file.size() > 7 && sources[source].file.substr(sources[source].file.size() - 7) == std::string(".geobuf"))) {
+		if (sources[source].format == "geobuf" || (sources[source].file.size() > 7 && sources[source].file.substr(sources[source].file.size() - 7) == std::string(".geobuf"))) { // DEREK: Never true for testing
 			struct stat st;
 			if (fstat(fd, &st) != 0) {
 				perror("fstat");
@@ -1596,7 +1598,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			continue;
 		}
 
-		if (sources[source].format == "csv" || (sources[source].file.size() > 4 && sources[source].file.substr(sources[source].file.size() - 4) == std::string(".csv"))) {
+		if (sources[source].format == "csv" || (sources[source].file.size() > 4 && sources[source].file.substr(sources[source].file.size() - 4) == std::string(".csv"))) { // DEREK: never true for testing
 			std::atomic<long long> layer_seq[CPUS];
 			double dist_sums[CPUS];
 			size_t dist_counts[CPUS];
@@ -2658,6 +2660,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	}
 
 	if (fix_dropping || drop_denser > 0) {
+		// DEREK: Edit how mizoom is calculated to use the priorities if possible
 		// Fix up the minzooms for features, now that we really know the base zoom
 		// and drop rate.
 

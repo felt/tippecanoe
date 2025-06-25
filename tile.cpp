@@ -1231,13 +1231,24 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
+
+			// DEREK: If we have some features with priorities, do not need to keep first one all the time
 			if (count == multiplier_state->count.end()) {
+				// if (z == 0 && sf.t == VT_POINT) {
+				// 	printf("got here  %llu    \n", sf.id);
+				// }
+				
 				multiplier_state->count.emplace(layername, 0);
 				count = multiplier_state->count.find(layername);
-				sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
+				if (!has_priorities) {
+					sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
+				}
 			}
 
 			if (z >= feature_minzoom || sf.dropped == FEATURE_KEPT) {
+				if (sf.t == VT_POINT) {
+					printf("got here    %d     %llu,   %lf\n", sf.dropped, sf.id, feature_minzoom); 
+				}
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
 			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
@@ -1274,7 +1285,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				sf.full_values.erase(sf.full_values.begin() + i);
 			}
 		}
-
+		if (sf.priority != 0) {
+			sf.dropped = FEATURE_KEPT;
+		}
+		
 		return sf;
 	}
 }
@@ -1622,9 +1636,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	// DEREK: Testing
-	// if (mindrop_sequence != 0) {
-	// 	printf("mindrop sequence: %llu\n", mindrop_sequence);
-	// }
+	// printf("%d / %u / %u                 \n", z, tx, ty);
 	
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1839,9 +1851,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (prefilter == NULL) {
 				// DEREK: next_feature often returns with feature set to dropped. Try to see why
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
-				// if (sf.dropped != FEATURE_KEPT) {
-				// 	printf("%d       \n", sf.dropped);
-				// }
+
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
@@ -1881,6 +1891,16 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// if (sf.priority != 0) {
 			// 	printf("%d\n", sf.priority);
 			// }
+
+
+			if (z == 0 && sf.dropped == FEATURE_KEPT && sf.t == VT_POINT) {
+				// DEREK: Testing
+				printf("%d                     \n", sf.id);
+			}
+
+			if (sf.id == 1 && z == 0) {
+				printf("testing         dropped:%d              type:%d\n", sf.dropped, sf.t);
+			}
 
 
 			// Make label anchors early in tiling, even though it requires simplifying early,

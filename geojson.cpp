@@ -184,6 +184,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		if (priority->type == JSON_NUMBER) {
 			if (priority->value.number.number >= 0) {
 				priority_value = priority->value.number.number;
+				has_priorities = true;
 				// char *err = NULL;
 				// std::string priority_number = milo::dtoa_milo(priority->value.number.number);
 				// priority_value = strtoull(priority_number.c_str(), &err, 10);
