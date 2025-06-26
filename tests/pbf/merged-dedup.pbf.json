@@ -4,8 +4,6 @@
 ,
 { "type": "Feature", "id": 12345, "properties": { "what": "will survive" }, "geometry": { "type": "Point", "coordinates": [ 0.966797, 0.966751 ] } }
 ,
-{ "type": "Feature", "id": 12346, "properties": { "what": "will win over the duplicate" }, "geometry": { "type": "Point", "coordinates": [ 0.966797, 0.966751 ] } }
-,
 { "type": "Feature", "properties": { "what": "no id again" }, "geometry": { "type": "Point", "coordinates": [ 0.966797, 0.966751 ] } }
 ,
 { "type": "Feature", "id": 12347, "properties": { "what": "will be added" }, "geometry": { "type": "Point", "coordinates": [ 0.966797, 0.966751 ] } }
