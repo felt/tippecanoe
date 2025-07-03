@@ -745,7 +745,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge
 	int splitbits = log(splits) / log(2);
 	splits = 1 << splitbits;
-
+	
 	FILE *geomfiles[splits];
 	FILE *indexfiles[splits];
 	int geomfds[splits];
@@ -2660,9 +2660,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 	if (fix_dropping || drop_denser > 0) {
 		// DEREK: Edit how mizoom is calculated to use the priorities if possible
+
 		// Fix up the minzooms for features, now that we really know the base zoom
 		// and drop rate.
-
 		struct stat geomst;
 		if (fstat(geomfd, &geomst) != 0) {
 			perror("stat sorted geom\n");

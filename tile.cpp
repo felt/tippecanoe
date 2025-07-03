@@ -1100,7 +1100,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		// the fractional part should actually be scaled in an exponential
 		// curve instead of linear, but I can't figure out how to make it
 		// come out right, and this should be close enough.
-		double feature_minzoom = sf.feature_minzoom - (bit_reverse(sf.index >> 2) / pow(2, 64));
+		double feature_minzoom = sf.feature_minzoom; //- (bit_reverse(sf.index >> 2) / pow(2, 64));
 
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;
@@ -1232,21 +1232,15 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 			// DEREK: If we have some features with priorities, do not need to keep first one all the time
 			if (count == multiplier_state->count.end()) {
-				// if (z == 0 && sf.t == VT_POINT) {
-				// 	printf("  %llu    \n", sf.id);
-				// }
-				
 				multiplier_state->count.emplace(layername, 0);
 				count = multiplier_state->count.find(layername);
-				if (!has_priorities) {
+				if (!has_priorities) { // Only need to keep this if we do not have any with priorities (did not work)
 					sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
 				}
 			}
 
-			if (z >= feature_minzoom || sf.dropped == FEATURE_KEPT) {
-				// if (sf.t == VT_POINT) {
-				// 	printf("got here    %d     %llu,   %lf\n", sf.dropped, sf.id, feature_minzoom); 
-				// }
+			if (z > feature_minzoom || sf.dropped == FEATURE_KEPT) {
+				
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
 			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
@@ -1286,7 +1280,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		if (sf.priority != 0) {
 			sf.dropped = FEATURE_KEPT;
 		}
-		
+		// DEREK
+		// if (sf.id == 1945) {
+		// 			printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
+		// 		}
 		return sf;
 	}
 }
@@ -1858,11 +1855,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				break;
 			}
 
-			// DEREK: Make sure anything with non-zero priority is set to not dropped
-			// if (sf.priority != 0) {
-			// 	sf.dropped = FEATURE_KEPT;
-			// 	drop_rest = false;
-			// }
+
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
@@ -1891,14 +1884,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// }
 
 
-			if (z == 0 && sf.dropped == FEATURE_KEPT && sf.t == VT_POINT) {
-				// DEREK: Testing
-				printf("%d                     \n", sf.id);
-			}
+			// if (z == 0 && sf.dropped == FEATURE_KEPT && sf.t == VT_POINT) {
+			// 	// DEREK: Testing
+			// 	printf("%d                     \n", sf.id);
+			// }
 
-			if (sf.id == 1 && z == 0) {
-				printf("testing         dropped:%d              type:%d\n", sf.dropped, sf.t);
-			}
+			// if (sf.id == 1 && z == 0) {
+			// 	printf("testing         dropped:%d              type:%d\n", sf.dropped, sf.t);
+			// }
 
 
 			// Make label anchors early in tiling, even though it requires simplifying early,
@@ -1972,10 +1965,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			// DEREK: Testing
-			// if (sf.dropped != FEATURE_KEPT) {
-			// 		printf("%d/%llu                                \n", sf.dropped, sf.id);
-			// 	}
+
 
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
@@ -2194,12 +2184,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				} else {
 					kept++;
 
-					if (features.size() == 0) {
+					if (features.size() == 0 && !has_priorities) {
 						// the first feature of the the tile is always kept.
 						// it may not have been marked kept in next_feature
 						// if the previous feature was nominally the first
 						// but has already been lost because its geometry was
 						// clipped away
+						// DEREK
+						// printf("nooooooo    \n");
 						sf.dropped = FEATURE_KEPT;
 					}
 
@@ -2269,6 +2261,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						unsimplified_geometry_size = 0;
 					}
 				}
+				// if (sf.id == 1945) {
+				// 	printf("%d    /    %d\n", z, sf.dropped);
+				// }
 			}
 
 			merge_previndex = sfindex;
@@ -2645,10 +2640,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (layer.features.size() > 0) {
 				// DEREK: check that the features with priority > 0 are in a tile at each zoom level
+				if (z == 0) {
 				for (int i = 0; i < layer.features.size(); i++) {
-					// if (layer.features[i].priority) {
-					// 	printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
-					// }
+					if (layer.features[i].type == VT_POINT) {
+						printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
+					}
+				}
 				}
 				tile.layers.push_back(std::move(layer));
 			}
