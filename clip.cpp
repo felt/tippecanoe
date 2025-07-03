@@ -2145,6 +2145,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					long long b = outtilesize * buffer / 256;
 					if (xmax < -b || ymax < -b || xmin > outtilesize + b || ymin > outtilesize + b) {
 						// quick exclusion by bounding box
+						if (deduplicate_by_id && feature.has_id) {
+							deduplicate_by_id_set->insert(feature.id);
+						}
 						continue;
 					}
 
@@ -2160,6 +2163,9 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (geom.size() == 0) {
 					// clipped away
+					if (deduplicate_by_id && feature.has_id) {
+						deduplicate_by_id_set->insert(feature.id);
+					}
 					continue;
 				}
 
@@ -2194,6 +2200,10 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				std::set<std::string> exclude_attributes;
 				if (filter != NULL && !evaluate(feature, layer, filter, exclude_attributes, nz, unidecode_data)) {
+					// filtered away
+					if (deduplicate_by_id && feature.has_id) {
+						deduplicate_by_id_set->insert(feature.id);
+					}
 					continue;
 				}
 
@@ -2229,6 +2239,14 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (t == VT_POLYGON) {
 					geom = close_poly(geom);
+				}
+
+				if (geom.size() == 0) {
+					// simplified away
+					if (deduplicate_by_id && feature.has_id) {
+						deduplicate_by_id_set->insert(feature.id);
+					}
+					continue;
 				}
 
 				tile_feature tf;
