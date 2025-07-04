@@ -1239,8 +1239,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				}
 			}
 
-			if (z > feature_minzoom || sf.dropped == FEATURE_KEPT) {
-				
+			if (z >= feature_minzoom || sf.dropped == FEATURE_KEPT) {
 				count->second = 0;
 				sf.dropped = FEATURE_KEPT;  // feature is kept
 			} else if (z + extra_multiplier_zooms >= feature_minzoom && count->second + 1 < retain_points_multiplier) {
@@ -2601,6 +2600,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				feature.id = layer_features[x]->id;
 				feature.has_id = layer_features[x]->has_id;
+				// DEREK: add the priority
 				feature.priority = layer_features[x]->priority;
 
 				decode_meta(*layer_features[x], layer, feature);
