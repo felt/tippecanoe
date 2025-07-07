@@ -1280,9 +1280,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			sf.dropped = FEATURE_KEPT;
 		}
 		// DEREK
-		// if (sf.id == 1945) {
-		// 			printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
-		// 		}
+		if (z == 0) {
+		printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
+		}
+		
 		return sf;
 	}
 }
@@ -1845,7 +1846,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (prefilter == NULL) {
 				// DEREK: next_feature often returns with feature set to dropped. Try to see why
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
-
+				if (sf.dropped == FEATURE_DROPPED) {
+					printf("next_feature returned %d   /  id = %llu  /z=%d\n", sf.dropped, sf.id, z);
+				}
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
