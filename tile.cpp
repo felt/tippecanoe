@@ -1100,7 +1100,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		// the fractional part should actually be scaled in an exponential
 		// curve instead of linear, but I can't figure out how to make it
 		// come out right, and this should be close enough.
-		double feature_minzoom = sf.feature_minzoom; //- (bit_reverse(sf.index >> 2) / pow(2, 64));
+		double feature_minzoom = sf.feature_minzoom - (bit_reverse(sf.index >> 2) / pow(2, 64));
 
 		size_t passes = pass + 1;
 		double progress = floor(((((*geompos_in + *along - alongminus) / (double) todo) + pass) / passes + z) / (maxzoom + 1) * 1000) / 10;
@@ -1281,7 +1281,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 		// DEREK
 		if (z == 0) {
-		printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
+		//printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
 		}
 		
 		return sf;
@@ -1846,15 +1846,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (prefilter == NULL) {
 				// DEREK: next_feature often returns with feature set to dropped. Try to see why
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
-				if (sf.dropped == FEATURE_DROPPED) {
-					printf("next_feature returned %d   /  id = %llu  /z=%d\n", sf.dropped, sf.id, z);
-				}
+				// if (sf.dropped == FEATURE_DROPPED) {
+				// printf("%llu             \n", sf.index);
+				// printf("next_feature returned %d   /  id = %llu  /z=%d\n", sf.dropped, sf.id, z);
+				// }
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
 
 			if (sf.t < 0) {
 				break;
+			}
+
+			//DEREK
+			if (sf.dropped != FEATURE_KEPT) {
+				printf("feature dropped      \n");
 			}
 
 
@@ -1972,7 +1978,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
 			// cluster down with it by setting drop_rest).
-			if (sf.dropped == FEATURE_KEPT && sf.priority == 0) {  // DEREK: do not consider dropping if priority is not 0
+			if (sf.dropped == FEATURE_KEPT) {  // DEREK: do not consider dropping if priority is not 0
 				if (gamma > 0) { // DEREK 
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -1984,6 +1990,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (z <= cluster_maxzoom && cluster_distance != 0) {
+					//DEREK
+					// printf("outer loop\n");
+					
 					// This still uses merge_previndex instead of sf.gap
 					// because the cluster size in -K is expecting to specify
 					// distances between points that are subject to dot-dropping,
@@ -1992,6 +2001,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					// DEREK: Again, make sure not to drop high priority
 					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
+						//DEREK
+						// printf("here            \n");
+						printf("%llu         /    %llu\n", features[which_serial_feature]->priority, sf.priority);
+						if (features[which_serial_feature]->priority > sf.priority) {
+							printf("swap them probably     \n");
+						}
+
 						features[which_serial_feature]->clustered++;
 
 						if (!additional[A_KEEP_POINT_CLUSTER_POSITION] &&
@@ -2646,7 +2662,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (z == 0) {
 				for (int i = 0; i < layer.features.size(); i++) {
 					if (layer.features[i].type == VT_POINT) {
-						printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
+						//printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
 					}
 				}
 				}
