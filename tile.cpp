@@ -1553,6 +1553,8 @@ bool find_feature_to_accumulate_onto(std::vector<std::shared_ptr<serial_feature>
 		}
 	}
 
+	// DEREK
+	printf("find_feature... returned false howwwwwwwwww\n");
 	return false;
 }
 
@@ -1632,6 +1634,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	// DEREK: Testing
 	// printf("%d / %u / %u                 \n", z, tx, ty);
+	printf("z=%d--------------------------\n",z);
 	
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1847,7 +1850,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// DEREK: next_feature often returns with feature set to dropped. Try to see why
 				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 				// if (sf.dropped == FEATURE_DROPPED) {
-				// printf("%llu             \n", sf.index);
+				printf("%llu             \n", sf.id);
 				// printf("next_feature returned %d   /  id = %llu  /z=%d\n", sf.dropped, sf.id, z);
 				// }
 			} else {
@@ -1998,14 +2001,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// distances between points that are subject to dot-dropping,
 					// rather than wanting each feature to have a consistent
 					// idea of density between zooms.
-
+					printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
 					// DEREK: Again, make sure not to drop high priority
 					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
 						//DEREK
-						// printf("here            \n");
-						printf("%llu         /    %llu\n", features[which_serial_feature]->priority, sf.priority);
+						
+						
+
+						printf("clustered into %llu      \n", features[which_serial_feature]->id);
+						//printf("%llu         /    %llu\n", features[which_serial_feature]->priority, sf.priority);
 						if (features[which_serial_feature]->priority > sf.priority) {
-							printf("swap them probably     \n");
+							//printf("swap them probably     \n");
 						}
 
 						features[which_serial_feature]->clustered++;
@@ -2284,6 +2290,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// }
 			}
 
+			printf("do this now           \n");
 			merge_previndex = sfindex;
 			coalesced_area = 0;
 		}
