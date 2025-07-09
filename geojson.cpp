@@ -252,7 +252,12 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.full_keys = std::move(full_keys);
 	sf.full_values = std::move(values);
 
-	return serialize_feature(sst, sf, tippecanoe_layername);
+	int ret_val = serialize_feature(sst, sf, tippecanoe_layername);
+
+	// DEREK: Add the features to the global list.
+	global_features.push_back(std::move(sf));
+
+	return ret_val;
 }
 
 void check_crs(json_object *j, const char *reading) {

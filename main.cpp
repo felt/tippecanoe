@@ -101,6 +101,8 @@ size_t maximum_string_attribute_length = 0;
 std::string accumulate_numeric;
 // DEREK: Add a variable to track if there are nodes with priority
 bool has_priorities = false;
+// DEREK: Have a universal vector for the features
+std::vector<serial_feature> global_features;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -1213,6 +1215,11 @@ int vertexcmp(const void *void1, const void *void2) {
 
 double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
+}
+
+// DEREK: Comparator for sorting by priority
+bool feature_comp(serial_feature a, serial_feature b) {
+	return a.priority > b.priority;
 }
 
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
@@ -2757,6 +2764,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
+
+	// DEREK: Sort the features by priority first
+	std::sort(global_features.begin(), global_features.end(), feature_comp);
+
 	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data);
 
 	if (maxzoom != written) {
@@ -3837,6 +3848,8 @@ int main(int argc, char **argv) {
 				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
 
 	ret = std::get<0>(input_ret);
+
+	
 
 	if (outdb != NULL) {
 		mbtiles_close(outdb, argv[0]);

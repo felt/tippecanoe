@@ -55,6 +55,8 @@ extern size_t maximum_string_attribute_length;
 extern std::string accumulate_numeric;
 // DEREK: Make it accessible anywhere
 extern bool has_priorities;
+extern std::vector<serial_feature> global_features;
+
 extern unsigned long long preserve_multiplier_density_threshold;
 
 struct order_field {
