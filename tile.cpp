@@ -230,9 +230,6 @@ static mvt_value retrieve_string(long long off, const char *stringpool, std::sha
 
 // retrieve an attribute key from the string pool and return it as std::string
 static std::string retrieve_std_string(long long off, const char *stringpool) {
-	// DEREK: failes to complete the returning part?
-	// DEREK
-		printf("got here      \n");
 	return std::string(stringpool + off + 1);
 }
 
@@ -241,11 +238,7 @@ static std::string retrieve_std_string(long long off, const char *stringpool) {
 static void decode_meta(serial_feature const &sf, mvt_layer &layer, mvt_feature &feature) {
 	size_t i;
 	for (i = 0; i < sf.keys.size(); i++) {
-		// DEREK
-		printf("got here   %d    \n", sf.keys.size());
 		std::string key = retrieve_std_string(sf.keys[i], sf.stringpool);
-		// DEREK
-		printf("got here      \n");
 		mvt_value value = retrieve_string(sf.values[i], sf.stringpool, sf.tile_stringpool);
 
 		layer.tag(feature, key, value);
@@ -1068,46 +1061,37 @@ struct next_feature_state {
 // geometry type set to -2.
 static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, next_feature_state &next_feature_state, double droprate, int seq) {
 	double extra_multiplier_zooms = log(retain_points_multiplier) / log(droprate);
-
-	// DEREK
-	//printf("got here         \n");
-
+	
 	while (1) {
 		serial_feature sf;
 		long long len;
 
-		// DEREK: Try to do it reading from our vector instead of from file
-		// if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
-		// 	fprintf(stderr, "Unexpected physical EOF in feature stream\n");
-		// 	exit(EXIT_READ);
-		// }
-		// if (len <= 0) {
-		// 	if (compressed) {
-		// 		geoms->end(geompos_in);
-		// 	}
-
-		// 	sf.t = -2;
-		// 	return sf;
-		// }
-
-		// std::string s;
-		// s.resize(len);
-		// size_t n = geoms->fread((void *) s.c_str(), sizeof(char), s.size(), geompos_in);
-		// if (n != s.size()) {
-		// 	fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
-		// 	exit(EXIT_READ);
-		// }
-
-		// sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
-		if (seq >= global_features.size()){
+		if (geoms->deserialize_long_long(&len, geompos_in) == 0) {
+			fprintf(stderr, "Unexpected physical EOF in feature stream\n");
+			exit(EXIT_READ);
+		}
+		if (len <= 0) {
+			if (compressed) {
+				geoms->end(geompos_in);
+			}
+			// DEREK
+			printf("should not be exiting here. \n");
 			sf.t = -2;
 			return sf;
 		}
-		sf = global_features[seq];
-		// printf("testing %llu        \n", sf.index);
 
+		std::string s;
+		s.resize(len);
+		size_t n = geoms->fread((void *) s.c_str(), sizeof(char), s.size(), geompos_in);
+		if (n != s.size()) {
+			fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
+			exit(EXIT_READ);
+		}
+
+		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
+		sf = global_features[seq];
 		// with fractional zoom level, so we can target a specific number
 		// of features to keep with retain-points-multiplier, not just the
 		// powers of the drop rate
@@ -1282,10 +1266,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		for (ssize_t i = (ssize_t) sf.keys.size() - 1; i >= 0; i--) {
 			int type = sf.stringpool[sf.values[i]];
 
-			if (type == mvt_null) {
-				sf.keys.erase(sf.keys.begin() + i);
-				sf.values.erase(sf.values.begin() + i);
-			}
+			// if (type == mvt_null) {
+			// 	sf.keys.erase(sf.keys.begin() + i);
+			// 	sf.values.erase(sf.values.begin() + i);
+			// }
 		}
 
 		for (ssize_t i = (ssize_t) sf.full_keys.size() - 1; i >= 0; i--) {
@@ -1301,7 +1285,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		if (z == 0) {
 		//printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
 		}
-		
+
 		return sf;
 	}
 }
@@ -1349,10 +1333,9 @@ void *run_prefilter(void *v) {
 	struct multiplier_state multiplier_state;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 	next_feature_state next_feature_state;
-	int seq = 0;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate, seq++);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate, 0); // DEREK: Just added 0 as a placeholder for now
 		if (sf.t < 0) {
 			break;
 		}
@@ -1573,7 +1556,7 @@ bool find_feature_to_accumulate_onto(std::vector<std::shared_ptr<serial_feature>
 	}
 
 	// DEREK
-	// printf("find_feature... returned false\n");
+	printf("find_feature... returned false howwwwwwwwww\n");
 	return false;
 }
 
@@ -1652,14 +1635,12 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	// DEREK: Testing
-	// printf("%d / %u / %u                 \n", z, tx, ty);
-	printf("z=%d--------------------------\n",z);
-	// if (z==0) {
-	// 	for (int i = 0; i < features.size(); i++) {
-	// 		printf("%llu  ", features[i].id);
-	// 	}
-	// 	printf("\n");
-	// }
+	printf("z=%d / tx=%u / ty=%u ------------------------\n", z, tx, ty);
+	
+	for (int i = 0; i < global_features.size(); i++) {
+		printf("%d ", global_features[i].id);
+	}
+	printf("\n");
 	
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1867,7 +1848,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		strategy strategy;
 		strategy.detail_reduced = detail_reduced;
 
-		for (size_t seq = 0;; seq++) {
+		for (size_t seq = 0; seq < global_features.size(); seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
 
@@ -1882,16 +1863,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
 
-			// DEREK: Different way of getting the next feature:
-			if (seq > global_features.size()) {
-				printf("seq failure      \n");
-				break;
-			}
-			printf("seq: %lu     ", seq);
 			sf = global_features[seq];
-			sf.dropped = FEATURE_KEPT;
 
 			if (sf.t < 0) {
+				printf("got all features\n");
 				break;
 			}
 
@@ -2015,7 +1990,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			// only the first point of a multiplier cluster can be dropped
 			// by any of these mechanisms. (but if one is, it drags the whole
 			// cluster down with it by setting drop_rest).
-			if (sf.dropped == FEATURE_KEPT) {  // DEREK: do not consider dropping if priority is not 0
+			if (sf.dropped == FEATURE_KEPT) { 
 				if (gamma > 0) { // DEREK 
 					if (manage_gap(sf.index, &previndex, scale, gamma, &gap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
@@ -2035,7 +2010,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// distances between points that are subject to dot-dropping,
 					// rather than wanting each feature to have a consistent
 					// idea of density between zooms.
-
 					printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
 					// DEREK: Again, make sure not to drop high priority
 					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
@@ -2044,26 +2018,22 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						
 
 						printf("clustered into %llu      \n", features[which_serial_feature]->id);
-						// // printf("%llu         /    %llu\n", features[which_serial_feature]->priority, sf.priority);
-						// if (features[which_serial_feature]->priority > sf.priority) {
-						// 	//printf("swap them probably     \n");
-						// }
 
 						features[which_serial_feature]->clustered++;
 
-						// if (!additional[A_KEEP_POINT_CLUSTER_POSITION] &&
-						//     features[which_serial_feature]->t == VT_POINT &&
-						//     features[which_serial_feature]->geometry.size() == 1 &&
-						//     sf.geometry.size() == 1) {
-						// 	double x = (double) features[which_serial_feature]->geometry[0].x * features[which_serial_feature]->clustered;
-						// 	double y = (double) features[which_serial_feature]->geometry[0].y * features[which_serial_feature]->clustered;
-						// 	x += sf.geometry[0].x;
-						// 	y += sf.geometry[0].y;
-						// 	features[which_serial_feature]->geometry[0].x = x / (features[which_serial_feature]->clustered + 1);
-						// 	features[which_serial_feature]->geometry[0].y = y / (features[which_serial_feature]->clustered + 1);
-						// }
+						if (!additional[A_KEEP_POINT_CLUSTER_POSITION] &&
+						    features[which_serial_feature]->t == VT_POINT &&
+						    features[which_serial_feature]->geometry.size() == 1 &&
+						    sf.geometry.size() == 1) {
+							double x = (double) features[which_serial_feature]->geometry[0].x * features[which_serial_feature]->clustered;
+							double y = (double) features[which_serial_feature]->geometry[0].y * features[which_serial_feature]->clustered;
+							x += sf.geometry[0].x;
+							y += sf.geometry[0].y;
+							features[which_serial_feature]->geometry[0].x = x / (features[which_serial_feature]->clustered + 1);
+							features[which_serial_feature]->geometry[0].y = y / (features[which_serial_feature]->clustered + 1);
+						}
 
-						// preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
+						preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						strategy.coalesced_as_needed++;
 						drop_rest = true;
 						can_stop_early = false;
@@ -2325,7 +2295,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// }
 			}
 
-			//printf("do this now           \n");
+			printf("do this now           \n");
 			merge_previndex = sfindex;
 			coalesced_area = 0;
 		}
@@ -2643,9 +2613,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			layer.extent = 1 << tile_detail;
 
 			for (size_t x = 0; x < layer_features.size(); x++) {
-				// DEREK
-				printf("here 1           \n");
-
 				mvt_feature feature;
 
 				if (layer_features[x]->t == VT_LINE || layer_features[x]->t == VT_POLYGON) {
@@ -2667,16 +2634,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				// DEREK: add the priority
 				feature.priority = layer_features[x]->priority;
 
-				// DEREK: Seems to be getting stuck in decode_meta. Just going to disable this for now
-				// decode_meta(*layer_features[x], layer, feature);
+				// decode_meta is causing errors for unknown reason. Ignore for now
+				//decode_meta(*layer_features[x], layer, feature);
+				
 				for (size_t a = 0; a < layer_features[x]->full_keys.size(); a++) {
 					serial_val sv = layer_features[x]->full_values[a];
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
 					layer.tag(feature, *layer_features[x]->full_keys[a], v);
 				}
-
-				// DEREK
-				printf("here            \n");
 
 				layer_features[x]->full_keys.clear();
 				layer_features[x]->full_values.clear();
@@ -2703,7 +2668,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(std::move(feature));
-				layer_features[x] = std::make_shared<serial_feature>();	
+				layer_features[x] = std::make_shared<serial_feature>();
 			}
 
 			if (layer.features.size() > 0) {
@@ -2711,7 +2676,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (z == 0) {
 				for (int i = 0; i < layer.features.size(); i++) {
 					if (layer.features[i].type == VT_POINT) {
-						// printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
+						//printf("%llu / %d/%lu/%lu              \n", layer.features[i].id, z, tx, ty);
 					}
 				}
 				}
@@ -3114,9 +3079,13 @@ void *run_thread(void *vargs) {
 
 			long long estimated_complexity;
 			if (dc.fread(&estimated_complexity, sizeof(estimated_complexity), 1, &geompos) != 1) {
+				// DEREK: Find why it is not continuing
+				printf("break at line 3075\n");
 				break;
 			}
 			if (!dc.deserialize_int(&z, &geompos)) {
+				// DEREK: Find why it is not continuing
+				printf("break at line 3080\n");
 				break;
 			}
 			dc.deserialize_uint(&x, &geompos);
@@ -3177,6 +3146,8 @@ exit(EXIT_IMPOSSIBLE);
 			if (len < 0) {
 				err_or_null = &arg->err;
 				*err_or_null = z - 1;
+				// DEREK: Find why it is not continuing
+				printf("break at line 3145\n");
 				break;
 			}
 		}
