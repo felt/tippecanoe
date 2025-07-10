@@ -147,7 +147,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes);
+		     std::vector<clipbbox> const &clipbboxes,
+		     bool deduplicate_by_id);
 
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail, int buffer,
@@ -162,7 +163,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
 		     std::string const &accumulate_numeric, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes);
+		     std::vector<clipbbox> const &clipbboxes,
+		     bool deduplicate_by_id);
 
 draw center_of_mass_mp(const drawvec &dv);
 
@@ -170,5 +172,8 @@ void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long lon
 			unsigned long long *start, unsigned long long *end);
 
 clipbbox parse_clip_poly(std::string arg);
+
+bool line_is_too_small(drawvec const &geometry, int z, int detail);
+void coalesce_polygon(drawvec &geom, bool scale_up);
 
 #endif
