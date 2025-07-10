@@ -255,7 +255,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	int ret_val = serialize_feature(sst, sf, tippecanoe_layername);
 
 	// DEREK: Add the features to the global list.
-	global_features.push_back(std::move(sf));
+	// global_features.push_back(std::move(sf));
 
 	return ret_val;
 }

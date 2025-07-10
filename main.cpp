@@ -102,7 +102,7 @@ std::string accumulate_numeric;
 // DEREK: Add a variable to track if there are nodes with priority
 bool has_priorities = false;
 // DEREK: Have a universal vector for the features
-std::vector<serial_feature> global_features;
+// std::vector<serial_feature> global_features;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2766,7 +2766,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::vector<strategy> strategies;
 
 	// DEREK: Sort the features by priority first
-	std::sort(global_features.begin(), global_features.end(), feature_comp);
+	// std::sort(global_features.begin(), global_features.end(), feature_comp);
 
 	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data);
 
