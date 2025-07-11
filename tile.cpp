@@ -1842,7 +1842,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		std::vector<serial_feature> all_features;
 		std::vector<serial_feature> added_features;
 
-		for (unsigned int i = 0; i <= maxzoom; i++) {
+		for (unsigned int i = 1; i <= maxzoom; i++) {
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
@@ -1992,18 +1992,31 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					//if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
 						//DEREK
 					if (sf.priority == i) { // DEREK: try to add features for the current priority level
+						printf("%d                    \n", sf.id);
+
 						// DEREK: Check all the already added features to see if the new one would be too close
-						printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
+						//printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
+						bool drop_feature = false;
 						for (int j = 0; j < added_features.size(); j++) {
-							if (sf.index - added_features[j].index < cluster_mingap) {
+							if (((added_features[j].index < sf.index) && (sf.index - added_features[j].index) < cluster_mingap) ||
+								((added_features[j].index > sf.index) && (added_features[j].index - sf.index) < cluster_mingap))
+								{
 								strategy.coalesced_as_needed++;
 								drop_rest = true;
 								can_stop_early = false;
-								continue;
+								drop_feature = true;
+								printf("too close to: %d  diff: %llu    \n", added_features[j].id, sf.index - added_features[j].index);
+								break;
 							}
 						}
-
-						added_features.push_back(sf);
+						if (drop_feature) {
+							printf("dropping the feature\n");
+							continue;
+						}
+						else {
+							printf("adding the feature\n");
+							added_features.push_back(sf);
+						}
 					}
 					else {
 
