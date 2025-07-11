@@ -1618,6 +1618,32 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
+bool cluster_too_close(unsigned long long p1, unsigned long long p2, unsigned long long mingap) {
+	if (p2 < p1) {
+		return true;  // shouldn't happen: index went backward
+	}
+	if (p2 - p1 < mingap) {
+		return true;
+	}
+
+	// even if it is a big enough gap in indices,
+	// is it still physically too close?
+
+	unsigned px1, py1;
+	decode_index(p1, &px1, &py1);
+	unsigned px2, py2;
+	decode_index(p2, &px2, &py2);
+
+	long long dx = (long long) px1 - px2;
+	long long dy = (long long) py1 - py2;
+
+	if (dx * dx + dy * dy < (long long) mingap) {
+		return true;
+	}
+
+	return false;
+}
+
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
@@ -1679,7 +1705,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		long long count = 0;
 		double accum_area = 0;
 
-		unsigned long long previndex = 0, density_previndex = 0, merge_previndex = 0;
+		unsigned long long previndex = 0, density_previndex = 0, cluster_previndex = 0;
 		unsigned long long extent_previndex = 0;
 		double scale = (double) (1LL << (64 - 2 * (z + 8)));
 		double gap = 0, density_gap = 0;
@@ -1943,12 +1969,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (z <= cluster_maxzoom && cluster_distance != 0) {
-					// This still uses merge_previndex instead of sf.gap
+					// This still uses cluster_previndex instead of sf.gap
 					// because the cluster size in -K is expecting to specify
 					// distances between points that are subject to dot-dropping,
 					// rather than wanting each feature to have a consistent
 					// idea of density between zooms.
-					if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
+					if (cluster_too_close(cluster_previndex, sf.index, cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) {
 						features[which_serial_feature]->clustered++;
 
 						if (!additional[A_KEEP_POINT_CLUSTER_POSITION] &&
@@ -2220,7 +2246,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			merge_previndex = sfindex;
+			cluster_previndex = sfindex;
 			coalesced_area = 0;
 		}
 
