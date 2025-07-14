@@ -68,6 +68,8 @@ pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t task_lock = PTHREAD_MUTEX_INITIALIZER;
 
+std::map<unsigned long long, serial_feature> all_zooms_features;
+
 // convert serial feature geometry (drawvec) to output tile geometry (mvt_geometry)
 static std::vector<mvt_geometry> to_feature(drawvec const &geom) {
 	std::vector<mvt_geometry> out;
@@ -1840,7 +1842,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		strategy.detail_reduced = detail_reduced;
 		bool done_first_pass = false;
 		std::vector<serial_feature> all_features;
-		std::vector<serial_feature> added_features;
+		std::map<unsigned long long, serial_feature> added_features;
 
 		for (unsigned int i = 1; i <= maxzoom; i++) {
 		for (size_t seq = 0;; seq++) {
@@ -1997,15 +1999,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// DEREK: Check all the already added features to see if the new one would be too close
 						//printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
 						bool drop_feature = false;
-						for (int j = 0; j < added_features.size(); j++) {
-							if (((added_features[j].index < sf.index) && (sf.index - added_features[j].index) < cluster_mingap) ||
-								((added_features[j].index > sf.index) && (added_features[j].index - sf.index) < cluster_mingap))
+						for  (auto old_features : all_zooms_features) { // (int j = 0; j < added_features.size(); j++) {
+							if (((old_features.second.index < sf.index) && (sf.index - old_features.second.index) < cluster_mingap) ||
+								((old_features.second.index > sf.index) && (old_features.second.index - sf.index) < cluster_mingap))
 								{
 								strategy.coalesced_as_needed++;
 								drop_rest = true;
 								can_stop_early = false;
 								drop_feature = true;
-								printf("too close to: %d  diff: %llu    \n", added_features[j].id, sf.index - added_features[j].index);
+								printf("too close to: %d  diff: %llu    \n", old_features.second.id, sf.index - old_features.second.index);
 								break;
 							}
 						}
@@ -2015,9 +2017,15 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						}
 						else {
 							printf("adding the feature\n");
-							added_features.push_back(sf);
+							added_features.insert({sf.id, sf});
+							all_zooms_features.insert({sf.id, sf});
 						}
 					}
+					// else if (all_zooms_features.count(sf.id) == 1 && added_features.count(sf.id) == 0) {
+					// 	printf("adding the feature by method 2\n");
+					// 	added_features.insert({sf.id, sf});
+					// 	all_zooms_features.insert({sf.id, sf});
+					// }
 					else {
 
 						// printf("clustered into %llu      \n", features[which_serial_feature]->id);
