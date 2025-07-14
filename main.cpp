@@ -101,6 +101,7 @@ size_t maximum_string_attribute_length = 0;
 std::string accumulate_numeric;
 // DEREK: Add a variable to track if there are nodes with priority
 bool has_priorities = false;
+int max_priority = -1;
 // DEREK: Have a universal vector for the features
 // std::vector<serial_feature> global_features;
 

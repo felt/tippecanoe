@@ -185,6 +185,9 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 			if (priority->value.number.number >= 0) {
 				priority_value = priority->value.number.number;
 				has_priorities = true;
+				if (priority_value > max_priority) {
+					max_priority = priority_value;
+				}
 				// char *err = NULL;
 				// std::string priority_number = milo::dtoa_milo(priority->value.number.number);
 				// priority_value = strtoull(priority_number.c_str(), &err, 10);
@@ -204,11 +207,22 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	values.reserve(nprop);
 	key_pool key_pool;
 
+	unsigned long long source = 0;
+	unsigned long long target = 0;
+
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
 			// if (strcmp(properties->value.object.keys[i]->value.string.string, "id") == 0) {
 			// }
 			serial_val sv = stringify_value(properties->value.object.values[i], sst->fname, sst->line, feature);
+
+			if (strcmp(properties->value.object.keys[i]->value.string.string, "source") == 0){
+				source = properties->value.object.values[i]->value.number.number;
+			}
+			if (strcmp(properties->value.object.keys[i]->value.string.string, "target") == 0){
+				target = properties->value.object.values[i]->value.number.number;
+			}
+
 
 			full_keys.emplace_back(key_pool.pool(properties->value.object.keys[i]->value.string.string));
 			values.push_back(std::move(sv));
@@ -251,11 +265,11 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	sf.seq = *(sst->layer_seq);
 	sf.full_keys = std::move(full_keys);
 	sf.full_values = std::move(values);
+	//DEREK: set the source and target values
+	sf.source = source;
+	sf.target = target;
 
 	int ret_val = serialize_feature(sst, sf, tippecanoe_layername);
-
-	// DEREK: Add the features to the global list.
-	// global_features.push_back(std::move(sf));
 
 	return ret_val;
 }

@@ -207,6 +207,10 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	// DEREK: I think this is the correct spot to do this
 	serialize_uint(s, sf->priority);
+	// DEREK: serializing the source and target, not sure why it isn't working
+	//printf("source: %llu          \n", sf->source);
+	serialize_ulong_long(s, sf->source);
+	serialize_ulong_long(s, sf->target);
 
 	serialize_int(s, sf->segment);
 
@@ -261,6 +265,9 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	}
 
 	deserialize_uint(&cp, &sf.priority);
+	// DEREK: deserialize the source and target
+	deserialize_ulong_long(&cp, &sf.source);
+	deserialize_ulong_long(&cp, &sf.target);
 
 	deserialize_int(&cp, &sf.segment);
 

@@ -115,6 +115,9 @@ struct serial_feature {
 
 	// DEREK: Adding a priority field in here. Higher number = higher priority.
 	unsigned int priority = 0;
+	//DEREK: add source and target fields for lines
+	unsigned long long source = -1;
+	unsigned long long target = -1;
 
 	int tippecanoe_minzoom = -1;
 	int tippecanoe_maxzoom = -1;
@@ -123,7 +126,7 @@ struct serial_feature {
 	unsigned long long index = 0;
 	unsigned long long gap = 0;  // filled in during z0. square of planar distance
 	unsigned long long label_point = 0;
-	long long extent = 0;
+	long long extent = 0; 
 
 	// These fields are not directly serialized, but are used
 	// to create the keys and values references into the string pool

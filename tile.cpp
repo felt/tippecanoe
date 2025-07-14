@@ -1088,6 +1088,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			fprintf(stderr, "Short read (%zu for %zu) from geometry\n", n, s.size());
 			exit(EXIT_READ);
 		}
+	
 
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
@@ -1634,7 +1635,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	// DEREK: Testing
 	// printf("%d / %u / %u                 \n", z, tx, ty);
 	printf("z=%d--------------------------\n",z);
-	
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1844,15 +1844,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		std::vector<serial_feature> all_features;
 		std::map<unsigned long long, serial_feature> added_features;
 
-		for (unsigned int i = 1; i <= maxzoom; i++) {
+
+
+		for (unsigned int i = 1; i <= max_priority + 1; i++) {
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
 
 			if (!done_first_pass) {
 				if (prefilter == NULL) {
-					sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 					
+					sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 				} else {
 					sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 				}
@@ -2021,11 +2023,17 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							all_zooms_features.insert({sf.id, sf});
 						}
 					}
-					// else if (all_zooms_features.count(sf.id) == 1 && added_features.count(sf.id) == 0) {
-					// 	printf("adding the feature by method 2\n");
-					// 	added_features.insert({sf.id, sf});
-					// 	all_zooms_features.insert({sf.id, sf});
-					// }
+					else if (i > max_priority && sf.t == VT_LINE) {
+						printf("got to line_string stuff\n");
+						printf("source: %llu                \n", sf.source);
+						printf("target: %llu                \n", sf.target);
+						// DEREK: If we have added all nodes and do not find one of the line end points in the list of added nodes, drop the line
+						if (!all_zooms_features.count(sf.source) || !all_zooms_features.count(sf.target)) {
+							printf("dropping the line        \n");
+							continue;
+						}
+						printf("keeping the line\n");
+					}
 					else {
 
 						// printf("clustered into %llu      \n", features[which_serial_feature]->id);
