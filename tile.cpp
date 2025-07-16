@@ -1876,6 +1876,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
+			double x_co;
+			std::memcpy(&x_co, &sf.x_coord, sizeof(double));
+			printf("node: %llu,  x coordinate: %.17f     \n", sf.id, x_co);
+
+
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
 				layers.emplace(layername, layer_features());
@@ -2001,15 +2006,31 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						// DEREK: Check all the already added features to see if the new one would be too close
 						//printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
 						bool drop_feature = false;
-						for  (auto old_features : all_zooms_features) { // (int j = 0; j < added_features.size(); j++) {
-							if (((old_features.second.index < sf.index) && (sf.index - old_features.second.index) < cluster_mingap) ||
-								((old_features.second.index > sf.index) && (old_features.second.index - sf.index) < cluster_mingap))
-								{
+						
+
+
+						for  (auto old_feature : all_zooms_features) { // (int j = 0; j < added_features.size(); j++) {
+
+							long long x_diff = std::abs(sf.geometry[0].x - old_feature.second.geometry[0].x);
+							// printf("x coord: %lld       \n", sf.geometry[0].x);
+							long long y_diff = std::abs(sf.geometry[0].y - old_feature.second.geometry[0].y);
+
+							double distance = sqrt((pow(x_diff, 2) + pow(y_diff, 2)));
+
+
+							// printf("mingap: %llu      \n", cluster_mingap);
+							// printf("distance: %lf            \n", distance);
+							// printf("x diff: %lld, y diff: %lld\n\n", x_diff, y_diff);
+
+
+							if (((old_feature.second.index < sf.index) && (sf.index - old_feature.second.index) < cluster_mingap) ||
+								((old_feature.second.index > sf.index) && (old_feature.second.index - sf.index) < cluster_mingap))
+							{
 								strategy.coalesced_as_needed++;
 								drop_rest = true;
 								can_stop_early = false;
 								drop_feature = true;
-								printf("too close to: %d  diff: %llu    \n", old_features.second.id, sf.index - old_features.second.index);
+								printf("too close to: %d  diff: %llu    \n", old_feature.second.id, sf.index - old_feature.second.index);
 								break;
 							}
 						}

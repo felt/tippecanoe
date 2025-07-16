@@ -212,6 +212,9 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	serialize_ulong_long(s, sf->source);
 	serialize_ulong_long(s, sf->target);
 
+	serialize_long_long(s, sf->x_coord);
+	serialize_long_long(s, sf->y_coord);
+
 	serialize_int(s, sf->segment);
 
 	write_geometry(sf->geometry, s, wx, wy);
@@ -268,6 +271,9 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	// DEREK: deserialize the source and target
 	deserialize_ulong_long(&cp, &sf.source);
 	deserialize_ulong_long(&cp, &sf.target);
+
+	deserialize_long_long(&cp, &sf.x_coord);
+	deserialize_long_long(&cp, &sf.y_coord);
 
 	deserialize_int(&cp, &sf.segment);
 

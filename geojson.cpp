@@ -243,6 +243,11 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	drawvec dv;
 	parse_coordinates(t, coordinates, dv, VT_MOVETO, sst->fname, sst->line, feature);
 
+	// DEREK: save the coords
+	double x_coord = coordinates->value.array.array[0]->value.number.number;
+	double y_coord = coordinates->value.array.array[1]->value.number.number;
+	printf("%f, %f         \n", x_coord, y_coord);
+
 	serial_feature sf;
 	sf.layer = layer;
 	sf.segment = sst->segment;
@@ -268,6 +273,9 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	//DEREK: set the source and target values
 	sf.source = source;
 	sf.target = target;
+
+	std::memcpy(&sf.x_coord, &x_coord, sizeof(double));
+	std::memcpy(&sf.y_coord, &y_coord, sizeof(double));
 
 	int ret_val = serialize_feature(sst, sf, tippecanoe_layername);
 
