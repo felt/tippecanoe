@@ -1,4 +1,4 @@
-FROM ubuntu:22.04 AS tippecanoe-builder
+FROM ubuntu:24.04 AS tippecanoe-builder
 
 RUN apt-get update \
   && apt-get -y install make gcc g++ libsqlite3-dev zlib1g-dev
@@ -11,7 +11,7 @@ RUN make
 CMD make test
 
 # Using multistage build reduces the docker image size by alot by only copying the needed binaries
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 RUN apt-get update \
   && apt-get -y install libsqlite3-0 \
   && rm -rf /var/lib/apt/lists/*
