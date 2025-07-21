@@ -207,6 +207,9 @@ void init_cpus() {
 	// Round down to a power of 2
 	CPUS = 1 << (int) (log(CPUS) / log(2));
 
+	//DEREK: just to test smthn
+	CPUS = 1;
+
 	MAX_FILES = get_max_open_files();
 
 	// Don't really want too many temporary files, because the file system

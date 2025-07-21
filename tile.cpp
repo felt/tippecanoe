@@ -1631,26 +1631,12 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
-// For sorting the features. Sorts by priority, then index if the priority is the same
-bool feature_comp(std::pair<unsigned long long, serial_feature> a, std::pair<unsigned long long, serial_feature> b) {
-	if (a.second.priority < b.second.priority) {
-		return true;
-	}
-	else if (a.second.priority > b.second.priority) {
-		return false;
-	}
-	else {
-		return a.second.index < b.second.index;
-	}
-	//return a.priority > b.priority;
-}
-
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	// DEREK: Testing
 	// printf("%d / %u / %u                 \n", z, tx, ty);
 	printf("z=%d--------------------------\n",z);
 
-	printf("cluster distance: %d       \n", cluster_distance);
+	//printf("cluster distance: %d       \n", cluster_distance);
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1857,19 +1843,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		strategy strategy;
 		strategy.detail_reduced = detail_reduced;
 		bool done_first_pass = false;
-		std::vector<std::pair<unsigned long long, serial_feature>> all_features;
+		std::vector<serial_feature> all_features;
 		std::map<unsigned long long, serial_feature> added_features;
 
 
-		printf("starting big loop      \n");
-		for (unsigned int prio = 0; prio <= max_priority + 1; prio++) {
-			printf("                        \nBIG LOOP: %u              \n", prio);
+		printf("starting big loop              \n");
+		for (unsigned int i = 0; i <= max_priority + 1; i++) {
+			printf("                   \nBIG LOOP i = %u                  \n", i);
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
-			printf("prio = %u               \n", prio);
-			if (prio == 0) {
-				printf("i = 0, but i = %u               \n", prio);
+
+			if (i == 0) {
 				if (prefilter == NULL) {
 					
 					sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
@@ -1878,16 +1863,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				if (sf.t < 0) {
-					std::sort(all_features.begin(), all_features.end(), feature_comp);
-					for (int q = 0; q < all_features.size(); q ++) {
-						printf ("%llu ", all_features[q].first);
-					}
-					printf("                       \n");
 					break;
 				}
 				else {
-					std::pair<unsigned long long, serial_feature> p = {sf.id, sf};
-					all_features.push_back(p);
+					all_features.push_back(sf);
 					continue;
 				}
 			}
@@ -1895,8 +1874,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (seq >= all_features.size()) {
 					break;
 				}
-				sf = all_features[seq].second;
+				sf = all_features[seq];
 				if (clip_to_tile(sf, z, buffer)){
+					printf("node %llu was not in the tile        \n", sf.id);
 					continue;
 				}
 			}
@@ -2021,8 +2001,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// DEREK: Again, make sure not to drop high priority
 					//if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
 						//DEREK
-					if (sf.priority == prio) { // DEREK: try to add features for the current priority level
-						printf("id: %llu, priority: %u                    \n", sf.id, prio);
+					if (sf.priority == i) { // DEREK: try to add features for the current priority level
+						printf("%d                    \n", sf.id);
 
 						// DEREK: Check all the already added features to see if the new one would be too close
 						//printf("sf.index = %llu / merge_previndex = %llu / cond1 = %d / cond2 = %d\n", sf.index, merge_previndex, sf.index < merge_previndex, cluster_mingap > (sf.index-merge_previndex));
@@ -2068,8 +2048,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							all_zooms_features.insert({sf.id, sf});
 						}
 					}
-					else if (prio > max_priority && sf.t == VT_LINE) {
-						printf("got to line_string stuff. priority: %u\n", prio);
+					else if (i > max_priority && sf.t == VT_LINE) {
+						printf("got to line_string stuff\n");
 						printf("source: %llu                \n", sf.source);
 						printf("target: %llu                \n", sf.target);
 						// DEREK: If we have added all nodes and do not find one of the line end points in the list of added nodes, drop the line
@@ -2355,16 +2335,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						unsimplified_geometry_size = 0;
 					}
 				}
-				// if (sf.id == 1945) {
-				// 	printf("%d    /    %d\n", z, sf.dropped);
-				// }
 			}
 
-			printf("do this now           \n");
 			merge_previndex = sfindex;
 			coalesced_area = 0;
 		}
-		done_first_pass = true;
 		}
 		// We are done reading the features.
 		// Close the prefilter if it was opened.
