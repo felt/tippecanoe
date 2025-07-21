@@ -119,8 +119,8 @@ struct serial_feature {
 	unsigned long long source = -1;
 	unsigned long long target = -1;
 
-	long long x_coord = 0;
-	long long y_coord = 0;
+	double x_coord = 0;
+	double y_coord = 0;
 
 	int tippecanoe_minzoom = -1;
 	int tippecanoe_maxzoom = -1;

@@ -212,8 +212,12 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 	serialize_ulong_long(s, sf->source);
 	serialize_ulong_long(s, sf->target);
 
-	serialize_long_long(s, sf->x_coord);
-	serialize_long_long(s, sf->y_coord);
+	long long x;
+	std::memcpy(&x, &sf->x_coord, sizeof(double));
+	serialize_long_long(s, x);
+	long long y;
+	std::memcpy(&y, &sf->y_coord, sizeof(double));
+	serialize_long_long(s, y);
 
 	serialize_int(s, sf->segment);
 
@@ -272,8 +276,13 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	deserialize_ulong_long(&cp, &sf.source);
 	deserialize_ulong_long(&cp, &sf.target);
 
-	deserialize_long_long(&cp, &sf.x_coord);
-	deserialize_long_long(&cp, &sf.y_coord);
+	long long x;
+	deserialize_long_long(&cp, &x);
+	std::memcpy(&sf.x_coord, &x, sizeof(double));
+
+	long long y;
+	deserialize_long_long(&cp, &y);
+	std::memcpy(&sf.y_coord, &y, sizeof(double));
 
 	deserialize_int(&cp, &sf.segment);
 

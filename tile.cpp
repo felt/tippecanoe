@@ -1635,6 +1635,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	// DEREK: Testing
 	// printf("%d / %u / %u                 \n", z, tx, ty);
 	printf("z=%d--------------------------\n",z);
+
+	printf("cluster distance: %d       \n", cluster_distance);
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1876,10 +1878,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 			}
 
-			double x_co;
-			std::memcpy(&x_co, &sf.x_coord, sizeof(double));
-			printf("node: %llu,  x coordinate: %.17f     \n", sf.id, x_co);
-
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			if (layers.count(layername) == 0) {
@@ -2010,27 +2008,30 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 
 						for  (auto old_feature : all_zooms_features) { // (int j = 0; j < added_features.size(); j++) {
-
-							long long x_diff = std::abs(sf.geometry[0].x - old_feature.second.geometry[0].x);
+							if (old_feature.second.id == sf.id) {
+								continue;
+							}
+							double x_diff = std::abs(sf.x_coord - old_feature.second.x_coord);
 							// printf("x coord: %lld       \n", sf.geometry[0].x);
-							long long y_diff = std::abs(sf.geometry[0].y - old_feature.second.geometry[0].y);
+							double y_diff = std::abs(sf.y_coord - old_feature.second.y_coord);
 
 							double distance = sqrt((pow(x_diff, 2) + pow(y_diff, 2)));
+
+							double pixel_distance = (distance * (360.0/256.0)) * pow(2, z);
 
 
 							// printf("mingap: %llu      \n", cluster_mingap);
 							// printf("distance: %lf            \n", distance);
-							// printf("x diff: %lld, y diff: %lld\n\n", x_diff, y_diff);
+							// printf("x diff: %f, y diff: %f, dist: %f, pix_dist: %f\n\n", x_diff, y_diff, distance, pixel_distance);
 
-
-							if (((old_feature.second.index < sf.index) && (sf.index - old_feature.second.index) < cluster_mingap) ||
-								((old_feature.second.index > sf.index) && (old_feature.second.index - sf.index) < cluster_mingap))
-							{
+							// if (((old_feature.second.index < sf.index) && (sf.index - old_feature.second.index) < cluster_mingap) ||
+							// 	((old_feature.second.index > sf.index) && (old_feature.second.index - sf.index) < cluster_mingap))
+							if (pixel_distance < cluster_distance) {
 								strategy.coalesced_as_needed++;
 								drop_rest = true;
 								can_stop_early = false;
 								drop_feature = true;
-								printf("too close to: %d  diff: %llu    \n", old_feature.second.id, sf.index - old_feature.second.index);
+								printf("too close to: %d  diff: %f    \n", old_feature.second.id, pixel_distance);
 								break;
 							}
 						}
