@@ -119,6 +119,7 @@ struct serial_feature {
 	unsigned long long source = -1;
 	unsigned long long target = -1;
 
+	// DEREK: track the coordinates for the nodes
 	double x_coord = 0;
 	double y_coord = 0;
 
@@ -160,6 +161,9 @@ struct serial_feature {
 	// >0: sequence number of additional feature kept by retain-points-multiplier
 	// INT_MAX: additional feature kept by preserve-multiplier-density-threshold
 	int dropped = FEATURE_DROPPED;	// was this feature dropped by rate?
+
+	// DEREK: Add a bool to know if the feature was already aggregated into another one
+	bool aggregated;
 
 	// unsigned long long drop_by;  // dot-dropping priority
 	bool reduced;	   // is polygon dust

@@ -1141,7 +1141,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 		next_feature_state.previndex = sf.index;
 
-		if (clip_to_tile(sf, z, buffer)) {
+		// DEREK: I think I want this off if we are aggregating
+		if (clip_to_tile(sf, z, buffer) && !additional[A_AGGREGATE_CLUSTER]) {
 			continue;
 		}
 
@@ -1633,8 +1634,8 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	// DEREK: Testing
-	// printf("%d / %u / %u                 \n", z, tx, ty);
-	printf("z=%d--------------------------\n",z);
+	printf("%d / %u / %u ---------------------------------\n", z, tx, ty);
+	// printf("z=%d--------------------------\n",z);
 
 	//printf("cluster distance: %d       \n", cluster_distance);
 	double merge_fraction = 1;
@@ -1845,19 +1846,21 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		bool done_first_pass = false;
 		std::vector<serial_feature> all_features;
 		std::map<unsigned long long, serial_feature> added_features;
+		//std::map<unsigned long long, serial_feature> aggregated_features;
 
 
-		printf("starting big loop              \n");
+		// printf("starting big loop              \n");
 		for (unsigned int i = 0; i <= max_priority + 1; i++) {
-			printf("                   \nBIG LOOP i = %u                  \n", i);
+		// 	printf("                   \nBIG LOOP i = %u                  \n", i);
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
 
+
 			if (i == 0) {
 				if (prefilter == NULL) {
-					
 					sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
+					sf.aggregated = false;
 				} else {
 					sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 				}
@@ -1997,10 +2000,57 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// rather than wanting each feature to have a consistent
 					// idea of density between zooms.
 
+					if (additional[A_AGGREGATE_CLUSTER]) {
+						if (sf.priority == i) {
+							printf("%d                    \n", sf.id);
+							if (sf.aggregated) {
+								printf("feature already aggregated       \n");
+								continue;
+							}
+
+							for (auto& other_feature : all_features) {
+								if (other_feature.id == sf.id) {
+									continue;
+								}
+								if (other_feature.aggregated) {
+									printf("feature %llu was already aggregated      \n", other_feature.id);
+									continue;
+								}
+								double x_diff = std::abs(sf.x_coord - other_feature.x_coord);
+								double y_diff = std::abs(sf.y_coord - other_feature.y_coord);
+
+								double distance = sqrt((pow(x_diff, 2) + pow(y_diff, 2)));
+
+								double pixel_distance = (distance * (360.0/256.0)) * pow(2, z);
+								if (pixel_distance < cluster_distance) {
+									other_feature.aggregated = true;
+									printf("aggregated feature %llu        \n", other_feature.id);
+									for (auto& line : all_features) {
+										if (line.t == VT_LINE) {
+											if (line.source == other_feature.id) {
+												line.geometry[0].x = other_feature.geometry[0].x;
+												line.geometry[0].y = other_feature.geometry[0].y;
+												line.source = sf.id;
+											}
+											else if (line.target == other_feature.id) {
+												line.geometry[1].x = other_feature.geometry[1].x;
+												line.geometry[1].y = other_feature.geometry[1].y;
+												line.target = sf.id;
+											}
+										}
+									}
+								}
+							}
+						}
+						else if (i > max_priority && sf.t == VT_LINE) {
+							
+						}
+					}
+
 				
 					// DEREK: Again, make sure not to drop high priority
 					//if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
-						//DEREK
+					if (!additional[A_AGGREGATE_CLUSTER]) {
 					if (sf.priority == i) { // DEREK: try to add features for the current priority level
 						printf("%d                    \n", sf.id);
 
@@ -2050,13 +2100,34 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 					else if (i > max_priority && sf.t == VT_LINE) {
 						printf("got to line_string stuff\n");
+						printf("geom size = %d     ", sf.geometry.size());
 						printf("source: %llu                \n", sf.source);
 						printf("target: %llu                \n", sf.target);
+
+						draw geom1 = sf.geometry[0];
+						draw geom2 = sf.geometry[1];
+
+						printf("geom1: %lld, %lld   geom2: %lld, %lld\n", geom1.x, geom1.y, geom2.x, geom2.y);
+						
 						// DEREK: If we have added all nodes and do not find one of the line end points in the list of added nodes, drop the line
-						if (!all_zooms_features.count(sf.source) || !all_zooms_features.count(sf.target)) {
-							printf("dropping the line        \n");
-							continue;
+						// if (!all_zooms_features.count(sf.source) || !all_zooms_features.count(sf.target)) {
+						// 	printf("dropping the line        \n");
+						// 	continue;
+						// }
+						if (sf.target == 2) {
+							try {
+							serial_feature other = added_features.at(3);
+							sf.geometry[1].x = other.geometry[0].x;
+							sf.geometry[1].y = other.geometry[0].y;
+							printf("got here          \n");
+
+							}
+							catch (std::out_of_range &e) {
+								printf("dropping line             \n");
+								continue;
+							}
 						}
+						printf("geom1: %lld, %lld   geom2: %lld, %lld\n", geom1.x, geom1.y, sf.geometry[1].x, sf.geometry[1].y);
 						printf("keeping the line\n");
 					}
 					else {
@@ -2083,6 +2154,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 						// preserve_attributes(arg->attribute_accum, sf, *features[which_serial_feature], key_pool);
 						continue;
+					}
 					}
 				} else if (additional[A_DROP_DENSEST_AS_NEEDED]) {  // DEREK
 					add_sample_to(gaps, sf.gap, gaps_increment, seq);
@@ -2210,13 +2282,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				still_need_simplification_after_reduction = true;  // not a polygon, so simplify
 			}
 
-			if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
-				if (line_is_too_small(sf.geometry, z, line_detail)) {
-					continue;
-				}
-			}
+			// if (sf.t == VT_POLYGON || sf.t == VT_LINE) {
+			// 	if (line_is_too_small(sf.geometry, z, line_detail)) {
+			// 		continue;
+			// 	}
+			// }
+			
 
 			unsigned long long sfindex = sf.index;
+			// DEREK: testing why we are not keeping the line
+			// if (sf.t == VT_LINE) {
+			// 	printf("dropped: %d, geom2: %lld, %lld\n", sf.dropped, sf.geometry[1].x, sf.geometry[1].y);
+			// }
 
 			if (sf.geometry.size() > 0) {
 				// There are two adjustments that we need to make
