@@ -56,7 +56,7 @@ extern std::string accumulate_numeric;
 // DEREK: Make it accessible anywhere
 extern bool has_priorities;
 extern int max_priority;
-// extern std::vector<serial_feature> global_features;
+extern std::map<unsigned long long, serial_feature> global_features;
 
 extern unsigned long long preserve_multiplier_density_threshold;
 

@@ -179,21 +179,21 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	}
 
 	// DEREK: Getting the actual number value out of priority
-	int priority_value = 0;
-	if (priority != NULL) {
-		if (priority->type == JSON_NUMBER) {
-			if (priority->value.number.number >= 0) {
-				priority_value = priority->value.number.number;
-				has_priorities = true;
-				if (priority_value > max_priority) {
-					max_priority = priority_value;
-				}
+	// int priority_value = 0;
+	// if (priority != NULL) {
+	// 	if (priority->type == JSON_NUMBER) {
+	// 		if (priority->value.number.number >= 0) {
+	// 			priority_value = priority->value.number.number;
+				// has_priorities = true;
+				// if (priority_value > max_priority) {
+				// 	max_priority = priority_value;
+				// }
 				// char *err = NULL;
 				// std::string priority_number = milo::dtoa_milo(priority->value.number.number);
 				// priority_value = strtoull(priority_number.c_str(), &err, 10);
-			}
-		}
-	}
+	// 		}
+	// 	}
+	// }
 
 	size_t nprop = 0;
 	if (properties != NULL && properties->type == JSON_HASH) {
@@ -209,6 +209,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	unsigned long long source = 0;
 	unsigned long long target = 0;
+	int priority_value = 0;
 
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
@@ -222,22 +223,18 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 			if (strcmp(properties->value.object.keys[i]->value.string.string, "target") == 0){
 				target = properties->value.object.values[i]->value.number.number;
 			}
+			if (strcmp(properties->value.object.keys[i]->value.string.string, "priority") == 0){
+				priority_value = properties->value.object.values[i]->value.number.number;
+				has_priorities = true;
+				if (priority_value > max_priority) {
+					max_priority = priority_value;
+				}
+			}
 
 
 			full_keys.emplace_back(key_pool.pool(properties->value.object.keys[i]->value.string.string));
 			values.push_back(std::move(sv));
 		}
-	}
-
-	// DEREK: Just here for testing purposes
-	serial_val sv;
-	full_keys.emplace_back(key_pool.pool("priority"));
-	if (priority == NULL) {
-		sv = serial_val(0);
-		values.push_back(std::move(sv));
-	} else {
-		sv = stringify_value(priority, sst->fname, sst->line, feature);
-		values.push_back(std::move(sv));
 	}
 
 	drawvec dv;
@@ -278,6 +275,10 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	std::memcpy(&sf.y_coord, &y_coord, sizeof(double));
 
 	int ret_val = serialize_feature(sst, sf, tippecanoe_layername);
+
+	sf.dropped = FEATURE_DROPPED;
+
+	global_features.insert({sf.id, std::move(sf)});
 
 	return ret_val;
 }

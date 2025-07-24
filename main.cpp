@@ -103,7 +103,7 @@ std::string accumulate_numeric;
 bool has_priorities = false;
 int max_priority = -1;
 // DEREK: Have a universal vector for the features
-// std::vector<serial_feature> global_features;
+std::map<unsigned long long, serial_feature> global_features;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -207,7 +207,7 @@ void init_cpus() {
 	// Round down to a power of 2
 	CPUS = 1 << (int) (log(CPUS) / log(2));
 
-	//DEREK: just to test smthn
+	// DEREK: just to test smthn
 	CPUS = 1;
 
 	MAX_FILES = get_max_open_files();
@@ -2770,7 +2770,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::vector<strategy> strategies;
 
 	// DEREK: Sort the features by priority first
-	// std::sort(global_features.begin(), global_features.end(), feature_comp);
+	// std::sort(global_features.begin(), tures.end(), feature_comp);
 
 	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data);
 
