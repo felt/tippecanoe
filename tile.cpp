@@ -1148,9 +1148,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		next_feature_state.previndex = sf.index;
 
 		// DEREK: I think I want this off if we are aggregating
-		// if (clip_to_tile(sf, z, buffer) && !additional[A_AGGREGATE_CLUSTER]) {
-		// 	continue;
-		// }
+		if (clip_to_tile(sf, z, buffer) && !additional[A_AGGREGATE_CLUSTER]) {
+			continue;
+		}
 
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
@@ -1289,10 +1289,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		if (sf.priority != 0) {
 			sf.dropped = FEATURE_KEPT;
 		}
-		// DEREK
-		if (z == 0) {
-		//printf("%d   /   %lf    /  %d\n", z, feature_minzoom, sf.dropped);
-		}
+		
+		sf.dropped = FEATURE_KEPT;
 		
 		return sf;
 	}
@@ -1647,6 +1645,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	// for all the features in all tiles, so we do not get issues with incorrectly assuming a
 	// feature in another tile has been dropped
 	if (z > curr_zoom) {
+		this_zoom_features.clear();
 		this_zoom_features = global_features;
 		for (int prio = max_priority; prio >= -1; prio--) {
 			for (auto& sf : this_zoom_features) {
@@ -1654,16 +1653,34 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (sf.second.priority != prio) {
 					continue;
 				}
-				// if (sf.second.t == VT_LINE) {
-				// 	unsigned long long s = sf.second.source;
-				// 	unsigned long long t = sf.second.target;
-
-				// 	if (this_zoom_features.count(s) == 0) || )
-				// }
 				printf("%llu                 \n", sf.second.id);
+				if (sf.second.t == VT_LINE) {
+					if (prio != -1) {
+						printf("ERROR: GOT TO LINE WITHOUT PRIORITY -1. PRIORITY: %d\n", sf.second.priority);
+						exit(1);
+					}
+					unsigned long long s = sf.second.source;
+					unsigned long long t = sf.second.target;
+
+					if (all_zooms_added_features.count(s) == 0 || all_zooms_added_features.count(t) == 0) {
+						printf("dropping the line      \n");
+						this_zoom_features[sf.second.id].dropped = FEATURE_DROPPED;
+						continue;
+					}
+					else {
+						printf("keeping the line          \n");
+						this_zoom_features[sf.second.id].dropped = FEATURE_KEPT;
+						all_zooms_added_features[sf.second.id] = sf.second;
+						continue;
+					}
+				}
+				
 				bool drop_feature = false;
 				for  (auto old_feature : all_zooms_added_features) {
 					if (old_feature.second.id == sf.second.id) {
+						continue;
+					}
+					if (old_feature.second.t != VT_POINT) {
 						continue;
 					}
 					double x_diff = std::abs(sf.second.x_coord - old_feature.second.x_coord);
@@ -1940,6 +1957,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					break;
 				}
 				sf = all_features[seq];
+				if (this_zoom_features[sf.id].dropped == FEATURE_DROPPED) {
+					continue;
+				}
 				if (clip_to_tile(sf, z, buffer)){
 					printf("node %llu was not in the tile        \n", sf.id);
 					continue;
@@ -2124,29 +2144,31 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					// DEREK: Again, make sure not to drop high priority
 					//if ((sf.index < merge_previndex || sf.index - merge_previndex < cluster_mingap) && find_feature_to_accumulate_onto(features, sf, which_serial_feature, layer_unmaps, LLONG_MAX)) { // DEREK: I am confused by what this is doing 
 					if (!additional[A_AGGREGATE_CLUSTER]) {
-					if (sf.priority == i && sf.t == VT_POINT) { // DEREK: try to add features for the current priority level
-						printf("%d                    \n", sf.id);
+					if (sf.priority == i) { // DEREK: try to add features for the current priority level
 						if (this_zoom_features.count(sf.id) == 0) {
 							continue;
 						}
-						if (this_zoom_features[sf.id].dropped != FEATURE_KEPT) {
+						// if (this_zoom_features[sf.id].dropped != FEATURE_KEPT) {
+						// 	continue;
+						// }
+						if (all_zooms_added_features.count(sf.id) == 0) {
 							continue;
 						}
 					}
-					else if (i < 0 && sf.t == VT_LINE) {
-						printf("got to line_string stuff\n");
-						printf("source: %llu                \n", sf.source);
-						printf("target: %llu                \n", sf.target);
+					// else if (i < 0 && sf.t == VT_LINE) {
+					// 	printf("got to line_string stuff\n");
+					// 	printf("source: %llu                \n", sf.source);
+					// 	printf("target: %llu                \n", sf.target);
 
-						// DEREK: If we have added all nodes and do not find one of the line end points in the list of added nodes, drop the line
-						if (all_zooms_added_features.count(sf.source) > 0 && all_zooms_added_features.count(sf.target) > 0) {
-							printf("keeping the line\n");
-						}
-						else {
-							printf("dropping the line        \n");
-							continue;
-						}
-					}
+					// 	// DEREK: If we have added all nodes and do not find one of the line end points in the list of added nodes, drop the line
+					// 	if (all_zooms_added_features.count(sf.source) > 0 && all_zooms_added_features.count(sf.target) > 0) {
+					// 		printf("keeping the line\n");
+					// 	}
+					// 	else {
+					// 		printf("dropping the line        \n");
+					// 		continue;
+					// 	}
+					// }
 					else {
 						continue;
 					}

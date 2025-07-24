@@ -243,7 +243,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	// DEREK: save the coords
 	double x_coord = coordinates->value.array.array[0]->value.number.number;
 	double y_coord = coordinates->value.array.array[1]->value.number.number;
-	printf("%f, %f         \n", x_coord, y_coord);
+	// printf("%f, %f         \n", x_coord, y_coord);
 
 	serial_feature sf;
 	sf.layer = layer;
@@ -279,9 +279,9 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	sf.dropped = FEATURE_DROPPED;
 
-	if (sf.t == VT_POINT) {
+	//if (sf.t == VT_POINT) {
 		global_features.insert({sf.id, std::move(sf)});
-	}
+	//}
 
 	return ret_val;
 }
