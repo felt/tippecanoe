@@ -1648,12 +1648,18 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	// feature in another tile has been dropped
 	if (z > curr_zoom) {
 		this_zoom_features = global_features;
-		for (int prio = max_priority; prio >= 0; prio--) {
+		for (int prio = max_priority; prio >= -1; prio--) {
 			for (auto& sf : this_zoom_features) {
 
 				if (sf.second.priority != prio) {
 					continue;
 				}
+				// if (sf.second.t == VT_LINE) {
+				// 	unsigned long long s = sf.second.source;
+				// 	unsigned long long t = sf.second.target;
+
+				// 	if (this_zoom_features.count(s) == 0) || )
+				// }
 				printf("%llu                 \n", sf.second.id);
 				bool drop_feature = false;
 				for  (auto old_feature : all_zooms_added_features) {
@@ -1661,17 +1667,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						continue;
 					}
 					double x_diff = std::abs(sf.second.x_coord - old_feature.second.x_coord);
-					// printf("x coord: %lld       \n", sf.geometry[0].x);
+
 					double y_diff = std::abs(sf.second.y_coord - old_feature.second.y_coord);
 
 					double distance = sqrt((pow(x_diff, 2) + pow(y_diff, 2)));
 
 					double pixel_distance = (distance * (360.0/256.0)) * pow(2, z);
-
-
-					// printf("mingap: %llu      \n", cluster_mingap);
-					// printf("distance: %lf            \n", distance);
-					// printf("x diff: %f, y diff: %f, dist: %f, pix_dist: %f\n\n", x_diff, y_diff, distance, pixel_distance);
 
 					// if (((old_feature.second.index < sf.index) && (sf.index - old_feature.second.index) < cluster_mingap) ||
 					// 	((old_feature.second.index > sf.index) && (old_feature.second.index - sf.index) < cluster_mingap))
@@ -1687,7 +1688,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 				else {
 					sf.second.dropped = FEATURE_KEPT;
-					all_zooms_added_features.insert(sf);
+					all_zooms_added_features[sf.first] = sf.second;
+					this_zoom_features[sf.first] = sf.second;
 					printf("keeping the feature          \n");
 				}
 			}
@@ -1938,10 +1940,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					break;
 				}
 				sf = all_features[seq];
-				// if (clip_to_tile(sf, z, buffer)){
-				// 	printf("node %llu was not in the tile        \n", sf.id);
-				// 	continue;
-				// }
+				if (clip_to_tile(sf, z, buffer)){
+					printf("node %llu was not in the tile        \n", sf.id);
+					continue;
+				}
 			}
 
 
@@ -2124,6 +2126,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (!additional[A_AGGREGATE_CLUSTER]) {
 					if (sf.priority == i && sf.t == VT_POINT) { // DEREK: try to add features for the current priority level
 						printf("%d                    \n", sf.id);
+						if (this_zoom_features.count(sf.id) == 0) {
+							continue;
+						}
 						if (this_zoom_features[sf.id].dropped != FEATURE_KEPT) {
 							continue;
 						}
@@ -2134,12 +2139,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 						printf("target: %llu                \n", sf.target);
 
 						// DEREK: If we have added all nodes and do not find one of the line end points in the list of added nodes, drop the line
-						if (!all_zooms_added_features.count(sf.source) || !all_zooms_added_features.count(sf.target)) {
+						if (all_zooms_added_features.count(sf.source) > 0 && all_zooms_added_features.count(sf.target) > 0) {
+							printf("keeping the line\n");
+						}
+						else {
 							printf("dropping the line        \n");
 							continue;
 						}
-						
-						printf("keeping the line\n");
 					}
 					else {
 						continue;

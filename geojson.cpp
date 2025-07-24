@@ -253,6 +253,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	if (id == NULL) {
 		sf.has_id = true;
 		sf.id = count++;
+		printf("gave new id: %llu       \n", sf.id);
 	}
 	else {
 		sf.has_id = has_id;
@@ -278,7 +279,9 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	sf.dropped = FEATURE_DROPPED;
 
-	global_features.insert({sf.id, std::move(sf)});
+	if (sf.t == VT_POINT) {
+		global_features.insert({sf.id, std::move(sf)});
+	}
 
 	return ret_val;
 }
