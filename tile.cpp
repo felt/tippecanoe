@@ -452,7 +452,9 @@ static std::vector<std::shared_ptr<serial_feature>> disassemble_multiplier_clust
 
 // Write out copies of a feature into the temporary files for the next zoom level
 static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom, unsigned tx, unsigned ty, int buffer, std::atomic<bool> within[], std::atomic<long long> *geompos, long long start_geompos[], compressor *geomfile[], const char *fname, int child_shards, int max_zoom_increment, int segment, unsigned *initial_x, unsigned *initial_y) {
+	// printf("got here              \n");
 	if (osf.geometry.size() > 0 && (nextzoom <= maxzoom || additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0)) {
+		// printf("got here           \n");
 		int xo, yo;
 		int span = 1 << (nextzoom - z);
 
@@ -474,13 +476,22 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 		for (k = 0; k < 4; k++) {
 			if (bbox2[k] < 0) {
 				bbox2[k] = 0;
+				//printf("low             \n");
 			}
 			if (bbox2[k] >= 256 * span) {
 				bbox2[k] = 256 * (span - 1);
+				//printf("high              \n");
 			}
 
+			//printf("%lld                     \n", bbox2[k]);
 			bbox2[k] /= 256;
+			//printf("%lld                     \n", bbox2[k]);
 		}
+
+		bbox2[0] = 0;
+		bbox2[1] = 0;
+		bbox2[2] = 1;
+		bbox2[3] = 1;
 
 		// Offset from tile coordinates back to world coordinates
 		unsigned sx = 0, sy = 0;
@@ -1099,6 +1110,8 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
+		// printf("Feature read: %llu, zoom: %d, tx: %u, ty: %u\n", sf.id, z, tx, ty);
+
 		// with fractional zoom level, so we can target a specific number
 		// of features to keep with retain-points-multiplier, not just the
 		// powers of the drop rate
@@ -1148,9 +1161,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		next_feature_state.previndex = sf.index;
 
 		// DEREK: I think I want this off if we are aggregating
-		if (clip_to_tile(sf, z, buffer) && !additional[A_AGGREGATE_CLUSTER]) {
-			continue;
-		}
+		// if (clip_to_tile(sf, z, buffer) && !additional[A_AGGREGATE_CLUSTER]) {
+		// 	continue;
+		// }
 
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
@@ -1641,10 +1654,31 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	printf("%d / %u / %u ---------------------------------\n", z, tx, ty);
 	// printf("z=%d--------------------------\n",z);
 
+
+	if (z > curr_zoom && additional[A_AGGREGATE_CLUSTER]) {
+		this_zoom_features.clear();
+		this_zoom_features = global_features;
+		for (int prio = max_priority; prio >= -1; prio--) {
+			for (auto sf : this_zoom_features) {
+				if (sf.second.priority != prio) {
+					continue;
+				}
+				if (sf.second.t == VT_LINE) {
+					if (prio != -1) {
+						printf("ERROR: GOT TO LINE WITHOUT PRIORITY -1. PRIORITY: %d\n", sf.second.priority);
+						exit(1);
+					}
+					unsigned long long s = sf.second.source;
+					unsigned long long t = sf.second.target;
+				}
+			}
+			bool drop_feature = false;
+		}
+	}
 	// DEREK: The first time a tile is made for any zoom level, we will calculate what to drop
 	// for all the features in all tiles, so we do not get issues with incorrectly assuming a
 	// feature in another tile has been dropped
-	if (z > curr_zoom) {
+	if (z > curr_zoom ) {
 		this_zoom_features.clear();
 		this_zoom_features = global_features;
 		for (int prio = max_priority; prio >= -1; prio--) {
@@ -1925,10 +1959,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		std::map<unsigned long long, serial_feature> added_features;
 		//std::map<unsigned long long, serial_feature> aggregated_features;
 
-
-		// printf("starting big loop              \n");
 		for (int i = max_priority + 1; i >= -1; i--) {
-		// 	printf("                   \nBIG LOOP i = %u                  \n", i);
 		for (size_t seq = 0;; seq++) {
 			serial_feature sf;
 			ssize_t which_serial_feature = -1;
@@ -1949,6 +1980,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 				else {
 					all_features.push_back(sf);
+					this_zoom_features[sf.id].geometry = sf.geometry;
 					continue;
 				}
 			}
@@ -1961,7 +1993,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					continue;
 				}
 				if (clip_to_tile(sf, z, buffer)){
-					printf("node %llu was not in the tile        \n", sf.id);
+					//printf("node %llu was not in the tile        \n", sf.id);
 					continue;
 				}
 			}
@@ -2084,9 +2116,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 					if (additional[A_AGGREGATE_CLUSTER]) {
 						if (sf.priority == i) {
-							printf("%d                    \n", sf.id);
+							// printf("%d                    \n", sf.id);
 							if (sf.aggregated) {
-								printf("feature already aggregated       \n");
+								// printf("feature already aggregated       \n");
 								continue;
 							}
 
@@ -2095,7 +2127,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 									continue;
 								}
 								if (other_feature.aggregated) {
-									printf("feature %llu was already aggregated      \n", other_feature.id);
+									// printf("feature %llu was already aggregated      \n", other_feature.id);
 									continue;
 								}
 								double x_diff = std::abs(sf.x_coord - other_feature.x_coord);
@@ -2106,7 +2138,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 								double pixel_distance = (distance * (360.0/256.0)) * pow(2, z);
 								if (pixel_distance < cluster_distance) {
 									other_feature.aggregated = true;
-									printf("aggregated feature %llu        \n", other_feature.id);
+									// printf("aggregated feature %llu        \n", other_feature.id);
 									for (auto& line : all_features) {
 										if (line.t == VT_LINE) {
 											if (line.source == other_feature.id) {
@@ -2128,9 +2160,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							}
 						}
 						else if (i > max_priority && sf.t == VT_LINE) {
-							printf("got to line_string stuff\n");
-							printf("source: %llu                \n", sf.source);
-							printf("target: %llu                \n", sf.target);
+							// printf("got to line_string stuff\n");
+							// printf("source: %llu                \n", sf.source);
+							// printf("target: %llu                \n", sf.target);
 							if (sf.source == sf.target) {
 								continue;
 							}
