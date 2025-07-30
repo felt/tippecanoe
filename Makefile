@@ -322,7 +322,7 @@ overzoom-test: tippecanoe-overzoom
 	# Filtering
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
 	# 27 of them match the filter and are retained
-	./tippecanoe-overzoom -y NAME -j'{"*":["SCALERANK","eq",0]}' -o tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom -y NAME -j'{"*":["==","SCALERANK",0]}' -o tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/0-0-0-pop-expr.pbf 0 0 0 > tests/pbf/0-0-0-pop-expr.pbf.json.check
 	cmp tests/pbf/0-0-0-pop-expr.pbf.json.check tests/pbf/0-0-0-pop-expr.pbf.json
 	rm tests/pbf/0-0-0-pop-expr.pbf tests/pbf/0-0-0-pop-expr.pbf.json.check
@@ -334,13 +334,13 @@ overzoom-test: tippecanoe-overzoom
 	# Filtering with multiplier
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
 	# 8 features survive into the output, from 9 clusters of 30
-	./tippecanoe-overzoom -y NAME -y SCALERANK -j'{"*":["SCALERANK","eq",0]}' -m -o tests/pbf/0-0-0-filter-mult.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom -y NAME -y SCALERANK -j'{"*":["==","SCALERANK",0]}' -m -o tests/pbf/0-0-0-filter-mult.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/0-0-0-filter-mult.pbf 0 0 0 > tests/pbf/0-0-0-filter-mult.pbf.json.check
 	cmp tests/pbf/0-0-0-filter-mult.pbf.json.check tests/pbf/0-0-0-filter-mult.pbf.json
 	rm tests/pbf/0-0-0-filter-mult.pbf tests/pbf/0-0-0-filter-mult.pbf.json.check
 	# Filtering with multiplier and preserve-input-order
 	# 243 features in the source tile tests/pbf/0-0-0-pop.pbf
-	./tippecanoe-overzoom -y NAME -y SCALERANK -j'{"*":["NAME","cn","e"]}' -m --preserve-input-order -o tests/pbf/0-0-0-filter-mult-order.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
+	./tippecanoe-overzoom -y NAME -y SCALERANK -y LATITUDE -j'{"*":[">","LATITUDE",40]}' -m --preserve-input-order -o tests/pbf/0-0-0-filter-mult-order.pbf tests/pbf/0-0-0-pop.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/0-0-0-filter-mult-order.pbf 0 0 0 > tests/pbf/0-0-0-filter-mult-order.pbf.json.check
 	cmp tests/pbf/0-0-0-filter-mult-order.pbf.json.check tests/pbf/0-0-0-filter-mult-order.pbf.json
 	rm tests/pbf/0-0-0-filter-mult-order.pbf tests/pbf/0-0-0-filter-mult-order.pbf.json.check
@@ -352,16 +352,6 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/muni/out/out.dir/000.pbf 0 0 0 > tests/muni/out/out.dir/overzoomed.json
 	cmp tests/muni/out/out.dir/overzoomed.json tests/muni/out/out.dir/direct.json
 	rm -rf tests/muni/out/out.dir tests/muni/out/out.mbtiles tests/muni/out/out.dir/overzoomed.json tests/muni/out/out.dir/direct.json
-	# Test filter with null attribute
-	./tippecanoe-overzoom -j '{"*":["name","ni",[1,5,6,9]]}' -o tests/pbf/12-2145-1391-filter1.pbf tests/pbf/12-2145-1391.pbf 12/2145/1391 12/2145/1391
-	./tippecanoe-decode tests/pbf/12-2145-1391-filter1.pbf 12 2145 1391 > tests/pbf/12-2145-1391-filter1.pbf.json.check
-	cmp tests/pbf/12-2145-1391-filter1.pbf.json.check tests/pbf/12-2145-1391-filter1.pbf.json
-	rm tests/pbf/12-2145-1391-filter1.pbf.json.check tests/pbf/12-2145-1391-filter1.pbf
-	# Test filter with null attribute in "ni" list
-	./tippecanoe-overzoom -j '{"*":["name","ni",[1,5,6,9,null]]}' -o tests/pbf/12-2145-1391-filter2.pbf tests/pbf/12-2145-1391.pbf 12/2145/1391 12/2145/1391
-	./tippecanoe-decode tests/pbf/12-2145-1391-filter2.pbf 12 2145 1391 > tests/pbf/12-2145-1391-filter2.pbf.json.check
-	cmp tests/pbf/12-2145-1391-filter2.pbf.json.check tests/pbf/12-2145-1391-filter2.pbf.json
-	rm tests/pbf/12-2145-1391-filter2.pbf.json.check tests/pbf/12-2145-1391-filter2.pbf
 	# Tiny polygon reduction
 	./tippecanoe-overzoom --line-simplification=5 --tiny-polygon-size=50 -o tests/pbf/countries-0-0-0.pbf.out tests/pbf/countries-0-0-0.pbf 0/0/0 0/0/0
 	./tippecanoe-decode tests/pbf/countries-0-0-0.pbf.out 0 0 0 > tests/pbf/countries-0-0-0.pbf.out.json.check
