@@ -1214,47 +1214,6 @@ bool pnpoly_mp(drawvec const &geom, long long x, long long y) {
 	return found;
 }
 
-clipbbox parse_clip_poly(std::string arg) {
-	json_pull *jp = json_begin_string(arg.c_str());
-	json_object *j = json_read_tree(jp);
-	if (j == NULL) {
-		fprintf(stderr, "Expected JSON object, not %s\n", arg.c_str());
-		exit(EXIT_ARGS);
-	}
-	if (j->type != JSON_HASH) {
-		fprintf(stderr, "Expected JSON geometry object, not %s\n", arg.c_str());
-		exit(EXIT_ARGS);
-	}
-
-	std::pair<int, drawvec> parsed_geometry = parse_geometry(j, jp, j, 0, 0, 0, 1LL << 32, false, false);
-	json_end(jp);
-
-	clipbbox out;
-	out.minx = LLONG_MAX;
-	out.miny = LLONG_MAX;
-	out.maxx = LLONG_MIN;
-	out.maxy = LLONG_MIN;
-	for (auto const &d : parsed_geometry.second) {
-		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
-			if (d.x < out.minx) {
-				out.minx = d.x;
-			}
-			if (d.y < out.miny) {
-				out.miny = d.y;
-			}
-			if (d.x > out.maxx) {
-				out.maxx = d.x;
-			}
-			if (d.y > out.maxy) {
-				out.maxy = d.y;
-			}
-		}
-	}
-	out.dv = std::move(parsed_geometry.second);
-
-	return out;
-}
-
 std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int ny,
 		     int detail_or_unspecified, int buffer,
 		     std::set<std::string> const &keep,
@@ -1268,7 +1227,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &unused2, std::string const &unused3,
 		     std::string const &unused, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes,
+		     std::vector<clipbbox> const &unused4,
 		     bool deduplicate_by_id) {
 	std::vector<source_tile> decoded;
 
@@ -1295,7 +1254,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, unused2, unused3, unused, feature_limit, clipbboxes, deduplicate_by_id);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, unused2, unused3, unused, feature_limit, unused4, deduplicate_by_id);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1353,7 +1312,7 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			std::unordered_map<std::string, attribute_op> const &attribute_accum,
 			std::string const &,
 			key_pool &key_pool, int buffer, bool include_nonaggregate,
-			std::vector<clipbbox> const &clipbboxes, int nz, int nx, int ny,
+			std::vector<clipbbox> const &, int, int, int,
 			std::set<unsigned long long> *deduplicate_ids) {
 	// Add geometry to output feature
 
@@ -1361,7 +1320,7 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 	int t = features[0].t;
 
 	bool fix_polygons = false;
-	if ((buffer >= 0 || clipbboxes.size() > 0) && t == VT_POLYGON) {
+	if ((buffer >= 0) && t == VT_POLYGON) {
 		fix_polygons = true;
 	}
 
@@ -1377,48 +1336,6 @@ static bool feature_out(std::vector<tile_feature> const &features, mvt_layer &ou
 			geom = simple_clip_poly(geom, 32 - outlayer.detail(), buffer, dv, false);
 		} else if (t == VT_POINT) {
 			geom = clip_point(geom, 32 - outlayer.detail(), buffer);
-		}
-
-		geom = remove_noop(geom, t, 0);
-	}
-
-	if (clipbboxes.size() != 0) {
-		// bounding box is in world coordinates at world scale
-		// feature is in local coordinates at tile scale
-
-		long long dx = (long long) nx << (32 - nz);
-		long long dy = (long long) ny << (32 - nz);
-		double scale = (double) outlayer.extent / (1LL << (32 - nz));
-
-		for (auto const &c_world : clipbboxes) {
-			clipbbox c = c_world;
-
-			c.minx = std::llround((c_world.minx - dx) * scale);
-			c.miny = std::llround((c_world.miny - dy) * scale);
-			c.maxx = std::llround((c_world.maxx - dx) * scale);
-			c.maxy = std::llround((c_world.maxy - dy) * scale);
-
-			for (auto &p : c.dv) {
-				p.x = std::llround((p.x - dx) * scale);
-				p.y = std::llround((p.y - dy) * scale);
-			}
-
-			if (t == VT_POLYGON) {
-				geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
-				if (c.dv.size() > 0 && geom.size() > 0) {
-					geom = clip_poly_poly(geom, c.dv);
-				}
-			} else if (t == VT_LINE) {
-				geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
-				if (c.dv.size() > 0 && geom.size() > 0) {
-					geom = clip_lines_poly(geom, c.dv);
-				}
-			} else if (t == VT_POINT) {
-				geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
-				if (c.dv.size() > 0 && geom.size() > 0) {
-					geom = clip_point_poly(geom, c.dv);
-				}
-			}
 		}
 
 		geom = remove_noop(geom, t, 0);
@@ -1546,7 +1463,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     double tiny_polygon_size,
 		     std::vector<mvt_layer> const &unused2, std::string const &unused3,
 		     std::string const &unused, size_t feature_limit,
-		     std::vector<clipbbox> const &clipbboxes,
+		     std::vector<clipbbox> const &unused4,
 		     bool deduplicate_by_id) {
 	mvt_tile outtile;
 	key_pool key_pool;
@@ -1616,27 +1533,6 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 						if (g.op == mvt_moveto) {
 							ring_closure = geom.back();
 							ring_closure.op = mvt_lineto;
-						}
-					}
-				}
-
-				{
-					for (auto &c : clipbboxes) {
-						if (t == VT_POLYGON) {
-							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
-							if (c.dv.size() > 0 && geom.size() > 0) {
-								geom = clip_poly_poly(geom, c.dv);
-							}
-						} else if (t == VT_LINE) {
-							geom = clip_lines(geom, c.minx, c.miny, c.maxx, c.maxy);
-							if (c.dv.size() > 0 && geom.size() > 0) {
-								geom = clip_lines_poly(geom, c.dv);
-							}
-						} else if (t == VT_POINT) {
-							geom = clip_point(geom, c.minx, c.miny, c.maxx, c.maxy);
-							if (c.dv.size() > 0 && geom.size() > 0) {
-								geom = clip_point_poly(geom, c.dv);
-							}
 						}
 					}
 				}
@@ -1807,7 +1703,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 								     detail_or_unspecified, buffer, keep, exclude, exclude_prefix, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data,
 								     simplification, tiny_polygon_size, unused2, unused3, unused,
-								     1, clipbboxes, deduplicate_by_id);
+								     1, unused4, deduplicate_by_id);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
 					}

@@ -367,35 +367,6 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/countries-0-0-0.pbf.out 0 0 0 > tests/pbf/countries-0-0-0.pbf.out.json.check
 	cmp tests/pbf/countries-0-0-0.pbf.out.json.check tests/pbf/countries-0-0-0.pbf.out.json
 	rm tests/pbf/countries-0-0-0.pbf.out tests/pbf/countries-0-0-0.pbf.out.json.check
-	# Clipping to bounding box
-	./tippecanoe-overzoom --clip-bounding-box 5,5,25.7,50 -o tests/pbf/countries-0-0-0-clip.pbf.out tests/pbf/countries-0-0-0.pbf 0/0/0 0/0/0
-	./tippecanoe-decode tests/pbf/countries-0-0-0-clip.pbf.out 0 0 0 > tests/pbf/countries-0-0-0-clip.pbf.out.json.check
-	cmp tests/pbf/countries-0-0-0-clip.pbf.out.json.check tests/pbf/countries-0-0-0-clip.pbf.out.json
-	rm tests/pbf/countries-0-0-0-clip.pbf.out tests/pbf/countries-0-0-0-clip.pbf.out.json.check
-	# Polygon clipping
-	./tippecanoe-overzoom -o tests/pbf/countries-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/countries-1-1-0.pbf 1/1/0 1/1/0
-	./tippecanoe-decode tests/pbf/countries-1-1-0-clip.pbf 1 1 0 > tests/pbf/countries-1-1-0-clip.json.check
-	cmp tests/pbf/countries-1-1-0-clip.json.check tests/pbf/countries-1-1-0-clip.json
-	rm tests/pbf/countries-1-1-0-clip.pbf tests/pbf/countries-1-1-0-clip.json.check
-	# LineString clipping
-	./tippecanoe-overzoom -o tests/pbf/roads-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/roads-1-1-0.pbf 1/1/0 1/1/0
-	./tippecanoe-decode tests/pbf/roads-1-1-0-clip.pbf 1 1 0 > tests/pbf/roads-1-1-0-clip.json.check
-	cmp tests/pbf/roads-1-1-0-clip.json.check tests/pbf/roads-1-1-0-clip.json
-	rm tests/pbf/roads-1-1-0-clip.pbf tests/pbf/roads-1-1-0-clip.json.check
-	# Point clipping
-	./tippecanoe-overzoom -o tests/pbf/places-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/places-1-1-0.pbf 1/1/0 1/1/0
-	./tippecanoe-decode tests/pbf/places-1-1-0-clip.pbf 1 1 0 > tests/pbf/places-1-1-0-clip.json.check
-	cmp tests/pbf/places-1-1-0-clip.json.check tests/pbf/places-1-1-0-clip.json
-	rm tests/pbf/places-1-1-0-clip.pbf tests/pbf/places-1-1-0-clip.json.check
-	# Polygon clipping, with excessively large clip region
-	./tippecanoe-overzoom -b10 -o tests/pbf/countries-8-135-86-bigclip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/countries-1-1-0.pbf 1/1/0 8/135/86
-	./tippecanoe-decode tests/pbf/countries-8-135-86-bigclip.pbf 8 135 86 > tests/pbf/countries-8-135-86-bigclip.json.check
-	cmp tests/pbf/countries-8-135-86-bigclip.json.check tests/pbf/countries-8-135-86-bigclip.json
-	rm tests/pbf/countries-8-135-86-bigclip.pbf tests/pbf/countries-8-135-86-bigclip.json.check
-	# Clip region that does not intersect with the tile
-	./tippecanoe-overzoom -o tests/pbf/squirrels-13-2413-3077-clip.pbf --clip-polygon-file tests/pbf/squirrels-clip.json tests/pbf/squirrels-13-2413-3077.pbf 13/2413/3077 13/2413/3077
-	cmp tests/pbf/squirrels-13-2413-3077-clip.pbf /dev/null  # clipped away
-	rm tests/pbf/squirrels-13-2413-3077-clip.pbf
 	# Deduplication by feature ID
 	./tippecanoe -z0 -f -e tests/pbf/1.json.dir -l layer tests/pbf/1.json
 	./tippecanoe -z0 -f -e tests/pbf/2.json.dir -l layer tests/pbf/2.json
