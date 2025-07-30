@@ -3106,6 +3106,7 @@ int main(int argc, char **argv) {
 		{"preserve-multiplier-density-threshold", required_argument, 0, '~'},
 		// DEREK: add an argument for aggregating
 		{"aggregate-cluster", no_argument, &additional[A_AGGREGATE_CLUSTER], 1},
+		{"leave-lines", no_argument, &additional[A_LEAVE_LINES], 1},
 
 		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
 		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},

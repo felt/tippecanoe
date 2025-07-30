@@ -30,6 +30,7 @@
 #define A_DETECT_WRAPAROUND ((int) 'w')
 #define A_KEEP_POINT_CLUSTER_POSITION ((int) 'a')
 #define A_AGGREGATE_CLUSTER ((int) 'A')
+#define A_LEAVE_LINES ((int) 'B')
 
 #define P_TILE_COMPRESSION ((int) 'C')
 #define P_DUPLICATION ((int) 'D')

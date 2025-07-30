@@ -1744,7 +1744,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					unsigned long long s = sf.second.source;
 					unsigned long long t = sf.second.target;
 
-					if (all_zooms_added_features.count(s) == 0 || all_zooms_added_features.count(t) == 0) {
+					if ((all_zooms_added_features.count(s) == 0 || all_zooms_added_features.count(t) == 0) 
+						&& !additional[A_LEAVE_LINES]) {
 						printf("dropping the line      \n");
 						this_zoom_features[sf.second.id].dropped = FEATURE_DROPPED;
 						continue;
