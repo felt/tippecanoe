@@ -26,7 +26,6 @@ bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
 std::vector<mvt_layer> bins;
-std::string accumulate_numeric;
 
 std::set<std::string> keep;
 std::set<std::string> exclude;
@@ -90,7 +89,6 @@ int main(int argc, char **argv) {
 		{"source-tile", required_argument, 0, 't'},
 		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
 		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
-		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
@@ -180,10 +178,6 @@ int main(int argc, char **argv) {
 
 		case 'c' & 0x1F:
 			bin_by_id_list = optarg;
-			break;
-
-		case 'a' & 0x1F:
-			accumulate_numeric = optarg;
 			break;
 
 		case 'd' & 0x1F:
@@ -361,7 +355,7 @@ int main(int argc, char **argv) {
 			its.push_back(std::move(t));
 		}
 
-		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes, deduplicate_by_id);
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, "", SIZE_MAX, clipbboxes, deduplicate_by_id);
 	}
 
 	FILE *f = fopen(outfile, "wb");
