@@ -98,7 +98,6 @@ long long extend_zooms_max = 0;
 int retain_points_multiplier = 1;
 std::vector<std::string> unidecode_data;
 size_t maximum_string_attribute_length = 0;
-std::string accumulate_numeric;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -3062,7 +3061,6 @@ int main(int argc, char **argv) {
 		{"attribute-type", required_argument, 0, 'T'},
 		{"attribute-description", required_argument, 0, 'Y'},
 		{"accumulate-attribute", required_argument, 0, 'E'},
-		{"accumulate-numeric-attributes", required_argument, 0, '~'},
 		{"empty-csv-columns-are-null", no_argument, &prevent[P_EMPTY_CSV_COLUMNS], 1},
 		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
 		{"use-attribute-for-id", required_argument, 0, '~'},
@@ -3309,8 +3307,6 @@ int main(int argc, char **argv) {
 				unidecode_data = read_unidecode(optarg);
 			} else if (strcmp(opt, "maximum-string-attribute-length") == 0) {
 				maximum_string_attribute_length = atoll_require(optarg, "Maximum string attribute length");
-			} else if (strcmp(opt, "accumulate-numeric-attributes") == 0) {
-				accumulate_numeric = optarg;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
