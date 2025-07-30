@@ -488,10 +488,12 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 			//printf("%lld                     \n", bbox2[k]);
 		}
 
-		bbox2[0] = 0;
-		bbox2[1] = 0;
-		bbox2[2] = 1;
-		bbox2[3] = 1;
+		if (additional[A_AGGREGATE_CLUSTER]) {
+			bbox2[0] = 0;
+			bbox2[1] = 0;
+			bbox2[2] = 1;
+			bbox2[3] = 1;
+		}
 
 		// Offset from tile coordinates back to world coordinates
 		unsigned sx = 0, sy = 0;
@@ -1161,9 +1163,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		next_feature_state.previndex = sf.index;
 
 		// DEREK: I think I want this off if we are aggregating
-		// if (clip_to_tile(sf, z, buffer) && !additional[A_AGGREGATE_CLUSTER]) {
-		// 	continue;
-		// }
+		if (!additional[A_AGGREGATE_CLUSTER] && clip_to_tile(sf, z, buffer)) {
+			continue;
+		}
 
 		if (sf.geometry.size() > 0) {
 			(*unclipped_features)++;
@@ -1253,11 +1255,10 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
 			auto count = multiplier_state->count.find(layername);
 
-			// DEREK: If we have some features with priorities, do not need to keep first one all the time
 			if (count == multiplier_state->count.end()) {
 				multiplier_state->count.emplace(layername, 0);
 				count = multiplier_state->count.find(layername);
-				if (!has_priorities) { // Only need to keep this if we do not have any with priorities (did not work)
+				if (!has_priorities) { // DEREK: Only need to keep this if we do not have any with priorities (did not work)
 					sf.dropped = FEATURE_KEPT;  // the first feature in each tile is always kept
 				}
 			}
@@ -1652,8 +1653,6 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
 	// DEREK: Testing
 	printf("%d / %u / %u ---------------------------------\n", z, tx, ty);
-	// printf("z=%d--------------------------\n",z);
-
 
 	if (z > curr_zoom && additional[A_AGGREGATE_CLUSTER]) {
 		this_zoom_features.clear();
