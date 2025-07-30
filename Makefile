@@ -372,35 +372,6 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-decode tests/pbf/countries-0-0-0-clip.pbf.out 0 0 0 > tests/pbf/countries-0-0-0-clip.pbf.out.json.check
 	cmp tests/pbf/countries-0-0-0-clip.pbf.out.json.check tests/pbf/countries-0-0-0-clip.pbf.out.json
 	rm tests/pbf/countries-0-0-0-clip.pbf.out tests/pbf/countries-0-0-0-clip.pbf.out.json.check
-	# Binning
-	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791.pbf.out --assign-to-bins tests/pbf/sf-zips.json tests/pbf/muni-11-327-791.pbf 11/327/791 11/327/791
-	./tippecanoe-decode tests/pbf/bin-11-327-791.pbf.out 11 327 791 > tests/pbf/bin-11-327-791.pbf.out.json.check
-	cmp tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out.json
-	rm tests/pbf/bin-11-327-791.pbf.out.json.check tests/pbf/bin-11-327-791.pbf.out
-	# Binning by id
-	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids.pbf.out --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
-	./tippecanoe-decode tests/pbf/bin-11-327-791-ids.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids.pbf.out.json.check
-	cmp tests/pbf/bin-11-327-791-ids.pbf.out.json.check tests/pbf/bin-11-327-791-ids.pbf.out.json
-	rm tests/pbf/bin-11-327-791-ids.pbf.out.json.check tests/pbf/bin-11-327-791-ids.pbf.out
-	# Binning by id, clipping by polygon
-	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids-clip.pbf.out --clip-polygon='{"coordinates":[[[-122.4527379,37.8128815],[-122.4598853,37.7834743],[-122.4280914,37.7959397],[-122.4527379,37.8128815]]],"type":"Polygon"}' --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
-	./tippecanoe-decode tests/pbf/bin-11-327-791-ids-clip.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check
-	cmp tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out.json
-	rm tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out
-	# Binning by id, clipping by polygon from file
-	./tippecanoe-overzoom -o tests/pbf/bin-11-327-791-ids-clip.pbf.out --clip-polygon-file=tests/pbf/clip-poly.json --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
-	./tippecanoe-decode tests/pbf/bin-11-327-791-ids-clip.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check
-	cmp tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out.json
-	rm tests/pbf/bin-11-327-791-ids-clip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-clip.pbf.out
-	# Binning by id, attribute stripping
-	# Note that it still works even if we exclude the ID that we are binning by
-	./tippecanoe-overzoom -yZCTA5CE10 -ytippecanoe:count -o tests/pbf/bin-11-327-791-ids-zip.pbf.out --assign-to-bins tests/pbf/sf-zips.json --bin-by-id-list bin-ids tests/pbf/yearbuilt.pbf 11/327/791 11/327/791
-	./tippecanoe-decode tests/pbf/bin-11-327-791-ids-zip.pbf.out 11 327 791 > tests/pbf/bin-11-327-791-ids-zip.pbf.out.json.check
-	cmp tests/pbf/bin-11-327-791-ids-zip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-zip.pbf.out.json
-	rm tests/pbf/bin-11-327-791-ids-zip.pbf.out.json.check tests/pbf/bin-11-327-791-ids-zip.pbf.out
-	# Verify fix for crash
-	./tippecanoe-overzoom '-o' tests/10188-crash/out.pbf '-t' '3/2/2' '--assign-to-bins' 'tests/10188-crash/bins.json' '--bin-by-id-list' 'felt:bin_features' '-b5' 'tests/10188-crash/2-0-0.pbf' '2/0/0'
-	rm tests/10188-crash/out.pbf
 	# Polygon clipping
 	./tippecanoe-overzoom -o tests/pbf/countries-1-1-0-clip.pbf --clip-polygon "`cat tests/pbf/region.json`" tests/pbf/countries-1-1-0.pbf 1/1/0 1/1/0
 	./tippecanoe-decode tests/pbf/countries-1-1-0-clip.pbf 1 1 0 > tests/pbf/countries-1-1-0-clip.json.check

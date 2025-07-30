@@ -25,7 +25,6 @@ std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
-std::vector<mvt_layer> bins;
 
 std::set<std::string> keep;
 std::set<std::string> exclude;
@@ -66,8 +65,6 @@ int main(int argc, char **argv) {
 	const char *outfile = NULL;
 	double simplification = 0;
 	double tiny_polygon_size = 0;
-	std::string assign_to_bins;
-	std::string bin_by_id_list;
 
 	std::vector<input_tile> sources;
 
@@ -87,8 +84,6 @@ int main(int argc, char **argv) {
 		{"line-simplification", required_argument, 0, 'S'},
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
-		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
-		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
 		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
 		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
@@ -170,14 +165,6 @@ int main(int argc, char **argv) {
 
 		case 'S':
 			simplification = atof(optarg);
-			break;
-
-		case 'b' & 0x1F:
-			assign_to_bins = optarg;
-			break;
-
-		case 'c' & 0x1F:
-			bin_by_id_list = optarg;
 			break;
 
 		case 'd' & 0x1F:
@@ -277,21 +264,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (assign_to_bins.size() != 0) {
-		FILE *f = fopen(assign_to_bins.c_str(), "r");
-		if (f == NULL) {
-			perror(assign_to_bins.c_str());
-			exit(EXIT_OPEN);
-		}
-
-		int det = detail;
-		if (det < 0) {
-			det = 12;
-		}
-		bins = parse_layers(f, nz, nx, ny, 1LL << det, true);
-		fclose(f);
-	}
-
 	// clip the clip polygons, if any, to the tile bounds,
 	// to reduce their complexity
 
@@ -355,7 +327,7 @@ int main(int argc, char **argv) {
 			its.push_back(std::move(t));
 		}
 
-		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, "", SIZE_MAX, clipbboxes, deduplicate_by_id);
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, clipbboxes, deduplicate_by_id);
 	}
 
 	FILE *f = fopen(outfile, "wb");

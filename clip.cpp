@@ -1266,7 +1266,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
-		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
+		     std::vector<mvt_layer> const &unused2, std::string const &unused3,
 		     std::string const &unused, size_t feature_limit,
 		     std::vector<clipbbox> const &clipbboxes,
 		     bool deduplicate_by_id) {
@@ -1295,7 +1295,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, unused, feature_limit, clipbboxes, deduplicate_by_id);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, unused2, unused3, unused, feature_limit, clipbboxes, deduplicate_by_id);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1533,314 +1533,6 @@ static struct preservecmp {
 	}
 } preservecmp;
 
-struct index_event {
-	unsigned long long where;
-	enum index_event_kind {
-		ENTER = 0,  // new bin in is now active
-		CHECK,	    // point needs to be checked against active bins
-		EXIT	    // bin has ceased to be active
-	} kind;
-	size_t layer;
-	size_t feature;
-	long long xmin, ymin, xmax, ymax;
-
-	index_event(unsigned long long where_, index_event_kind kind_, size_t layer_, size_t feature_,
-		    long long xmin_, long long ymin_, long long xmax_, long long ymax_)
-	    : where(where_), kind(kind_), layer(layer_), feature(feature_), xmin(xmin_), ymin(ymin_), xmax(xmax_), ymax(ymax_) {
-	}
-
-	bool operator<(const index_event &ie) const {
-		if (where < ie.where) {
-			return true;
-		} else if (where == ie.where) {
-			if (kind < ie.kind) {
-				return true;
-			} else if (kind == ie.kind) {
-				if (layer < ie.layer) {
-					return true;
-				} else if (layer == ie.layer) {
-					if (feature < ie.feature) {
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-};
-
-struct active_bin {
-	size_t layer;
-	size_t feature;
-
-	active_bin(size_t layer_, size_t feature_)
-	    : layer(layer_), feature(feature_) {
-	}
-
-	bool operator<(const active_bin &o) const {
-		if (layer < o.layer) {
-			return true;
-		} else if (layer == o.layer) {
-			if (feature < o.feature) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	size_t outfeature;
-	long long xmin, ymin, xmax, ymax;
-	size_t counter = 0;
-};
-
-void get_quadkey_bounds(long long xmin, long long ymin, long long xmax, long long ymax,
-			unsigned long long *start, unsigned long long *end) {
-	if (xmin < 0 || ymin < 0 || xmax >= 1LL << 32 || ymax >= 1LL << 32) {
-		*start = 0;
-		*end = ULLONG_MAX;
-		return;
-	}
-
-	*start = encode_quadkey(xmin, ymin);
-	*end = encode_quadkey(xmax, ymax);
-
-	for (ssize_t i = 62; i >= 0; i -= 2) {
-		if ((*start & (3LL << i)) != (*end & (3LL << i))) {
-			for (; i >= 0; i -= 2) {
-				*start &= ~(3LL << i);
-				*end |= 3LL << i;
-			}
-			break;
-		}
-	}
-}
-
-static bool bbox_intersects(long long x1min, long long y1min, long long x1max, long long y1max,
-			    long long x2min, long long y2min, long long x2max, long long y2max) {
-	if (x1max < x2min) {
-		return false;
-	}
-	if (x2max < x1min) {
-		return false;
-	}
-	if (y1max < y2min) {
-		return false;
-	}
-	if (y2max < y1min) {
-		return false;
-	}
-	return true;
-}
-
-static std::vector<size_t> parse_ids_string(mvt_value const &v) {
-	std::vector<size_t> out;
-	std::string s = v.toString();
-
-	for (size_t i = 0; i < s.size(); i++) {
-		if (i == 0 || s[i - 1] == ',') {
-			out.push_back(atoll(s.c_str() + i));
-		}
-	}
-
-	return out;
-}
-
-mvt_tile assign_to_bins(mvt_tile &features,
-			std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
-			int z, int x, int y,
-			std::unordered_map<std::string, attribute_op> const &attribute_accum,
-			std::string const &unused,
-			std::set<std::string> keep,
-			std::set<std::string> exclude,
-			std::vector<std::string> exclude_prefix,
-			int buffer, std::vector<clipbbox> const &clipbboxes) {
-	std::vector<index_event> events;
-	key_pool key_pool;
-
-	if (bins.size() == 0) {
-		return mvt_tile();
-	}
-
-	// Index bins
-	for (size_t i = 0; i < bins.size(); i++) {
-		for (size_t j = 0; j < bins[i].features.size(); j++) {
-			long long xmin, ymin, xmax, ymax;
-			unsigned long long start, end;
-
-			get_bbox(bins[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, bins[i].detail());
-			get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-			events.emplace_back(start, index_event::ENTER, i, j, xmin, ymin, xmax, ymax);
-			events.emplace_back(end, index_event::EXIT, i, j, xmin, ymin, xmax, ymax);
-		}
-	}
-
-	std::map<unsigned long long, std::pair<size_t, size_t>> fid_to_feature;
-
-	// Index points
-	for (size_t i = 0; i < features.layers.size(); i++) {
-		for (size_t j = 0; j < features.layers[i].features.size(); j++) {
-			long long xmin, ymin, xmax, ymax;
-			unsigned long long start, end;
-
-			if (features.layers[i].features[j].geometry.size() > 0) {
-				if (features.layers[i].features[j].has_id) {
-					fid_to_feature.emplace(features.layers[i].features[j].id, std::make_pair(i, j));
-				}
-
-				get_bbox(features.layers[i].features[j].geometry, &xmin, &ymin, &xmax, &ymax, z, x, y, features.layers[i].detail());
-				get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-				events.emplace_back(start, index_event::CHECK, i, j, xmin, ymin, xmax, ymax);
-			}
-		}
-	}
-
-	std::sort(events.begin(), events.end());
-	std::set<active_bin> active;
-
-	mvt_layer outlayer;
-	outlayer.extent = bins[0].extent;
-	outlayer.version = 2;
-	outlayer.name = features.layers[0].name;
-
-	std::vector<std::vector<tile_feature>> outfeatures;
-
-	for (auto &e : events) {
-		if (e.kind == index_event::ENTER) {
-			active_bin a(e.layer, e.feature);
-			a.xmin = e.xmin;
-			a.ymin = e.ymin;
-			a.xmax = e.xmax;
-			a.ymax = e.ymax;
-
-			const mvt_feature &bin = bins[e.layer].features[e.feature];
-
-			{
-				tile_feature outfeature;
-				for (auto const &g : bin.geometry) {
-					outfeature.geom.emplace_back(g.op, g.x, g.y);
-				}
-				outfeature.t = bin.type;
-				outfeature.has_id = bin.has_id;
-				outfeature.id = bin.id;
-				outfeature.tags = bin.tags;
-				outfeature.layer = &bins[e.layer];
-				outfeature.seq = e.feature;
-
-				a.outfeature = outfeatures.size();
-				outfeatures.push_back({std::move(outfeature)});
-			}
-
-			if (bin_by_id_list.size() > 0) {
-				for (size_t k = 0; k < bin.tags.size(); k += 2) {
-					if (bins[e.layer].keys[bin.tags[k]] == bin_by_id_list) {
-						std::vector<size_t> ids = parse_ids_string(bins[e.layer].values[bin.tags[k + 1]]);
-						for (auto &id : ids) {
-							auto f = fid_to_feature.find(id);
-							if (f != fid_to_feature.end()) {
-								mvt_feature &feature = features.layers[f->second.first].features[f->second.second];
-								if (feature.geometry.size() > 0) {
-									tile_feature outfeature;
-									for (auto const &g : feature.geometry) {
-										outfeature.geom.emplace_back(g.op, g.x, g.y);
-									}
-									feature.geometry.clear();
-									outfeature.t = feature.type;
-									outfeature.has_id = feature.has_id;
-									outfeature.id = feature.id;
-									outfeature.tags = feature.tags;
-									outfeature.layer = &features.layers[e.layer];
-									outfeature.seq = e.feature;
-									outfeatures.back().push_back(std::move(outfeature));
-								}
-							}
-						}
-						break;
-					}
-				}
-			}
-
-			active.insert(std::move(a));
-		} else if (e.kind == index_event::CHECK) {
-			if (bin_by_id_list.size() > 0) {
-				continue;  // only bin by id, not geometrically
-			}
-
-			auto const &feature = features.layers[e.layer].features[e.feature];
-
-			if (feature.geometry.size() == 0) {
-				// already assigned by ID
-				continue;
-			}
-
-			// if we can't find a real match,
-			// assign points to the most nearby bin
-			ssize_t which_outfeature = outfeatures.size() - 1;
-
-			for (auto const &a : active) {
-				auto const &bin = bins[a.layer].features[a.feature];
-
-				if (bbox_intersects(e.xmin, e.ymin, e.xmax, e.ymax,
-						    a.xmin, a.ymin, a.xmax, a.ymax)) {
-					if (pnpoly_mp(bin.geometry, feature.geometry[0].x, feature.geometry[0].y)) {
-						which_outfeature = a.outfeature;
-						break;
-					}
-				}
-			}
-
-			if (which_outfeature >= 0) {
-				tile_feature outfeature;
-				for (auto const &g : feature.geometry) {
-					outfeature.geom.emplace_back(g.op, g.x, g.y);
-				}
-				outfeature.t = feature.type;
-				outfeature.has_id = feature.has_id;
-				outfeature.id = feature.id;
-				outfeature.tags = feature.tags;
-				outfeature.layer = &features.layers[e.layer];
-				outfeature.seq = e.feature;
-				outfeatures[which_outfeature].push_back(std::move(outfeature));
-			}
-		} else /* EXIT */ {
-			auto const &found = active.find({e.layer, e.feature});
-			if (found != active.end()) {
-				active.erase(found);
-			} else {
-				fprintf(stderr, "event mismatch: can't happen\n");
-				exit(EXIT_IMPOSSIBLE);
-			}
-		}
-	}
-
-	for (size_t i = 0; i < outfeatures.size(); i++) {
-		if (outfeatures[i].size() > 1) {
-			if (feature_out(outfeatures[i], outlayer,
-					keep, exclude, exclude_prefix, attribute_accum,
-					unused, key_pool, buffer, true,
-					clipbboxes, z, x, y, NULL)) {
-				mvt_feature &nfeature = outlayer.features.back();
-				mvt_value val;
-				val.type = mvt_uint;
-				val.numeric_value.uint_value = outfeatures[i].size() - 1;
-
-				std::string attrname;
-				{
-					attrname = "tippecanoe:count";
-				}
-				if (should_keep(attrname, keep, exclude, exclude_prefix)) {
-					outlayer.tag(nfeature, attrname, val);
-				}
-			}
-		}
-	}
-
-	mvt_tile ret;
-	ret.layers.push_back(outlayer);
-	return ret;
-}
-
 std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int ny,
 		     int detail_or_unspecified, int buffer,
 		     std::set<std::string> const &keep,
@@ -1852,7 +1544,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::unordered_map<std::string, attribute_op> const &attribute_accum,
 		     std::vector<std::string> const &unidecode_data, double simplification,
 		     double tiny_polygon_size,
-		     std::vector<mvt_layer> const &bins, std::string const &bin_by_id_list,
+		     std::vector<mvt_layer> const &unused2, std::string const &unused3,
 		     std::string const &unused, size_t feature_limit,
 		     std::vector<clipbbox> const &clipbboxes,
 		     bool deduplicate_by_id) {
@@ -1928,10 +1620,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					}
 				}
 
-				// Clip to user-specified bounding boxes.
-				// Bounding box clip first, to reduce complexity of the full clip.
-				// But don't clip here if we are binning, because we need to bin points in the buffer
-				if (bins.size() == 0) {
+				{
 					for (auto &c : clipbboxes) {
 						if (t == VT_POLYGON) {
 							geom = simple_clip_poly(geom, c.minx, c.miny, c.maxx, c.maxy, false);
@@ -1961,8 +1650,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 					g.y -= ny * outtilesize;
 				}
 
-				// Don't clip here if we are binning, because we need to bin points in the buffer
-				if (bins.size() == 0) {
+				{
 					// Clip to output tile
 
 					long long xmin = LLONG_MAX;
@@ -2019,7 +1707,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 
 				if (flush_multiplier_cluster) {
 					if (pending_tile_features.size() > 0) {
-						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, unused, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny, deduplicate_by_id_set);
+						feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, unused, key_pool, -1, true, std::vector<clipbbox>(), nz, nx, ny, deduplicate_by_id_set);
 						if (outlayer->features.size() >= feature_limit) {
 							break;
 						}
@@ -2079,7 +1767,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 			}
 
 			if (pending_tile_features.size() > 0) {
-				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, unused, key_pool, -1, bins.size() == 0, std::vector<clipbbox>(), nz, nx, ny, deduplicate_by_id_set);
+				feature_out(pending_tile_features, *outlayer, keep, exclude, exclude_prefix, attribute_accum, unused, key_pool, -1, true, std::vector<clipbbox>(), nz, nx, ny, deduplicate_by_id_set);
 				pending_tile_features.clear();
 				if (outlayer->features.size() >= feature_limit) {
 					break;
@@ -2118,7 +1806,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 								     nz + 1, nx * 2 + x, ny * 2 + y,
 								     detail_or_unspecified, buffer, keep, exclude, exclude_prefix, false, NULL,
 								     demultiply, filter, preserve_input_order, attribute_accum, unidecode_data,
-								     simplification, tiny_polygon_size, bins, bin_by_id_list, unused,
+								     simplification, tiny_polygon_size, unused2, unused3, unused,
 								     1, clipbboxes, deduplicate_by_id);
 					if (child.size() > 0) {
 						next_overzoomed_tiles->emplace_back(nx * 2 + x, ny * 2 + y);
@@ -2126,12 +1814,6 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 				}
 			}
 		}
-	}
-
-	if (bins.size() > 0) {
-		outtile = assign_to_bins(outtile, bins, bin_by_id_list, nz, nx, ny,
-					 attribute_accum, unused,
-					 keep, exclude, exclude_prefix, buffer, clipbboxes);
 	}
 
 	for (ssize_t i = outtile.layers.size() - 1; i >= 0; i--) {
