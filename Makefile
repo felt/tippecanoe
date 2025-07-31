@@ -360,11 +360,11 @@ overzoom-test: tippecanoe-overzoom
 	# Deduplication by feature ID
 	./tippecanoe -z0 -f -e tests/pbf/1.json.dir -l layer tests/pbf/1.json
 	./tippecanoe -z0 -f -e tests/pbf/2.json.dir -l layer tests/pbf/2.json
-	./tippecanoe-overzoom -o tests/pbf/merged-nodedup.pbf -t 0/0/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
-	./tippecanoe-decode tests/pbf/merged-nodedup.pbf 0 0 0 > tests/pbf/merged-nodedup.pbf.json.check
+	./tippecanoe-overzoom -b0 -o tests/pbf/merged-nodedup.pbf -t 1/1/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
+	./tippecanoe-decode tests/pbf/merged-nodedup.pbf 1 1 0 > tests/pbf/merged-nodedup.pbf.json.check
 	cmp tests/pbf/merged-nodedup.pbf.json.check tests/pbf/merged-nodedup.pbf.json
-	./tippecanoe-overzoom --deduplicate-by-id -o tests/pbf/merged-dedup.pbf -t 0/0/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
-	./tippecanoe-decode tests/pbf/merged-dedup.pbf 0 0 0 > tests/pbf/merged-dedup.pbf.json.check
+	./tippecanoe-overzoom -b0 --deduplicate-by-id -o tests/pbf/merged-dedup.pbf -t 1/1/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
+	./tippecanoe-decode tests/pbf/merged-dedup.pbf 1 1 0 > tests/pbf/merged-dedup.pbf.json.check
 	cmp tests/pbf/merged-dedup.pbf.json.check tests/pbf/merged-dedup.pbf.json
 	rm -r tests/pbf/1.json.dir tests/pbf/2.json.dir tests/pbf/merged-nodedup.pbf tests/pbf/merged-nodedup.pbf.json.check tests/pbf/merged-dedup.pbf.json.check
 
