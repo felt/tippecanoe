@@ -172,28 +172,11 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 					char *s = json_stringify(id);
 					fprintf(stderr, "Warning: Can't represent non-numeric feature ID %s\n", s);
 					free(s);  // stringify
-					warned_nan = true;
+					//warned_nan = true;
 				}
 			}
 		}
 	}
-
-	// DEREK: Getting the actual number value out of priority
-	// int priority_value = 0;
-	// if (priority != NULL) {
-	// 	if (priority->type == JSON_NUMBER) {
-	// 		if (priority->value.number.number >= 0) {
-	// 			priority_value = priority->value.number.number;
-				// has_priorities = true;
-				// if (priority_value > max_priority) {
-				// 	max_priority = priority_value;
-				// }
-				// char *err = NULL;
-				// std::string priority_number = milo::dtoa_milo(priority->value.number.number);
-				// priority_value = strtoull(priority_number.c_str(), &err, 10);
-	// 		}
-	// 	}
-	// }
 
 	size_t nprop = 0;
 	if (properties != NULL && properties->type == JSON_HASH) {
@@ -213,8 +196,6 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 
 	for (size_t i = 0; i < nprop; i++) {
 		if (properties->value.object.keys[i]->type == JSON_STRING) {
-			// if (strcmp(properties->value.object.keys[i]->value.string.string, "id") == 0) {
-			// }
 			serial_val sv = stringify_value(properties->value.object.values[i], sst->fname, sst->line, feature);
 
 			if (strcmp(properties->value.object.keys[i]->value.string.string, "source") == 0){
