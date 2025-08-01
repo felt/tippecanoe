@@ -1478,11 +1478,8 @@ void promote_attribute_prefix(std::string const &key, std::string const &prefixe
 
 // accumulate attribute values from sf onto p
 void preserve_attributes(std::unordered_map<std::string, attribute_op> const *attribute_accum, const serial_feature &sf, serial_feature &p, key_pool &key_pool) {
-	std::string accumulate_numeric_colon = accumulate_numeric + ":";
-
 	for (size_t i = 0; i < sf.keys.size(); i++) {
 		std::string key = sf.stringpool + sf.keys[i] + 1;
-		int type = sf.stringpool[sf.values[i]];
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
@@ -1492,21 +1489,10 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p, key_pool);
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, key_pool);
-		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
-			for (auto const &operation : numeric_operations) {
-				serial_val sv;
-				sv.type = sf.stringpool[sf.values[i]];
-				sv.s = sf.stringpool + sf.values[i] + 1;
-
-				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
-				promote_attribute_prefix(key, prefixed_key, p, key_pool);
-				preserve_attribute(operation.second, prefixed_key, sv, p.full_keys, p.full_values, key_pool);
-			}
 		}
 	}
 	for (size_t i = 0; i < sf.full_keys.size(); i++) {
 		const std::string key = *sf.full_keys[i];
-		int type = sf.full_values[i].type;
 
 		auto f = attribute_accum->find(key);
 		if (f != attribute_accum->end()) {
@@ -1514,12 +1500,6 @@ void preserve_attributes(std::unordered_map<std::string, attribute_op> const *at
 
 			promote_attribute(key, p, key_pool);  // promotes it in the target feature
 			preserve_attribute(f->second, key, sv, p.full_keys, p.full_values, key_pool);
-		} else if (type == mvt_double && accumulate_numeric.size() > 0 && !starts_with(key, accumulate_numeric_colon)) {
-			for (auto const &operation : numeric_operations) {
-				std::string prefixed_key = accumulate_numeric + ":" + operation.first + ":" + key;
-				promote_attribute_prefix(key, prefixed_key, p, key_pool);
-				preserve_attribute(operation.second, prefixed_key, sf.full_values[i], p.full_keys, p.full_values, key_pool);
-			}
 		}
 	}
 }

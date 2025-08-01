@@ -1,3 +1,7 @@
+# 2.80.0
+
+* Remove undocumented command-line options
+
 # 2.79.0
 
 * When deduplicating features by ID in tippecanoe-overzoom, be careful
