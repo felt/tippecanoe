@@ -1,0 +1,64 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Build and Push Container
+
+on:
+  workflow_run:
+    workflows: [test]
+    types:
+      - completed 
+    branches:
+      - main  
+  release:
+    types:
+      - released    
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: tippecanoe
+
+jobs:
+  # Push image to GitHub Packages.
+  # See also https://docs.docker.com/docker-hub/builds/
+  build_and_push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build . --file Dockerfile --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
+
+      - name: Log in to registry
+        # This is where you will update the PAT to GITHUB_TOKEN
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Rename image for publication
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "main" ] && VERSION=latest
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          echo FULLCONTAINERNAME=$IMAGE_ID:$VERSION >> $GITHUB_ENV
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+
+      #- uses: Azure/container-scan@v0
+        #with:
+          #image-name: ${{ env.FULLCONTAINERNAME }}
+
+      - name: Push to CR
+        run: docker push ${{ env.FULLCONTAINERNAME }}
