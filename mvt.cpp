@@ -615,22 +615,34 @@ std::string mvt_value::toString() const {
 
 void mvt_layer::tag(mvt_feature &feature, std::string const &key, mvt_value const &value) {
 	size_t key_hash = fnv1a(key) % key_dedup.size();
-	if (key_dedup[key_hash] >= 0 &&
-	    keys[key_dedup[key_hash]] == key) {
-	} else {
-		key_dedup[key_hash] = keys.size();
+	ssize_t key_index = -1;
+
+	for (auto const &k : key_dedup[key_hash]) {
+		if (keys[k] == key) {
+			key_index = k;
+			break;
+		}
+	}
+	if (key_index < 0) {
+		key_dedup[key_hash].push_back(key_index = keys.size());
 		keys.push_back(key);
 	}
-	feature.tags.push_back(key_dedup[key_hash]);
+	feature.tags.push_back(key_index);
 
 	size_t value_hash = std::hash<mvt_value>()(value) % value_dedup.size();
-	if (value_dedup[value_hash] >= 0 &&
-	    values[value_dedup[value_hash]] == value) {
-	} else {
-		value_dedup[value_hash] = values.size();
+	ssize_t value_index = -1;
+
+	for (auto const &v : value_dedup[value_hash]) {
+		if (values[v] == value) {
+			value_index = v;
+			break;
+		}
+	}
+	if (value_index < 0) {
+		value_dedup[value_hash].push_back(value_index = values.size());
 		values.push_back(value);
 	}
-	feature.tags.push_back(value_dedup[value_hash]);
+	feature.tags.push_back(value_index);
 }
 
 bool is_integer(const char *s, long long *v) {
