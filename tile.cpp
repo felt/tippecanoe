@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <string>
 #include <stack>
 #include <vector>
@@ -55,14 +56,13 @@ extern "C" {
 
 #include "plugin.hpp"
 
+namespace fs = std::filesystem;
+
 #define CMD_BITS 3
 
 // Offset coordinates to keep them positive
 #define COORD_OFFSET (4LL << 32)
 #define SHIFT_RIGHT(a) ((long long) std::round((double) (a) / (1LL << geometry_scale)))
-
-#define XSTRINGIFY(s) STRINGIFY(s)
-#define STRINGIFY(s) #s
 
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -3100,23 +3100,22 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		std::atomic<long long> subpos[TEMP_FILES];
 		int subfd[TEMP_FILES];
 		for (size_t j = 0; j < TEMP_FILES; j++) {
-			char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX" XSTRINGIFY(INT_MAX)) + 1];
-			snprintf(geomname, sizeof(geomname), "%s/geom%zu.XXXXXXXX", tmpdir, j);
-			subfd[j] = mkstemp_cloexec(geomname);
+			std::string geomname = std::string(tmpdir) + "/geom" + std::to_string(j) + ".XXXXXXXX";
+			subfd[j] = mkstemp_cloexec(geomname.data());
 			// printf("%s\n", geomname);
 			if (subfd[j] < 0) {
-				perror(geomname);
+				perror(geomname.c_str());
 				exit(EXIT_OPEN);
 			}
-			FILE *fp = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+			FILE *fp = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 			if (fp == NULL) {
-				perror(geomname);
+				perror(geomname.c_str());
 				exit(EXIT_OPEN);
 			}
 			compressors[j] = compressor(fp);
 			sub[j] = &compressors[j];
 			subpos[j] = 0;
-			unlink(geomname);
+			fs::remove(geomname);
 		}
 
 		size_t useful_threads = 0;

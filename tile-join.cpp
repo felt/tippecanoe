@@ -7,7 +7,6 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,12 +37,15 @@
 #include <sstream>
 #include <algorithm>
 #include <functional>
+#include <filesystem>
 #include "jsonpull/jsonpull.h"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "geometry.hpp"
 #include "thread.hpp"
 #include "platform.hpp"
+
+namespace fs = std::filesystem;
 
 int pk = false;
 int pC = false;
@@ -487,8 +489,7 @@ struct tileset_reader {
 
 	tileset_reader(const char *fname) {
 		name = fname;
-		struct stat st;
-		if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
+		if (fs::is_directory(fname)) {
 			db = NULL;
 			stmt = NULL;
 			next = NULL;
@@ -497,7 +498,7 @@ struct tileset_reader {
 			dirbase = fname;
 		} else if (pmtiles_has_suffix(fname)) {
 			int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
-			pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
+			pmtiles_map = (char *) mmap(NULL, fs::file_size(fname), PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
 
 			if (pmtiles_map == MAP_FAILED) {
 				perror("mmap in decode");
@@ -1545,7 +1546,7 @@ int main(int argc, char **argv) {
 
 	if (out_mbtiles != NULL) {
 		if (force) {
-			unlink(out_mbtiles);
+			fs::remove(out_mbtiles);
 		} else {
 			if (pmtiles_has_suffix(out_mbtiles)) {
 				check_pmtiles(out_mbtiles, argv, false);

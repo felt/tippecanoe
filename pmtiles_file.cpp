@@ -1,16 +1,18 @@
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
 #include <fstream>
 #include <string.h>
 #include <algorithm>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <sqlite3.h>
 #include "errors.hpp"
 #include "pmtiles_file.hpp"
 #include "mvt.hpp"
 #include "write_json.hpp"
 #include "main.hpp"
+
+namespace fs = std::filesystem;
 
 bool pmtiles_has_suffix(const char *filename) {
 	if (filename == nullptr) {
@@ -27,8 +29,7 @@ bool pmtiles_has_suffix(const char *filename) {
 }
 
 void check_pmtiles(const char *filename, char **argv, bool forcetable) {
-	struct stat st;
-	if (stat(filename, &st) == 0) {
+	if (fs::exists(filename)) {
 		fprintf(stderr, "%s: Tileset \"%s\" already exists. You can use --force if you want to delete the old tileset.\n", argv[0], filename);
 		fprintf(stderr, "%s: %s: file exists\n", argv[0], filename);
 
@@ -330,7 +331,7 @@ void mbtiles_map_image_to_pmtiles(char *fname, metadata m, bool tile_compression
 		ostream << tmp_istream.rdbuf();
 
 		tmp_istream.close();
-		unlink(tmpname.c_str());
+		fs::remove(tmpname);
 		ostream.close();
 	}
 }

@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <filesystem>
 #include <vector>
 #include <string>
+
+namespace fs = std::filesystem;
 
 #define MAX_MEMORY (1024 * 1024 * 1024)	 // 1 GB
 
@@ -70,10 +73,10 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 		std::string t1 = "/tmp/sort1.XXXXXX";
 		std::string t2 = "/tmp/sort2.XXXXXX";
 
-		int fd1 = mkstemp((char *) t1.c_str());
-		unlink(t1.c_str());
-		int fd2 = mkstemp((char *) t2.c_str());
-		unlink(t2.c_str());
+		int fd1 = mkstemp(t1.data());
+		fs::remove(t1);
+		int fd2 = mkstemp(t2.data());
+		fs::remove(t2);
 
 		fp1 = fdopen(fd1, "w+b");
 		if (fp1 == NULL) {
