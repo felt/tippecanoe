@@ -245,6 +245,12 @@ int indexcmp(const void *v1, const void *v2) {
 	const struct index *i1 = (const struct index *) v1;
 	const struct index *i2 = (const struct index *) v2;
 
+	if (i1->dup < i2->dup) {
+		return -1;
+	} else if (i1->dup > i2->dup) {
+		return 1;
+	}
+
 	if (i1->ix < i2->ix) {
 		return -1;
 	} else if (i1->ix > i2->ix) {
@@ -1062,7 +1068,535 @@ void prep_drop_states(struct drop_state *ds, int maxzoom, int basezoom, double d
 	}
 }
 
+static double round_droprate(double r) {
+	return std::round(r * 100000.0) / 100000.0;
+}
+
+void calc_zooms_and_dropping(
+	struct index *map, const long long indices,
+	const bool guess_maxzoom, const bool guess_cluster_maxzoom,
+	const double dist_sum, const size_t dist_count,
+	const double area_sum,
+	sqlite3 *outdb, const char *pgm,
+	int &maxzoom, const int minimum_maxzoom, int &basezoom, const int minzoom,
+	const int basezoom_marker_width,
+	double &droprate, const double gamma,
+	bool &fix_dropping) {
+	if (guess_maxzoom) {
+		double mean = 0;
+		size_t count = 0;
+		double m2 = 0;
+		size_t dupes = 0;
+
+		long long progress = -1;
+		long long ip;
+		for (ip = 1; ip < indices; ip++) {
+			if (map[ip].ix != map[ip - 1].ix) {
+#if 0
+				// This #ifdef block provides data to empirically determine the relationship
+				// between a difference in quadkey index and a ground distance in feet:
+				//
+				// $ ./tippecanoe --no-tile-size-limit -zg -f -o foo.mbtiles ne_10m_populated_places.json > /tmp/points
+				// gnuplot> stats "/tmp/points" using (log($2)):(log($3))
+
+				unsigned wx1, wy1, wx2, wy2;
+				decode_quadkey(map[ip - 1].ix, &wx1, &wy1);
+				decode_quadkey(map[ip].ix, &wx2, &wy2);
+
+				double x1, y1, x2, y2;
+				x1 = (wx1 * 360.0 / UINT_MAX - 180.0) / .00000274;
+				y1 = (wy1 * 360.0 / UINT_MAX - 180.0) / .00000274;
+				x2 = (wx2 * 360.0 / UINT_MAX - 180.0) / .00000274;
+				y2 = (wy2 * 360.0 / UINT_MAX - 180.0) / .00000274;
+				double dx = x1 - x2;
+				double dy = y1 - y2;
+				double d = sqrt(dx * dx + dy * dy);
+
+				printf("%llu %llu %0.2f\n", map[ip].ix, map[ip].ix - map[ip - 1].ix, d);
+#endif
+
+				// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+				double newValue = log(map[ip].ix - map[ip - 1].ix);
+				count++;
+				double delta = newValue - mean;
+				mean += delta / count;
+				double delta2 = newValue - mean;
+				m2 += delta * delta2;
+			} else {
+				dupes++;
+			}
+
+			long long nprogress = 100 * ip / indices;
+			if (nprogress != progress) {
+				progress = nprogress;
+				if (!quiet && !quiet_progress && progress_time()) {
+					fprintf(stderr, "Maxzoom: %lld%% \r", progress);
+					fflush(stderr);
+				}
+			}
+		}
+
+		if (count == 0 && dist_count == 0 && minimum_maxzoom == 0) {
+			fprintf(stderr, "Can't guess maxzoom (-zg) without at least two distinct feature locations\n");
+			if (outdb != NULL) {
+				mbtiles_close(outdb, pgm);
+			}
+			exit(EXIT_NODATA);
+		}
+
+		if (count == 0 && dist_count == 0) {
+			maxzoom = minimum_maxzoom;
+			if (droprate < 0) {
+				droprate = 1;
+			}
+		} else if (count > 0) {
+			double stddev = sqrt(m2 / count);
+
+			// Geometric mean is appropriate because distances between features
+			// are typically lognormally distributed. Two standard deviations
+			// below the mean should be enough to distinguish most features.
+			double avg = exp(mean);
+			double nearby = exp(mean - 1.5 * stddev);
+
+			// Convert approximately from tile units to feet.
+			// See empirical data above for source
+			double dist_ft = sqrt(avg) / 33;
+			double nearby_ft = sqrt(nearby) / 33;
+
+			// Go one zoom level beyond what is strictly necessary for nearby features.
+			double want = nearby_ft / 2;
+
+			maxzoom = ceil(log(360 / (.00000274 * want)) / log(2) - full_detail);
+			if (maxzoom < 0) {
+				maxzoom = 0;
+			}
+			if (!quiet) {
+				fprintf(stderr,
+					"Choosing a maxzoom of -z%d for features typically %d feet (%d meters) apart, ",
+					maxzoom,
+					(int) ceil(dist_ft), (int) ceil(dist_ft / 3.28084));
+				fprintf(stderr, "and at least %d feet (%d meters) apart\n",
+					(int) ceil(nearby_ft), (int) ceil(nearby_ft / 3.28084));
+			}
+
+			bool changed = false;
+			while (maxzoom < 32 - full_detail && maxzoom < 33 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
+				unsigned long long zoom_mingap = ((1LL << (32 - maxzoom)) / 256 * cluster_distance) * ((1LL << (32 - maxzoom)) / 256 * cluster_distance);
+				if (avg > zoom_mingap) {
+					break;
+				}
+
+				maxzoom++;
+				changed = true;
+			}
+			if (changed) {
+				printf("Choosing a maxzoom of -z%d to keep most features distinct with cluster distance %d and cluster maxzoom %d\n", maxzoom, cluster_distance, cluster_maxzoom);
+			}
+
+			if (droprate == -3) {
+				// This mysterious formula is the result of eyeballing the appropriate drop rate
+				// for several point tilesets using -zg and then fitting a curve to the pattern
+				// that emerged. It appears that if the standard deviation of the distances between
+				// features is small, the drop rate should be large because the features are evenly
+				// spaced, and if the standard deviation is large, the drop rate can be small because
+				// the features are in clumps.
+				droprate = round_droprate(exp(-0.7681 * log(stddev) + 1.582));
+
+				if (droprate < 0) {
+					droprate = 0;
+				}
+
+				if (!quiet) {
+					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
+				}
+
+				if (dupes != 0 && droprate != 0) {
+					maxzoom += std::round(log((dupes + count) / count) / log(droprate));
+					if (!quiet) {
+						fprintf(stderr, "Increasing maxzoom to %d to account for %zu duplicate feature locations\n", maxzoom, dupes);
+					}
+				}
+			}
+		}
+
+		if (dist_count != 0) {
+			// no conversion to pseudo-feet here because that already happened within each feature
+			double want2 = exp(dist_sum / dist_count) / 8;
+			int mz = ceil(log(360 / (.00000274 * want2)) / log(2) - full_detail);
+
+			if (mz > maxzoom || count <= 0) {
+				if (!quiet) {
+					fprintf(stderr, "Choosing a maxzoom of -z%d for resolution of about %d feet (%d meters) within features\n", mz, (int) exp(dist_sum / dist_count), (int) (exp(dist_sum / dist_count) / 3.28084));
+				}
+				maxzoom = mz;
+			}
+		}
+
+		if (maxzoom < 0) {
+			maxzoom = 0;
+		}
+		if (maxzoom > 32 - full_detail) {
+			maxzoom = 32 - full_detail;
+		}
+		if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
+			maxzoom = 33 - low_detail;
+		}
+
+		double total_tile_count = 0;
+		for (int i = 1; i <= maxzoom; i++) {
+			double tile_count = ceil(area_sum / ((1LL << (32 - i)) * (1LL << (32 - i))));
+			total_tile_count += tile_count;
+
+			// 2M tiles is an arbitrary limit, chosen to make tiling jobs
+			// that seem like they should finish in a few minutes
+			// actually finish in a few minutes. It is large enough to
+			// tile a polygon that covers the entire world to z10
+			// or the United States to z13.
+
+			if (total_tile_count > 2 * 1024 * 1024) {
+				printf("Limiting maxzoom to -z%d to keep from generating %lld tiles\n", i - 1, (long long) total_tile_count);
+				maxzoom = i - 1;
+				break;
+			}
+		}
+
+		if (basezoom == -2 && basezoom_marker_width == 1) {  // -Bg, not -Bg###
+			basezoom = maxzoom;
+			if (!quiet) {
+				fprintf(stderr, "Using base zoom of -z%d\n", basezoom);
+			}
+		}
+
+		if (maxzoom < minimum_maxzoom) {
+			if (!quiet) {
+				fprintf(stderr, "Using minimum maxzoom of -z%d\n", minimum_maxzoom);
+			}
+			maxzoom = minimum_maxzoom;
+		}
+
+		if (maxzoom < minzoom) {
+			if (!quiet) {
+				fprintf(stderr, "Can't use %d for maxzoom because minzoom is %d\n", maxzoom, minzoom);
+			}
+			maxzoom = minzoom;
+		}
+
+		fix_dropping = true;
+
+		if (basezoom == -1) {  // basezoom unspecified
+			basezoom = maxzoom;
+		}
+	}
+
+	if (cluster_maxzoom >= maxzoom && guess_cluster_maxzoom) {
+		cluster_maxzoom = maxzoom - 1;
+		fprintf(stderr, "Choosing a cluster maxzoom of -k%d to make all features visible at maximum zoom %d\n", cluster_maxzoom, maxzoom);
+	}
+
+	if (basezoom < 0 || droprate < 0) {
+		struct tile {
+			unsigned x;
+			unsigned y;
+			long long count;
+			long long fullcount;
+			double gap;
+			unsigned long long previndex;
+		} tile[MAX_ZOOM + 1], max[MAX_ZOOM + 1];
+
+		{
+			int z;
+			for (z = 0; z <= MAX_ZOOM; z++) {
+				tile[z].x = tile[z].y = tile[z].count = tile[z].fullcount = tile[z].gap = tile[z].previndex = 0;
+				max[z].x = max[z].y = max[z].count = max[z].fullcount = 0;
+			}
+		}
+
+		long long progress = -1;
+
+		long long ip;
+		for (ip = 0; ip < indices; ip++) {
+			unsigned xx, yy;
+			decode_index(map[ip].ix, &xx, &yy);
+
+			long long nprogress = 100 * ip / indices;
+			if (nprogress != progress) {
+				progress = nprogress;
+				if (!quiet && !quiet_progress && progress_time()) {
+					fprintf(stderr, "Base zoom/drop rate: %lld%% \r", progress);
+					fflush(stderr);
+				}
+			}
+
+			int z;
+			for (z = 0; z <= MAX_ZOOM; z++) {
+				unsigned xxx = 0, yyy = 0;
+				if (z != 0) {
+					// These are tile numbers, not pixels,
+					// so shift, not round
+					xxx = xx >> (32 - z);
+					yyy = yy >> (32 - z);
+				}
+
+				double scale = (double) (1LL << (64 - 2 * (z + 8)));
+
+				if (tile[z].x != xxx || tile[z].y != yyy) {
+					if (tile[z].count > max[z].count) {
+						max[z] = tile[z];
+					}
+
+					tile[z].x = xxx;
+					tile[z].y = yyy;
+					tile[z].count = 0;
+					tile[z].fullcount = 0;
+					tile[z].gap = 0;
+					tile[z].previndex = 0;
+				}
+
+				tile[z].fullcount++;
+
+				if (manage_gap(map[ip].ix, &tile[z].previndex, scale, gamma, &tile[z].gap)) {
+					continue;
+				}
+
+				tile[z].count++;
+			}
+		}
+
+		int z;
+		for (z = MAX_ZOOM; z >= 0; z--) {
+			if (tile[z].count > max[z].count) {
+				max[z] = tile[z];
+			}
+		}
+
+		int max_features = 50000 / (basezoom_marker_width * basezoom_marker_width);
+
+		int obasezoom = basezoom;
+		if (basezoom < 0) {
+			basezoom = MAX_ZOOM;
+
+			for (z = MAX_ZOOM; z >= 0; z--) {
+				if (max[z].count < max_features) {
+					basezoom = z;
+				}
+
+				// printf("%d/%u/%u %lld\n", z, max[z].x, max[z].y, max[z].count);
+			}
+
+			if (!quiet) {
+				fprintf(stderr, "Choosing a base zoom of -B%d to keep %lld features in tile %d/%u/%u.\n", basezoom, max[basezoom].count, basezoom, max[basezoom].x, max[basezoom].y);
+			}
+		}
+
+		if (obasezoom < 0 && basezoom > maxzoom && prevent[P_BASEZOOM_ABOVE_MAXZOOM]) {
+			basezoom = maxzoom;
+		}
+
+		if (obasezoom < 0 && basezoom > maxzoom) {
+			fprintf(stderr, "Couldn't find a suitable base zoom. Working from the other direction.\n");
+			if (gamma == 0) {
+				fprintf(stderr, "You might want to try -g1 to limit near-duplicates.\n");
+			}
+
+			if (droprate < 0) {
+				if (maxzoom == 0) {
+					droprate = 2.5;
+				} else {
+					droprate = round_droprate(exp(log((double) max[0].count / max[maxzoom].count) / (maxzoom)));
+					if (!quiet) {
+						fprintf(stderr, "Choosing a drop rate of -r%f to get from %lld to %lld in %d zooms\n", droprate, max[maxzoom].count, max[0].count, maxzoom);
+					}
+				}
+			}
+
+			basezoom = 0;
+			for (z = 0; z <= maxzoom; z++) {
+				double zoomdiff = log((double) max[z].count / max_features) / log(droprate);
+				if (zoomdiff + z > basezoom) {
+					basezoom = ceil(zoomdiff + z);
+				}
+			}
+
+			if (!quiet) {
+				fprintf(stderr, "Choosing a base zoom of -B%d to keep %f features in tile %d/%u/%u.\n", basezoom, max[maxzoom].count * exp(log(droprate) * (maxzoom - basezoom)), maxzoom, max[maxzoom].x, max[maxzoom].y);
+			}
+		} else if (droprate < 0) {
+			droprate = 1;
+
+			for (z = basezoom - 1; z >= 0; z--) {
+				double interval = exp(log(droprate) * (basezoom - z));
+
+				if (max[z].count / interval >= max_features) {
+					interval = (double) max[z].count / max_features;
+					droprate = round_droprate(exp(log(interval) / (basezoom - z)));
+					interval = exp(log(droprate) * (basezoom - z));
+
+					if (!quiet) {
+						fprintf(stderr, "Choosing a drop rate of -r%f to keep %f features in tile %d/%u/%u.\n", droprate, max[z].count / interval, z, max[z].x, max[z].y);
+					}
+				}
+			}
+		}
+
+		if (gamma > 0) {
+			int effective = 0;
+
+			for (z = 0; z < maxzoom; z++) {
+				if (max[z].count < max[z].fullcount) {
+					effective = z + 1;
+				}
+			}
+
+			if (effective == 0) {
+				if (!quiet) {
+					fprintf(stderr, "With gamma, effective base zoom is 0, so no effective drop rate\n");
+				}
+			} else {
+				double interval_0 = exp(log(droprate) * (basezoom - 0));
+				double interval_eff = exp(log(droprate) * (basezoom - effective));
+				if (effective > basezoom) {
+					interval_eff = 1;
+				}
+
+				double scaled_0 = max[0].count / interval_0;
+				double scaled_eff = max[effective].count / interval_eff;
+
+				double rate_at_0 = scaled_0 / max[0].fullcount;
+				double rate_at_eff = scaled_eff / max[effective].fullcount;
+
+				double eff_drop = exp(log(rate_at_eff / rate_at_0) / (effective - 0));
+
+				if (!quiet) {
+					fprintf(stderr, "With gamma, effective base zoom of %d, effective drop rate of %f\n", effective, eff_drop);
+				}
+			}
+		}
+
+		fix_dropping = true;
+	}
+}
+
+void fix_feature_minzooms(const bool fix_dropping, const int geomfd,
+			  struct index *map, const long long indices,
+			  const int maxzoom, const int basezoom, const double droprate, const double gamma) {
+	if (fix_dropping || drop_denser > 0) {
+		// Fix up the minzooms for features, now that we really know the base zoom
+		// and drop rate.
+
+		struct stat geomst;
+		if (fstat(geomfd, &geomst) != 0) {
+			perror("stat sorted geom\n");
+			exit(EXIT_STAT);
+		}
+		char *geom = (char *) mmap(NULL, geomst.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, geomfd, 0);
+		if (geom == MAP_FAILED) {
+			perror("mmap geom for fixup");
+			exit(EXIT_MEMORY);
+		}
+
+		struct drop_state ds[maxzoom + 1];
+		prep_drop_states(ds, maxzoom, basezoom, droprate);
+
+		if (drop_denser > 0) {
+			std::vector<drop_densest> ddv;
+			unsigned long long previndex = 0;
+
+			for (long long ip = 0; ip < indices; ip++) {
+				if (map[ip].t == VT_POINT ||
+				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
+				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
+					if (map[ip].ix % 100 < drop_denser) {
+						drop_densest dd;
+						dd.gap = map[ip].ix - previndex;
+						dd.seq = ip;
+						ddv.push_back(dd);
+
+						previndex = map[ip].ix;
+					} else {
+						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+						geom[map[ip].end - 1] = feature_minzoom;
+					}
+				}
+			}
+
+			std::stable_sort(ddv.begin(), ddv.end());
+
+			size_t i = 0;
+			for (int z = 0; z <= basezoom; z++) {
+				double keep_fraction = 1.0 / std::exp(std::log(droprate) * (basezoom - z));
+				size_t keep_count = ddv.size() * keep_fraction;
+
+				for (; i < keep_count && i < ddv.size(); i++) {
+					geom[map[ddv[i].seq].end - 1] = z;
+				}
+			}
+			for (; i < ddv.size(); i++) {
+				geom[map[ddv[i].seq].end - 1] = basezoom;
+			}
+		} else {
+			for (long long ip = 0; ip < indices; ip++) {
+				if (ip > 0 && map[ip].start != map[ip - 1].end) {
+					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
+				}
+				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+				geom[map[ip].end - 1] = feature_minzoom;
+			}
+		}
+
+		munmap(geom, geomst.st_size);
+	}
+}
+
 void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FILE *indexfile, const char *tmpdir, std::atomic<long long> *geompos, int maxzoom, int basezoom, double droprate, double gamma) {
+	// First sort the index, so we can find features with duplicate locations
+
+	if (!quiet) {
+		fprintf(stderr, "Sorting index                 \r");
+	}
+
+	// The plan:
+	//
+	// Sort index by quadkey
+	// Calculate maxzoom and drop rate
+	// Run through index, setting feature_minzoom and dup
+	// Sort index back by segment+offset
+	// Run through index and geom in parallel
+	//   adding dup and feature_minzoom to geom
+	//   and sharding index and geom out by dup+quadkey as radix
+	// Go through each shard, either
+	//   sorting it directly in memory, or
+	//   sharding it further before sorting again
+
+	std::vector<FILE *> indexfps;
+	for (ssize_t i = 0; i < nreaders; i++) {
+		FILE *fp = fdopen(readers[i].indexfd, "rb");
+		if (fp == NULL) {
+			perror("reopen index as FILE");
+			exit(EXIT_OPEN);
+		}
+		rewind(fp);
+		indexfps.push_back(fp);
+	}
+
+	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
+	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+
+	int indexfd = mkstemp_cloexec(indexname);
+	if (indexfd < 0) {
+		perror(indexname);
+		exit(EXIT_OPEN);
+	}
+	FILE *merged_index = fdopen(indexfd, "wb");
+	if (merged_index == NULL) {
+		perror("reopen merged index as FILE");
+		exit(EXIT_OPEN);
+	}
+	fqsort(indexfps, sizeof(struct index), indexcmp, merged_index, memsize / 20);
+	if (fclose(merged_index) != 0) {
+		perror("fclose merged index");
+		exit(EXIT_CLOSE);
+	}
+
 	// Run through the index and geometry for each reader,
 	// splitting the contents out by index into as many
 	// sub-files as we can write to simultaneously.
@@ -1207,10 +1741,6 @@ int vertexcmp(const void *void1, const void *void2) {
 	}
 
 	return 0;
-}
-
-double round_droprate(double r) {
-	return std::round(r * 100000.0) / 100000.0;
 }
 
 std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
@@ -2261,469 +2791,21 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	madvise(map, indexpos, MADV_SEQUENTIAL);
 	madvise(map, indexpos, MADV_WILLNEED);
 	long long indices = indexpos / sizeof(struct index);
+
 	bool fix_dropping = false;
-
-	if (guess_maxzoom) {
-		double mean = 0;
-		size_t count = 0;
-		double m2 = 0;
-		size_t dupes = 0;
-
-		long long progress = -1;
-		long long ip;
-		for (ip = 1; ip < indices; ip++) {
-			if (map[ip].ix != map[ip - 1].ix) {
-#if 0
-				// This #ifdef block provides data to empirically determine the relationship
-				// between a difference in quadkey index and a ground distance in feet:
-				//
-				// $ ./tippecanoe --no-tile-size-limit -zg -f -o foo.mbtiles ne_10m_populated_places.json > /tmp/points
-				// gnuplot> stats "/tmp/points" using (log($2)):(log($3))
-
-				unsigned wx1, wy1, wx2, wy2;
-				decode_quadkey(map[ip - 1].ix, &wx1, &wy1);
-				decode_quadkey(map[ip].ix, &wx2, &wy2);
-
-				double x1, y1, x2, y2;
-				x1 = (wx1 * 360.0 / UINT_MAX - 180.0) / .00000274;
-				y1 = (wy1 * 360.0 / UINT_MAX - 180.0) / .00000274;
-				x2 = (wx2 * 360.0 / UINT_MAX - 180.0) / .00000274;
-				y2 = (wy2 * 360.0 / UINT_MAX - 180.0) / .00000274;
-				double dx = x1 - x2;
-				double dy = y1 - y2;
-				double d = sqrt(dx * dx + dy * dy);
-
-				printf("%llu %llu %0.2f\n", map[ip].ix, map[ip].ix - map[ip - 1].ix, d);
-#endif
-
-				// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-				double newValue = log(map[ip].ix - map[ip - 1].ix);
-				count++;
-				double delta = newValue - mean;
-				mean += delta / count;
-				double delta2 = newValue - mean;
-				m2 += delta * delta2;
-			} else {
-				dupes++;
-			}
-
-			long long nprogress = 100 * ip / indices;
-			if (nprogress != progress) {
-				progress = nprogress;
-				if (!quiet && !quiet_progress && progress_time()) {
-					fprintf(stderr, "Maxzoom: %lld%% \r", progress);
-					fflush(stderr);
-				}
-			}
-		}
-
-		if (count == 0 && dist_count == 0 && minimum_maxzoom == 0) {
-			fprintf(stderr, "Can't guess maxzoom (-zg) without at least two distinct feature locations\n");
-			if (outdb != NULL) {
-				mbtiles_close(outdb, pgm);
-			}
-			exit(EXIT_NODATA);
-		}
-
-		if (count == 0 && dist_count == 0) {
-			maxzoom = minimum_maxzoom;
-			if (droprate < 0) {
-				droprate = 1;
-			}
-		} else if (count > 0) {
-			double stddev = sqrt(m2 / count);
-
-			// Geometric mean is appropriate because distances between features
-			// are typically lognormally distributed. Two standard deviations
-			// below the mean should be enough to distinguish most features.
-			double avg = exp(mean);
-			double nearby = exp(mean - 1.5 * stddev);
-
-			// Convert approximately from tile units to feet.
-			// See empirical data above for source
-			double dist_ft = sqrt(avg) / 33;
-			double nearby_ft = sqrt(nearby) / 33;
-
-			// Go one zoom level beyond what is strictly necessary for nearby features.
-			double want = nearby_ft / 2;
-
-			maxzoom = ceil(log(360 / (.00000274 * want)) / log(2) - full_detail);
-			if (maxzoom < 0) {
-				maxzoom = 0;
-			}
-			if (!quiet) {
-				fprintf(stderr,
-					"Choosing a maxzoom of -z%d for features typically %d feet (%d meters) apart, ",
-					maxzoom,
-					(int) ceil(dist_ft), (int) ceil(dist_ft / 3.28084));
-				fprintf(stderr, "and at least %d feet (%d meters) apart\n",
-					(int) ceil(nearby_ft), (int) ceil(nearby_ft / 3.28084));
-			}
-
-			bool changed = false;
-			while (maxzoom < 32 - full_detail && maxzoom < 33 - low_detail && maxzoom < cluster_maxzoom && cluster_distance > 0) {
-				unsigned long long zoom_mingap = ((1LL << (32 - maxzoom)) / 256 * cluster_distance) * ((1LL << (32 - maxzoom)) / 256 * cluster_distance);
-				if (avg > zoom_mingap) {
-					break;
-				}
-
-				maxzoom++;
-				changed = true;
-			}
-			if (changed) {
-				printf("Choosing a maxzoom of -z%d to keep most features distinct with cluster distance %d and cluster maxzoom %d\n", maxzoom, cluster_distance, cluster_maxzoom);
-			}
-
-			if (droprate == -3) {
-				// This mysterious formula is the result of eyeballing the appropriate drop rate
-				// for several point tilesets using -zg and then fitting a curve to the pattern
-				// that emerged. It appears that if the standard deviation of the distances between
-				// features is small, the drop rate should be large because the features are evenly
-				// spaced, and if the standard deviation is large, the drop rate can be small because
-				// the features are in clumps.
-				droprate = round_droprate(exp(-0.7681 * log(stddev) + 1.582));
-
-				if (droprate < 0) {
-					droprate = 0;
-				}
-
-				if (!quiet) {
-					fprintf(stderr, "Choosing a drop rate of %f\n", droprate);
-				}
-
-				if (dupes != 0 && droprate != 0) {
-					maxzoom += std::round(log((dupes + count) / count) / log(droprate));
-					if (!quiet) {
-						fprintf(stderr, "Increasing maxzoom to %d to account for %zu duplicate feature locations\n", maxzoom, dupes);
-					}
-				}
-			}
-		}
-
-		if (dist_count != 0) {
-			// no conversion to pseudo-feet here because that already happened within each feature
-			double want2 = exp(dist_sum / dist_count) / 8;
-			int mz = ceil(log(360 / (.00000274 * want2)) / log(2) - full_detail);
-
-			if (mz > maxzoom || count <= 0) {
-				if (!quiet) {
-					fprintf(stderr, "Choosing a maxzoom of -z%d for resolution of about %d feet (%d meters) within features\n", mz, (int) exp(dist_sum / dist_count), (int) (exp(dist_sum / dist_count) / 3.28084));
-				}
-				maxzoom = mz;
-			}
-		}
-
-		if (maxzoom < 0) {
-			maxzoom = 0;
-		}
-		if (maxzoom > 32 - full_detail) {
-			maxzoom = 32 - full_detail;
-		}
-		if (maxzoom > 33 - low_detail) {  // that is, maxzoom - 1 > 32 - low_detail
-			maxzoom = 33 - low_detail;
-		}
-
-		double total_tile_count = 0;
-		for (int i = 1; i <= maxzoom; i++) {
-			double tile_count = ceil(area_sum / ((1LL << (32 - i)) * (1LL << (32 - i))));
-			total_tile_count += tile_count;
-
-			// 2M tiles is an arbitrary limit, chosen to make tiling jobs
-			// that seem like they should finish in a few minutes
-			// actually finish in a few minutes. It is large enough to
-			// tile a polygon that covers the entire world to z10
-			// or the United States to z13.
-
-			if (total_tile_count > 2 * 1024 * 1024) {
-				printf("Limiting maxzoom to -z%d to keep from generating %lld tiles\n", i - 1, (long long) total_tile_count);
-				maxzoom = i - 1;
-				break;
-			}
-		}
-
-		if (basezoom == -2 && basezoom_marker_width == 1) {  // -Bg, not -Bg###
-			basezoom = maxzoom;
-			if (!quiet) {
-				fprintf(stderr, "Using base zoom of -z%d\n", basezoom);
-			}
-		}
-
-		if (maxzoom < minimum_maxzoom) {
-			if (!quiet) {
-				fprintf(stderr, "Using minimum maxzoom of -z%d\n", minimum_maxzoom);
-			}
-			maxzoom = minimum_maxzoom;
-		}
-
-		if (maxzoom < minzoom) {
-			if (!quiet) {
-				fprintf(stderr, "Can't use %d for maxzoom because minzoom is %d\n", maxzoom, minzoom);
-			}
-			maxzoom = minzoom;
-		}
-
-		fix_dropping = true;
-
-		if (basezoom == -1) {  // basezoom unspecified
-			basezoom = maxzoom;
-		}
-	}
-
-	if (cluster_maxzoom >= maxzoom && guess_cluster_maxzoom) {
-		cluster_maxzoom = maxzoom - 1;
-		fprintf(stderr, "Choosing a cluster maxzoom of -k%d to make all features visible at maximum zoom %d\n", cluster_maxzoom, maxzoom);
-	}
-
-	if (basezoom < 0 || droprate < 0) {
-		struct tile {
-			unsigned x;
-			unsigned y;
-			long long count;
-			long long fullcount;
-			double gap;
-			unsigned long long previndex;
-		} tile[MAX_ZOOM + 1], max[MAX_ZOOM + 1];
-
-		{
-			int z;
-			for (z = 0; z <= MAX_ZOOM; z++) {
-				tile[z].x = tile[z].y = tile[z].count = tile[z].fullcount = tile[z].gap = tile[z].previndex = 0;
-				max[z].x = max[z].y = max[z].count = max[z].fullcount = 0;
-			}
-		}
-
-		long long progress = -1;
-
-		long long ip;
-		for (ip = 0; ip < indices; ip++) {
-			unsigned xx, yy;
-			decode_index(map[ip].ix, &xx, &yy);
-
-			long long nprogress = 100 * ip / indices;
-			if (nprogress != progress) {
-				progress = nprogress;
-				if (!quiet && !quiet_progress && progress_time()) {
-					fprintf(stderr, "Base zoom/drop rate: %lld%% \r", progress);
-					fflush(stderr);
-				}
-			}
-
-			int z;
-			for (z = 0; z <= MAX_ZOOM; z++) {
-				unsigned xxx = 0, yyy = 0;
-				if (z != 0) {
-					// These are tile numbers, not pixels,
-					// so shift, not round
-					xxx = xx >> (32 - z);
-					yyy = yy >> (32 - z);
-				}
-
-				double scale = (double) (1LL << (64 - 2 * (z + 8)));
-
-				if (tile[z].x != xxx || tile[z].y != yyy) {
-					if (tile[z].count > max[z].count) {
-						max[z] = tile[z];
-					}
-
-					tile[z].x = xxx;
-					tile[z].y = yyy;
-					tile[z].count = 0;
-					tile[z].fullcount = 0;
-					tile[z].gap = 0;
-					tile[z].previndex = 0;
-				}
-
-				tile[z].fullcount++;
-
-				if (manage_gap(map[ip].ix, &tile[z].previndex, scale, gamma, &tile[z].gap)) {
-					continue;
-				}
-
-				tile[z].count++;
-			}
-		}
-
-		int z;
-		for (z = MAX_ZOOM; z >= 0; z--) {
-			if (tile[z].count > max[z].count) {
-				max[z] = tile[z];
-			}
-		}
-
-		int max_features = 50000 / (basezoom_marker_width * basezoom_marker_width);
-
-		int obasezoom = basezoom;
-		if (basezoom < 0) {
-			basezoom = MAX_ZOOM;
-
-			for (z = MAX_ZOOM; z >= 0; z--) {
-				if (max[z].count < max_features) {
-					basezoom = z;
-				}
-
-				// printf("%d/%u/%u %lld\n", z, max[z].x, max[z].y, max[z].count);
-			}
-
-			if (!quiet) {
-				fprintf(stderr, "Choosing a base zoom of -B%d to keep %lld features in tile %d/%u/%u.\n", basezoom, max[basezoom].count, basezoom, max[basezoom].x, max[basezoom].y);
-			}
-		}
-
-		if (obasezoom < 0 && basezoom > maxzoom && prevent[P_BASEZOOM_ABOVE_MAXZOOM]) {
-			basezoom = maxzoom;
-		}
-
-		if (obasezoom < 0 && basezoom > maxzoom) {
-			fprintf(stderr, "Couldn't find a suitable base zoom. Working from the other direction.\n");
-			if (gamma == 0) {
-				fprintf(stderr, "You might want to try -g1 to limit near-duplicates.\n");
-			}
-
-			if (droprate < 0) {
-				if (maxzoom == 0) {
-					droprate = 2.5;
-				} else {
-					droprate = round_droprate(exp(log((double) max[0].count / max[maxzoom].count) / (maxzoom)));
-					if (!quiet) {
-						fprintf(stderr, "Choosing a drop rate of -r%f to get from %lld to %lld in %d zooms\n", droprate, max[maxzoom].count, max[0].count, maxzoom);
-					}
-				}
-			}
-
-			basezoom = 0;
-			for (z = 0; z <= maxzoom; z++) {
-				double zoomdiff = log((double) max[z].count / max_features) / log(droprate);
-				if (zoomdiff + z > basezoom) {
-					basezoom = ceil(zoomdiff + z);
-				}
-			}
-
-			if (!quiet) {
-				fprintf(stderr, "Choosing a base zoom of -B%d to keep %f features in tile %d/%u/%u.\n", basezoom, max[maxzoom].count * exp(log(droprate) * (maxzoom - basezoom)), maxzoom, max[maxzoom].x, max[maxzoom].y);
-			}
-		} else if (droprate < 0) {
-			droprate = 1;
-
-			for (z = basezoom - 1; z >= 0; z--) {
-				double interval = exp(log(droprate) * (basezoom - z));
-
-				if (max[z].count / interval >= max_features) {
-					interval = (double) max[z].count / max_features;
-					droprate = round_droprate(exp(log(interval) / (basezoom - z)));
-					interval = exp(log(droprate) * (basezoom - z));
-
-					if (!quiet) {
-						fprintf(stderr, "Choosing a drop rate of -r%f to keep %f features in tile %d/%u/%u.\n", droprate, max[z].count / interval, z, max[z].x, max[z].y);
-					}
-				}
-			}
-		}
-
-		if (gamma > 0) {
-			int effective = 0;
-
-			for (z = 0; z < maxzoom; z++) {
-				if (max[z].count < max[z].fullcount) {
-					effective = z + 1;
-				}
-			}
-
-			if (effective == 0) {
-				if (!quiet) {
-					fprintf(stderr, "With gamma, effective base zoom is 0, so no effective drop rate\n");
-				}
-			} else {
-				double interval_0 = exp(log(droprate) * (basezoom - 0));
-				double interval_eff = exp(log(droprate) * (basezoom - effective));
-				if (effective > basezoom) {
-					interval_eff = 1;
-				}
-
-				double scaled_0 = max[0].count / interval_0;
-				double scaled_eff = max[effective].count / interval_eff;
-
-				double rate_at_0 = scaled_0 / max[0].fullcount;
-				double rate_at_eff = scaled_eff / max[effective].fullcount;
-
-				double eff_drop = exp(log(rate_at_eff / rate_at_0) / (effective - 0));
-
-				if (!quiet) {
-					fprintf(stderr, "With gamma, effective base zoom of %d, effective drop rate of %f\n", effective, eff_drop);
-				}
-			}
-		}
-
-		fix_dropping = true;
-	}
-
-	if (fix_dropping || drop_denser > 0) {
-		// Fix up the minzooms for features, now that we really know the base zoom
-		// and drop rate.
-
-		struct stat geomst;
-		if (fstat(geomfd, &geomst) != 0) {
-			perror("stat sorted geom\n");
-			exit(EXIT_STAT);
-		}
-		char *geom = (char *) mmap(NULL, geomst.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, geomfd, 0);
-		if (geom == MAP_FAILED) {
-			perror("mmap geom for fixup");
-			exit(EXIT_MEMORY);
-		}
-		madvise(geom, indexpos, MADV_SEQUENTIAL);
-		madvise(geom, indexpos, MADV_WILLNEED);
-
-		struct drop_state ds[maxzoom + 1];
-		prep_drop_states(ds, maxzoom, basezoom, droprate);
-
-		if (drop_denser > 0) {
-			std::vector<drop_densest> ddv;
-			unsigned long long previndex = 0;
-
-			for (long long ip = 0; ip < indices; ip++) {
-				if (map[ip].t == VT_POINT ||
-				    (additional[A_LINE_DROP] && map[ip].t == VT_LINE) ||
-				    (additional[A_POLYGON_DROP] && map[ip].t == VT_POLYGON)) {
-					if (map[ip].ix % 100 < drop_denser) {
-						drop_densest dd;
-						dd.gap = map[ip].ix - previndex;
-						dd.seq = ip;
-						ddv.push_back(dd);
-
-						previndex = map[ip].ix;
-					} else {
-						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
-						geom[map[ip].end - 1] = feature_minzoom;
-					}
-				}
-			}
-
-			std::stable_sort(ddv.begin(), ddv.end());
-
-			size_t i = 0;
-			for (int z = 0; z <= basezoom; z++) {
-				double keep_fraction = 1.0 / std::exp(std::log(droprate) * (basezoom - z));
-				size_t keep_count = ddv.size() * keep_fraction;
-
-				for (; i < keep_count && i < ddv.size(); i++) {
-					geom[map[ddv[i].seq].end - 1] = z;
-				}
-			}
-			for (; i < ddv.size(); i++) {
-				geom[map[ddv[i].seq].end - 1] = basezoom;
-			}
-		} else {
-			for (long long ip = 0; ip < indices; ip++) {
-				if (ip > 0 && map[ip].start != map[ip - 1].end) {
-					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
-				}
-				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
-				geom[map[ip].end - 1] = feature_minzoom;
-			}
-		}
-
-		munmap(geom, geomst.st_size);
-	}
+	calc_zooms_and_dropping(map, indices,
+				guess_maxzoom, guess_cluster_maxzoom,
+				dist_sum, dist_count,
+				area_sum,
+				outdb, pgm,
+				maxzoom, minimum_maxzoom, basezoom, minzoom,
+				basezoom_marker_width,
+				droprate, gamma,
+				fix_dropping);
+
+	fix_feature_minzooms(fix_dropping, geomfd,
+			     map, indices,
+			     maxzoom, basezoom, droprate, gamma);
 
 	madvise(map, indexpos, MADV_DONTNEED);
 	munmap(map, indexpos);
