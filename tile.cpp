@@ -541,7 +541,6 @@ struct simplification_worker_arg {
 	std::vector<std::shared_ptr<serial_feature>> *features = NULL;
 	int task = 0;
 	int tasks = 0;
-	bool trying_to_stop_early = false;
 
 	drawvec *shared_nodes;
 	node *shared_nodes_map;
@@ -676,9 +675,7 @@ static void *simplification_worker(void *v) {
 
 	for (size_t i = a->task; i < (*features).size(); i += a->tasks) {
 		double area = 0;
-		if (!a->trying_to_stop_early) {
-			area = simplify_feature(&*((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
-		}
+		area = simplify_feature(&*((*features)[i]), *(a->shared_nodes), a->shared_nodes_map, a->nodepos, *(a->shared_nodes_bloom));
 
 		signed char t = (*features)[i]->t;
 		int z = (*features)[i]->z;
@@ -693,20 +690,18 @@ static void *simplification_worker(void *v) {
 			{
 				drawvec before = geom;
 
-				if (!a->trying_to_stop_early) {
-					// we can try scaling up because this is now tile scale
-					coalesce_polygon(geom, true);
-					if (additional[A_DEBUG_POLYGON]) {
-						check_polygon(geom);
-					}
+				// we can try scaling up because this is now tile scale
+				coalesce_polygon(geom, true);
+				if (additional[A_DEBUG_POLYGON]) {
+					check_polygon(geom);
+				}
 
-					if (geom.size() < 3) {
-						if (area > 0) {
-							// area is in world coordinates, calculated before scaling down
-							geom = revive_polygon(before, area, z, out_detail);
-						} else {
-							geom.clear();
-						}
+				if (geom.size() < 3) {
+					if (area > 0) {
+						// area is in world coordinates, calculated before scaling down
+						geom = revive_polygon(before, area, z, out_detail);
+					} else {
+						geom.clear();
 					}
 				}
 			}
@@ -1633,7 +1628,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
 	bool can_stop_early = true;
-	if (additional[A_VARIABLE_DEPTH_PYRAMID]) {
+	if (additional[A_VARIABLE_DEPTH_PYRAMID] && mingap == 0 && minextent == 0 && mindrop_sequence == 0) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 
@@ -2165,6 +2160,12 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					sf.clustered = 0;
 					sf.tile_stringpool = tile_stringpool;
 
+					if (trying_to_stop_early && line_detail == first_detail) {
+						// only remove collinearities;
+						// leave all other vertices for extreme overzooming
+						sf.simplification = 0;
+					}
+
 					if (line_detail == detail && extra_detail >= 0 && z == maxzoom) {
 						sf.extra_detail = extra_detail;
 						// maximum allowed coordinate delta in geometries is 2^31 - 1
@@ -2373,7 +2374,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					args[i].shared_nodes_map = shared_nodes_map;
 					args[i].nodepos = nodepos;
 					args[i].shared_nodes_bloom = &shared_nodes_bloom;
-					args[i].trying_to_stop_early = trying_to_stop_early;
 
 					if (tasks > 1) {
 						if (thread_create(&pthreads[i], NULL, simplification_worker, &args[i]) != 0) {
@@ -2761,7 +2761,6 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 				if (trying_to_stop_early && line_detail == first_detail) {
 					// didn't work, try a lower detail
-					detail_reduced++;
 					continue;
 				}
 
@@ -2992,7 +2991,21 @@ exit(EXIT_IMPOSSIBLE);
 			long long len;
 
 			struct zxy parent(z - 1, x / 2, y / 2);
+			bool skip = false;
 			if (arg->skip_children->count(parent) > 0) {
+				if (arg->mingap != 0 || arg->minextent != 0 || arg->mindrop_sequence != 0) {
+					// revive if we are trying to drop features and we still have the data
+					skip = false;
+				} else {
+					// skip if the parent tile finished at the last zoom level and we aren't trying to drop
+					skip = true;
+				}
+			} else {
+				// do the tile if the parent didn't finish early
+				skip = false;
+			}
+
+			if (skip) {
 				skip_tile(&dc, &geompos, arg->compressed);
 				len = 1;
 			} else {
