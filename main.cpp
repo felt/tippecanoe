@@ -429,9 +429,20 @@ void *run_sort(void *v) {
 		std::string s;
 		s.resize(end - start);
 
-		if (pread(a->indexfd, (void *) s.c_str(), end - start, start) != end - start) {
-			fprintf(stderr, "pread(index): %s\n", strerror(errno));
-			exit(EXIT_READ);
+		const char *dest = s.c_str();
+		ssize_t off = start;
+		ssize_t count = end - start;
+
+		while (count > 0) {
+			ssize_t n = pread(a->indexfd, (void *) dest, count, off);
+			if (n < 0) {
+				fprintf(stderr, "pread(index): %s\n", strerror(errno));
+				exit(EXIT_READ);
+			}
+
+			dest += n;
+			off += n;
+			count -= n;
 		}
 
 		qsort((void *) s.c_str(), (end - start) / a->bytes, a->bytes, indexcmp);
