@@ -571,6 +571,11 @@ csv-test: tippecanoe tippecanoe-decode
 	./tippecanoe-decode -x generator -x generator_options tests/csv/out.mbtiles > tests/csv/out.mbtiles.json.check
 	cmp tests/csv/out.mbtiles.json.check tests/csv/out.mbtiles.json
 	rm -f tests/csv/out.mbtiles.json.check tests/csv/out.mbtiles
+	# Reading from named CSV with geometry
+	./tippecanoe -q -zg -f -o tests/csv_geometry/out.mbtiles tests/csv_geometry/ne_110m_populated_places_simple.csv
+	./tippecanoe-decode -x generator -x generator_options tests/csv_geometry/out.mbtiles > tests/csv_geometry/out.mbtiles.json.check
+	cmp tests/csv_geometry/out.mbtiles.json.check tests/csv_geometry/out.mbtiles.json
+	rm -f tests/csv_geometry/out.mbtiles.json.check tests/csv_geometry/out.mbtiles
 
 layer-json-test: tippecanoe tippecanoe-decode
 	# GeoJSON with description and named layer
