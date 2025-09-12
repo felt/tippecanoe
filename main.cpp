@@ -2018,7 +2018,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			vertex_readers.push_back(readers[i].vertexfile);
 			rewind(readers[i].vertexfile);
 		}
-		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out, memsize / 20);
+		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out, memsize / 20, tmpdir);
 
 		for (size_t i = 0; i < CPUS; i++) {
 			if (fclose(readers[i].vertexfile) != 0) {
@@ -2087,7 +2087,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			rewind(readers[i].nodefile);
 		}
 
-		fqsort(node_readers, sizeof(node), nodecmp, node_out, memsize / 20);
+		fqsort(node_readers, sizeof(node), nodecmp, node_out, memsize / 20, tmpdir);
 
 		for (size_t i = 0; i < CPUS; i++) {
 			if (fclose(readers[i].nodefile) != 0) {

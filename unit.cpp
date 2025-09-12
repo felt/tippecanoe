@@ -73,7 +73,7 @@ TEST_CASE("External quicksort", "fqsort") {
 	unlink(tmpname.c_str());
 	FILE *f = fdopen(fd, "w+b");
 
-	fqsort(inputs, sizeof(int), intcmp, f, 256);
+	fqsort(inputs, sizeof(int), intcmp, f, 256, "/tmp");
 	rewind(f);
 
 	int prev = INT_MIN;

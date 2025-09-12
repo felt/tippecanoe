@@ -6,7 +6,7 @@
 
 #define MAX_MEMORY (1024 * 1024 * 1024)	 // 1 GB
 
-void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem) {
+void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, const void *), FILE *out, size_t mem, const char *tmpdir) {
 	std::string pivot;
 	FILE *fp1, *fp2;
 
@@ -67,8 +67,8 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 		size_t pivot_off = width * (buf.size() / width / 2);
 		pivot = std::string(buf, pivot_off, width);
 
-		std::string t1 = "/tmp/sort1.XXXXXX";
-		std::string t2 = "/tmp/sort2.XXXXXX";
+		std::string t1 = std::string(tmpdir) + "/sort1.XXXXXX";
+		std::string t2 = std::string(tmpdir) + "/sort2.XXXXXX";
 
 		int fd1 = mkstemp((char *) t1.c_str());
 		unlink(t1.c_str());
@@ -117,11 +117,11 @@ void fqsort(std::vector<FILE *> &inputs, size_t width, int (*cmp)(const void *, 
 
 	std::vector<FILE *> v1;
 	v1.emplace_back(fp1);
-	fqsort(v1, width, cmp, out, mem);
+	fqsort(v1, width, cmp, out, mem, tmpdir);
 	fclose(fp1);
 
 	std::vector<FILE *> v2;
 	v2.emplace_back(fp2);
-	fqsort(v2, width, cmp, out, mem);
+	fqsort(v2, width, cmp, out, mem, tmpdir);
 	fclose(fp2);
 }
