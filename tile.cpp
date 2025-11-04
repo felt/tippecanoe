@@ -2588,6 +2588,14 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				layer.features.push_back(std::move(feature));
+
+				// Record the unique sequence number of this feature
+				long long feature_seq = layer_features[x]->seq;
+				{
+					std::lock_guard<std::mutex> lock(strategy_out->unique_features_mutex);
+					strategy_out->unique_feature_seqs.insert(feature_seq);
+				}
+
 				layer_features[x] = std::make_shared<serial_feature>();
 			}
 

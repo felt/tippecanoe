@@ -444,6 +444,14 @@ std::string stringify_strategies(std::vector<strategy> const &strategies) {
 			any = true;
 		}
 
+		if (strategies[i].features_written > 0) {
+			state.nospace = true;
+			state.json_write_string("features_written");
+			state.nospace = true;
+			state.json_write_number(strategies[i].features_written);
+			any = true;
+		}
+
 		if (strategies[i].truncated_zooms > 0) {
 			state.nospace = true;
 			state.json_write_string("truncated_zooms");

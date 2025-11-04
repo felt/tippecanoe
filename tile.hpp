@@ -6,6 +6,8 @@
 #include <vector>
 #include <atomic>
 #include <map>
+#include <unordered_set>
+#include <mutex>
 #include "mbtiles.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
@@ -19,6 +21,10 @@ struct atomic_strategy {
 	std::atomic<size_t> detail_reduced;
 	std::atomic<size_t> tiny_polygons;
 	std::atomic<size_t> truncated_zooms;
+
+	// Track unique features written per zoom level
+	std::unordered_set<long long> unique_feature_seqs;
+	std::mutex unique_features_mutex;
 
 	atomic_strategy()
 	    : dropped_by_rate(0),
@@ -44,6 +50,7 @@ struct strategy {
 
 	size_t tile_size = 0;
 	size_t feature_count = 0;
+	size_t features_written = 0;
 
 	strategy(const atomic_strategy &s, size_t ts, size_t fc) {
 		dropped_by_rate = s.dropped_by_rate;
@@ -55,6 +62,7 @@ struct strategy {
 		feature_count = fc;
 		tiny_polygons = s.tiny_polygons;
 		truncated_zooms = s.truncated_zooms;
+		features_written = s.unique_feature_seqs.size();
 	}
 
 	strategy() = default;
