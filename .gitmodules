@@ -1,0 +1,4 @@
+[submodule "maplibre-tile-spec"]
+	path = maplibre-tile-spec
+	url = https://github.com/dannote/maplibre-tile-spec.git
+	branch = feature/cpp-encoder

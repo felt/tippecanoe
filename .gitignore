@@ -43,6 +43,9 @@ tests/**/*.mbtiles
 tests/**/*.check
 tests/**/*.geobuf
 
+# MLT build directory
+mlt-build/
+
 # Vim
 *.swp
 
@@ -51,3 +54,4 @@ tests/**/*.geobuf
 
 # Nodejs
 node_modules
+tmp/

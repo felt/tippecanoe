@@ -76,4 +76,11 @@ bool progress_time();
 
 #define MAX_ZOOM 24
 
+#define OUTPUT_MVT 0
+#define OUTPUT_MLT 1
+
+extern int output_format;
+extern bool mlt_sort_features;
+extern bool mlt_pretessellate;
+
 #endif
