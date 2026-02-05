@@ -1,4 +1,5 @@
 #include "mlt.hpp"
+#include "jsonpull/jsonpull.h"
 
 #include <mlt/encoder.hpp>
 
@@ -8,6 +9,68 @@
 #include <vector>
 
 using Vertex = mlt::Encoder::Vertex;
+
+// Try to parse a JSON object string into MLT STRUCT (flat string children only)
+static bool try_parse_json_object(const std::string &s, mlt::Encoder::StructValue &out) {
+	if (s.empty() || s[0] != '{') {
+		return false;
+	}
+
+	json_pull *jp = json_begin_string(s.c_str());
+	json_object *obj = json_read_tree(jp);
+
+	if (obj == nullptr || obj->type != JSON_HASH) {
+		json_free(obj);
+		json_end(jp);
+		return false;
+	}
+
+	for (size_t i = 0; i < obj->value.object.length; i++) {
+		json_object *key = obj->value.object.keys[i];
+		json_object *val = obj->value.object.values[i];
+
+		if (key->type != JSON_STRING) continue;
+
+		std::string child_key = key->value.string.string;
+		std::string child_val;
+
+		switch (val->type) {
+		case JSON_STRING:
+			child_val = val->value.string.string;
+			break;
+		case JSON_NUMBER:
+			if (val->value.number.large_unsigned != 0) {
+				child_val = std::to_string(val->value.number.large_unsigned);
+			} else if (val->value.number.large_signed != 0) {
+				child_val = std::to_string(val->value.number.large_signed);
+			} else {
+				child_val = std::to_string(val->value.number.number);
+			}
+			break;
+		case JSON_TRUE:
+			child_val = "true";
+			break;
+		case JSON_FALSE:
+			child_val = "false";
+			break;
+		case JSON_NULL:
+			child_val = "null";
+			break;
+		default:
+			// Nested object/array - stringify back
+			char *nested = json_stringify(val);
+			child_val = nested;
+			free(nested);
+			break;
+		}
+
+		out[child_key] = child_val;
+	}
+
+	json_free(obj);
+	json_end(jp);
+	return true;
+}
 
 static mlt::Encoder::PropertyValue convert_value(const mvt_value &val) {
 	switch (val.type) {
@@ -32,8 +95,14 @@ static mlt::Encoder::PropertyValue convert_value(const mvt_value &val) {
 		return val.numeric_value.float_value;
 	case mvt_double:
 		return val.numeric_value.double_value;
-	case mvt_string:
-		return val.get_string_value();
+	case mvt_string: {
+		std::string s = val.get_string_value();
+		mlt::Encoder::StructValue struct_val;
+		if (try_parse_json_object(s, struct_val)) {
+			return struct_val;
+		}
+		return s;
+	}
 	default:
 		return std::string{};
 	}
