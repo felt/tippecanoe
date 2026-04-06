@@ -833,9 +833,12 @@ static double choose_minattribute(std::vector<double> &attribute_values, double 
 	std::stable_sort(attribute_values.begin(), attribute_values.end());
 
 	if (descending) {
-		// For descending: drop features > threshold, keep features <= threshold
-		// ix points at the last value to keep
-		size_t ix = (size_t)((attribute_values.size() - 1) * f);
+		// For descending: threshold moves down, drop features >= threshold
+		// Use ceil so ix points at the first value to drop, not the last to keep
+		size_t ix = (size_t)ceil((double)(attribute_values.size() - 1) * f);
+		if (ix >= attribute_values.size()) {
+			ix = attribute_values.size() - 1;
+		}
 		while (ix > 0 && attribute_values[ix] >= existing_attribute) {
 			ix--;
 		}
@@ -846,12 +849,8 @@ static double choose_minattribute(std::vector<double> &attribute_values, double 
 
 		return attribute_values[ix];
 	} else {
-		// For ascending: drop features < threshold, keep features >= threshold
-		// ix points at the first value to keep
-		size_t ix = (size_t)ceil((double)(attribute_values.size() - 1) * (1 - f));
-		if (ix >= attribute_values.size()) {
-			ix = attribute_values.size() - 1;
-		}
+		// For ascending: threshold moves up, drop features <= threshold
+		size_t ix = (attribute_values.size() - 1) * (1 - f);
 		while (ix + 1 < attribute_values.size() && attribute_values[ix] <= existing_attribute) {
 			ix++;
 		}
@@ -939,6 +938,7 @@ struct write_tile_args {
 	const char *postfilter = NULL;
 	std::unordered_map<std::string, attribute_op> const *attribute_accum = NULL;
 	bool still_dropping = false;
+	bool still_dropping_all_colocated = true;
 	int wrote_zoom = 0;
 	size_t tiling_seg = 0;
 	json_object *filter = NULL;
@@ -1693,6 +1693,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 	size_t detail_reduced = 0;
 	bool first_time = true;
+	bool was_already_dropping = arg->still_dropping;
 	// This only loops if the tile data didn't fit, in which case the detail
 	// goes down and the progress indicator goes backward for the next try.
 	for (int line_detail = first_detail;
@@ -1727,6 +1728,9 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		drawvec shared_nodes;
 
 		int tile_detail = line_detail;
+		bool has_multiple_locations = false;
+		unsigned long long first_feature_index = 0;
+		bool first_feature_seen = false;
 		size_t skipped = 0;
 		size_t kept = 0;
 
@@ -1862,6 +1866,13 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 			if (sf.t < 0) {
 				break;
+			}
+
+			if (!first_feature_seen) {
+				first_feature_index = sf.index;
+				first_feature_seen = true;
+			} else if (sf.index != first_feature_index) {
+				has_multiple_locations = true;
 			}
 
 			std::string &layername = (*layer_unmaps)[sf.segment][sf.layer];
@@ -2110,8 +2121,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (attr_valid) {
 						add_sample_to(attribute_values, attr_numeric, attribute_values_increment, seq);
 						bool should_drop = arg->drop_by_attribute_descending
-							? (minattribute != HUGE_VAL && attr_numeric > minattribute)
-							: (minattribute != -HUGE_VAL && attr_numeric < minattribute);
+							? (minattribute != HUGE_VAL && attr_numeric >= minattribute)
+							: (minattribute != -HUGE_VAL && attr_numeric <= minattribute);
 						if (should_drop) {
 							can_stop_early = false;
 							if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
@@ -2802,7 +2813,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							fprintf(stderr,
 								"Trying to keep features with '%s' %s %.6f to make it fit\n",
 								arg->drop_by_attribute_as_needed_attribute->c_str(),
-								desc ? "<=" : ">=",
+								desc ? "<" : ">",
 								minattribute);
 						}
 						line_detail++;
@@ -2971,7 +2982,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 							arg->still_dropping = true;
 						}
 						if (!quiet) {
-							fprintf(stderr, "Going to try keeping features with attribute '%s' %s %0.6f to make it fit\n", arg->drop_by_attribute_as_needed_attribute->c_str(), desc2 ? "<=" : ">=", minattribute);
+							fprintf(stderr, "Going to try keeping features with attribute '%s' %s %0.6f to make it fit\n", arg->drop_by_attribute_as_needed_attribute->c_str(), desc2 ? "<" : ">", minattribute);
 						}
 						line_detail++;
 						continue;
@@ -3039,10 +3050,24 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				}
 
 				strategy_out->add_from(strategy);
+				if (!was_already_dropping && arg->still_dropping) {
+					if (!has_multiple_locations) {
+						skip_children_out.insert(zxy(z, tx, ty));
+					} else {
+						arg->still_dropping_all_colocated = false;
+					}
+				}
 				return count;
 			}
 		} else {
 			strategy_out->add_from(strategy);
+			if (!was_already_dropping && arg->still_dropping) {
+				if (!has_multiple_locations) {
+					skip_children_out.insert(zxy(z, tx, ty));
+				} else {
+					arg->still_dropping_all_colocated = false;
+				}
+			}
 			return count;
 		}
 	}
@@ -3407,6 +3432,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].pass = pass;
 				args[thread].wrote_zoom = -1;
 				args[thread].still_dropping = false;
+				args[thread].still_dropping_all_colocated = true;
 				args[thread].strategy = &strategy;
 				args[thread].zoom = z;
 				args[thread].compressed = (z != iz);
@@ -3424,6 +3450,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 
 			bool again = false;
 			bool extend_zooms = false;
+			bool still_dropping_all_colocated = true;
 			for (size_t thread = 0; thread < threads; thread++) {
 				void *retval;
 
@@ -3479,13 +3506,22 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 
 				if (args[thread].still_dropping) {
 					extend_zooms = true;
+					if (!args[thread].still_dropping_all_colocated) {
+						still_dropping_all_colocated = false;
+					}
 				}
 			}
 
 			if (extend_zooms && (additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) && z == maxzoom && maxzoom < MAX_ZOOM) {
-				maxzoom++;
-				if (extend_zooms_max > 0) {
-					extend_zooms_max--;
+				if (still_dropping_all_colocated) {
+					if (!quiet) {
+						fprintf(stderr, "Not extending zoom beyond %d: all overflowing features are co-located\n", z);
+					}
+				} else {
+					maxzoom++;
+					if (extend_zooms_max > 0) {
+						extend_zooms_max--;
+					}
 				}
 			}
 
