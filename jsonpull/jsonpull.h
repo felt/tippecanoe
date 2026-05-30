@@ -72,7 +72,6 @@ struct json_object {
 	json_pull *parser = nullptr;
 
 	json_type type;
-	int expect = 0;	 // used by the parser on JSON_ARRAY / JSON_HASH nodes
 
 	json_object(json_type t) : type(t) {}
 	json_object(json_type t, json_object *p, json_pull *pl) : parent(p), parser(pl), type(t) {}
@@ -190,10 +189,17 @@ struct json_pull {
 	ssize_t buffer_head = 0;
 
 	// Stack of currently-open containers; the top is the innermost container
-	// being parsed. Replaces the previous single `container` pointer / parent
-	// walk, which previously required enable_shared_from_this<json_object>
-	// on every json_object instance (16 extra bytes per node).
-	std::vector<json_object_ptr> container_stack;
+	// being parsed. Each frame also remembers what token is expected next
+	// (an item, a comma, a key, a colon, or a value). This stack is the
+	// only place the parser-only `expect` state lives, so it does not
+	// pollute json_object once parsing finishes. Replaces the previous
+	// single `container` pointer / parent walk, which previously required
+	// enable_shared_from_this<json_object> on every json_object instance.
+	struct parse_frame {
+		json_object_ptr container;
+		json_type expect;
+	};
+	std::vector<parse_frame> container_stack;
 	json_object_ptr root;
 
 	std::string number_buffer;

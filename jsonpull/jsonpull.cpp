@@ -115,35 +115,36 @@ static json_object_ptr fabricate_object(json_pull *jp, json_object *parent, json
 	return make_object(type, parent, jp);
 }
 
-static inline json_object *current_container(json_pull *j) {
-	return j->container_stack.empty() ? nullptr : j->container_stack.back().get();
+static inline json_pull::parse_frame *current_frame(json_pull *j) {
+	return j->container_stack.empty() ? nullptr : &j->container_stack.back();
 }
 
 static json_object_ptr add_object(json_pull *j, json_type type) {
-	json_object *c = current_container(j);
+	json_pull::parse_frame *f = current_frame(j);
+	json_object *c = f ? f->container.get() : nullptr;
 	json_object_ptr o = make_object(type, c, j);
 
-	if (c != nullptr) {
+	if (f != nullptr) {
 		if (c->type == JSON_ARRAY) {
-			if (c->expect == JSON_ITEM) {
+			if (f->expect == JSON_ITEM) {
 				c->array().push_back(o);
-				c->expect = JSON_COMMA;
+				f->expect = JSON_COMMA;
 			} else {
 				j->error = "Expected a comma, not a list item";
 				return nullptr;
 			}
 		} else if (c->type == JSON_HASH) {
-			if (c->expect == JSON_VALUE) {
+			if (f->expect == JSON_VALUE) {
 				c->entries().back().value = o;
-				c->expect = JSON_COMMA;
-			} else if (c->expect == JSON_KEY) {
+				f->expect = JSON_COMMA;
+			} else if (f->expect == JSON_KEY) {
 				if (type != JSON_STRING) {
 					j->error = "Hash key is not a string";
 					return nullptr;
 				}
 
 				c->entries().push_back({o, nullptr});
-				c->expect = JSON_COLON;
+				f->expect = JSON_COLON;
 			} else {
 				j->error = "Expected a comma or colon";
 				return nullptr;
@@ -229,8 +230,7 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		o->expect = JSON_ITEM;
-		j->container_stack.push_back(o);
+		j->container_stack.push_back({o, JSON_ITEM});
 
 		if (cb != nullptr) {
 			cb(JSON_ARRAY, j, state);
@@ -240,25 +240,26 @@ again:
 	}
 
 	case ']': {
-		json_object *cc = current_container(j);
-		if (cc == nullptr) {
+		json_pull::parse_frame *f = current_frame(j);
+		if (f == nullptr) {
 			j->error = "Found ] at top level";
 			return nullptr;
 		}
 
+		json_object *cc = f->container.get();
 		if (cc->type != JSON_ARRAY) {
 			j->error = "Found ] not in an array";
 			return nullptr;
 		}
 
-		if (cc->expect != JSON_COMMA) {
-			if (!(cc->expect == JSON_ITEM && cc->array().size() == 0)) {
+		if (f->expect != JSON_COMMA) {
+			if (!(f->expect == JSON_ITEM && cc->array().size() == 0)) {
 				j->error = "Found ] without final element";
 				return nullptr;
 			}
 		}
 
-		json_object_ptr ret = j->container_stack.back();
+		json_object_ptr ret = f->container;
 		j->container_stack.pop_back();
 		return ret;
 	}
@@ -270,8 +271,7 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		o->expect = JSON_KEY;
-		j->container_stack.push_back(o);
+		j->container_stack.push_back({o, JSON_KEY});
 
 		if (cb != nullptr) {
 			cb(JSON_HASH, j, state);
@@ -281,25 +281,26 @@ again:
 	}
 
 	case '}': {
-		json_object *cc = current_container(j);
-		if (cc == nullptr) {
+		json_pull::parse_frame *f = current_frame(j);
+		if (f == nullptr) {
 			j->error = "Found } at top level";
 			return nullptr;
 		}
 
+		json_object *cc = f->container.get();
 		if (cc->type != JSON_HASH) {
 			j->error = "Found } not in a hash";
 			return nullptr;
 		}
 
-		if (cc->expect != JSON_COMMA) {
-			if (!(cc->expect == JSON_KEY && cc->entries().size() == 0)) {
+		if (f->expect != JSON_COMMA) {
+			if (!(f->expect == JSON_KEY && cc->entries().size() == 0)) {
 				j->error = "Found } without final element";
 				return nullptr;
 			}
 		}
 
-		json_object_ptr ret = j->container_stack.back();
+		json_object_ptr ret = f->container;
 		j->container_stack.pop_back();
 		return ret;
 	}
@@ -366,17 +367,17 @@ again:
 		/////////////////////////// Comma
 
 	case ',': {
-		json_object *cc = current_container(j);
-		if (cc != nullptr) {
-			if (cc->expect != JSON_COMMA) {
+		json_pull::parse_frame *f = current_frame(j);
+		if (f != nullptr) {
+			if (f->expect != JSON_COMMA) {
 				j->error = "Found unexpected comma";
 				return nullptr;
 			}
 
-			if (cc->type == JSON_HASH) {
-				cc->expect = JSON_KEY;
+			if (f->container->type == JSON_HASH) {
+				f->expect = JSON_KEY;
 			} else {
-				cc->expect = JSON_ITEM;
+				f->expect = JSON_ITEM;
 			}
 		}
 
@@ -390,18 +391,18 @@ again:
 		/////////////////////////// Colon
 
 	case ':': {
-		json_object *cc = current_container(j);
-		if (cc == nullptr) {
+		json_pull::parse_frame *f = current_frame(j);
+		if (f == nullptr) {
 			j->error = "Found colon at top level";
 			return nullptr;
 		}
 
-		if (cc->expect != JSON_COLON) {
+		if (f->expect != JSON_COLON) {
 			j->error = "Found unexpected colon";
 			return nullptr;
 		}
 
-		cc->expect = JSON_VALUE;
+		f->expect = JSON_VALUE;
 
 		if (cb != nullptr) {
 			cb(JSON_COLON, j, state);
