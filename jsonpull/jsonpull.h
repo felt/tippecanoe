@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <cassert>
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,47 +34,151 @@ struct json_pull;
 typedef std::shared_ptr<json_object> json_object_ptr;
 typedef std::shared_ptr<json_pull> json_pull_ptr;
 
-// json_object owns its descendants via std::shared_ptr in std::vector<>s,
-// and keeps raw back-pointers to its parent and to the parser. The back-pointers
-// remain valid as long as the node is attached to the tree (the parent is kept
-// alive by holding a shared_ptr to this child, and the parser is kept alive by
-// the caller's json_pull_ptr). json_disconnect() splices a node out of its
-// parent and clears those back-pointers in the detached subtree, so the
-// detached subtree can outlive the original parser.
+// json_object is a small base type that just records the JSON type and
+// the back-pointers to its parent and parser. The actual value payload
+// lives in a type-specific subclass (json_number, json_string, json_array,
+// json_hash), so that JSON_TRUE / JSON_FALSE / JSON_NULL nodes pay only
+// the base-class cost and a JSON_HASH does not also drag along a string
+// or a number field. Type-tagged accessor methods on the base class
+// downcast and return references to the underlying subclass storage.
+//
+// Children are owned by their parent (via std::vector<json_object_ptr>
+// inside json_array / json_hash); the raw `parent` and `parser`
+// back-pointers stay valid as long as the node is attached to the tree.
+// json_disconnect() splices a node out of its parent and walks the
+// detached subtree clearing those back-pointers so the subtree can
+// outlive the original parser.
+//
+// json_object intentionally has no virtual functions and no virtual
+// destructor: subclasses are constructed via std::make_shared<json_xxx>(),
+// and std::shared_ptr remembers the deleter from the original type, so
+// destroying a shared_ptr<json_object> that actually points at a
+// json_string still runs ~json_string(). Dispatch on `type` is what the
+// rest of the code already does. The accessor methods assert at debug
+// time that the type matches before downcasting.
 
-struct json_object : public std::enable_shared_from_this<json_object> {
+struct json_object {
 	json_object *parent = nullptr;
 	json_pull *parser = nullptr;
 
-	json_type type = JSON_NULL;
-	int expect = 0;
+	json_type type;
+	int expect = 0;	 // used by the parser on JSON_ARRAY / JSON_HASH nodes
 
-	// Members named to match the previous C union layout so that existing
-	// access paths like `o->value.string.string` and `o->value.array.array[i]`
-	// continue to work. This is no longer a union because std::string and
-	// std::vector have non-trivial destructors.
-	struct value_t {
-		struct {
-			double number = 0;
-			unsigned long long large_unsigned = 0;
-			long long large_signed = 0;
-		} number;
+	json_object(json_type t) : type(t) {}
+	json_object(json_type t, json_object *p, json_pull *pl) : parent(p), parser(pl), type(t) {}
 
-		struct {
-			std::string string;
-			void *refcon = nullptr;	 // reference constant for caller's use
-		} string;
+	// Type-tagged accessors. Each one asserts that the receiver is of
+	// the right kind, then downcasts to the storage in the appropriate
+	// subclass. Inline so the assert and cast disappear at -O.
+	inline std::string &string();
+	inline const std::string &string() const;
 
-		struct {
-			std::vector<json_object_ptr> array;
-		} array;
+	inline double &number();
+	inline double number() const;
+	inline unsigned long long &large_unsigned();
+	inline unsigned long long large_unsigned() const;
+	inline long long &large_signed();
+	inline long long large_signed() const;
 
-		struct {
-			std::vector<json_object_ptr> keys;
-			std::vector<json_object_ptr> values;
-		} object;
-	} value;
+	inline std::vector<json_object_ptr> &array();
+	inline const std::vector<json_object_ptr> &array() const;
+
+	inline std::vector<json_object_ptr> &keys();
+	inline const std::vector<json_object_ptr> &keys() const;
+	inline std::vector<json_object_ptr> &values();
+	inline const std::vector<json_object_ptr> &values() const;
 };
+
+struct json_number : json_object {
+	double number_value = 0;
+	unsigned long long large_unsigned_value = 0;
+	long long large_signed_value = 0;
+
+	json_number() : json_object(JSON_NUMBER) {}
+	json_number(json_object *p, json_pull *pl) : json_object(JSON_NUMBER, p, pl) {}
+};
+
+struct json_string : json_object {
+	std::string string_value;
+
+	json_string() : json_object(JSON_STRING) {}
+	json_string(json_object *p, json_pull *pl) : json_object(JSON_STRING, p, pl) {}
+};
+
+struct json_array : json_object {
+	std::vector<json_object_ptr> array_value;
+
+	json_array() : json_object(JSON_ARRAY) {}
+	json_array(json_object *p, json_pull *pl) : json_object(JSON_ARRAY, p, pl) {}
+};
+
+struct json_hash : json_object {
+	std::vector<json_object_ptr> keys_value;
+	std::vector<json_object_ptr> values_value;
+
+	json_hash() : json_object(JSON_HASH) {}
+	json_hash(json_object *p, json_pull *pl) : json_object(JSON_HASH, p, pl) {}
+};
+
+inline std::string &json_object::string() {
+	assert(type == JSON_STRING);
+	return static_cast<json_string *>(this)->string_value;
+}
+inline const std::string &json_object::string() const {
+	assert(type == JSON_STRING);
+	return static_cast<const json_string *>(this)->string_value;
+}
+
+inline double &json_object::number() {
+	assert(type == JSON_NUMBER);
+	return static_cast<json_number *>(this)->number_value;
+}
+inline double json_object::number() const {
+	assert(type == JSON_NUMBER);
+	return static_cast<const json_number *>(this)->number_value;
+}
+inline unsigned long long &json_object::large_unsigned() {
+	assert(type == JSON_NUMBER);
+	return static_cast<json_number *>(this)->large_unsigned_value;
+}
+inline unsigned long long json_object::large_unsigned() const {
+	assert(type == JSON_NUMBER);
+	return static_cast<const json_number *>(this)->large_unsigned_value;
+}
+inline long long &json_object::large_signed() {
+	assert(type == JSON_NUMBER);
+	return static_cast<json_number *>(this)->large_signed_value;
+}
+inline long long json_object::large_signed() const {
+	assert(type == JSON_NUMBER);
+	return static_cast<const json_number *>(this)->large_signed_value;
+}
+
+inline std::vector<json_object_ptr> &json_object::array() {
+	assert(type == JSON_ARRAY);
+	return static_cast<json_array *>(this)->array_value;
+}
+inline const std::vector<json_object_ptr> &json_object::array() const {
+	assert(type == JSON_ARRAY);
+	return static_cast<const json_array *>(this)->array_value;
+}
+
+inline std::vector<json_object_ptr> &json_object::keys() {
+	assert(type == JSON_HASH);
+	return static_cast<json_hash *>(this)->keys_value;
+}
+inline const std::vector<json_object_ptr> &json_object::keys() const {
+	assert(type == JSON_HASH);
+	return static_cast<const json_hash *>(this)->keys_value;
+}
+inline std::vector<json_object_ptr> &json_object::values() {
+	assert(type == JSON_HASH);
+	return static_cast<json_hash *>(this)->values_value;
+}
+inline const std::vector<json_object_ptr> &json_object::values() const {
+	assert(type == JSON_HASH);
+	return static_cast<const json_hash *>(this)->values_value;
+}
 
 struct json_pull {
 	const char *error = nullptr;  // points at a string literal; no allocation
@@ -85,7 +190,11 @@ struct json_pull {
 	ssize_t buffer_tail = 0;
 	ssize_t buffer_head = 0;
 
-	json_object_ptr container;
+	// Stack of currently-open containers; the top is the innermost container
+	// being parsed. Replaces the previous single `container` pointer / parent
+	// walk, which previously required enable_shared_from_this<json_object>
+	// on every json_object instance (16 extra bytes per node).
+	std::vector<json_object_ptr> container_stack;
 	json_object_ptr root;
 
 	std::string number_buffer;
@@ -118,6 +227,7 @@ void json_free(json_object_ptr &j);
 void json_disconnect(json_object_ptr j);
 
 json_object_ptr json_hash_get(json_object_ptr o, const char *s);
+json_object_ptr json_hash_get(json_object *o, const char *s);
 
 std::string json_stringify(json_object_ptr o);
 

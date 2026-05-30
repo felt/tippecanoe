@@ -86,22 +86,47 @@ static inline int read_wrap(json_pull *j) {
 	return c;
 }
 
-static json_object_ptr fabricate_object(json_pull *jp, json_object *parent, json_type type) {
-	auto o = std::make_shared<json_object>();
-	o->type = type;
-	o->parent = parent;
-	o->parser = jp;
+// Construct an instance of the right subclass for the given type.
+// JSON_TRUE / JSON_FALSE / JSON_NULL and the parse-token types are bare
+// json_objects; the value-bearing types each get their own subclass.
+static json_object_ptr make_object(json_type type, json_object *parent, json_pull *jp) {
+	json_object_ptr o;
+	switch (type) {
+	case JSON_NUMBER:
+		o = std::make_shared<json_number>(parent, jp);
+		break;
+	case JSON_STRING:
+		o = std::make_shared<json_string>(parent, jp);
+		break;
+	case JSON_ARRAY:
+		o = std::make_shared<json_array>(parent, jp);
+		break;
+	case JSON_HASH:
+		o = std::make_shared<json_hash>(parent, jp);
+		break;
+	default:
+		o = std::make_shared<json_object>(type, parent, jp);
+		break;
+	}
 	return o;
 }
 
+static json_object_ptr fabricate_object(json_pull *jp, json_object *parent, json_type type) {
+	return make_object(type, parent, jp);
+}
+
+static inline json_object *current_container(json_pull *j) {
+	return j->container_stack.empty() ? nullptr : j->container_stack.back().get();
+}
+
 static json_object_ptr add_object(json_pull *j, json_type type) {
-	json_object *c = j->container.get();
-	json_object_ptr o = fabricate_object(j, c, type);
+	json_object *c = current_container(j);
+	json_object_ptr o = make_object(type, c, j);
 
 	if (c != nullptr) {
 		if (c->type == JSON_ARRAY) {
 			if (c->expect == JSON_ITEM) {
-				c->value.array.array.push_back(o);
+				c->array().push_back(o);
 				c->expect = JSON_COMMA;
 			} else {
 				j->error = "Expected a comma, not a list item";
@@ -109,7 +134,7 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 			}
 		} else if (c->type == JSON_HASH) {
 			if (c->expect == JSON_VALUE) {
-				c->value.object.values.back() = o;
+				c->values().back() = o;
 				c->expect = JSON_COMMA;
 			} else if (c->expect == JSON_KEY) {
 				if (type != JSON_STRING) {
@@ -117,8 +142,8 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 					return nullptr;
 				}
 
-				c->value.object.keys.push_back(o);
-				c->value.object.values.push_back(nullptr);
+				c->keys().push_back(o);
+				c->values().push_back(nullptr);
 				c->expect = JSON_COLON;
 			} else {
 				j->error = "Expected a comma or colon";
@@ -134,16 +159,18 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 	return o;
 }
 
-json_object_ptr json_hash_get(json_object_ptr o, const char *s) {
+json_object_ptr json_hash_get(json_object *o, const char *s) {
 	if (o == nullptr || o->type != JSON_HASH) {
 		return nullptr;
 	}
 
-	for (size_t i = 0; i < o->value.object.keys.size(); i++) {
-		const auto &key = o->value.object.keys[i];
+	const auto &keys = o->keys();
+	const auto &vals = o->values();
+	for (size_t i = 0; i < keys.size(); i++) {
+		const auto &key = keys[i];
 		if (key != nullptr && key->type == JSON_STRING) {
-			if (key->value.string.string == s) {
-				return o->value.object.values[i];
+			if (key->string() == s) {
+				return vals[i];
 			}
 		}
 	}
@@ -151,19 +178,23 @@ json_object_ptr json_hash_get(json_object_ptr o, const char *s) {
 	return nullptr;
 }
 
+json_object_ptr json_hash_get(json_object_ptr o, const char *s) {
+	return json_hash_get(o.get(), s);
+}
+
 json_object_ptr json_read_separators(json_pull_ptr jp, json_separator_callback cb, void *state) {
 	int c;
 	json_pull *j = jp.get();
 
 	// In case there is an error at the top level
-	if (j->container == nullptr) {
+	if (j->container_stack.empty()) {
 		j->root.reset();
 	}
 
 again:
 	c = read_wrap(j);
 	if (c == EOF) {
-		if (j->container != nullptr) {
+		if (!j->container_stack.empty()) {
 			j->error = "Reached EOF without all containers being closed";
 		}
 
@@ -204,8 +235,8 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		j->container = o;
-		j->container->expect = JSON_ITEM;
+		o->expect = JSON_ITEM;
+		j->container_stack.push_back(o);
 
 		if (cb != nullptr) {
 			cb(JSON_ARRAY, j, state);
@@ -215,32 +246,26 @@ again:
 	}
 
 	case ']': {
-		if (j->container == nullptr) {
+		json_object *cc = current_container(j);
+		if (cc == nullptr) {
 			j->error = "Found ] at top level";
 			return nullptr;
 		}
 
-		if (j->container->type != JSON_ARRAY) {
+		if (cc->type != JSON_ARRAY) {
 			j->error = "Found ] not in an array";
 			return nullptr;
 		}
 
-		if (j->container->expect != JSON_COMMA) {
-			if (!(j->container->expect == JSON_ITEM && j->container->value.array.array.size() == 0)) {
+		if (cc->expect != JSON_COMMA) {
+			if (!(cc->expect == JSON_ITEM && cc->array().size() == 0)) {
 				j->error = "Found ] without final element";
 				return nullptr;
 			}
 		}
 
-		json_object_ptr ret = j->container;
-		// Walk up to the parent container. The parent (if any) still owns
-		// `ret` via its own array vector, so the raw `parent` pointer is
-		// still valid and we can resurrect a shared_ptr to it.
-		if (ret->parent != nullptr) {
-			j->container = ret->parent->shared_from_this();
-		} else {
-			j->container.reset();
-		}
+		json_object_ptr ret = j->container_stack.back();
+		j->container_stack.pop_back();
 		return ret;
 	}
 
@@ -251,8 +276,8 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		j->container = o;
-		j->container->expect = JSON_KEY;
+		o->expect = JSON_KEY;
+		j->container_stack.push_back(o);
 
 		if (cb != nullptr) {
 			cb(JSON_HASH, j, state);
@@ -262,29 +287,26 @@ again:
 	}
 
 	case '}': {
-		if (j->container == nullptr) {
+		json_object *cc = current_container(j);
+		if (cc == nullptr) {
 			j->error = "Found } at top level";
 			return nullptr;
 		}
 
-		if (j->container->type != JSON_HASH) {
+		if (cc->type != JSON_HASH) {
 			j->error = "Found } not in a hash";
 			return nullptr;
 		}
 
-		if (j->container->expect != JSON_COMMA) {
-			if (!(j->container->expect == JSON_KEY && j->container->value.object.keys.size() == 0)) {
+		if (cc->expect != JSON_COMMA) {
+			if (!(cc->expect == JSON_KEY && cc->keys().size() == 0)) {
 				j->error = "Found } without final element";
 				return nullptr;
 			}
 		}
 
-		json_object_ptr ret = j->container;
-		if (ret->parent != nullptr) {
-			j->container = ret->parent->shared_from_this();
-		} else {
-			j->container.reset();
-		}
+		json_object_ptr ret = j->container_stack.back();
+		j->container_stack.pop_back();
 		return ret;
 	}
 
@@ -350,16 +372,17 @@ again:
 		/////////////////////////// Comma
 
 	case ',': {
-		if (j->container != nullptr) {
-			if (j->container->expect != JSON_COMMA) {
+		json_object *cc = current_container(j);
+		if (cc != nullptr) {
+			if (cc->expect != JSON_COMMA) {
 				j->error = "Found unexpected comma";
 				return nullptr;
 			}
 
-			if (j->container->type == JSON_HASH) {
-				j->container->expect = JSON_KEY;
+			if (cc->type == JSON_HASH) {
+				cc->expect = JSON_KEY;
 			} else {
-				j->container->expect = JSON_ITEM;
+				cc->expect = JSON_ITEM;
 			}
 		}
 
@@ -373,17 +396,18 @@ again:
 		/////////////////////////// Colon
 
 	case ':': {
-		if (j->container == nullptr) {
+		json_object *cc = current_container(j);
+		if (cc == nullptr) {
 			j->error = "Found colon at top level";
 			return nullptr;
 		}
 
-		if (j->container->expect != JSON_COLON) {
+		if (cc->expect != JSON_COLON) {
 			j->error = "Found unexpected colon";
 			return nullptr;
 		}
 
-		j->container->expect = JSON_VALUE;
+		cc->expect = JSON_VALUE;
 
 		if (cb != nullptr) {
 			cb(JSON_COLON, j, state);
@@ -463,27 +487,27 @@ again:
 
 		json_object_ptr n = add_object(j, JSON_NUMBER);
 		if (n != nullptr) {
-			n->value.number.number = atof(j->number_buffer.c_str());
-			n->value.number.large_signed = 0;
-			n->value.number.large_unsigned = 0;
+			n->number() = atof(j->number_buffer.c_str());
+			n->large_signed() = 0;
+			n->large_unsigned() = 0;
 
 #define MAX_SAFE_INTEGER 9007199254740991.0
 #define MIN_SAFE_INTEGER -9007199254740991.0
 
-			if (!decimal && n->value.number.number > MAX_SAFE_INTEGER) {
+			if (!decimal && n->number() > MAX_SAFE_INTEGER) {
 				errno = 0;
 				char *err = nullptr;
 				unsigned long long ull = strtoull(j->number_buffer.c_str(), &err, 10);
 				if (errno == 0 && (err == nullptr || *err == '\0')) {
-					n->value.number.large_unsigned = ull;
+					n->large_unsigned() = ull;
 				}
 			}
-			if (!decimal && n->value.number.number < MIN_SAFE_INTEGER) {
+			if (!decimal && n->number() < MIN_SAFE_INTEGER) {
 				errno = 0;
 				char *err = nullptr;
 				long long ll = strtoll(j->number_buffer.c_str(), &err, 10);
 				if (errno == 0 && (err == nullptr || *err == '\0')) {
-					n->value.number.large_signed = ll;
+					n->large_signed() = ll;
 				}
 			}
 		}
@@ -614,8 +638,7 @@ again:
 
 		json_object_ptr s = add_object(j, JSON_STRING);
 		if (s != nullptr) {
-			s->value.string.string = std::move(val);
-			s->value.string.refcon = nullptr;
+			s->string() = std::move(val);
 		}
 		return s;
 	}
@@ -653,13 +676,16 @@ static void clear_back_pointers(json_object *o) {
 	}
 
 	if (o->type == JSON_HASH) {
-		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
-			clear_back_pointers(o->value.object.keys[i].get());
-			clear_back_pointers(o->value.object.values[i].get());
+		const auto &keys = o->keys();
+		const auto &vals = o->values();
+		for (size_t i = 0; i < keys.size(); i++) {
+			clear_back_pointers(keys[i].get());
+			clear_back_pointers(vals[i].get());
 		}
 	} else if (o->type == JSON_ARRAY) {
-		for (size_t i = 0; i < o->value.array.array.size(); i++) {
-			clear_back_pointers(o->value.array.array[i].get());
+		const auto &arr = o->array();
+		for (size_t i = 0; i < arr.size(); i++) {
+			clear_back_pointers(arr[i].get());
 		}
 	}
 
@@ -679,7 +705,7 @@ void json_disconnect(json_object_ptr o) {
 	json_object *parent = o->parent;
 	if (parent != nullptr) {
 		if (parent->type == JSON_ARRAY) {
-			auto &arr = parent->value.array.array;
+			auto &arr = parent->array();
 			for (size_t i = 0; i < arr.size(); i++) {
 				if (arr[i].get() == o.get()) {
 					arr.erase(arr.begin() + i);
@@ -687,8 +713,8 @@ void json_disconnect(json_object_ptr o) {
 				}
 			}
 		} else if (parent->type == JSON_HASH) {
-			auto &keys = parent->value.object.keys;
-			auto &vals = parent->value.object.values;
+			auto &keys = parent->keys();
+			auto &vals = parent->values();
 
 			for (size_t i = 0; i < keys.size(); i++) {
 				if (keys[i].get() == o.get()) {
@@ -739,7 +765,7 @@ static void json_print_one(std::string &val, json_object *o) {
 	} else if (o->type == JSON_STRING) {
 		string_append_c(val, '\"');
 
-		for (const char *cp = o->value.string.string.c_str(); *cp != '\0'; cp++) {
+		for (const char *cp = o->string().c_str(); *cp != '\0'; cp++) {
 			if (*cp == '\\' || *cp == '"') {
 				string_append_c(val, '\\');
 				string_append_c(val, *cp);
@@ -756,16 +782,16 @@ static void json_print_one(std::string &val, json_object *o) {
 
 		string_append_c(val, '\"');
 	} else if (o->type == JSON_NUMBER) {
-		if (o->value.number.large_signed != 0) {
+		if (o->large_signed() != 0) {
 			char s[65];
-			snprintf(s, sizeof(s), "%lld", o->value.number.large_signed);
+			snprintf(s, sizeof(s), "%lld", o->large_signed());
 			string_append(val, s);
-		} else if (o->value.number.large_unsigned != 0) {
+		} else if (o->large_unsigned() != 0) {
 			char s[65];
-			snprintf(s, sizeof(s), "%llu", o->value.number.large_unsigned);
+			snprintf(s, sizeof(s), "%llu", o->large_unsigned());
 			string_append(val, s);
 		} else {
-			char *s = dtoa_milo(o->value.number.number);
+			char *s = dtoa_milo(o->number());
 			string_append(val, s);
 			free(s);
 		}
@@ -789,20 +815,23 @@ static void json_print(std::string &val, json_object *o) {
 	} else if (o->type == JSON_HASH) {
 		string_append_c(val, '{');
 
-		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
-			json_print(val, o->value.object.keys[i].get());
+		const auto &keys = o->keys();
+		const auto &vals = o->values();
+		for (size_t i = 0; i < keys.size(); i++) {
+			json_print(val, keys[i].get());
 			string_append_c(val, ':');
-			json_print(val, o->value.object.values[i].get());
-			if (i + 1 < o->value.object.keys.size()) {
+			json_print(val, vals[i].get());
+			if (i + 1 < keys.size()) {
 				string_append_c(val, ',');
 			}
 		}
 		string_append_c(val, '}');
 	} else if (o->type == JSON_ARRAY) {
 		string_append_c(val, '[');
-		for (size_t i = 0; i < o->value.array.array.size(); i++) {
-			json_print(val, o->value.array.array[i].get());
-			if (i + 1 < o->value.array.array.size()) {
+		const auto &arr = o->array();
+		for (size_t i = 0; i < arr.size(); i++) {
+			json_print(val, arr[i].get());
+			if (i + 1 < arr.size()) {
 				string_append_c(val, ',');
 			}
 		}

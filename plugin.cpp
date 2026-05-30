@@ -168,7 +168,7 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 		if (type == nullptr || type->type != JSON_STRING) {
 			continue;
 		}
-		if (type->value.string.string != "Feature") {
+		if (type->string() != "Feature") {
 			continue;
 		}
 
@@ -208,12 +208,12 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 
 		int t;
 		for (t = 0; t < GEOM_TYPES; t++) {
-			if (geometry_type->value.string.string == geometry_names[t]) {
+			if (geometry_type->string() == geometry_names[t]) {
 				break;
 			}
 		}
 		if (t >= GEOM_TYPES) {
-			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string.c_str());
+			fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->string().c_str());
 			json_context(j);
 			exit(EXIT_JSON);
 		}
@@ -252,22 +252,22 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 			if (tippecanoe != nullptr) {
 				json_object_ptr layer = json_hash_get(tippecanoe, "layer");
 				if (layer != nullptr && layer->type == JSON_STRING) {
-					layername = layer->value.string.string;
+					layername = layer->string();
 				}
 
 				json_object_ptr index = json_hash_get(tippecanoe, "index");
 				if (index != nullptr && index->type == JSON_NUMBER) {
-					sf.index = index->value.number.number;
+					sf.index = index->number();
 				}
 
 				json_object_ptr sequence = json_hash_get(tippecanoe, "sequence");
 				if (sequence != nullptr && sequence->type == JSON_NUMBER) {
-					sf.seq = sequence->value.number.number;
+					sf.seq = sequence->number();
 				}
 
 				json_object_ptr extent = json_hash_get(tippecanoe, "extent");
 				if (extent != nullptr && extent->type == JSON_NUMBER) {
-					sf.extent = extent->value.number.number;
+					sf.extent = extent->number();
 				}
 
 				json_object_ptr dropped = json_hash_get(tippecanoe, "dropped");
@@ -297,9 +297,9 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 
 			json_object_ptr id = json_hash_get(j, "id");
 			if (id != nullptr && id->type == JSON_NUMBER) {
-				sf.id = id->value.number.number;
-				if (id->value.number.large_unsigned > 0) {
-					sf.id = id->value.number.large_unsigned;
+				sf.id = id->number();
+				if (id->large_unsigned() > 0) {
+					sf.id = id->large_unsigned();
 				}
 				sf.has_id = true;
 			}
@@ -343,18 +343,18 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 				}
 			}
 
-			for (size_t i = 0; i < properties->value.object.keys.size(); i++) {
-				serial_val v = stringify_value(properties->value.object.values[i], "Filter output", jp->line, j);
+			for (size_t i = 0; i < properties->keys().size(); i++) {
+				serial_val v = stringify_value(properties->values()[i], "Filter output", jp->line, j);
 
 				// Nulls can be excluded here because the expression evaluation filter
 				// would have already run before prefiltering
 
 				if (v.type != mvt_null) {
-					sf.full_keys.push_back(key_pool.pool(properties->value.object.keys[i]->value.string.string));
+					sf.full_keys.push_back(key_pool.pool(properties->keys()[i]->string()));
 					sf.full_values.push_back(v);
 
 					if (!postfilter) {
-						add_to_tilestats(ts->second.tilestats, properties->value.object.keys[i]->value.string.string, v);
+						add_to_tilestats(ts->second.tilestats, properties->keys()[i]->string(), v);
 					}
 				}
 			}

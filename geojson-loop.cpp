@@ -74,7 +74,7 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			int i;
 			int is_geometry = 0;
 			for (i = 0; i < GEOM_TYPES; i++) {
-				if (type->value.string.string == geometry_names[i]) {
+				if (type->string() == geometry_names[i]) {
 					is_geometry = 1;
 					break;
 				}
@@ -84,14 +84,14 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 				if (j->parent != nullptr) {
 					if (j->parent->type == JSON_ARRAY && j->parent->parent != nullptr) {
 						if (j->parent->parent->type == JSON_HASH) {
-							json_object_ptr geometries = json_hash_get(j->parent->parent->shared_from_this(), "geometries");
+							json_object_ptr geometries = json_hash_get(j->parent->parent, "geometries");
 							if (geometries != nullptr) {
 								// Parent of Parent must be a GeometryCollection
 								is_geometry = 0;
 							}
 						}
 					} else if (j->parent->type == JSON_HASH) {
-						json_object_ptr geometry = json_hash_get(j->parent->shared_from_this(), "geometry");
+						json_object_ptr geometry = json_hash_get(j->parent, "geometry");
 						if (geometry != nullptr) {
 							// Parent must be a Feature
 							is_geometry = 0;
@@ -104,7 +104,7 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 				json_object *jo = j.get();
 				while (jo != nullptr) {
 					if (jo->parent != nullptr && jo->parent->type == JSON_HASH) {
-						if (json_hash_get(jo->parent->shared_from_this(), "properties").get() == jo) {
+						if (json_hash_get(jo->parent, "properties").get() == jo) {
 							// Ancestor is the value corresponding to a properties key
 							is_geometry = 0;
 							break;
@@ -126,8 +126,8 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			}
 		}
 
-		if (type->value.string.string != "Feature") {
-			if (type->value.string.string == "FeatureCollection") {
+		if (type->string() != "Feature") {
+			if (type->string() == "FeatureCollection") {
 				jfa->check_crs(j);
 				json_free(j);
 			}
@@ -161,7 +161,7 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			json_object *jo = j.get();
 			while (jo != nullptr) {
 				if (jo->parent != nullptr && jo->parent->type == JSON_HASH) {
-					if (json_hash_get(jo->parent->shared_from_this(), "properties").get() == jo) {
+					if (json_hash_get(jo->parent, "properties").get() == jo) {
 						// Ancestor is the value corresponding to a properties key
 						is_feature = false;
 						break;

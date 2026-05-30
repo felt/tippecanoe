@@ -260,14 +260,14 @@ sqlite3 *dirmeta2tmp(const char *fname) {
 			exit(EXIT_JSON);
 		}
 
-		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
-			if (o->value.object.keys[i]->type != JSON_STRING || o->value.object.values[i]->type != JSON_STRING) {
+		for (size_t i = 0; i < o->keys().size(); i++) {
+			if (o->keys()[i]->type != JSON_STRING || o->values()[i]->type != JSON_STRING) {
 				fprintf(stderr, "%s: non-string in metadata\n", name.c_str());
 			}
 
-			char *sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", o->value.object.keys[i]->value.string.string.c_str(), o->value.object.values[i]->value.string.string.c_str());
+			char *sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", o->keys()[i]->string().c_str(), o->values()[i]->string().c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
-				fprintf(stderr, "set %s in metadata: %s\n", o->value.object.keys[i]->value.string.string.c_str(), err);
+				fprintf(stderr, "set %s in metadata: %s\n", o->keys()[i]->string().c_str(), err);
 			}
 			sqlite3_free(sql);
 		}

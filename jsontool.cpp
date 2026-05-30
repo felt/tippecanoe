@@ -149,7 +149,7 @@ void out(std::string const &s, int type, json_object_ptr properties) {
 		if (o != nullptr) {
 			found = true;
 			if (o->type == JSON_STRING || o->type == JSON_NUMBER) {
-				extracted = sort_quote(o->value.string.string.c_str());
+				extracted = sort_quote(o->string().c_str());
 			} else {
 				extracted = sort_quote(json_stringify(o).c_str());
 			}
@@ -244,9 +244,9 @@ void join_csv(json_object_ptr j) {
 
 	std::string joinkey;
 	if (key->type == JSON_STRING) {
-		joinkey = key->value.string.string;
+		joinkey = key->string();
 	} else if (key->type == JSON_NUMBER) {
-		joinkey = milo::dtoa_milo(key->value.number.number);
+		joinkey = milo::dtoa_milo(key->number());
 	} else {
 		joinkey = json_stringify(key);
 	}
@@ -298,8 +298,8 @@ void join_csv(json_object_ptr j) {
 	}
 
 	if (fields.size() > 0 && joinkey == fields[0]) {
-		properties->value.object.keys.reserve(properties->value.object.keys.size() + fields.size());
-		properties->value.object.values.reserve(properties->value.object.values.size() + fields.size());
+		properties->keys().reserve(properties->keys().size() + fields.size());
+		properties->values().reserve(properties->values().size() + fields.size());
 
 		for (size_t i = 1; i < fields.size(); i++) {
 			std::string k = header[i];
@@ -317,30 +317,24 @@ void join_csv(json_object_ptr j) {
 			}
 
 			if (attr_type != JSON_NULL) {
-				auto ko = std::make_shared<json_object>();
-				auto vo = std::make_shared<json_object>();
+				auto ko = std::make_shared<json_string>(properties.get(), properties->parser);
+				ko->string_value = k;
 
-				ko->type = JSON_STRING;
-				ko->parent = properties.get();
-				ko->parser = properties->parser;
-				ko->value.string.string = k;
-
-				vo->type = attr_type;
-				vo->parent = properties.get();
-				vo->parser = properties->parser;
-
+				json_object_ptr vo;
 				if (attr_type == JSON_STRING) {
-					vo->value.string.string = v;
+					auto s = std::make_shared<json_string>(properties.get(), properties->parser);
+					s->string_value = v;
+					vo = s;
 				} else if (attr_type == JSON_NUMBER) {
-					vo->value.number.number = atof(v.c_str());
-					vo->value.number.large_unsigned = 0;
-					vo->value.number.large_signed = 0;
+					auto n = std::make_shared<json_number>(properties.get(), properties->parser);
+					n->number_value = atof(v.c_str());
+					vo = n;
 				} else {
 					abort();
 				}
 
-				properties->value.object.keys.push_back(ko);
-				properties->value.object.values.push_back(vo);
+				properties->keys().push_back(ko);
+				properties->values().push_back(vo);
 			}
 		}
 	}

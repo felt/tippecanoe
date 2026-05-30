@@ -400,17 +400,17 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 			if (o != nullptr) {
 				json_object_ptr min = json_hash_get(o, "minzoom");
 				if (min != nullptr && (min->type == JSON_NUMBER)) {
-					sf.tippecanoe_minzoom = integer_zoom(sst->fname, milo::dtoa_milo(min->value.number.number));
+					sf.tippecanoe_minzoom = integer_zoom(sst->fname, milo::dtoa_milo(min->number()));
 				}
 
 				json_object_ptr max = json_hash_get(o, "maxzoom");
 				if (max != nullptr && (max->type == JSON_NUMBER)) {
-					sf.tippecanoe_maxzoom = integer_zoom(sst->fname, milo::dtoa_milo(max->value.number.number));
+					sf.tippecanoe_maxzoom = integer_zoom(sst->fname, milo::dtoa_milo(max->number()));
 				}
 
 				json_object_ptr tlayer = json_hash_get(o, "layer");
 				if (tlayer != nullptr && (tlayer->type == JSON_STRING)) {
-					layername = tlayer->value.string.string;
+					layername = tlayer->string();
 				}
 			}
 		}

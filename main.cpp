@@ -2885,9 +2885,9 @@ void set_attribute_value(const char *arg) {
 			exit(EXIT_JSON);
 		}
 
-		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
-			json_object_ptr k = o->value.object.keys[i];
-			json_object_ptr v = o->value.object.values[i];
+		for (size_t i = 0; i < o->keys().size(); i++) {
+			json_object_ptr k = o->keys()[i];
+			json_object_ptr v = o->values()[i];
 
 			if (k->type != JSON_STRING) {
 				fprintf(stderr, "%s: --set-attribute %s: key %zu not a string\n", *av, arg, i);
@@ -2895,7 +2895,7 @@ void set_attribute_value(const char *arg) {
 			}
 
 			serial_val val = stringify_value(v, "json", 1, o);
-			set_attributes.emplace(k->value.string.string, val);
+			set_attributes.emplace(k->string(), val);
 		}
 
 		return;
@@ -2941,21 +2941,21 @@ void parse_json_source(const char *arg, struct source &src) {
 		exit(EXIT_JSON);
 	}
 
-	src.file = fname->value.string.string;
+	src.file = fname->string();
 
 	json_object_ptr layer = json_hash_get(o, "layer");
 	if (layer != nullptr && layer->type == JSON_STRING) {
-		src.layer = layer->value.string.string;
+		src.layer = layer->string();
 	}
 
 	json_object_ptr description = json_hash_get(o, "description");
 	if (description != nullptr && description->type == JSON_STRING) {
-		src.description = description->value.string.string;
+		src.description = description->string();
 	}
 
 	json_object_ptr format = json_hash_get(o, "format");
 	if (format != nullptr && format->type == JSON_STRING) {
-		src.format = format->value.string.string;
+		src.format = format->string();
 	}
 }
 

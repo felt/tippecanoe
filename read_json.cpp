@@ -63,7 +63,7 @@ void parse_coordinates(int t, json_object_ptr j, drawvec &out, int op, const cha
 	int within = geometry_within[t];
 	if (within >= 0) {
 		size_t i;
-		for (i = 0; i < j->value.array.array.size(); i++) {
+		for (i = 0; i < j->array().size(); i++) {
 			if (within == GEOM_POINT) {
 				if (i == 0 || mb_geometry[t] == VT_POINT) {
 					op = VT_MOVETO;
@@ -72,16 +72,16 @@ void parse_coordinates(int t, json_object_ptr j, drawvec &out, int op, const cha
 				}
 			}
 
-			parse_coordinates(within, j->value.array.array[i], out, op, fname, line, feature);
+			parse_coordinates(within, j->array()[i], out, op, fname, line, feature);
 		}
 	} else {
-		if (j->value.array.array.size() >= 2 && j->value.array.array[0]->type == JSON_NUMBER && j->value.array.array[1]->type == JSON_NUMBER) {
+		if (j->array().size() >= 2 && j->array()[0]->type == JSON_NUMBER && j->array()[1]->type == JSON_NUMBER) {
 			long long x, y;
-			double lon = j->value.array.array[0]->value.number.number;
-			double lat = j->value.array.array[1]->value.number.number;
+			double lon = j->array()[0]->number();
+			double lat = j->array()[1]->number();
 			projection->project(lon, lat, 32, &x, &y);
 
-			if (j->value.array.array.size() > 2) {
+			if (j->array().size() > 2) {
 				static int warned = 0;
 
 				if (!warned) {
@@ -129,7 +129,7 @@ serial_val stringify_value(json_object_ptr value, const char *reading, int line,
 
 		if (vt == JSON_STRING) {
 			sv.type = mvt_string;
-			sv.s = value->value.string.string;
+			sv.s = value->string();
 
 			std::string err = check_utf8(sv.s);
 			if (err.size() > 0) {
@@ -140,12 +140,12 @@ serial_val stringify_value(json_object_ptr value, const char *reading, int line,
 		} else if (vt == JSON_NUMBER) {
 			sv.type = mvt_double;
 
-			if (value->value.number.large_unsigned != 0) {
-				sv.s = std::to_string(value->value.number.large_unsigned);
-			} else if (value->value.number.large_signed != 0) {
-				sv.s = std::to_string(value->value.number.large_signed);
+			if (value->large_unsigned() != 0) {
+				sv.s = std::to_string(value->large_unsigned());
+			} else if (value->large_signed() != 0) {
+				sv.s = std::to_string(value->large_signed());
 			} else {
-				sv.s = milo::dtoa_milo(value->value.number.number);
+				sv.s = milo::dtoa_milo(value->number());
 			}
 		} else if (vt == JSON_TRUE) {
 			sv.type = mvt_bool;
@@ -200,12 +200,12 @@ std::pair<int, drawvec> parse_geometry(json_object_ptr geometry, json_pull_ptr j
 
 	int t;
 	for (t = 0; t < GEOM_TYPES; t++) {
-		if (geometry_type->value.string.string == geometry_names[t]) {
+		if (geometry_type->string() == geometry_names[t]) {
 			break;
 		}
 	}
 	if (t >= GEOM_TYPES) {
-		fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string.c_str());
+		fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->string().c_str());
 		json_context(j);
 		exit(EXIT_JSON);
 	}
@@ -325,7 +325,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		if (type == nullptr || type->type != JSON_STRING) {
 			continue;
 		}
-		if (type->value.string.string != "Feature") {
+		if (type->string() != "Feature") {
 			continue;
 		}
 
@@ -342,7 +342,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		if (tippecanoe != nullptr) {
 			layer = json_hash_get(tippecanoe, "layer");
 			if (layer != nullptr && layer->type == JSON_STRING) {
-				layername = layer->value.string.string;
+				layername = layer->string();
 			}
 		}
 
@@ -375,22 +375,22 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 			json_object_ptr id = json_hash_get(j, "id");
 			if (id != nullptr && id->type == JSON_NUMBER) {
-				feature.id = id->value.number.number;
-				if (id->value.number.large_unsigned > 0) {
-					feature.id = id->value.number.large_unsigned;
+				feature.id = id->number();
+				if (id->large_unsigned() > 0) {
+					feature.id = id->large_unsigned();
 				}
 				feature.has_id = true;
 			}
 
-			for (size_t i = 0; i < properties->value.object.keys.size(); i++) {
-				serial_val sv = stringify_value(properties->value.object.values[i], "Filter output", jp->line, j);
+			for (size_t i = 0; i < properties->keys().size(); i++) {
+				serial_val sv = stringify_value(properties->values()[i], "Filter output", jp->line, j);
 
 				// Nulls can be excluded here because this is the postfilter
 				// and it is nearly time to create the vector representation
 
 				if (sv.type != mvt_null) {
 					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
-					l->second.tag(feature, properties->value.object.keys[i]->value.string.string, v);
+					l->second.tag(feature, properties->keys()[i]->string(), v);
 				}
 			}
 

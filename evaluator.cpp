@@ -17,7 +17,7 @@ int compare(mvt_value const &one, json_object_ptr two, bool &fail) {
 			return false;  // string vs non-string
 		}
 
-		return strcmp(one.c_str(), two->value.string.string.c_str());
+		return strcmp(one.c_str(), two->string().c_str());
 
 	case mvt_double:
 	case mvt_float:
@@ -52,9 +52,9 @@ int compare(mvt_value const &one, json_object_ptr two, bool &fail) {
 			exit(EXIT_IMPOSSIBLE);
 		}
 
-		if (v < two->value.number.number) {
+		if (v < two->number()) {
 			return -1;
-		} else if (v > two->value.number.number) {
+		} else if (v > two->number()) {
 			return 1;
 		} else {
 			return 0;
@@ -102,7 +102,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		if (f->type == JSON_NUMBER) {
-			if (f->value.number.number == 0) {
+			if (f->number() == 0) {
 				return 0;
 			} else {
 				return 1;
@@ -110,7 +110,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		if (f->type == JSON_STRING) {
-			if (f->value.string.string.empty()) {
+			if (f->string().empty()) {
 				return 0;
 			} else {
 				return 1;
@@ -123,39 +123,39 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		exit(EXIT_FILTER);
 	}
 
-	if (f->value.array.array.size() < 1) {
+	if (f->array().size() < 1) {
 		fprintf(stderr, "Array too small in filter: %s\n", json_stringify(f).c_str());
 		exit(EXIT_FILTER);
 	}
 
-	if (f->value.array.array[0]->type != JSON_STRING) {
+	if (f->array()[0]->type != JSON_STRING) {
 		fprintf(stderr, "Filter operation is not a string: %s\n", json_stringify(f).c_str());
 		exit(EXIT_FILTER);
 	}
 
-	const std::string &op = f->value.array.array[0]->value.string.string;
+	const std::string &op = f->array()[0]->string();
 
 	if (op == "has" ||
 	    op == "!has") {
-		if (f->value.array.array.size() != 2) {
+		if (f->array().size() != 2) {
 			fprintf(stderr, "Wrong number of array elements in filter: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
 
 		if (op == "has") {
-			if (f->value.array.array[1]->type != JSON_STRING) {
+			if (f->array()[1]->type != JSON_STRING) {
 				fprintf(stderr, "\"has\" key is not a string: %s\n", json_stringify(f).c_str());
 				exit(EXIT_FILTER);
 			}
-			return feature(f->value.array.array[1]->value.string.string).type != mvt_no_such_key;
+			return feature(f->array()[1]->string()).type != mvt_no_such_key;
 		}
 
 		if (op == "!has") {
-			if (f->value.array.array[1]->type != JSON_STRING) {
+			if (f->array()[1]->type != JSON_STRING) {
 				fprintf(stderr, "\"!has\" key is not a string: %s\n", json_stringify(f).c_str());
 				exit(EXIT_FILTER);
 			}
-			return feature(f->value.array.array[1]->value.string.string).type == mvt_no_such_key;
+			return feature(f->array()[1]->string()).type == mvt_no_such_key;
 		}
 	}
 
@@ -165,16 +165,16 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	    op == ">=" ||
 	    op == "<" ||
 	    op == "<=") {
-		if (f->value.array.array.size() != 3) {
+		if (f->array().size() != 3) {
 			fprintf(stderr, "Wrong number of array elements in filter: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
-		if (f->value.array.array[1]->type != JSON_STRING) {
+		if (f->array()[1]->type != JSON_STRING) {
 			fprintf(stderr, "comparison key is not a string: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
 
-		mvt_value ff = feature(f->value.array.array[1]->value.string.string);
+		mvt_value ff = feature(f->array()[1]->string());
 		if (ff.type == mvt_no_such_key) {
 			static bool warned = false;
 			if (!warned) {
@@ -188,7 +188,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		bool fail = false;
-		int cmp = compare(ff, f->value.array.array[2], fail);
+		int cmp = compare(ff, f->array()[2], fail);
 
 		if (fail) {
 			static bool warned = false;
@@ -236,8 +236,8 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			v = false;
 		}
 
-		for (size_t i = 1; i < f->value.array.array.size(); i++) {
-			int out = eval(feature, f->value.array.array[i], exclude_attributes, unidecode_data);
+		for (size_t i = 1; i < f->array().size(); i++) {
+			int out = eval(feature, f->array()[i], exclude_attributes, unidecode_data);
 
 			if (out >= 0) {	 // nulls are ignored in boolean and/or expressions
 				if (op == "all") {
@@ -263,17 +263,17 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 
 	if (op == "in" ||
 	    op == "!in") {
-		if (f->value.array.array.size() < 2) {
+		if (f->array().size() < 2) {
 			fprintf(stderr, "Array too small in filter: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
 
-		if (f->value.array.array[1]->type != JSON_STRING) {
+		if (f->array()[1]->type != JSON_STRING) {
 			fprintf(stderr, "\"!in\" key is not a string: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
 
-		mvt_value ff = feature(f->value.array.array[1]->value.string.string);
+		mvt_value ff = feature(f->array()[1]->string());
 		if (ff.type == mvt_no_such_key) {
 			static bool warned = false;
 			if (!warned) {
@@ -287,9 +287,9 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		bool found = false;
-		for (size_t i = 2; i < f->value.array.array.size(); i++) {
+		for (size_t i = 2; i < f->array().size(); i++) {
 			bool fail = false;
-			int cmp = compare(ff, f->value.array.array[i], fail);
+			int cmp = compare(ff, f->array()[i], fail);
 
 			if (fail) {
 				static bool warned = false;
@@ -314,19 +314,19 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	}
 
 	if (op == "attribute-filter") {
-		if (f->value.array.array.size() != 3) {
+		if (f->array().size() != 3) {
 			fprintf(stderr, "Wrong number of array elements in filter: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
 
-		if (f->value.array.array[1]->type != JSON_STRING) {
+		if (f->array()[1]->type != JSON_STRING) {
 			fprintf(stderr, "\"attribute-filter\" key is not a string: %s\n", json_stringify(f).c_str());
 			exit(EXIT_FILTER);
 		}
 
-		bool ok = eval(feature, f->value.array.array[2], exclude_attributes, unidecode_data) > 0;
+		bool ok = eval(feature, f->array()[2], exclude_attributes, unidecode_data) > 0;
 		if (!ok) {
-			exclude_attributes.insert(f->value.array.array[1]->value.string.string);
+			exclude_attributes.insert(f->array()[1]->string());
 		}
 
 		return true;
