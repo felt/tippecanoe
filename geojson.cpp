@@ -175,24 +175,22 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object_ptr g
 		}
 	}
 
-	size_t nprop = 0;
-	if (properties != nullptr && properties->type == JSON_HASH) {
-		nprop = properties->keys().size();
-	}
-
 	std::vector<std::shared_ptr<std::string>> full_keys;
 	std::vector<serial_val> values;
-
-	full_keys.reserve(nprop);
-	values.reserve(nprop);
 	key_pool key_pool;
 
-	for (size_t i = 0; i < nprop; i++) {
-		if (properties->keys()[i]->type == JSON_STRING) {
-			serial_val sv = stringify_value(properties->values()[i], sst->fname, sst->line, feature);
+	if (properties != nullptr && properties->type == JSON_HASH) {
+		const auto &entries = properties->entries();
+		full_keys.reserve(entries.size());
+		values.reserve(entries.size());
 
-			full_keys.emplace_back(key_pool.pool(properties->keys()[i]->string().c_str()));
-			values.push_back(std::move(sv));
+		for (const auto &e : entries) {
+			if (e.key->type == JSON_STRING) {
+				serial_val sv = stringify_value(e.value, sst->fname, sst->line, feature);
+
+				full_keys.emplace_back(key_pool.pool(e.key->string().c_str()));
+				values.push_back(std::move(sv));
+			}
 		}
 	}
 

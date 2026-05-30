@@ -298,8 +298,7 @@ void join_csv(json_object_ptr j) {
 	}
 
 	if (fields.size() > 0 && joinkey == fields[0]) {
-		properties->keys().reserve(properties->keys().size() + fields.size());
-		properties->values().reserve(properties->values().size() + fields.size());
+		properties->entries().reserve(properties->entries().size() + fields.size());
 
 		for (size_t i = 1; i < fields.size(); i++) {
 			std::string k = header[i];
@@ -333,8 +332,7 @@ void join_csv(json_object_ptr j) {
 					abort();
 				}
 
-				properties->keys().push_back(ko);
-				properties->values().push_back(vo);
+				properties->entries().push_back({ko, vo});
 			}
 		}
 	}

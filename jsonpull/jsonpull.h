@@ -34,6 +34,16 @@ struct json_pull;
 typedef std::shared_ptr<json_object> json_object_ptr;
 typedef std::shared_ptr<json_pull> json_pull_ptr;
 
+// A single key/value pair inside a JSON_HASH. The pairs are stored in
+// insertion order in a single std::vector<json_entry> on json_hash, so
+// callers can range-for over `o->entries()` with structured bindings
+// (`for (auto &[k, v] : o->entries()) ...`) while still preserving the
+// order keys appeared in the source document.
+struct json_entry {
+	json_object_ptr key;
+	json_object_ptr value;
+};
+
 // json_object is a small base type that just records the JSON type and
 // the back-pointers to its parent and parser. The actual value payload
 // lives in a type-specific subclass (json_number, json_string, json_array,
@@ -83,10 +93,8 @@ struct json_object {
 	inline std::vector<json_object_ptr> &array();
 	inline const std::vector<json_object_ptr> &array() const;
 
-	inline std::vector<json_object_ptr> &keys();
-	inline const std::vector<json_object_ptr> &keys() const;
-	inline std::vector<json_object_ptr> &values();
-	inline const std::vector<json_object_ptr> &values() const;
+	inline std::vector<json_entry> &entries();
+	inline const std::vector<json_entry> &entries() const;
 };
 
 struct json_number : json_object {
@@ -113,8 +121,7 @@ struct json_array : json_object {
 };
 
 struct json_hash : json_object {
-	std::vector<json_object_ptr> keys_value;
-	std::vector<json_object_ptr> values_value;
+	std::vector<json_entry> entries_value;
 
 	json_hash() : json_object(JSON_HASH) {}
 	json_hash(json_object *p, json_pull *pl) : json_object(JSON_HASH, p, pl) {}
@@ -163,21 +170,13 @@ inline const std::vector<json_object_ptr> &json_object::array() const {
 	return static_cast<const json_array *>(this)->array_value;
 }
 
-inline std::vector<json_object_ptr> &json_object::keys() {
+inline std::vector<json_entry> &json_object::entries() {
 	assert(type == JSON_HASH);
-	return static_cast<json_hash *>(this)->keys_value;
+	return static_cast<json_hash *>(this)->entries_value;
 }
-inline const std::vector<json_object_ptr> &json_object::keys() const {
+inline const std::vector<json_entry> &json_object::entries() const {
 	assert(type == JSON_HASH);
-	return static_cast<const json_hash *>(this)->keys_value;
-}
-inline std::vector<json_object_ptr> &json_object::values() {
-	assert(type == JSON_HASH);
-	return static_cast<json_hash *>(this)->values_value;
-}
-inline const std::vector<json_object_ptr> &json_object::values() const {
-	assert(type == JSON_HASH);
-	return static_cast<const json_hash *>(this)->values_value;
+	return static_cast<const json_hash *>(this)->entries_value;
 }
 
 struct json_pull {

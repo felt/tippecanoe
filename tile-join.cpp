@@ -972,40 +972,39 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 		for (size_t i = 0; i < o->array().size(); i++) {
 			json_object_ptr h = o->array()[i];
 			if (h->type == JSON_HASH) {
-				for (size_t j = 0; j < h->keys().size(); j++) {
-					json_object_ptr k = h->keys()[j];
-					json_object_ptr v = h->values()[j];
-
-					if (k->type != JSON_STRING) {
+				size_t j = 0;
+				for (const auto &kv : h->entries()) {
+					if (kv.key->type != JSON_STRING) {
 						fprintf(stderr, "Key %zu of %zu is not a string: %s\n", j, i, s);
-					} else if (v->type != JSON_NUMBER) {
+					} else if (kv.value->type != JSON_NUMBER) {
 						fprintf(stderr, "Value %zu of %zu is not a number: %s\n", j, i, s);
 					} else {
 						if (i >= st->size()) {
 							st->resize(i + 1);
 						}
 
-						const std::string &key = k->string();
+						const std::string &key = kv.key->string();
 						if (key == "dropped_by_rate") {
-							(*st)[i].dropped_by_rate += v->number();
+							(*st)[i].dropped_by_rate += kv.value->number();
 						} else if (key == "dropped_by_gamma") {
-							(*st)[i].dropped_by_gamma += v->number();
+							(*st)[i].dropped_by_gamma += kv.value->number();
 						} else if (key == "dropped_as_needed") {
-							(*st)[i].dropped_as_needed += v->number();
+							(*st)[i].dropped_as_needed += kv.value->number();
 						} else if (key == "coalesced_as_needed") {
-							(*st)[i].coalesced_as_needed += v->number();
+							(*st)[i].coalesced_as_needed += kv.value->number();
 						} else if (key == "truncated_zooms") {
-							(*st)[i].truncated_zooms += v->number();
+							(*st)[i].truncated_zooms += kv.value->number();
 						} else if (key == "detail_reduced") {
-							(*st)[i].detail_reduced += v->number();
+							(*st)[i].detail_reduced += kv.value->number();
 						} else if (key == "tiny_polygons") {
-							(*st)[i].tiny_polygons += v->number();
+							(*st)[i].tiny_polygons += kv.value->number();
 						} else if (key == "tile_size_desired") {
-							(*st)[i].tile_size += v->number();
+							(*st)[i].tile_size += kv.value->number();
 						} else if (key == "feature_count_desired") {
-							(*st)[i].feature_count += v->number();
+							(*st)[i].feature_count += kv.value->number();
 						}
 					}
+					j++;
 				}
 			} else {
 				fprintf(stderr, "Element %zu is not a hash: %s\n", i, s);
@@ -1035,15 +1034,15 @@ void handle_vector_layers(json_object_ptr vector_layers, std::map<std::string, l
 
 				json_object_ptr fields = json_hash_get(vector_layers->array()[i], "fields");
 				if (fields != nullptr && fields->type == JSON_HASH) {
-					for (size_t j = 0; j < fields->keys().size(); j++) {
-						if (fields->keys()[j]->type == JSON_STRING && fields->values()[j]->type) {
-							const std::string &desc2 = fields->values()[j]->string();
+					for (const auto &e : fields->entries()) {
+						if (e.key->type == JSON_STRING && e.value->type) {
+							const std::string &desc2 = e.value->string();
 
 							if (desc2 != "Number" &&
 							    desc2 != "String" &&
 							    desc2 != "Boolean" &&
 							    desc2 != "Mixed") {
-								attribute_descriptions.insert(std::pair<std::string, std::string>(fields->keys()[j]->string(), desc2));
+								attribute_descriptions.insert(std::pair<std::string, std::string>(e.key->string(), desc2));
 							}
 						}
 					}

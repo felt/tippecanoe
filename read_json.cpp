@@ -382,15 +382,17 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 				feature.has_id = true;
 			}
 
-			for (size_t i = 0; i < properties->keys().size(); i++) {
-				serial_val sv = stringify_value(properties->values()[i], "Filter output", jp->line, j);
+			if (properties->type == JSON_HASH) {
+				for (const auto &e : properties->entries()) {
+					serial_val sv = stringify_value(e.value, "Filter output", jp->line, j);
 
-				// Nulls can be excluded here because this is the postfilter
-				// and it is nearly time to create the vector representation
+					// Nulls can be excluded here because this is the postfilter
+					// and it is nearly time to create the vector representation
 
-				if (sv.type != mvt_null) {
-					mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
-					l->second.tag(feature, properties->keys()[i]->string(), v);
+					if (sv.type != mvt_null) {
+						mvt_value v = stringified_to_mvt_value(sv.type, sv.s.c_str(), tile_stringpool);
+						l->second.tag(feature, e.key->string(), v);
+					}
 				}
 			}
 

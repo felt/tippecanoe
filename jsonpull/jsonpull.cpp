@@ -134,7 +134,7 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 			}
 		} else if (c->type == JSON_HASH) {
 			if (c->expect == JSON_VALUE) {
-				c->values().back() = o;
+				c->entries().back().value = o;
 				c->expect = JSON_COMMA;
 			} else if (c->expect == JSON_KEY) {
 				if (type != JSON_STRING) {
@@ -142,8 +142,7 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 					return nullptr;
 				}
 
-				c->keys().push_back(o);
-				c->values().push_back(nullptr);
+				c->entries().push_back({o, nullptr});
 				c->expect = JSON_COLON;
 			} else {
 				j->error = "Expected a comma or colon";
@@ -164,14 +163,9 @@ json_object_ptr json_hash_get(json_object *o, const char *s) {
 		return nullptr;
 	}
 
-	const auto &keys = o->keys();
-	const auto &vals = o->values();
-	for (size_t i = 0; i < keys.size(); i++) {
-		const auto &key = keys[i];
-		if (key != nullptr && key->type == JSON_STRING) {
-			if (key->string() == s) {
-				return vals[i];
-			}
+	for (const auto &e : o->entries()) {
+		if (e.key != nullptr && e.key->type == JSON_STRING && e.key->string() == s) {
+			return e.value;
 		}
 	}
 
@@ -299,7 +293,7 @@ again:
 		}
 
 		if (cc->expect != JSON_COMMA) {
-			if (!(cc->expect == JSON_KEY && cc->keys().size() == 0)) {
+			if (!(cc->expect == JSON_KEY && cc->entries().size() == 0)) {
 				j->error = "Found } without final element";
 				return nullptr;
 			}
@@ -676,11 +670,9 @@ static void clear_back_pointers(json_object *o) {
 	}
 
 	if (o->type == JSON_HASH) {
-		const auto &keys = o->keys();
-		const auto &vals = o->values();
-		for (size_t i = 0; i < keys.size(); i++) {
-			clear_back_pointers(keys[i].get());
-			clear_back_pointers(vals[i].get());
+		for (const auto &e : o->entries()) {
+			clear_back_pointers(e.key.get());
+			clear_back_pointers(e.value.get());
 		}
 	} else if (o->type == JSON_ARRAY) {
 		const auto &arr = o->array();
@@ -713,28 +705,26 @@ void json_disconnect(json_object_ptr o) {
 				}
 			}
 		} else if (parent->type == JSON_HASH) {
-			auto &keys = parent->keys();
-			auto &vals = parent->values();
+			auto &entries = parent->entries();
 
-			for (size_t i = 0; i < keys.size(); i++) {
-				if (keys[i].get() == o.get()) {
+			for (size_t i = 0; i < entries.size(); i++) {
+				auto &e = entries[i];
+				if (e.key.get() == o.get()) {
 					// Leave a NULL placeholder in the key slot so the
 					// surrounding value isn't shifted; if the corresponding
 					// value is also detached the pair is removed below.
-					keys[i] = fabricate_object(parent->parser, parent, JSON_NULL);
+					e.key = fabricate_object(parent->parser, parent, JSON_NULL);
 
-					if (vals[i] != nullptr && vals[i]->type == JSON_NULL && keys[i]->type == JSON_NULL) {
-						keys.erase(keys.begin() + i);
-						vals.erase(vals.begin() + i);
+					if (e.value != nullptr && e.value->type == JSON_NULL && e.key->type == JSON_NULL) {
+						entries.erase(entries.begin() + i);
 					}
 					break;
 				}
-				if (vals[i].get() == o.get()) {
-					vals[i] = fabricate_object(parent->parser, parent, JSON_NULL);
+				if (e.value.get() == o.get()) {
+					e.value = fabricate_object(parent->parser, parent, JSON_NULL);
 
-					if (keys[i] != nullptr && keys[i]->type == JSON_NULL && vals[i]->type == JSON_NULL) {
-						keys.erase(keys.begin() + i);
-						vals.erase(vals.begin() + i);
+					if (e.key != nullptr && e.key->type == JSON_NULL && e.value->type == JSON_NULL) {
+						entries.erase(entries.begin() + i);
 					}
 					break;
 				}
@@ -815,13 +805,12 @@ static void json_print(std::string &val, json_object *o) {
 	} else if (o->type == JSON_HASH) {
 		string_append_c(val, '{');
 
-		const auto &keys = o->keys();
-		const auto &vals = o->values();
-		for (size_t i = 0; i < keys.size(); i++) {
-			json_print(val, keys[i].get());
+		const auto &entries = o->entries();
+		for (size_t i = 0; i < entries.size(); i++) {
+			json_print(val, entries[i].key.get());
 			string_append_c(val, ':');
-			json_print(val, vals[i].get());
-			if (i + 1 < keys.size()) {
+			json_print(val, entries[i].value.get());
+			if (i + 1 < entries.size()) {
 				string_append_c(val, ',');
 			}
 		}

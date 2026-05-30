@@ -415,37 +415,37 @@ sqlite3 *pmtilesmeta2tmp(const char *fname, const char *pmtiles_map) {
 	state.nospace = true;
 	state.json_write_hash();
 
-	for (size_t i = 0; i < o->keys().size(); i++) {
-		const std::string &key = o->keys()[i]->string();
-		if (key == "vector_layers" && o->values()[i]->type == JSON_ARRAY) {
+	for (const auto &e : o->entries()) {
+		const std::string &key = e.key->string();
+		if (key == "vector_layers" && e.value->type == JSON_ARRAY) {
 			has_json = true;
 			state.nospace = true;
 			state.json_write_string("vector_layers");
 			state.nospace = true;
-			state.json_write_json(json_stringify(o->values()[i]));
-		} else if (key == "tilestats" && o->values()[i]->type == JSON_HASH) {
+			state.json_write_json(json_stringify(e.value));
+		} else if (key == "tilestats" && e.value->type == JSON_HASH) {
 			has_json = true;
 			state.nospace = true;
 			state.json_write_string("tilestats");
 			state.nospace = true;
-			state.json_write_json(json_stringify(o->values()[i]));
-		} else if (key == "strategies" && o->values()[i]->type == JSON_ARRAY) {
-			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('strategies', %Q);", json_stringify(o->values()[i]).c_str());
+			state.json_write_json(json_stringify(e.value));
+		} else if (key == "strategies" && e.value->type == JSON_ARRAY) {
+			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('strategies', %Q);", json_stringify(e.value).c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
 				fprintf(stderr, "set %s in metadata: %s\n", key.c_str(), err);
 			}
 			sqlite3_free(sql);
-		} else if (key == "tippecanoe_decisions" && o->values()[i]->type == JSON_HASH) {
-			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('tippecanoe_decisions', %Q);", json_stringify(o->values()[i]).c_str());
+		} else if (key == "tippecanoe_decisions" && e.value->type == JSON_HASH) {
+			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('tippecanoe_decisions', %Q);", json_stringify(e.value).c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
 				fprintf(stderr, "set %s in metadata: %s\n", key.c_str(), err);
 			}
 			sqlite3_free(sql);
-		} else if (o->keys()[i]->type != JSON_STRING || o->values()[i]->type != JSON_STRING) {
+		} else if (e.key->type != JSON_STRING || e.value->type != JSON_STRING) {
 			fprintf(stderr, "%s\n", key.c_str());
 			fprintf(stderr, "%s: non-string in metadata\n", fname);
 		} else {
-			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", key.c_str(), o->values()[i]->string().c_str());
+			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", key.c_str(), e.value->string().c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
 				fprintf(stderr, "set %s in metadata: %s\n", key.c_str(), err);
 			}

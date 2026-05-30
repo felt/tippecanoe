@@ -343,18 +343,20 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 				}
 			}
 
-			for (size_t i = 0; i < properties->keys().size(); i++) {
-				serial_val v = stringify_value(properties->values()[i], "Filter output", jp->line, j);
+			if (properties->type == JSON_HASH) {
+				for (const auto &e : properties->entries()) {
+					serial_val v = stringify_value(e.value, "Filter output", jp->line, j);
 
-				// Nulls can be excluded here because the expression evaluation filter
-				// would have already run before prefiltering
+					// Nulls can be excluded here because the expression evaluation filter
+					// would have already run before prefiltering
 
-				if (v.type != mvt_null) {
-					sf.full_keys.push_back(key_pool.pool(properties->keys()[i]->string()));
-					sf.full_values.push_back(v);
+					if (v.type != mvt_null) {
+						sf.full_keys.push_back(key_pool.pool(e.key->string()));
+						sf.full_values.push_back(v);
 
-					if (!postfilter) {
-						add_to_tilestats(ts->second.tilestats, properties->keys()[i]->string(), v);
+						if (!postfilter) {
+							add_to_tilestats(ts->second.tilestats, e.key->string(), v);
+						}
 					}
 				}
 			}
