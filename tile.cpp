@@ -1770,7 +1770,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		int prefilter_write = -1, prefilter_read = -1;
-		pid_t prefilter_pid = 0;
+		filter_handle prefilter_handle;
 		FILE *prefilter_fp = NULL;
 		pthread_t prefilter_writer;
 		run_prefilter_args rpa;	 // here so it stays in scope until joined
@@ -1783,7 +1783,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 		}
 
 		if (prefilter != NULL) {
-			setup_filter(prefilter, &prefilter_write, &prefilter_read, &prefilter_pid, z, tx, ty);
+			setup_filter(prefilter, &prefilter_write, &prefilter_read, &prefilter_handle, z, tx, ty);
 			prefilter_fp = fdopen(prefilter_write, "w");
 			if (prefilter_fp == NULL) {
 				perror("freopen prefilter");
@@ -2294,16 +2294,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				perror("close output from prefilter");
 				exit(EXIT_CLOSE);
 			}
-			while (1) {
-				int stat_loc;
-				if (waitpid(prefilter_pid, &stat_loc, 0) < 0) {
-					perror("waitpid for prefilter\n");
-					exit(EXIT_PTHREAD);
-				}
-				if (WIFEXITED(stat_loc) || WIFSIGNALED(stat_loc)) {
-					break;
-				}
-			}
+			wait_filter(prefilter_handle);
 			void *ret;
 			if (pthread_join(prefilter_writer, &ret) != 0) {
 				perror("pthread_join prefilter writer");
