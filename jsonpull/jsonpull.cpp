@@ -482,27 +482,26 @@ again:
 
 		json_object_ptr n = add_object(j, JSON_NUMBER);
 		if (n != nullptr) {
-			n->number() = atof(j->number_buffer.c_str());
-			n->large_signed() = 0;
-			n->large_unsigned() = 0;
+			double d = atof(j->number_buffer.c_str());
+			n->set_number(d);
 
 #define MAX_SAFE_INTEGER 9007199254740991.0
 #define MIN_SAFE_INTEGER -9007199254740991.0
 
-			if (!decimal && n->number() > MAX_SAFE_INTEGER) {
+			if (!decimal && d > MAX_SAFE_INTEGER) {
 				errno = 0;
 				char *err = nullptr;
 				unsigned long long ull = strtoull(j->number_buffer.c_str(), &err, 10);
 				if (errno == 0 && (err == nullptr || *err == '\0')) {
-					n->large_unsigned() = ull;
+					n->set_large_unsigned(ull);
 				}
 			}
-			if (!decimal && n->number() < MIN_SAFE_INTEGER) {
+			if (!decimal && d < MIN_SAFE_INTEGER) {
 				errno = 0;
 				char *err = nullptr;
 				long long ll = strtoll(j->number_buffer.c_str(), &err, 10);
 				if (errno == 0 && (err == nullptr || *err == '\0')) {
-					n->large_signed() = ll;
+					n->set_large_signed(ll);
 				}
 			}
 		}

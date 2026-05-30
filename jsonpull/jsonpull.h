@@ -82,12 +82,17 @@ struct json_object {
 	inline std::string &string();
 	inline const std::string &string() const;
 
-	inline double &number();
+	// Numbers are stored in a discriminated union (double / unsigned /
+	// signed) so a json_number is only 40 bytes instead of 48. The
+	// large_*() accessors return 0 when the number is not currently
+	// stored in that representation, matching the prior convention
+	// where "0" meant "not set, fall through to the next slot".
 	inline double number() const;
-	inline unsigned long long &large_unsigned();
 	inline unsigned long long large_unsigned() const;
-	inline long long &large_signed();
 	inline long long large_signed() const;
+	inline void set_number(double d);
+	inline void set_large_unsigned(unsigned long long u);
+	inline void set_large_signed(long long s);
 
 	inline std::vector<json_object_ptr> &array();
 	inline const std::vector<json_object_ptr> &array() const;
@@ -97,9 +102,17 @@ struct json_object {
 };
 
 struct json_number : json_object {
-	double number_value = 0;
-	unsigned long long large_unsigned_value = 0;
-	long long large_signed_value = 0;
+	enum repr_t { REPR_DOUBLE,
+		      REPR_LARGE_UNSIGNED,
+		      REPR_LARGE_SIGNED };
+
+	repr_t repr = REPR_DOUBLE;
+	union value_t {
+		double d;
+		unsigned long long u;
+		long long s;
+		value_t() : d(0) {}
+	} value;
 
 	json_number() : json_object(JSON_NUMBER) {}
 	json_number(json_object *p, json_pull *pl) : json_object(JSON_NUMBER, p, pl) {}
@@ -135,29 +148,46 @@ inline const std::string &json_object::string() const {
 	return static_cast<const json_string *>(this)->string_value;
 }
 
-inline double &json_object::number() {
-	assert(type == JSON_NUMBER);
-	return static_cast<json_number *>(this)->number_value;
-}
 inline double json_object::number() const {
 	assert(type == JSON_NUMBER);
-	return static_cast<const json_number *>(this)->number_value;
-}
-inline unsigned long long &json_object::large_unsigned() {
-	assert(type == JSON_NUMBER);
-	return static_cast<json_number *>(this)->large_unsigned_value;
+	auto *n = static_cast<const json_number *>(this);
+	switch (n->repr) {
+	case json_number::REPR_LARGE_UNSIGNED:
+		return static_cast<double>(n->value.u);
+	case json_number::REPR_LARGE_SIGNED:
+		return static_cast<double>(n->value.s);
+	case json_number::REPR_DOUBLE:
+	default:
+		return n->value.d;
+	}
 }
 inline unsigned long long json_object::large_unsigned() const {
 	assert(type == JSON_NUMBER);
-	return static_cast<const json_number *>(this)->large_unsigned_value;
-}
-inline long long &json_object::large_signed() {
-	assert(type == JSON_NUMBER);
-	return static_cast<json_number *>(this)->large_signed_value;
+	auto *n = static_cast<const json_number *>(this);
+	return n->repr == json_number::REPR_LARGE_UNSIGNED ? n->value.u : 0;
 }
 inline long long json_object::large_signed() const {
 	assert(type == JSON_NUMBER);
-	return static_cast<const json_number *>(this)->large_signed_value;
+	auto *n = static_cast<const json_number *>(this);
+	return n->repr == json_number::REPR_LARGE_SIGNED ? n->value.s : 0;
+}
+inline void json_object::set_number(double d) {
+	assert(type == JSON_NUMBER);
+	auto *n = static_cast<json_number *>(this);
+	n->repr = json_number::REPR_DOUBLE;
+	n->value.d = d;
+}
+inline void json_object::set_large_unsigned(unsigned long long u) {
+	assert(type == JSON_NUMBER);
+	auto *n = static_cast<json_number *>(this);
+	n->repr = json_number::REPR_LARGE_UNSIGNED;
+	n->value.u = u;
+}
+inline void json_object::set_large_signed(long long s) {
+	assert(type == JSON_NUMBER);
+	auto *n = static_cast<json_number *>(this);
+	n->repr = json_number::REPR_LARGE_SIGNED;
+	n->value.s = s;
 }
 
 inline std::vector<json_object_ptr> &json_object::array() {

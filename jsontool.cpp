@@ -326,7 +326,7 @@ void join_csv(json_object_ptr j) {
 					vo = s;
 				} else if (attr_type == JSON_NUMBER) {
 					auto n = std::make_shared<json_number>(properties.get(), properties->parser);
-					n->number_value = atof(v.c_str());
+					n->set_number(atof(v.c_str()));
 					vo = n;
 				} else {
 					abort();
