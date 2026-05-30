@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
 	std::string out;
 
 	{
-		json_object *json_filter = NULL;
+		json_object_ptr json_filter;
 		if (filter.size() > 0) {
 			json_filter = parse_filter(filter.c_str());
 		}

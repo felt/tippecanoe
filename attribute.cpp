@@ -42,10 +42,10 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 
 void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribute_accum, const char *arg, char **argv) {
 	if (*arg == '{') {
-		json_pull *jp = json_begin_string(arg);
-		json_object *o = json_read_tree(jp);
+		json_pull_ptr jp = json_begin_string(arg);
+		json_object_ptr o = json_read_tree(jp);
 
-		if (o == NULL) {
+		if (o == nullptr) {
 			fprintf(stderr, "%s: -E%s: %s\n", *argv, arg, jp->error);
 			exit(EXIT_JSON);
 		}
@@ -55,9 +55,9 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 			exit(EXIT_JSON);
 		}
 
-		for (size_t i = 0; i < o->value.object.length; i++) {
-			json_object *k = o->value.object.keys[i];
-			json_object *v = o->value.object.values[i];
+		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
+			json_object_ptr k = o->value.object.keys[i];
+			json_object_ptr v = o->value.object.values[i];
 
 			if (k->type != JSON_STRING) {
 				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *argv, arg, i);
@@ -68,11 +68,9 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 				exit(EXIT_JSON);
 			}
 
-			set_attribute_accum(attribute_accum, k->value.string.string, v->value.string.string);
+			set_attribute_accum(attribute_accum, k->value.string.string.c_str(), v->value.string.string.c_str());
 		}
 
-		json_free(o);
-		json_end(jp);
 		return;
 	}
 

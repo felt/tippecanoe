@@ -586,7 +586,7 @@ struct STREAM {
 		}
 	}
 
-	json_pull *json_begin() {
+	json_pull_ptr json_begin() {
 		return ::json_begin(read_stream, this);
 	}
 };
@@ -1215,7 +1215,7 @@ double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
 }
 
-std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object_ptr filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -1818,7 +1818,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				// Plain serial reading
 
 				std::atomic<long long> layer_seq(overall_offset);
-				json_pull *jp = fp->json_begin();
+				json_pull_ptr jp = fp->json_begin();
 				struct serialization_state sst;
 
 				sst.fname = reading.c_str();
@@ -1845,7 +1845,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				sst.attribute_types = attribute_types;
 
 				parse_json(&sst, jp, layer, sources[layer].layer);
-				json_end(jp);
 				overall_offset = layer_seq;
 				checkdisk(&readers);
 			}
@@ -2873,10 +2872,10 @@ void set_attribute_type(std::unordered_map<std::string, int> &attribute_types, c
 
 void set_attribute_value(const char *arg) {
 	if (*arg == '{') {
-		json_pull *jp = json_begin_string(arg);
-		json_object *o = json_read_tree(jp);
+		json_pull_ptr jp = json_begin_string(arg);
+		json_object_ptr o = json_read_tree(jp);
 
-		if (o == NULL) {
+		if (o == nullptr) {
 			fprintf(stderr, "%s: --set-attribute %s: %s\n", *av, arg, jp->error);
 			exit(EXIT_JSON);
 		}
@@ -2886,9 +2885,9 @@ void set_attribute_value(const char *arg) {
 			exit(EXIT_JSON);
 		}
 
-		for (size_t i = 0; i < o->value.object.length; i++) {
-			json_object *k = o->value.object.keys[i];
-			json_object *v = o->value.object.values[i];
+		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
+			json_object_ptr k = o->value.object.keys[i];
+			json_object_ptr v = o->value.object.values[i];
 
 			if (k->type != JSON_STRING) {
 				fprintf(stderr, "%s: --set-attribute %s: key %zu not a string\n", *av, arg, i);
@@ -2899,8 +2898,6 @@ void set_attribute_value(const char *arg) {
 			set_attributes.emplace(k->value.string.string, val);
 		}
 
-		json_free(o);
-		json_end(jp);
 		return;
 	}
 
@@ -2925,10 +2922,10 @@ void set_attribute_value(const char *arg) {
 }
 
 void parse_json_source(const char *arg, struct source &src) {
-	json_pull *jp = json_begin_string(arg);
-	json_object *o = json_read_tree(jp);
+	json_pull_ptr jp = json_begin_string(arg);
+	json_object_ptr o = json_read_tree(jp);
 
-	if (o == NULL) {
+	if (o == nullptr) {
 		fprintf(stderr, "%s: -L%s: %s\n", *av, arg, jp->error);
 		exit(EXIT_JSON);
 	}
@@ -2938,31 +2935,28 @@ void parse_json_source(const char *arg, struct source &src) {
 		exit(EXIT_JSON);
 	}
 
-	json_object *fname = json_hash_get(o, "file");
-	if (fname == NULL || fname->type != JSON_STRING) {
+	json_object_ptr fname = json_hash_get(o, "file");
+	if (fname == nullptr || fname->type != JSON_STRING) {
 		fprintf(stderr, "%s: -L%s: requires \"file\": filename\n", *av, arg);
 		exit(EXIT_JSON);
 	}
 
-	src.file = std::string(fname->value.string.string);
+	src.file = fname->value.string.string;
 
-	json_object *layer = json_hash_get(o, "layer");
-	if (layer != NULL && layer->type == JSON_STRING) {
-		src.layer = std::string(layer->value.string.string);
+	json_object_ptr layer = json_hash_get(o, "layer");
+	if (layer != nullptr && layer->type == JSON_STRING) {
+		src.layer = layer->value.string.string;
 	}
 
-	json_object *description = json_hash_get(o, "description");
-	if (description != NULL && description->type == JSON_STRING) {
-		src.description = std::string(description->value.string.string);
+	json_object_ptr description = json_hash_get(o, "description");
+	if (description != nullptr && description->type == JSON_STRING) {
+		src.description = description->value.string.string;
 	}
 
-	json_object *format = json_hash_get(o, "format");
-	if (format != NULL && format->type == JSON_STRING) {
-		src.format = std::string(format->value.string.string);
+	json_object_ptr format = json_hash_get(o, "format");
+	if (format != nullptr && format->type == JSON_STRING) {
+		src.format = format->value.string.string;
 	}
-
-	json_free(o);
-	json_end(jp);
 }
 
 int main(int argc, char **argv) {
@@ -3008,7 +3002,7 @@ int main(int argc, char **argv) {
 	int exclude_all = 0;
 	int read_parallel = 0;
 	int files_open_at_start;
-	json_object *filter = NULL;
+	json_object_ptr filter;
 
 	memsize = calc_memsize();
 
@@ -3876,9 +3870,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	if (filter != NULL) {
-		json_free(filter);
-	}
+	filter.reset();
 
 	return ret;
 }

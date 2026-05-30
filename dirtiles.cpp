@@ -248,9 +248,9 @@ sqlite3 *dirmeta2tmp(const char *fname) {
 	if (f == NULL) {
 		perror(name.c_str());
 	} else {
-		json_pull *jp = json_begin_file(f);
-		json_object *o = json_read_tree(jp);
-		if (o == NULL) {
+		json_pull_ptr jp = json_begin_file(f);
+		json_object_ptr o = json_read_tree(jp);
+		if (o == nullptr) {
 			fprintf(stderr, "%s: metadata parsing error: %s\n", name.c_str(), jp->error);
 			exit(EXIT_JSON);
 		}
@@ -260,19 +260,18 @@ sqlite3 *dirmeta2tmp(const char *fname) {
 			exit(EXIT_JSON);
 		}
 
-		for (size_t i = 0; i < o->value.object.length; i++) {
+		for (size_t i = 0; i < o->value.object.keys.size(); i++) {
 			if (o->value.object.keys[i]->type != JSON_STRING || o->value.object.values[i]->type != JSON_STRING) {
 				fprintf(stderr, "%s: non-string in metadata\n", name.c_str());
 			}
 
-			char *sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", o->value.object.keys[i]->value.string.string, o->value.object.values[i]->value.string.string);
+			char *sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", o->value.object.keys[i]->value.string.string.c_str(), o->value.object.values[i]->value.string.string.c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
-				fprintf(stderr, "set %s in metadata: %s\n", o->value.object.keys[i]->value.string.string, err);
+				fprintf(stderr, "set %s in metadata: %s\n", o->value.object.keys[i]->value.string.string.c_str(), err);
 			}
 			sqlite3_free(sql);
 		}
 
-		json_end(jp);
 		fclose(f);
 	}
 

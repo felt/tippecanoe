@@ -140,23 +140,18 @@ std::string sort_quote(const char *s) {
 	return ret;
 }
 
-void out(std::string const &s, int type, json_object *properties) {
+void out(std::string const &s, int type, json_object_ptr properties) {
 	if (extract != NULL) {
 		std::string extracted = sort_quote("null");
 		bool found = false;
 
-		json_object *o = json_hash_get(properties, extract);
-		if (o != NULL) {
+		json_object_ptr o = json_hash_get(properties, extract);
+		if (o != nullptr) {
 			found = true;
 			if (o->type == JSON_STRING || o->type == JSON_NUMBER) {
-				extracted = sort_quote(o->value.string.string);
+				extracted = sort_quote(o->value.string.string.c_str());
 			} else {
-				// Don't really know what to do about sort quoting
-				// for arbitrary objects
-
-				const char *out = json_stringify(o);
-				extracted = sort_quote(out);
-				free((void *) out);
+				extracted = sort_quote(json_stringify(o).c_str());
 			}
 		}
 
@@ -205,7 +200,7 @@ void out(std::string const &s, int type, json_object *properties) {
 
 std::string prev_joinkey;
 
-void join_csv(json_object *j) {
+void join_csv(json_object_ptr j) {
 	if (header.size() == 0) {
 		std::string s = csv_getline(csvfile);
 		if (s.size() == 0) {
@@ -231,14 +226,14 @@ void join_csv(json_object *j) {
 		}
 	}
 
-	json_object *properties = json_hash_get(j, "properties");
-	json_object *key = NULL;
+	json_object_ptr properties = json_hash_get(j, "properties");
+	json_object_ptr key;
 
-	if (properties != NULL) {
+	if (properties != nullptr) {
 		key = json_hash_get(properties, header[0].c_str());
 	}
 
-	if (key == NULL) {
+	if (key == nullptr) {
 		static bool warned = false;
 		if (!warned) {
 			fprintf(stderr, "Warning: couldn't find CSV key \"%s\" in JSON\n", header[0].c_str());
@@ -253,9 +248,7 @@ void join_csv(json_object *j) {
 	} else if (key->type == JSON_NUMBER) {
 		joinkey = milo::dtoa_milo(key->value.number.number);
 	} else {
-		const char *s = json_stringify(key);
-		joinkey = s;
-		free((void *) s);
+		joinkey = json_stringify(key);
 	}
 
 	if (joinkey < prev_joinkey) {
@@ -305,14 +298,8 @@ void join_csv(json_object *j) {
 	}
 
 	if (fields.size() > 0 && joinkey == fields[0]) {
-		// This knows more about the structure of JSON objects than it ought to
-		// The 8 is to round up at least as much as SIZE_FOR in json_pull.c
-		properties->value.object.keys = (json_object **) realloc((void *) properties->value.object.keys, (properties->value.object.length + 8 + fields.size()) * sizeof(json_object *));
-		properties->value.object.values = (json_object **) realloc((void *) properties->value.object.values, (properties->value.object.length + 8 + fields.size()) * sizeof(json_object *));
-		if (properties->value.object.keys == NULL || properties->value.object.values == NULL) {
-			perror("realloc");
-			exit(EXIT_MEMORY);
-		}
+		properties->value.object.keys.reserve(properties->value.object.keys.size() + fields.size());
+		properties->value.object.values.reserve(properties->value.object.values.size() + fields.size());
 
 		for (size_t i = 1; i < fields.size(); i++) {
 			std::string k = header[i];
@@ -330,35 +317,20 @@ void join_csv(json_object *j) {
 			}
 
 			if (attr_type != JSON_NULL) {
-				// This knows more about the structure of JSON objects than it ought to
-
-				json_object *ko = (json_object *) malloc(sizeof(json_object));
-				json_object *vo = (json_object *) malloc(sizeof(json_object));
-				if (ko == NULL || vo == NULL) {
-					perror("malloc");
-					exit(EXIT_MEMORY);
-				}
+				auto ko = std::make_shared<json_object>();
+				auto vo = std::make_shared<json_object>();
 
 				ko->type = JSON_STRING;
-				ko->parent = properties;
+				ko->parent = properties.get();
 				ko->parser = properties->parser;
-
-				ko->value.string.string = strdup(k.c_str());
-				if (ko->value.string.string == NULL) {
-					perror("strdup");
-					exit(EXIT_MEMORY);
-				}
+				ko->value.string.string = k;
 
 				vo->type = attr_type;
-				vo->parent = properties;
+				vo->parent = properties.get();
 				vo->parser = properties->parser;
 
 				if (attr_type == JSON_STRING) {
-					vo->value.string.string = strdup(v.c_str());
-					if (vo->value.string.string == NULL) {
-						perror("strdup");
-						exit(EXIT_MEMORY);
-					}
+					vo->value.string.string = v;
 				} else if (attr_type == JSON_NUMBER) {
 					vo->value.number.number = atof(v.c_str());
 					vo->value.number.large_unsigned = 0;
@@ -367,44 +339,38 @@ void join_csv(json_object *j) {
 					abort();
 				}
 
-				properties->value.object.keys[properties->value.object.length] = ko;
-				properties->value.object.values[properties->value.object.length] = vo;
-				properties->value.object.length++;
+				properties->value.object.keys.push_back(ko);
+				properties->value.object.values.push_back(vo);
 			}
 		}
 	}
 }
 
 struct json_join_action : json_feature_action {
-	int add_feature(json_object *geometry, bool, json_object *, json_object *, json_object *, json_object *feature) {
+	int add_feature(json_object_ptr geometry, bool, json_object_ptr, json_object_ptr, json_object_ptr, json_object_ptr feature) {
 		if (feature != geometry) {  // a real feature, not a bare geometry
 			if (csvfile != NULL) {
 				join_csv(feature);
 			}
 
-			char *s = json_stringify(feature);
-			out(s, 1, json_hash_get(feature, "properties"));
-			free(s);
+			out(json_stringify(feature), 1, json_hash_get(feature, "properties"));
 		} else {
-			char *s = json_stringify(geometry);
-			out(s, 2, NULL);
-			free(s);
+			out(json_stringify(geometry), 2, nullptr);
 		}
 
 		return 1;
 	}
 
-	void check_crs(json_object *) {
+	void check_crs(json_object_ptr) {
 	}
 };
 
 void process(FILE *fp, const char *fname) {
-	json_pull *jp = json_begin_file(fp);
+	json_pull_ptr jp = json_begin_file(fp);
 
 	json_join_action jja;
 	jja.fname = fname;
 	parse_json(&jja, jp);
-	json_end(jp);
 }
 
 int main(int argc, char **argv) {

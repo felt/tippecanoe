@@ -89,7 +89,7 @@ struct arg {
 	std::set<std::string> *keep_layers = NULL;
 	std::set<std::string> *remove_layers = NULL;
 	int ifmatched = 0;
-	json_object *filter = NULL;
+	json_object_ptr filter;
 	struct tileset_reader *readers = NULL;
 
 	double minlat, minlon;
@@ -97,7 +97,7 @@ struct arg {
 	double minlon2, maxlon2;
 };
 
-void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 * /* db */, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter, struct arg *a) {
+void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 * /* db */, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object_ptr filter, struct arg *a) {
 	mvt_tile tile;
 	int features_added = 0;
 	bool was_compressed;
@@ -891,7 +891,7 @@ void *join_worker(void *v) {
 	return NULL;
 }
 
-void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers, double *minlat, double *minlon, double *maxlat, double *maxlon, double *minlon2, double *maxlon2) {
+void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object_ptr filter, struct tileset_reader *readers, double *minlat, double *minlon, double *maxlat, double *maxlon, double *minlon2, double *maxlon2) {
 	pthread_t pthreads[CPUS];
 	std::vector<arg> args;
 
@@ -965,16 +965,16 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 }
 
 void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
-	json_pull *jp = json_begin_string((const char *) s);
-	json_object *o = json_read_tree(jp);
+	json_pull_ptr jp = json_begin_string((const char *) s);
+	json_object_ptr o = json_read_tree(jp);
 
-	if (o != NULL && o->type == JSON_ARRAY) {
-		for (size_t i = 0; i < o->value.array.length; i++) {
-			json_object *h = o->value.array.array[i];
+	if (o != nullptr && o->type == JSON_ARRAY) {
+		for (size_t i = 0; i < o->value.array.array.size(); i++) {
+			json_object_ptr h = o->value.array.array[i];
 			if (h->type == JSON_HASH) {
-				for (size_t j = 0; j < h->value.object.length; j++) {
-					json_object *k = h->value.object.keys[j];
-					json_object *v = h->value.object.values[j];
+				for (size_t j = 0; j < h->value.object.keys.size(); j++) {
+					json_object_ptr k = h->value.object.keys[j];
+					json_object_ptr v = h->value.object.values[j];
 
 					if (k->type != JSON_STRING) {
 						fprintf(stderr, "Key %zu of %zu is not a string: %s\n", j, i, s);
@@ -985,23 +985,24 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 							st->resize(i + 1);
 						}
 
-						if (strcmp(k->value.string.string, "dropped_by_rate") == 0) {
+						const std::string &key = k->value.string.string;
+						if (key == "dropped_by_rate") {
 							(*st)[i].dropped_by_rate += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "dropped_by_gamma") == 0) {
+						} else if (key == "dropped_by_gamma") {
 							(*st)[i].dropped_by_gamma += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "dropped_as_needed") == 0) {
+						} else if (key == "dropped_as_needed") {
 							(*st)[i].dropped_as_needed += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "coalesced_as_needed") == 0) {
+						} else if (key == "coalesced_as_needed") {
 							(*st)[i].coalesced_as_needed += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "truncated_zooms") == 0) {
+						} else if (key == "truncated_zooms") {
 							(*st)[i].truncated_zooms += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "detail_reduced") == 0) {
+						} else if (key == "detail_reduced") {
 							(*st)[i].detail_reduced += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "tiny_polygons") == 0) {
+						} else if (key == "tiny_polygons") {
 							(*st)[i].tiny_polygons += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "tile_size_desired") == 0) {
+						} else if (key == "tile_size_desired") {
 							(*st)[i].tile_size += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "feature_count_desired") == 0) {
+						} else if (key == "feature_count_desired") {
 							(*st)[i].feature_count += v->value.number.number;
 						}
 					}
@@ -1010,22 +1011,19 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 				fprintf(stderr, "Element %zu is not a hash: %s\n", i, s);
 			}
 		}
-		json_free(o);
 	}
-
-	json_end(jp);
 }
 
-void handle_vector_layers(json_object *vector_layers, std::map<std::string, layermap_entry> &layermap, std::map<std::string, std::string> &attribute_descriptions) {
-	if (vector_layers != NULL && vector_layers->type == JSON_ARRAY) {
-		for (size_t i = 0; i < vector_layers->value.array.length; i++) {
+void handle_vector_layers(json_object_ptr vector_layers, std::map<std::string, layermap_entry> &layermap, std::map<std::string, std::string> &attribute_descriptions) {
+	if (vector_layers != nullptr && vector_layers->type == JSON_ARRAY) {
+		for (size_t i = 0; i < vector_layers->value.array.array.size(); i++) {
 			if (vector_layers->value.array.array[i]->type == JSON_HASH) {
-				json_object *id = json_hash_get(vector_layers->value.array.array[i], "id");
-				json_object *desc = json_hash_get(vector_layers->value.array.array[i], "description");
+				json_object_ptr id = json_hash_get(vector_layers->value.array.array[i], "id");
+				json_object_ptr desc = json_hash_get(vector_layers->value.array.array[i], "description");
 
-				if (id != NULL && desc != NULL && id->type == JSON_STRING && desc->type == JSON_STRING) {
-					std::string sid = id->value.string.string;
-					std::string sdesc = desc->value.string.string;
+				if (id != nullptr && desc != nullptr && id->type == JSON_STRING && desc->type == JSON_STRING) {
+					const std::string &sid = id->value.string.string;
+					const std::string &sdesc = desc->value.string.string;
 
 					if (sdesc.size() != 0) {
 						auto f = layermap.find(sid);
@@ -1035,16 +1033,16 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 					}
 				}
 
-				json_object *fields = json_hash_get(vector_layers->value.array.array[i], "fields");
-				if (fields != NULL && fields->type == JSON_HASH) {
-					for (size_t j = 0; j < fields->value.object.length; j++) {
+				json_object_ptr fields = json_hash_get(vector_layers->value.array.array[i], "fields");
+				if (fields != nullptr && fields->type == JSON_HASH) {
+					for (size_t j = 0; j < fields->value.object.keys.size(); j++) {
 						if (fields->value.object.keys[j]->type == JSON_STRING && fields->value.object.values[j]->type) {
-							const char *desc2 = fields->value.object.values[j]->value.string.string;
+							const std::string &desc2 = fields->value.object.values[j]->value.string.string;
 
-							if (strcmp(desc2, "Number") != 0 &&
-							    strcmp(desc2, "String") != 0 &&
-							    strcmp(desc2, "Boolean") != 0 &&
-							    strcmp(desc2, "Mixed") != 0) {
+							if (desc2 != "Number" &&
+							    desc2 != "String" &&
+							    desc2 != "Boolean" &&
+							    desc2 != "Mixed") {
 								attribute_descriptions.insert(std::pair<std::string, std::string>(fields->value.object.keys[j]->value.string.string, desc2));
 							}
 						}
@@ -1055,7 +1053,7 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 	}
 }
 
-void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object *filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
+void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry> &layermap, sqlite3 *outdb, const char *outdir, struct stats *st, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::string &attribution, std::string &description, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, std::string &name, json_object_ptr filter, std::map<std::string, std::string> &attribute_descriptions, std::string &generator_options, std::vector<strategy> *strategies) {
 	std::vector<std::map<std::string, layermap_entry>> layermaps;
 	for (size_t i = 0; i < CPUS; i++) {
 		layermaps.push_back(std::map<std::string, layermap_entry>());
@@ -1205,17 +1203,14 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 				const unsigned char *s = sqlite3_column_text(stmt, 0);
 
 				if (s != NULL) {
-					json_pull *jp = json_begin_string((const char *) s);
-					json_object *o = json_read_tree(jp);
+					json_pull_ptr jp = json_begin_string((const char *) s);
+					json_object_ptr o = json_read_tree(jp);
 
-					if (o != NULL && o->type == JSON_HASH) {
-						json_object *vector_layers = json_hash_get(o, "vector_layers");
+					if (o != nullptr && o->type == JSON_HASH) {
+						json_object_ptr vector_layers = json_hash_get(o, "vector_layers");
 
 						handle_vector_layers(vector_layers, layermap, attribute_descriptions);
-						json_free(o);
 					}
-
-					json_end(jp);
 				}
 			}
 
@@ -1266,7 +1261,7 @@ int main(int argc, char **argv) {
 	int force = 0;
 	int ifmatched = 0;
 	int filearg = 0;
-	json_object *filter = NULL;
+	json_object_ptr filter;
 
 	std::string join_sqlite_fname;
 
@@ -1648,9 +1643,7 @@ int main(int argc, char **argv) {
 		mbtiles_close(outdb, argv[0]);
 	}
 
-	if (filter != NULL) {
-		json_free(filter);
-	}
+	filter.reset();
 
 	if (pmtiles_has_suffix(out_mbtiles)) {
 		mbtiles_map_image_to_pmtiles(out_mbtiles, m, !pC, quiet, false);
