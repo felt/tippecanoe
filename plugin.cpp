@@ -16,6 +16,9 @@
 #include <cmath>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#include <stdint.h>
 #include <sqlite3.h>
 #include <limits.h>
 #include "main.hpp"
@@ -371,106 +374,436 @@ serial_feature parse_feature(json_pull *jp, int z, unsigned x, unsigned y, std::
 	}
 }
 
-static pthread_mutex_t pipe_lock = PTHREAD_MUTEX_INITIALIZER;
+// ----------------------------------------------------------------------------
+// Filter worker processes.
+//
+// Forking and waiting for the prefilter / postfilter shell processes used to
+// happen directly in the tiling threads. fork() from a multithreaded process
+// is expensive (the parent's full virtual address space has to be copy-on-write
+// duplicated) and unsafe (other threads may hold libc / malloc locks at the
+// moment of fork, which can deadlock the child before exec). Instead, we now
+// pre-fork a small pool of single-threaded worker processes once, before any
+// tiling threads have been started. When a tiling thread wants to run a
+// filter, it asks one of these workers (over a unix-domain socketpair) to
+// fork+exec the shell child on its behalf and to send back the input/output
+// pipe file descriptors via SCM_RIGHTS. The tiling thread then reads/writes
+// those pipes exactly as before, but the fork() and the subsequent waitpid()
+// for the shell child happen inside the single-threaded worker, where they
+// are cheap and safe.
+// ----------------------------------------------------------------------------
 
-void setup_filter(const char *filter, int *write_to, int *read_from, pid_t *pid, unsigned z, unsigned x, unsigned y) {
-	// This will create two pipes, a new thread, and a new process.
-	//
-	// The new process will read from one pipe and write to the other, and execute the filter.
-	// The new thread will write the GeoJSON to the pipe that leads to the filter.
-	// The original thread will read the GeoJSON from the filter and convert it back into vector tiles.
+namespace {
 
-	if (pthread_mutex_lock(&pipe_lock) != 0) {
-		perror("pthread_mutex_lock (pipe)");
+struct filter_worker {
+	int sock = -1;	// parent end of socketpair to this worker
+	pid_t pid = -1;
+};
+
+struct filter_pool {
+	std::vector<filter_worker> workers;
+	std::vector<size_t> free_list;
+	pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+	bool initialized = false;
+};
+
+filter_pool g_pool;
+
+// Read/write helpers that loop over short reads/writes and EINTR.
+ssize_t read_fully(int fd, void *buf, size_t n) {
+	char *p = (char *) buf;
+	size_t got = 0;
+	while (got < n) {
+		ssize_t r = read(fd, p + got, n - got);
+		if (r == 0) {
+			return (ssize_t) got;
+		}
+		if (r < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			return -1;
+		}
+		got += (size_t) r;
+	}
+	return (ssize_t) got;
+}
+
+ssize_t write_fully(int fd, const void *buf, size_t n) {
+	const char *p = (const char *) buf;
+	size_t sent = 0;
+	while (sent < n) {
+		ssize_t r = write(fd, p + sent, n - sent);
+		if (r < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			return -1;
+		}
+		sent += (size_t) r;
+	}
+	return (ssize_t) sent;
+}
+
+// Send a one-byte payload along with two file descriptors via SCM_RIGHTS.
+// Returns the number of payload bytes sent (1) on success, -1 on error.
+ssize_t send_two_fds(int sock, int fd1, int fd2) {
+	char dummy = 0;
+	struct iovec iov;
+	iov.iov_base = &dummy;
+	iov.iov_len = 1;
+
+	char ctrl[CMSG_SPACE(sizeof(int) * 2)];
+	memset(ctrl, 0, sizeof(ctrl));
+
+	struct msghdr msg;
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = ctrl;
+	msg.msg_controllen = sizeof(ctrl);
+
+	struct cmsghdr *cm = CMSG_FIRSTHDR(&msg);
+	cm->cmsg_level = SOL_SOCKET;
+	cm->cmsg_type = SCM_RIGHTS;
+	cm->cmsg_len = CMSG_LEN(sizeof(int) * 2);
+	int *fdptr = (int *) CMSG_DATA(cm);
+	fdptr[0] = fd1;
+	fdptr[1] = fd2;
+
+	while (true) {
+		ssize_t r = sendmsg(sock, &msg, 0);
+		if (r < 0 && errno == EINTR) {
+			continue;
+		}
+		return r;
+	}
+}
+
+// Receive a one-byte payload along with two file descriptors via SCM_RIGHTS.
+// Returns 1 on success (and writes the fds into *fd1, *fd2), 0 on EOF, -1 on error.
+ssize_t recv_two_fds(int sock, int *fd1, int *fd2) {
+	char dummy = 0;
+	struct iovec iov;
+	iov.iov_base = &dummy;
+	iov.iov_len = 1;
+
+	char ctrl[CMSG_SPACE(sizeof(int) * 2)];
+	memset(ctrl, 0, sizeof(ctrl));
+
+	struct msghdr msg;
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = ctrl;
+	msg.msg_controllen = sizeof(ctrl);
+
+	ssize_t r;
+	while (true) {
+		r = recvmsg(sock, &msg, 0);
+		if (r < 0 && errno == EINTR) {
+			continue;
+		}
+		break;
+	}
+	if (r <= 0) {
+		return r;
+	}
+
+	struct cmsghdr *cm = CMSG_FIRSTHDR(&msg);
+	if (cm == NULL || cm->cmsg_level != SOL_SOCKET || cm->cmsg_type != SCM_RIGHTS || cm->cmsg_len != CMSG_LEN(sizeof(int) * 2)) {
+		errno = EPROTO;
+		return -1;
+	}
+	int *fdptr = (int *) CMSG_DATA(cm);
+	*fd1 = fdptr[0];
+	*fd2 = fdptr[1];
+	return r;
+}
+
+// Main loop of a worker process. Reads filter requests from its socket,
+// forks/execs the shell command, hands the input/output pipe fds back to
+// the parent via SCM_RIGHTS, waits for the shell child to exit, then
+// reports completion to the parent.
+[[noreturn]] void worker_main(int sock) {
+	while (true) {
+		uint32_t flen;
+		ssize_t r = read_fully(sock, &flen, sizeof(flen));
+		if (r == 0) {
+			// Parent closed the socket; we are done.
+			_exit(0);
+		}
+		if (r < 0) {
+			perror("filter worker: read header");
+			_exit(1);
+		}
+
+		std::string filter(flen, '\0');
+		if (flen > 0 && read_fully(sock, &filter[0], flen) != (ssize_t) flen) {
+			perror("filter worker: read filter string");
+			_exit(1);
+		}
+
+		uint32_t coords[3];
+		if (read_fully(sock, coords, sizeof(coords)) != (ssize_t) sizeof(coords)) {
+			perror("filter worker: read coords");
+			_exit(1);
+		}
+		unsigned z = coords[0];
+		unsigned x = coords[1];
+		unsigned y = coords[2];
+
+		int pipe_orig[2];
+		int pipe_filtered[2];
+		if (pipe(pipe_orig) < 0) {
+			perror("filter worker: pipe (original features)");
+			_exit(1);
+		}
+		if (pipe(pipe_filtered) < 0) {
+			perror("filter worker: pipe (filtered features)");
+			_exit(1);
+		}
+
+		std::string z_str = std::to_string(z);
+		std::string x_str = std::to_string(x);
+		std::string y_str = std::to_string(y);
+
+		pid_t pid = fork();
+		if (pid < 0) {
+			perror("filter worker: fork");
+			close(pipe_orig[0]);
+			close(pipe_orig[1]);
+			close(pipe_filtered[0]);
+			close(pipe_filtered[1]);
+			_exit(1);
+		} else if (pid == 0) {
+			// shell child
+			if (dup2(pipe_orig[0], 0) < 0) {
+				perror("dup child stdin");
+				_exit(EXIT_OPEN);
+			}
+			if (dup2(pipe_filtered[1], 1) < 0) {
+				perror("dup child stdout");
+				_exit(EXIT_OPEN);
+			}
+			close(pipe_orig[0]);
+			close(pipe_orig[1]);
+			close(pipe_filtered[0]);
+			close(pipe_filtered[1]);
+			close(sock);
+
+			execlp("sh", "sh", "-c", filter.c_str(), "sh", z_str.c_str(), x_str.c_str(), y_str.c_str(), NULL);
+			perror("filter worker: exec");
+			_exit(EXIT_PTHREAD);
+		}
+
+		// Worker (between parent tippecanoe and shell child).
+		close(pipe_orig[0]);
+		close(pipe_filtered[1]);
+
+		// Hand the parent's-side fds back to the parent. After this
+		// the parent owns pipe_orig[1] and pipe_filtered[0] in its
+		// own fd table; we close our copies so EOFs propagate
+		// correctly when the parent closes its ends.
+		ssize_t s = send_two_fds(sock, pipe_orig[1], pipe_filtered[0]);
+		close(pipe_orig[1]);
+		close(pipe_filtered[0]);
+		if (s < 0) {
+			// Parent likely went away. Reap the shell child and exit.
+			int stat_loc;
+			while (waitpid(pid, &stat_loc, 0) < 0 && errno == EINTR) {
+			}
+			_exit(0);
+		}
+
+		// Block here until the shell child finishes. This is exactly
+		// the wait that used to block a tiling thread; now it only
+		// blocks this single-threaded worker, which has no other
+		// work to do anyway.
+		int stat_loc;
+		while (waitpid(pid, &stat_loc, 0) < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			perror("filter worker: waitpid");
+			break;
+		}
+
+		// Tell the parent we are done. A single byte is enough; the
+		// existing code did not inspect the shell's exit status.
+		char done = 0;
+		if (write_fully(sock, &done, 1) < 0) {
+			// Parent gone; just exit quietly.
+			_exit(0);
+		}
+	}
+}
+
+size_t acquire_worker() {
+	if (pthread_mutex_lock(&g_pool.mtx) != 0) {
+		perror("pthread_mutex_lock (filter pool)");
+		exit(EXIT_PTHREAD);
+	}
+	if (!g_pool.initialized) {
+		fprintf(stderr, "Internal error: filter worker pool used before init\n");
+		exit(EXIT_IMPOSSIBLE);
+	}
+	while (g_pool.free_list.empty()) {
+		if (pthread_cond_wait(&g_pool.cond, &g_pool.mtx) != 0) {
+			perror("pthread_cond_wait (filter pool)");
+			exit(EXIT_PTHREAD);
+		}
+	}
+	size_t idx = g_pool.free_list.back();
+	g_pool.free_list.pop_back();
+	if (pthread_mutex_unlock(&g_pool.mtx) != 0) {
+		perror("pthread_mutex_unlock (filter pool)");
+		exit(EXIT_PTHREAD);
+	}
+	return idx;
+}
+
+void release_worker(size_t idx) {
+	if (pthread_mutex_lock(&g_pool.mtx) != 0) {
+		perror("pthread_mutex_lock (filter pool)");
+		exit(EXIT_PTHREAD);
+	}
+	g_pool.free_list.push_back(idx);
+	if (pthread_cond_signal(&g_pool.cond) != 0) {
+		perror("pthread_cond_signal (filter pool)");
+		exit(EXIT_PTHREAD);
+	}
+	if (pthread_mutex_unlock(&g_pool.mtx) != 0) {
+		perror("pthread_mutex_unlock (filter pool)");
+		exit(EXIT_PTHREAD);
+	}
+}
+
+}  // namespace
+
+// Spawn the filter worker pool. Must be called from a single-threaded
+// context (i.e. before any tiling or reader threads have been created)
+// so that the workers themselves are forked from a clean, single-threaded
+// process state. Calling this more than once is a no-op.
+void filter_workers_init(size_t n) {
+	if (g_pool.initialized) {
+		return;
+	}
+	if (n < 1) {
+		n = 1;
+	}
+
+	g_pool.workers.resize(n);
+	g_pool.free_list.reserve(n);
+
+	for (size_t i = 0; i < n; i++) {
+		int sv[2];
+		if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0) {
+			perror("socketpair (filter worker)");
+			exit(EXIT_PTHREAD);
+		}
+
+		pid_t pid = fork();
+		if (pid < 0) {
+			perror("fork (filter worker)");
+			exit(EXIT_PTHREAD);
+		} else if (pid == 0) {
+			// Worker process.
+			close(sv[0]);
+			// Close the parent ends of any sibling workers we
+			// inherited from earlier iterations of this loop.
+			for (size_t j = 0; j < i; j++) {
+				close(g_pool.workers[j].sock);
+			}
+			worker_main(sv[1]);
+			// worker_main is [[noreturn]].
+		} else {
+			close(sv[1]);
+			if (fcntl(sv[0], F_SETFD, FD_CLOEXEC) != 0) {
+				perror("cloexec (filter worker socket)");
+				exit(EXIT_CLOSE);
+			}
+			g_pool.workers[i].sock = sv[0];
+			g_pool.workers[i].pid = pid;
+			g_pool.free_list.push_back(i);
+		}
+	}
+
+	g_pool.initialized = true;
+}
+
+void setup_filter(const char *filter, int *write_to, int *read_from, filter_handle *handle, unsigned z, unsigned x, unsigned y) {
+	// Send the request to a worker process which will fork+exec the shell
+	// child and send back the input/output pipe fds via SCM_RIGHTS. The
+	// fork happens entirely inside the single-threaded worker, so the
+	// parent's tiling threads never have to fork.
+
+	size_t idx = acquire_worker();
+	int sock = g_pool.workers[idx].sock;
+
+	uint32_t flen = (uint32_t) strlen(filter);
+	if (write_fully(sock, &flen, sizeof(flen)) < 0 ||
+	    (flen > 0 && write_fully(sock, filter, flen) < 0)) {
+		perror("write filter request");
+		exit(EXIT_PTHREAD);
+	}
+	uint32_t coords[3] = {(uint32_t) z, (uint32_t) x, (uint32_t) y};
+	if (write_fully(sock, coords, sizeof(coords)) < 0) {
+		perror("write filter coords");
 		exit(EXIT_PTHREAD);
 	}
 
-	int pipe_orig[2], pipe_filtered[2];
-	if (pipe(pipe_orig) < 0) {
-		perror("pipe (original features)");
-		exit(EXIT_OPEN);
-	}
-	if (pipe(pipe_filtered) < 0) {
-		perror("pipe (filtered features)");
-		exit(EXIT_OPEN);
-	}
-
-	std::string z_str = std::to_string(z);
-	std::string x_str = std::to_string(x);
-	std::string y_str = std::to_string(y);
-
-	*pid = fork();
-	if (*pid < 0) {
-		perror("fork");
+	int wfd = -1, rfd = -1;
+	ssize_t r = recv_two_fds(sock, &wfd, &rfd);
+	if (r <= 0) {
+		fprintf(stderr, "Failed to receive filter pipe fds from worker\n");
 		exit(EXIT_PTHREAD);
-	} else if (*pid == 0) {
-		// child
-
-		if (dup2(pipe_orig[0], 0) < 0) {
-			perror("dup child stdin");
-			exit(EXIT_OPEN);
-		}
-		if (dup2(pipe_filtered[1], 1) < 0) {
-			perror("dup child stdout");
-			exit(EXIT_OPEN);
-		}
-		if (close(pipe_orig[1]) != 0) {
-			perror("close output to filter");
-			exit(EXIT_CLOSE);
-		}
-		if (close(pipe_filtered[0]) != 0) {
-			perror("close input from filter");
-			exit(EXIT_CLOSE);
-		}
-		if (close(pipe_orig[0]) != 0) {
-			perror("close dup input of filter");
-			exit(EXIT_CLOSE);
-		}
-		if (close(pipe_filtered[1]) != 0) {
-			perror("close dup output of filter");
-			exit(EXIT_CLOSE);
-		}
-
-		// XXX close other fds?
-
-		if (execlp("sh", "sh", "-c", filter, "sh", z_str.c_str(), x_str.c_str(), y_str.c_str(), NULL) != 0) {
-			perror("exec");
-			exit(EXIT_PTHREAD);
-		}
-	} else {
-		// parent
-
-		if (close(pipe_orig[0]) != 0) {
-			perror("close filter-side reader");
-			exit(EXIT_CLOSE);
-		}
-		if (close(pipe_filtered[1]) != 0) {
-			perror("close filter-side writer");
-			exit(EXIT_CLOSE);
-		}
-		if (fcntl(pipe_orig[1], F_SETFD, FD_CLOEXEC) != 0) {
-			perror("cloxec output to filter");
-			exit(EXIT_CLOSE);
-		}
-		if (fcntl(pipe_filtered[0], F_SETFD, FD_CLOEXEC) != 0) {
-			perror("cloxec input from filter");
-			exit(EXIT_CLOSE);
-		}
-
-		if (pthread_mutex_unlock(&pipe_lock) != 0) {
-			perror("pthread_mutex_unlock (pipe_lock)");
-			exit(EXIT_PTHREAD);
-		}
-
-		*write_to = pipe_orig[1];
-		*read_from = pipe_filtered[0];
 	}
+
+	if (fcntl(wfd, F_SETFD, FD_CLOEXEC) != 0) {
+		perror("cloexec output to filter");
+		exit(EXIT_CLOSE);
+	}
+	if (fcntl(rfd, F_SETFD, FD_CLOEXEC) != 0) {
+		perror("cloexec input from filter");
+		exit(EXIT_CLOSE);
+	}
+
+	*write_to = wfd;
+	*read_from = rfd;
+	handle->worker_idx = (ssize_t) idx;
+}
+
+void wait_filter(filter_handle handle) {
+	if (handle.worker_idx < 0) {
+		return;
+	}
+	int sock = g_pool.workers[handle.worker_idx].sock;
+
+	char done;
+	while (true) {
+		ssize_t r = read(sock, &done, 1);
+		if (r == 1) {
+			break;
+		}
+		if (r == 0) {
+			fprintf(stderr, "filter worker exited unexpectedly\n");
+			exit(EXIT_PTHREAD);
+		}
+		if (errno == EINTR) {
+			continue;
+		}
+		perror("read filter completion");
+		exit(EXIT_PTHREAD);
+	}
+
+	release_worker((size_t) handle.worker_idx);
 }
 
 std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> &layers, unsigned z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, int extent) {
 	int write_to, read_from;
-	pid_t pid;
-	setup_filter(filter, &write_to, &read_from, &pid, z, x, y);
+	filter_handle handle;
+	setup_filter(filter, &write_to, &read_from, &handle, z, x, y);
 
 	writer_arg wa;
 	wa.write_to = write_to;
@@ -489,16 +822,7 @@ std::vector<mvt_layer> filter_layers(const char *filter, std::vector<mvt_layer> 
 
 	std::vector<mvt_layer> nlayers = parse_layers(read_from, z, x, y, layermaps, tiling_seg, layer_unmaps, extent);
 
-	while (1) {
-		int stat_loc;
-		if (waitpid(pid, &stat_loc, 0) < 0) {
-			perror("waitpid for filter\n");
-			exit(EXIT_PTHREAD);
-		}
-		if (WIFEXITED(stat_loc) || WIFSIGNALED(stat_loc)) {
-			break;
-		}
-	}
+	wait_filter(handle);
 
 	void *ret;
 	if (pthread_join(writer, &ret) != 0) {

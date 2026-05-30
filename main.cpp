@@ -67,6 +67,7 @@
 #include "attribute.hpp"
 #include "thread.hpp"
 #include "platform.hpp"
+#include "plugin.hpp"
 
 static int low_detail = 12;
 static int full_detail = -1;
@@ -3713,6 +3714,14 @@ int main(int argc, char **argv) {
 	}
 
 	signal(SIGPIPE, SIG_IGN);
+
+	// Pre-fork the filter worker pool while we are still single-threaded.
+	// Spawning them now (before any reader or tiling threads) means each
+	// worker is a clean, single-threaded process, so its later fork()s
+	// for the prefilter/postfilter shells are cheap and safe.
+	if (prefilter != NULL || postfilter != NULL) {
+		filter_workers_init(CPUS);
+	}
 
 	files_open_at_start = open(get_null_device(), O_RDONLY | O_CLOEXEC);
 	if (files_open_at_start < 0) {
