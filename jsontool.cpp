@@ -148,9 +148,13 @@ void out(std::string const &s, int type, json_object_ptr properties) {
 		json_object_ptr o = json_hash_get(properties, extract);
 		if (o != nullptr) {
 			found = true;
-			if (o->type == JSON_STRING || o->type == JSON_NUMBER) {
+			if (o->type == JSON_STRING) {
 				extracted = sort_quote(o->string().c_str());
 			} else {
+				// Numbers, booleans, null, and any other non-string
+				// values are rendered via json_stringify(); calling
+				// o->string() here would assert because the type-tagged
+				// accessor requires JSON_STRING.
 				extracted = sort_quote(json_stringify(o).c_str());
 			}
 		}

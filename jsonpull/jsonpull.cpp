@@ -551,7 +551,7 @@ again:
 							surrogate = ch;
 						}
 						continue;
-					} else if (ch >= 0xdc00 && c <= 0xdfff) {
+					} else if (ch >= 0xdc00 && ch <= 0xdfff) {
 						if (surrogate >= 0) {
 							long c1 = surrogate - 0xd800;
 							long c2 = ch - 0xdc00;

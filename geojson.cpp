@@ -306,7 +306,11 @@ json_pull_ptr json_begin_map(char *map, long long len) {
 	return json_begin(json_map_read, jm);
 }
 
-void json_end_map(json_pull_ptr jp) {
+void json_end_map(json_pull_ptr &jp) {
+	if (jp == nullptr) {
+		return;
+	}
 	delete (struct jsonmap *) jp->source;
+	jp->source = nullptr;
 	json_end(jp);
 }

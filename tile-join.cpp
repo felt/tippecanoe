@@ -1035,7 +1035,8 @@ void handle_vector_layers(json_object_ptr vector_layers, std::map<std::string, l
 				json_object_ptr fields = json_hash_get(vector_layers->array()[i], "fields");
 				if (fields != nullptr && fields->type == JSON_HASH) {
 					for (const auto &e : fields->entries()) {
-						if (e.key->type == JSON_STRING && e.value->type) {
+						if (e.key != nullptr && e.key->type == JSON_STRING &&
+						    e.value != nullptr && e.value->type == JSON_STRING) {
 							const std::string &desc2 = e.value->string();
 
 							if (desc2 != "Number" &&
