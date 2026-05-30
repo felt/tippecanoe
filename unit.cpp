@@ -6,6 +6,7 @@
 #include "mvt.hpp"
 #include "projection.hpp"
 #include "geometry.hpp"
+#include "jsonpull/jsonpull.h"
 #include <unistd.h>
 #include <limits.h>
 
@@ -135,4 +136,29 @@ TEST_CASE("line_is_too_small") {
 	dv.emplace_back(VT_MOVETO, -51867587, 2683872952);
 	dv.emplace_back(VT_LINETO, -51864809, 2683873977);
 	REQUIRE(line_is_too_small(dv, 0, 10));
+}
+
+// Regression test for the surrogate-decoding bug that compared the leftover
+// outer-loop byte `c` against `0xdfff` instead of the parsed code unit `ch`.
+// For a string like "\uD83D\uE000" (a valid high surrogate followed by a
+// non-surrogate BMP code point) the buggy version would mis-classify
+// U+E000 as a low surrogate and combine the two units into the four-byte
+// UTF-8 sequence F0 9F 90 80 (U+1F400). The fixed version flushes the
+// stale high surrogate as standalone CESU-8 (ED A0 BD) and then encodes
+// U+E000 normally as EE 80 80.
+TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
+	json_pull_ptr jp = json_begin_string("\"\\uD83D\\uE000\"");
+	json_object_ptr o = json_read_tree(jp);
+
+	REQUIRE(jp->error == nullptr);
+	REQUIRE(o != nullptr);
+	REQUIRE(o->type == JSON_STRING);
+
+	const std::string expected = "\xED\xA0\xBD\xEE\x80\x80";
+	REQUIRE(o->string() == expected);
+
+	// Sanity check: the buggy output (a single 4-byte UTF-8 sequence for
+	// U+1F400) must not be what we got.
+	const std::string buggy = "\xF0\x9F\x90\x80";
+	REQUIRE(o->string() != buggy);
 }
