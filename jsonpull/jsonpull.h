@@ -97,8 +97,12 @@ struct json_object {
 
 	json_type type;
 
-	json_object(json_type t) : type(t) {}
-	json_object(json_type t, json_object *p, json_pull *pl) : parent(p), parser(pl), type(t) {}
+	json_object(json_type t)
+	    : type(t) {
+	}
+	json_object(json_type t, json_object *p, json_pull *pl)
+	    : parent(p), parser(pl), type(t) {
+	}
 
 	// Type-tagged accessors. Each one asserts that the receiver is of
 	// the right kind, then downcasts to the storage in the appropriate
@@ -135,18 +139,28 @@ struct json_number : json_object {
 		double d;
 		unsigned long long u;
 		long long s;
-		value_t() : d(0) {}
+		value_t()
+		    : d(0) {
+		}
 	} value;
 
-	json_number() : json_object(JSON_NUMBER) {}
-	json_number(json_object *p, json_pull *pl) : json_object(JSON_NUMBER, p, pl) {}
+	json_number()
+	    : json_object(JSON_NUMBER) {
+	}
+	json_number(json_object *p, json_pull *pl)
+	    : json_object(JSON_NUMBER, p, pl) {
+	}
 };
 
 struct json_string : json_object {
 	std::string string_value;
 
-	json_string() : json_object(JSON_STRING) {}
-	json_string(json_object *p, json_pull *pl) : json_object(JSON_STRING, p, pl) {}
+	json_string()
+	    : json_object(JSON_STRING) {
+	}
+	json_string(json_object *p, json_pull *pl)
+	    : json_object(JSON_STRING, p, pl) {
+	}
 };
 
 struct json_array : json_object {
@@ -158,8 +172,14 @@ struct json_array : json_object {
 	// shared_ptr copies. Reserving 2 slots up front eliminates those
 	// reallocations for the common case and adds only a single small
 	// allocation for larger rings (which still grow geometrically).
-	json_array() : json_object(JSON_ARRAY) { array_value.reserve(2); }
-	json_array(json_object *p, json_pull *pl) : json_object(JSON_ARRAY, p, pl) { array_value.reserve(2); }
+	json_array()
+	    : json_object(JSON_ARRAY) {
+		array_value.reserve(2);
+	}
+	json_array(json_object *p, json_pull *pl)
+	    : json_object(JSON_ARRAY, p, pl) {
+		array_value.reserve(2);
+	}
 };
 
 struct json_hash : json_object {
@@ -169,8 +189,14 @@ struct json_hash : json_object {
 	// properties, geometry, plus a few attribute fields). Reserving 4
 	// slots avoids the 0 -> 1 -> 2 -> 4 growth chain for the typical
 	// case while only modestly over-allocating for one-key hashes.
-	json_hash() : json_object(JSON_HASH) { entries_value.reserve(4); }
-	json_hash(json_object *p, json_pull *pl) : json_object(JSON_HASH, p, pl) { entries_value.reserve(4); }
+	json_hash()
+	    : json_object(JSON_HASH) {
+		entries_value.reserve(4);
+	}
+	json_hash(json_object *p, json_pull *pl)
+	    : json_object(JSON_HASH, p, pl) {
+		entries_value.reserve(4);
+	}
 };
 
 inline std::string &json_object::string() {

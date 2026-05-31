@@ -335,7 +335,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 							outfeature.geometry[i].x = outfeature.geometry[i].x * outlayer.extent / layer.extent;
 							outfeature.geometry[i].y = outfeature.geometry[i].y * outlayer.extent / layer.extent;
 						}
- 					}
+					}
 
 					for (auto const &g : outfeature.geometry) {
 						if (g.op == mvt_moveto || g.op == mvt_lineto) {
