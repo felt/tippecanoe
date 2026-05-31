@@ -48,11 +48,7 @@
 #include "attribute.hpp"
 #include "thread.hpp"
 #include "shared_borders.hpp"
-
-extern "C" {
 #include "jsonpull/jsonpull.h"
-}
-
 #include "plugin.hpp"
 
 #define CMD_BITS 3

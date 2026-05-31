@@ -1,5 +1,5 @@
 #ifndef EVALUATOR_HPP
-#define EVALUATOR HPP
+#define EVALUATOR_HPP
 
 #include <unordered_map>
 #include <string>
