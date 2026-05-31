@@ -6,6 +6,7 @@
 #include "mvt.hpp"
 #include "projection.hpp"
 #include "geometry.hpp"
+#include "jsonpull/jsonpull.h"
 #include <unistd.h>
 #include <limits.h>
 
@@ -135,4 +136,113 @@ TEST_CASE("line_is_too_small") {
 	dv.emplace_back(VT_MOVETO, -51867587, 2683872952);
 	dv.emplace_back(VT_LINETO, -51864809, 2683873977);
 	REQUIRE(line_is_too_small(dv, 0, 10));
+}
+
+// Regression test for the surrogate-decoding bug that compared the leftover
+// outer-loop byte `c` against `0xdfff` instead of the parsed code unit `ch`.
+// For a string like "\uD83D\uE000" (a valid high surrogate followed by a
+// non-surrogate BMP code point) the buggy version would mis-classify
+// U+E000 as a low surrogate and combine the two units into the four-byte
+// UTF-8 sequence F0 9F 90 80 (U+1F400). The fixed version flushes the
+// stale high surrogate as standalone CESU-8 (ED A0 BD) and then encodes
+// U+E000 normally as EE 80 80.
+TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
+	json_pull_ptr jp = json_begin_string("\"\\uD83D\\uE000\"");
+	json_object_ptr o = json_read_tree(jp);
+
+	REQUIRE(jp->error == nullptr);
+	REQUIRE(o != nullptr);
+	REQUIRE(o->type == JSON_STRING);
+
+	const std::string expected = "\xED\xA0\xBD\xEE\x80\x80";
+	REQUIRE(o->string() == expected);
+
+	// Sanity check: the buggy output (a single 4-byte UTF-8 sequence for
+	// U+1F400) must not be what we got.
+	const std::string buggy = "\xF0\x9F\x90\x80";
+	REQUIRE(o->string() != buggy);
+}
+
+// geojson-loop.cpp calls json_free(j) after jfa->add_feature has
+// serialized the feature, intending to drop the JSON subtree from the
+// in-progress parse tree so that already-serialized features don't sit
+// in memory while subsequent features are parsed. That intent was
+// never tested; this test pins it down. The pre-fix behavior of
+// json_free was a bare unique_ptr/shared_ptr reset that only dropped
+// the caller's local reference; the parent container kept the subtree
+// alive, so memory grew until the top-level parse completed.
+TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
+	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
+
+	json_object *outer = nullptr;
+	int arrays_seen = 0;
+
+	json_object *j;
+	while ((j = json_read(jp)) != nullptr) {
+		if (j->type != JSON_ARRAY) {
+			continue;
+		}
+		arrays_seen++;
+		if (arrays_seen == 2) {
+			// This is [3, 4]; verify, then ask the parser to drop it.
+			REQUIRE(j->array().size() == 2);
+			REQUIRE(j->array()[0]->number() == 3);
+			REQUIRE(j->array()[1]->number() == 4);
+			json_free(j);
+		} else if (j->parent == nullptr) {
+			// The completed outer array; the parser still owns it
+			// via jp->root, so the borrowed pointer stays valid.
+			outer = j;
+			break;
+		}
+	}
+
+	REQUIRE(outer != nullptr);
+	REQUIRE(outer->type == JSON_ARRAY);
+	REQUIRE(outer->array().size() == 2);
+
+	// First surviving element: [1, 2].
+	REQUIRE(outer->array()[0]->type == JSON_ARRAY);
+	REQUIRE(outer->array()[0]->array().size() == 2);
+	REQUIRE(outer->array()[0]->array()[0]->number() == 1);
+	REQUIRE(outer->array()[0]->array()[1]->number() == 2);
+
+	// Second surviving element (previously third): [5, 6].
+	REQUIRE(outer->array()[1]->type == JSON_ARRAY);
+	REQUIRE(outer->array()[1]->array().size() == 2);
+	REQUIRE(outer->array()[1]->array()[0]->number() == 5);
+	REQUIRE(outer->array()[1]->array()[1]->number() == 6);
+}
+
+// The companion case to the pruning test above: in a line-delimited
+// stream, each feature returned by json_read is a top-level value
+// with no parent, but the parser still owns it via jp->root.
+// json_free must drop that parser reference too, otherwise the
+// just-serialized feature would sit in memory until the next feature
+// started parsing. Under the unique_ptr ownership model, the only
+// owner is jp->root, so verifying that jp->root is empty after the
+// json_free call is also a guarantee that the subtree itself has
+// been destroyed.
+TEST_CASE("json_free releases a top-level value held by the parser", "[jsonpull][memory]") {
+	json_pull_ptr jp = json_begin_string(R"({"a": 1, "b": [2, 3]})");
+
+	// json_read streams atoms first (1, 2, 3, [2,3], ...); the top-level
+	// hash is returned by the final `}` token.
+	json_object *top = nullptr;
+	json_object *j;
+	while ((j = json_read(jp)) != nullptr) {
+		if (j->parent == nullptr) {
+			top = j;
+			break;
+		}
+	}
+
+	REQUIRE(top != nullptr);
+	REQUIRE(top->type == JSON_HASH);
+	REQUIRE(jp->root.get() == top);
+
+	json_free(top);
+	// top is dangling now; do not dereference.
+
+	REQUIRE(jp->root == nullptr);
 }

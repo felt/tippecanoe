@@ -335,7 +335,7 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 							outfeature.geometry[i].x = outfeature.geometry[i].x * outlayer.extent / layer.extent;
 							outfeature.geometry[i].y = outfeature.geometry[i].y * outlayer.extent / layer.extent;
 						}
- 					}
+					}
 
 					for (auto const &g : outfeature.geometry) {
 						if (g.op == mvt_moveto || g.op == mvt_lineto) {
@@ -965,67 +965,64 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 }
 
 void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
-	json_pull *jp = json_begin_string((const char *) s);
-	json_object *o = json_read_tree(jp);
+	json_pull_ptr jp = json_begin_string((const char *) s);
+	json_object_ptr o = json_read_tree(jp);
 
-	if (o != NULL && o->type == JSON_ARRAY) {
-		for (size_t i = 0; i < o->value.array.length; i++) {
-			json_object *h = o->value.array.array[i];
+	if (o != nullptr && o->type == JSON_ARRAY) {
+		for (size_t i = 0; i < o->array().size(); i++) {
+			const json_object_ptr &h = o->array()[i];
 			if (h->type == JSON_HASH) {
-				for (size_t j = 0; j < h->value.object.length; j++) {
-					json_object *k = h->value.object.keys[j];
-					json_object *v = h->value.object.values[j];
-
-					if (k->type != JSON_STRING) {
+				size_t j = 0;
+				for (const auto &kv : h->entries()) {
+					if (kv.key->type != JSON_STRING) {
 						fprintf(stderr, "Key %zu of %zu is not a string: %s\n", j, i, s);
-					} else if (v->type != JSON_NUMBER) {
+					} else if (kv.value->type != JSON_NUMBER) {
 						fprintf(stderr, "Value %zu of %zu is not a number: %s\n", j, i, s);
 					} else {
 						if (i >= st->size()) {
 							st->resize(i + 1);
 						}
 
-						if (strcmp(k->value.string.string, "dropped_by_rate") == 0) {
-							(*st)[i].dropped_by_rate += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "dropped_by_gamma") == 0) {
-							(*st)[i].dropped_by_gamma += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "dropped_as_needed") == 0) {
-							(*st)[i].dropped_as_needed += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "coalesced_as_needed") == 0) {
-							(*st)[i].coalesced_as_needed += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "truncated_zooms") == 0) {
-							(*st)[i].truncated_zooms += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "detail_reduced") == 0) {
-							(*st)[i].detail_reduced += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "tiny_polygons") == 0) {
-							(*st)[i].tiny_polygons += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "tile_size_desired") == 0) {
-							(*st)[i].tile_size += v->value.number.number;
-						} else if (strcmp(k->value.string.string, "feature_count_desired") == 0) {
-							(*st)[i].feature_count += v->value.number.number;
+						const std::string &key = kv.key->string();
+						if (key == "dropped_by_rate") {
+							(*st)[i].dropped_by_rate += kv.value->number();
+						} else if (key == "dropped_by_gamma") {
+							(*st)[i].dropped_by_gamma += kv.value->number();
+						} else if (key == "dropped_as_needed") {
+							(*st)[i].dropped_as_needed += kv.value->number();
+						} else if (key == "coalesced_as_needed") {
+							(*st)[i].coalesced_as_needed += kv.value->number();
+						} else if (key == "truncated_zooms") {
+							(*st)[i].truncated_zooms += kv.value->number();
+						} else if (key == "detail_reduced") {
+							(*st)[i].detail_reduced += kv.value->number();
+						} else if (key == "tiny_polygons") {
+							(*st)[i].tiny_polygons += kv.value->number();
+						} else if (key == "tile_size_desired") {
+							(*st)[i].tile_size += kv.value->number();
+						} else if (key == "feature_count_desired") {
+							(*st)[i].feature_count += kv.value->number();
 						}
 					}
+					j++;
 				}
 			} else {
 				fprintf(stderr, "Element %zu is not a hash: %s\n", i, s);
 			}
 		}
-		json_free(o);
 	}
-
-	json_end(jp);
 }
 
 void handle_vector_layers(json_object *vector_layers, std::map<std::string, layermap_entry> &layermap, std::map<std::string, std::string> &attribute_descriptions) {
-	if (vector_layers != NULL && vector_layers->type == JSON_ARRAY) {
-		for (size_t i = 0; i < vector_layers->value.array.length; i++) {
-			if (vector_layers->value.array.array[i]->type == JSON_HASH) {
-				json_object *id = json_hash_get(vector_layers->value.array.array[i], "id");
-				json_object *desc = json_hash_get(vector_layers->value.array.array[i], "description");
+	if (vector_layers != nullptr && vector_layers->type == JSON_ARRAY) {
+		for (size_t i = 0; i < vector_layers->array().size(); i++) {
+			if (vector_layers->array()[i]->type == JSON_HASH) {
+				json_object *id = json_hash_get(vector_layers->array()[i].get(), "id");
+				json_object *desc = json_hash_get(vector_layers->array()[i].get(), "description");
 
-				if (id != NULL && desc != NULL && id->type == JSON_STRING && desc->type == JSON_STRING) {
-					std::string sid = id->value.string.string;
-					std::string sdesc = desc->value.string.string;
+				if (id != nullptr && desc != nullptr && id->type == JSON_STRING && desc->type == JSON_STRING) {
+					const std::string &sid = id->string();
+					const std::string &sdesc = desc->string();
 
 					if (sdesc.size() != 0) {
 						auto f = layermap.find(sid);
@@ -1035,17 +1032,18 @@ void handle_vector_layers(json_object *vector_layers, std::map<std::string, laye
 					}
 				}
 
-				json_object *fields = json_hash_get(vector_layers->value.array.array[i], "fields");
-				if (fields != NULL && fields->type == JSON_HASH) {
-					for (size_t j = 0; j < fields->value.object.length; j++) {
-						if (fields->value.object.keys[j]->type == JSON_STRING && fields->value.object.values[j]->type) {
-							const char *desc2 = fields->value.object.values[j]->value.string.string;
+				json_object *fields = json_hash_get(vector_layers->array()[i].get(), "fields");
+				if (fields != nullptr && fields->type == JSON_HASH) {
+					for (const auto &e : fields->entries()) {
+						if (e.key != nullptr && e.key->type == JSON_STRING &&
+						    e.value != nullptr && e.value->type == JSON_STRING) {
+							const std::string &desc2 = e.value->string();
 
-							if (strcmp(desc2, "Number") != 0 &&
-							    strcmp(desc2, "String") != 0 &&
-							    strcmp(desc2, "Boolean") != 0 &&
-							    strcmp(desc2, "Mixed") != 0) {
-								attribute_descriptions.insert(std::pair<std::string, std::string>(fields->value.object.keys[j]->value.string.string, desc2));
+							if (desc2 != "Number" &&
+							    desc2 != "String" &&
+							    desc2 != "Boolean" &&
+							    desc2 != "Mixed") {
+								attribute_descriptions.insert(std::pair<std::string, std::string>(e.key->string(), desc2));
 							}
 						}
 					}
@@ -1205,17 +1203,14 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 				const unsigned char *s = sqlite3_column_text(stmt, 0);
 
 				if (s != NULL) {
-					json_pull *jp = json_begin_string((const char *) s);
-					json_object *o = json_read_tree(jp);
+					json_pull_ptr jp = json_begin_string((const char *) s);
+					json_object_ptr o = json_read_tree(jp);
 
-					if (o != NULL && o->type == JSON_HASH) {
+					if (o != nullptr && o->type == JSON_HASH) {
 						json_object *vector_layers = json_hash_get(o, "vector_layers");
 
 						handle_vector_layers(vector_layers, layermap, attribute_descriptions);
-						json_free(o);
 					}
-
-					json_end(jp);
 				}
 			}
 
@@ -1266,7 +1261,7 @@ int main(int argc, char **argv) {
 	int force = 0;
 	int ifmatched = 0;
 	int filearg = 0;
-	json_object *filter = NULL;
+	json_object_ptr filter;
 
 	std::string join_sqlite_fname;
 
@@ -1596,7 +1591,7 @@ int main(int argc, char **argv) {
 	std::string generator_options;
 	std::vector<strategy> strategies;
 
-	decode(readers, layermap, outdb, out_dir, &st, header, mapping, db, exclude, include, ifmatched, attribution, description, keep_layers, remove_layers, name, filter, attribute_descriptions, generator_options, &strategies);
+	decode(readers, layermap, outdb, out_dir, &st, header, mapping, db, exclude, include, ifmatched, attribution, description, keep_layers, remove_layers, name, filter.get(), attribute_descriptions, generator_options, &strategies);
 
 	if (set_attribution.size() != 0) {
 		attribution = set_attribution;
@@ -1648,9 +1643,7 @@ int main(int argc, char **argv) {
 		mbtiles_close(outdb, argv[0]);
 	}
 
-	if (filter != NULL) {
-		json_free(filter);
-	}
+	filter.reset();
 
 	if (pmtiles_has_suffix(out_mbtiles)) {
 		mbtiles_map_image_to_pmtiles(out_mbtiles, m, !pC, quiet, false);

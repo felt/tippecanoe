@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
 	std::string out;
 
 	{
-		json_object *json_filter = NULL;
+		json_object_ptr json_filter;
 		if (filter.size() > 0) {
 			json_filter = parse_filter(filter.c_str());
 		}
@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
 			its.push_back(std::move(t));
 		}
 
-		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, std::vector<clipbbox>(), deduplicate_by_id);
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter.get(), preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, std::vector<clipbbox>(), deduplicate_by_id);
 	}
 
 	FILE *f = fopen(outfile, "wb");

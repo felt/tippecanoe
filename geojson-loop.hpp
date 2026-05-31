@@ -8,4 +8,4 @@ struct json_feature_action {
 	virtual void check_crs(json_object *j) = 0;
 };
 
-void parse_json(json_feature_action *action, json_pull *jp);
+void parse_json(json_feature_action *action, json_pull_ptr &jp);
