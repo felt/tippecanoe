@@ -174,10 +174,10 @@ TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
 TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
 	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
 
-	json_object_ptr outer;
+	json_object *outer = nullptr;
 	int arrays_seen = 0;
 
-	json_object_ptr j;
+	json_object *j;
 	while ((j = json_read(jp)) != nullptr) {
 		if (j->type != JSON_ARRAY) {
 			continue;
@@ -190,7 +190,8 @@ TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
 			REQUIRE(j->array()[1]->number() == 4);
 			json_free(j);
 		} else if (j->parent == nullptr) {
-			// The completed outer array.
+			// The completed outer array; the parser still owns it
+			// via jp->root, so the borrowed pointer stays valid.
 			outer = j;
 			break;
 		}
@@ -215,21 +216,33 @@ TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
 
 // The companion case to the pruning test above: in a line-delimited
 // stream, each feature returned by json_read is a top-level value
-// with no parent, but the parser still co-owns it via jp->root.
+// with no parent, but the parser still owns it via jp->root.
 // json_free must drop that parser reference too, otherwise the
-// just-serialized feature stays in memory until the next feature
-// starts parsing.
+// just-serialized feature would sit in memory until the next feature
+// started parsing. Under the unique_ptr ownership model, the only
+// owner is jp->root, so verifying that jp->root is empty after the
+// json_free call is also a guarantee that the subtree itself has
+// been destroyed.
 TEST_CASE("json_free releases a top-level value held by the parser", "[jsonpull][memory]") {
-	std::weak_ptr<json_object> observer;
-
 	json_pull_ptr jp = json_begin_string(R"({"a": 1, "b": [2, 3]})");
-	json_object_ptr j = json_read_tree(jp);
-	REQUIRE(j != nullptr);
-	REQUIRE(j->type == JSON_HASH);
-	REQUIRE(j->parent == nullptr);
-	observer = j;
 
-	json_free(j);
+	// json_read streams atoms first (1, 2, 3, [2,3], ...); the top-level
+	// hash is returned by the final `}` token.
+	json_object *top = nullptr;
+	json_object *j;
+	while ((j = json_read(jp)) != nullptr) {
+		if (j->parent == nullptr) {
+			top = j;
+			break;
+		}
+	}
 
-	REQUIRE(observer.expired());
+	REQUIRE(top != nullptr);
+	REQUIRE(top->type == JSON_HASH);
+	REQUIRE(jp->root.get() == top);
+
+	json_free(top);
+	// top is dangling now; do not dereference.
+
+	REQUIRE(jp->root == nullptr);
 }

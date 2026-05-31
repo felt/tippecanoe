@@ -40,8 +40,8 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 
-int serialize_geojson_feature(struct serialization_state *sst, json_object_ptr geometry, json_object_ptr properties, json_object_ptr id, int layer, json_object_ptr tippecanoe, json_object_ptr feature, std::string const &layername) {
-	json_object_ptr geometry_type = json_hash_get(geometry, "type");
+int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string const &layername) {
+	json_object *geometry_type = json_hash_get(geometry, "type");
 	if (geometry_type == nullptr) {
 		static int warned = 0;
 		if (!warned) {
@@ -59,7 +59,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object_ptr g
 		return 0;
 	}
 
-	json_object_ptr coordinates = json_hash_get(geometry, "coordinates");
+	json_object *coordinates = json_hash_get(geometry, "coordinates");
 	if (coordinates == nullptr || coordinates->type != JSON_ARRAY) {
 		fprintf(stderr, "%s:%d: feature without coordinates array: ", sst->fname, sst->line);
 		json_context(feature);
@@ -83,17 +83,17 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object_ptr g
 	std::string tippecanoe_layername = layername;
 
 	if (tippecanoe != nullptr) {
-		json_object_ptr min = json_hash_get(tippecanoe, "minzoom");
+		json_object *min = json_hash_get(tippecanoe, "minzoom");
 		if (min != nullptr && (min->type == JSON_NUMBER)) {
 			tippecanoe_minzoom = integer_zoom(sst->fname, milo::dtoa_milo(min->number()));
 		}
 
-		json_object_ptr max = json_hash_get(tippecanoe, "maxzoom");
+		json_object *max = json_hash_get(tippecanoe, "maxzoom");
 		if (max != nullptr && (max->type == JSON_NUMBER)) {
 			tippecanoe_maxzoom = integer_zoom(sst->fname, milo::dtoa_milo(max->number()));
 		}
 
-		json_object_ptr ln = json_hash_get(tippecanoe, "layer");
+		json_object *ln = json_hash_get(tippecanoe, "layer");
 		if (ln != nullptr && (ln->type == JSON_STRING)) {
 			tippecanoe_layername = ln->string();
 		}
@@ -186,7 +186,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object_ptr g
 
 		for (const auto &e : entries) {
 			if (e.key->type == JSON_STRING) {
-				serial_val sv = stringify_value(e.value, sst->fname, sst->line, feature);
+				serial_val sv = stringify_value(e.value.get(), sst->fname, sst->line, feature);
 
 				full_keys.emplace_back(key_pool.pool(e.key->string().c_str()));
 				values.push_back(std::move(sv));
@@ -214,12 +214,12 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object_ptr g
 	return serialize_feature(sst, sf, tippecanoe_layername);
 }
 
-void check_crs(json_object_ptr j, const char *reading) {
-	json_object_ptr crs = json_hash_get(j, "crs");
+void check_crs(json_object *j, const char *reading) {
+	json_object *crs = json_hash_get(j, "crs");
 	if (crs != nullptr) {
-		json_object_ptr properties = json_hash_get(crs, "properties");
+		json_object *properties = json_hash_get(crs, "properties");
 		if (properties != nullptr) {
-			json_object_ptr name = json_hash_get(properties, "name");
+			json_object *name = json_hash_get(properties, "name");
 			if (name != nullptr && name->type == JSON_STRING) {
 				if (name->string() != projection->alias) {
 					if (!quiet) {
@@ -237,12 +237,12 @@ struct json_serialize_action : json_feature_action {
 	int layer;
 	std::string layername;
 
-	int add_feature(json_object_ptr geometry, bool geometrycollection, json_object_ptr properties, json_object_ptr id, json_object_ptr tippecanoe, json_object_ptr feature) {
+	int add_feature(json_object *geometry, bool geometrycollection, json_object *properties, json_object *id, json_object *tippecanoe, json_object *feature) {
 		sst->line = geometry->parser->line;
 		if (geometrycollection) {
 			int ret = 1;
 			for (size_t g = 0; g < geometry->array().size(); g++) {
-				ret &= serialize_geojson_feature(sst, geometry->array()[g], properties, id, layer, tippecanoe, feature, layername);
+				ret &= serialize_geojson_feature(sst, geometry->array()[g].get(), properties, id, layer, tippecanoe, feature, layername);
 			}
 			return ret;
 		} else {
@@ -250,12 +250,12 @@ struct json_serialize_action : json_feature_action {
 		}
 	}
 
-	void check_crs(json_object_ptr j) {
+	void check_crs(json_object *j) {
 		::check_crs(j, fname.c_str());
 	}
 };
 
-void parse_json(struct serialization_state *sst, json_pull_ptr jp, int layer, std::string layername) {
+void parse_json(struct serialization_state *sst, json_pull_ptr &jp, int layer, std::string layername) {
 	json_serialize_action jsa;
 	jsa.fname = sst->fname;
 	jsa.sst = sst;

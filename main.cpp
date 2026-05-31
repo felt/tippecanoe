@@ -1215,7 +1215,7 @@ double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
 }
 
-std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object_ptr filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
+std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzoom, int basezoom, double basezoom_marker_width, sqlite3 *outdb, const char *outdir, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, json_object *filter, double droprate, int buffer, const char *tmpdir, double gamma, int read_parallel, int forcetable, const char *attribution, bool uses_gamma, long long *file_bbox, long long *file_bbox1, long long *file_bbox2, const char *prefilter, const char *postfilter, const char *description, bool guess_maxzoom, bool guess_cluster_maxzoom, std::unordered_map<std::string, int> const *attribute_types, const char *pgm, std::unordered_map<std::string, attribute_op> const *attribute_accum, std::map<std::string, std::string> const &attribute_descriptions, std::string const &commandline, int minimum_maxzoom) {
 	int ret = EXIT_SUCCESS;
 
 	std::vector<struct reader> readers;
@@ -2892,7 +2892,7 @@ void set_attribute_value(const char *arg) {
 				exit(EXIT_JSON);
 			}
 
-			serial_val val = stringify_value(e.value, "json", 1, o);
+			serial_val val = stringify_value(e.value.get(), "json", 1, o.get());
 			set_attributes.emplace(e.key->string(), val);
 			i++;
 		}
@@ -2934,7 +2934,7 @@ void parse_json_source(const char *arg, struct source &src) {
 		exit(EXIT_JSON);
 	}
 
-	json_object_ptr fname = json_hash_get(o, "file");
+	json_object *fname = json_hash_get(o, "file");
 	if (fname == nullptr || fname->type != JSON_STRING) {
 		fprintf(stderr, "%s: -L%s: requires \"file\": filename\n", *av, arg);
 		exit(EXIT_JSON);
@@ -2942,17 +2942,17 @@ void parse_json_source(const char *arg, struct source &src) {
 
 	src.file = fname->string();
 
-	json_object_ptr layer = json_hash_get(o, "layer");
+	json_object *layer = json_hash_get(o, "layer");
 	if (layer != nullptr && layer->type == JSON_STRING) {
 		src.layer = layer->string();
 	}
 
-	json_object_ptr description = json_hash_get(o, "description");
+	json_object *description = json_hash_get(o, "description");
 	if (description != nullptr && description->type == JSON_STRING) {
 		src.description = description->string();
 	}
 
-	json_object_ptr format = json_hash_get(o, "format");
+	json_object *format = json_hash_get(o, "format");
 	if (format != nullptr && format->type == JSON_STRING) {
 		src.format = format->string();
 	}
@@ -3846,7 +3846,7 @@ int main(int argc, char **argv) {
 
 	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
 								       : out_dir,
-				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
+				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter.get(), droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
 
 	ret = std::get<0>(input_ret);
 

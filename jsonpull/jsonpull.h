@@ -31,7 +31,31 @@ typedef enum json_type {
 struct json_object;
 struct json_pull;
 
-typedef std::shared_ptr<json_object> json_object_ptr;
+// json_object is non-virtual so that JSON_TRUE / JSON_FALSE / JSON_NULL
+// nodes don't have to pay for a vptr, but the typed subclasses
+// (json_number, json_string, json_array, json_hash) have non-trivial
+// destructors that need to run to free their std::vector / std::string
+// members. So json_object_ptr is given a custom empty deleter that
+// dispatches on `type` and static_casts to the right subclass before
+// `delete`. The deleter is stateless, so the unique_ptr stays one
+// pointer wide.
+struct json_object_deleter {
+	void operator()(json_object *p) const noexcept;
+};
+
+// Ownership of a JSON subtree is unique: every node has a single owner,
+// which is either its parent (via a json_object_ptr in the parent's
+// vector or hash entry) or, for the root, the parser (via jp->root) or
+// the caller (after json_read_tree / json_disconnect).
+//
+// Callers receive borrowed `json_object *` views from json_read,
+// json_hash_get, etc.; those pointers stay valid as long as the owning
+// container is intact (which, for json_read results, means "until the
+// next json_read, json_free, or json_disconnect call on that subtree").
+//
+// json_pull_ptr stays a shared_ptr because the parser is created once
+// and freed once and the cost of shared_ptr there is irrelevant.
+typedef std::unique_ptr<json_object, json_object_deleter> json_object_ptr;
 typedef std::shared_ptr<json_pull> json_pull_ptr;
 
 // A single key/value pair inside a JSON_HASH. The pairs are stored in
@@ -60,12 +84,12 @@ struct json_entry {
 // outlive the original parser.
 //
 // json_object intentionally has no virtual functions and no virtual
-// destructor: subclasses are constructed via std::make_shared<json_xxx>(),
-// and std::shared_ptr remembers the deleter from the original type, so
-// destroying a shared_ptr<json_object> that actually points at a
-// json_string still runs ~json_string(). Dispatch on `type` is what the
-// rest of the code already does. The accessor methods assert at debug
-// time that the type matches before downcasting.
+// destructor; the json_object_ptr deleter (see below in this header)
+// switches on `type` and static_casts to the correct subclass before
+// `delete`, so each subclass's destructor still runs without costing
+// a vptr per node. Dispatch on `type` is what the rest of the code
+// already does. The accessor methods assert at debug time that the
+// type matches before downcasting.
 
 struct json_object {
 	json_object *parent = nullptr;
@@ -218,6 +242,35 @@ inline const std::vector<json_entry> &json_object::entries() const {
 	return static_cast<const json_hash *>(this)->entries_value;
 }
 
+inline void json_object_deleter::operator()(json_object *p) const noexcept {
+	if (p == nullptr) {
+		return;
+	}
+	// Dispatch on the discriminator so the correct subclass destructor
+	// runs. json_object has no virtual destructor, so a bare `delete p`
+	// would skip the std::vector / std::string members of the subclass.
+	switch (p->type) {
+	case JSON_NUMBER:
+		delete static_cast<json_number *>(p);
+		break;
+	case JSON_STRING:
+		delete static_cast<json_string *>(p);
+		break;
+	case JSON_ARRAY:
+		delete static_cast<json_array *>(p);
+		break;
+	case JSON_HASH:
+		delete static_cast<json_hash *>(p);
+		break;
+	default:
+		// JSON_TRUE / JSON_FALSE / JSON_NULL (and the parse-token
+		// types, which never appear as owned nodes) are bare
+		// json_objects with no extra fields.
+		delete p;
+		break;
+	}
+}
+
 struct json_pull {
 	const char *error = nullptr;  // points at a string literal; no allocation
 	int line = 1;
@@ -228,18 +281,25 @@ struct json_pull {
 	ssize_t buffer_tail = 0;
 	ssize_t buffer_head = 0;
 
-	// Stack of currently-open containers; the top is the innermost container
-	// being parsed. Each frame also remembers what token is expected next
-	// (an item, a comma, a key, a colon, or a value). This stack is the
-	// only place the parser-only `expect` state lives, so it does not
-	// pollute json_object once parsing finishes. Replaces the previous
-	// single `container` pointer / parent walk, which previously required
-	// enable_shared_from_this<json_object> on every json_object instance.
+	// Stack of currently-open containers; the top is the innermost
+	// container being parsed. Each frame also remembers what token is
+	// expected next (an item, a comma, a key, a colon, or a value).
+	// The frame's `container` is a borrowed raw pointer; actual
+	// ownership of the in-progress container lives in either the
+	// surrounding container's vector (for nested containers) or
+	// `root` (for the outermost container).
 	struct parse_frame {
-		json_object_ptr container;
+		json_object *container;
 		json_type expect;
 	};
 	std::vector<parse_frame> container_stack;
+
+	// The most recently completed top-level value. The parser owns
+	// it (as a unique_ptr) until either: the next top-level value
+	// starts parsing (the old root is destroyed), the caller calls
+	// json_read_tree (ownership is transferred out), or the caller
+	// calls json_free / json_disconnect (the parser's reference is
+	// dropped explicitly).
 	json_object_ptr root;
 
 	// Scratch buffers reused across tokens so we don't reallocate per
@@ -257,30 +317,54 @@ json_pull_ptr json_begin_string(const char *s);
 
 json_pull_ptr json_begin(ssize_t (*read)(struct json_pull *, char *buffer, size_t n), void *source);
 
-// json_end is now a thin convenience that resets the caller's json_pull_ptr.
-// The parser (and any tree it still owns) is freed when the last shared_ptr
-// to it is dropped, so calling json_end is optional if the json_pull_ptr will
-// go out of scope on its own.
+// json_end is a thin convenience that resets the caller's json_pull_ptr.
+// The parser (and any tree it still owns) is freed when the last
+// shared_ptr to it is dropped, so calling json_end is optional if the
+// json_pull_ptr will go out of scope on its own.
 void json_end(json_pull_ptr &p);
 
 typedef void (*json_separator_callback)(json_type type, json_pull *j, void *state);
 
-json_object_ptr json_read_tree(json_pull_ptr j);
-json_object_ptr json_read(json_pull_ptr j);
-json_object_ptr json_read_separators(json_pull_ptr j, json_separator_callback cb, void *state);
+// json_read returns a borrowed pointer to the next completed JSON node
+// in the stream. The returned pointer is valid until the next call that
+// extends or trims the parser's tree (the next json_read on the same
+// parser, a json_free on the same node, or a json_disconnect that
+// extracts the node). Returns nullptr at end of input or on error.
+//
+// For top-level values, ownership stays with the parser (via jp->root);
+// for nested values, ownership stays with the enclosing container.
+json_object *json_read(json_pull_ptr &j);
+json_object *json_read_separators(json_pull_ptr &j, json_separator_callback cb, void *state);
 
-// json_free now just resets the caller's json_object_ptr. The subtree is
-// destroyed when the last shared_ptr to it is dropped (typically by also
-// being removed from its parent or parser).
-void json_free(json_object_ptr &j);
+// json_read_tree drains the next top-level value out of the parser
+// and hands ownership to the caller. After it returns, jp->root is
+// empty, the parent/parser back-pointers throughout the subtree have
+// been cleared, and the caller's json_object_ptr is the only thing
+// keeping the tree alive. The returned tree can outlive the
+// json_pull it was parsed from.
+json_object_ptr json_read_tree(json_pull_ptr &j);
 
-// Splice o out of its parent's array/object and clear parent/parser back-pointers
-// throughout the detached subtree so it can outlive the original parser.
-void json_disconnect(json_object_ptr j);
+// json_free splices `o` out of its parent (if any), or clears the
+// parser's root if `o` is the parser's current top-level value, and
+// destroys the subtree. After this call, `o` is a dangling pointer
+// that must not be used. Safe to call with nullptr.
+void json_free(json_object *o);
 
-json_object_ptr json_hash_get(json_object_ptr o, const char *s);
-json_object_ptr json_hash_get(json_object *o, const char *s);
+// Splice `o` out of its parent's array/object (or out of the parser's
+// root), walk the detached subtree clearing parent/parser back-pointers,
+// and return ownership of the subtree to the caller as a
+// json_object_ptr. After this returns, the parser no longer references
+// any node in the subtree, and the subtree can outlive the original
+// parser.
+json_object_ptr json_disconnect(json_object *o);
 
-std::string json_stringify(json_object_ptr o);
+// Look up `s` in the hash `o`. Returns a borrowed pointer; ownership
+// stays with the hash. nullptr if `o` is not a hash, or `s` is absent,
+// or the matching value is null. Accepts a json_object_ptr by reference
+// as a convenience so callers don't have to write `.get()`.
+json_object *json_hash_get(const json_object_ptr &o, const char *s);
+json_object *json_hash_get(json_object *o, const char *s);
+
+std::string json_stringify(const json_object *o);
 
 #endif

@@ -42,7 +42,7 @@ int mb_geometry[GEOM_TYPES] = {
 	VT_POLYGON,
 };
 
-void json_context(json_object_ptr j) {
+void json_context(json_object *j) {
 	std::string s = json_stringify(j);
 
 	if (s.size() >= 500) {
@@ -53,7 +53,7 @@ void json_context(json_object_ptr j) {
 	fprintf(stderr, "in JSON object %s\n", s.c_str());
 }
 
-void parse_coordinates(int t, json_object_ptr j, drawvec &out, int op, const char *fname, int line, json_object_ptr feature) {
+void parse_coordinates(int t, json_object *j, drawvec &out, int op, const char *fname, int line, json_object *feature) {
 	if (j == nullptr || j->type != JSON_ARRAY) {
 		fprintf(stderr, "%s:%d: expected array for geometry type %d: ", fname, line, t);
 		json_context(feature);
@@ -72,7 +72,7 @@ void parse_coordinates(int t, json_object_ptr j, drawvec &out, int op, const cha
 				}
 			}
 
-			parse_coordinates(within, j->array()[i], out, op, fname, line, feature);
+			parse_coordinates(within, j->array()[i].get(), out, op, fname, line, feature);
 		}
 	} else {
 		if (j->array().size() >= 2 && j->array()[0]->type == JSON_NUMBER && j->array()[1]->type == JSON_NUMBER) {
@@ -121,7 +121,7 @@ void parse_coordinates(int t, json_object_ptr j, drawvec &out, int op, const cha
 // type and stringified value. All numeric values, even if they are integers,
 // even integers that are too large to fit in a double but will still be
 // stringified with their original precision, are recorded here as mvt_double.
-serial_val stringify_value(json_object_ptr value, const char *reading, int line, json_object_ptr feature) {
+serial_val stringify_value(json_object *value, const char *reading, int line, json_object *feature) {
 	serial_val sv;
 
 	if (value != nullptr) {
@@ -176,9 +176,9 @@ static std::vector<mvt_geometry> to_feature(drawvec &geom) {
 	return out;
 }
 
-std::pair<int, drawvec> parse_geometry(json_object_ptr geometry, json_pull_ptr jp, json_object_ptr j,
+std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull_ptr &jp, json_object *j,
 				       int z, int x, int y, long long extent, bool fix_longitudes, bool mvt_style) {
-	json_object_ptr geometry_type = json_hash_get(geometry, "type");
+	json_object *geometry_type = json_hash_get(geometry, "type");
 	if (geometry_type == nullptr) {
 		fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
 		json_context(j);
@@ -191,7 +191,7 @@ std::pair<int, drawvec> parse_geometry(json_object_ptr geometry, json_pull_ptr j
 		exit(EXIT_JSON);
 	}
 
-	json_object_ptr coordinates = json_hash_get(geometry, "coordinates");
+	json_object *coordinates = json_hash_get(geometry, "coordinates");
 	if (coordinates == nullptr || coordinates->type != JSON_ARRAY) {
 		fprintf(stderr, "Filter output:%d: geometry without coordinates array: ", jp->line);
 		json_context(j);
@@ -305,12 +305,12 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 	json_pull_ptr jp = json_begin_file(fp);
 	while (1) {
-		json_object_ptr j = json_read(jp);
+		json_object *j = json_read(jp);
 		if (j == nullptr) {
 			if (jp->error != nullptr) {
 				fprintf(stderr, "Filter output:%d: %s: ", jp->line, jp->error);
 				if (jp->root != nullptr) {
-					json_context(jp->root);
+					json_context(jp->root.get());
 				} else {
 					fprintf(stderr, "\n");
 				}
@@ -321,7 +321,12 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			break;
 		}
 
-		json_object_ptr type = json_hash_get(j, "type");
+		// json_read returns each parser token in sequence, including
+		// intermediate (still-incomplete) container nodes. Freeing those
+		// here would splice them out of the feature hash being built
+		// up, so only free `j` once we have processed a complete
+		// Feature (or `jp->root` when the stream ends).
+		json_object *type = json_hash_get(j, "type");
 		if (type == nullptr || type->type != JSON_STRING) {
 			continue;
 		}
@@ -329,7 +334,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			continue;
 		}
 
-		json_object_ptr properties = json_hash_get(j, "properties");
+		json_object *properties = json_hash_get(j, "properties");
 		if (properties == nullptr || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
 			fprintf(stderr, "Filter output:%d: feature without properties hash: ", jp->line);
 			json_context(j);
@@ -337,8 +342,8 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		}
 
 		std::string layername = "unknown";
-		json_object_ptr tippecanoe = json_hash_get(j, "tippecanoe");
-		json_object_ptr layer;
+		json_object *tippecanoe = json_hash_get(j, "tippecanoe");
+		json_object *layer = nullptr;
 		if (tippecanoe != nullptr) {
 			layer = json_hash_get(tippecanoe, "layer");
 			if (layer != nullptr && layer->type == JSON_STRING) {
@@ -356,7 +361,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 		}
 		auto l = ret.find(layername);
 
-		json_object_ptr geometry = json_hash_get(j, "geometry");
+		json_object *geometry = json_hash_get(j, "geometry");
 		if (geometry == nullptr) {
 			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
 			json_context(j);
@@ -373,7 +378,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			feature.type = mb_geometry[t];
 			feature.geometry = to_feature(dv);
 
-			json_object_ptr id = json_hash_get(j, "id");
+			json_object *id = json_hash_get(j, "id");
 			if (id != nullptr && id->type == JSON_NUMBER) {
 				feature.id = id->number();
 				if (id->large_unsigned() > 0) {
@@ -384,7 +389,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 			if (properties->type == JSON_HASH) {
 				for (const auto &e : properties->entries()) {
-					serial_val sv = stringify_value(e.value, "Filter output", jp->line, j);
+					serial_val sv = stringify_value(e.value.get(), "Filter output", jp->line, j);
 
 					// Nulls can be excluded here because this is the postfilter
 					// and it is nearly time to create the vector representation
@@ -398,6 +403,8 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 			l->second.features.push_back(feature);
 		}
+
+		json_free(j);
 	}
 
 	std::vector<mvt_layer> final;

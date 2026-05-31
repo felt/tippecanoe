@@ -143,16 +143,23 @@ std::vector<mvt_layer> parse_layers(int fd, int z, unsigned x, unsigned y, std::
 }
 
 // Reads from the prefilter
-serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, bool postfilter, key_pool &key_pool) {
+serial_feature parse_feature(json_pull_ptr &jp, int z, unsigned x, unsigned y, std::vector<std::map<std::string, layermap_entry>> *layermaps, size_t tiling_seg, std::vector<std::vector<std::string>> *layer_unmaps, bool postfilter, key_pool &key_pool) {
 	serial_feature sf;
 
 	while (1) {
-		json_object_ptr j = json_read(jp);
+		// json_read returns each token as the parser produces it, including
+		// intermediate (still incomplete) container nodes. We must NOT free
+		// these intermediates here: they belong to the larger feature hash
+		// still being assembled, and freeing them would splice them out of
+		// the parent and corrupt the in-progress tree. We only free `j`
+		// after we have successfully processed a complete Feature hash
+		// (just before returning), or `jp->root` when the stream ends.
+		json_object *j = json_read(jp);
 		if (j == nullptr) {
 			if (jp->error != nullptr) {
 				fprintf(stderr, "Filter output:%d: %s: ", jp->line, jp->error);
 				if (jp->root != nullptr) {
-					json_context(jp->root);
+					json_context(jp->root.get());
 				} else {
 					fprintf(stderr, "\n");
 				}
@@ -164,7 +171,7 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 			return sf;
 		}
 
-		json_object_ptr type = json_hash_get(j, "type");
+		json_object *type = json_hash_get(j, "type");
 		if (type == nullptr || type->type != JSON_STRING) {
 			continue;
 		}
@@ -172,21 +179,21 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 			continue;
 		}
 
-		json_object_ptr geometry = json_hash_get(j, "geometry");
+		json_object *geometry = json_hash_get(j, "geometry");
 		if (geometry == nullptr) {
 			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
 
-		json_object_ptr properties = json_hash_get(j, "properties");
+		json_object *properties = json_hash_get(j, "properties");
 		if (properties == nullptr || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
 			fprintf(stderr, "Filter output:%d: feature without properties hash: ", jp->line);
 			json_context(j);
 			exit(EXIT_JSON);
 		}
 
-		json_object_ptr geometry_type = json_hash_get(geometry, "type");
+		json_object *geometry_type = json_hash_get(geometry, "type");
 		if (geometry_type == nullptr) {
 			fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
 			json_context(j);
@@ -199,7 +206,7 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 			exit(EXIT_JSON);
 		}
 
-		json_object_ptr coordinates = json_hash_get(geometry, "coordinates");
+		json_object *coordinates = json_hash_get(geometry, "coordinates");
 		if (coordinates == nullptr || coordinates->type != JSON_ARRAY) {
 			fprintf(stderr, "Filter output:%d: feature without coordinates array: ", jp->line);
 			json_context(j);
@@ -248,29 +255,29 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 			sf.has_id = false;
 
 			std::string layername = "unknown";
-			json_object_ptr tippecanoe = json_hash_get(j, "tippecanoe");
+			json_object *tippecanoe = json_hash_get(j, "tippecanoe");
 			if (tippecanoe != nullptr) {
-				json_object_ptr layer = json_hash_get(tippecanoe, "layer");
+				json_object *layer = json_hash_get(tippecanoe, "layer");
 				if (layer != nullptr && layer->type == JSON_STRING) {
 					layername = layer->string();
 				}
 
-				json_object_ptr index = json_hash_get(tippecanoe, "index");
+				json_object *index = json_hash_get(tippecanoe, "index");
 				if (index != nullptr && index->type == JSON_NUMBER) {
 					sf.index = index->number();
 				}
 
-				json_object_ptr sequence = json_hash_get(tippecanoe, "sequence");
+				json_object *sequence = json_hash_get(tippecanoe, "sequence");
 				if (sequence != nullptr && sequence->type == JSON_NUMBER) {
 					sf.seq = sequence->number();
 				}
 
-				json_object_ptr extent = json_hash_get(tippecanoe, "extent");
+				json_object *extent = json_hash_get(tippecanoe, "extent");
 				if (extent != nullptr && extent->type == JSON_NUMBER) {
 					sf.extent = extent->number();
 				}
 
-				json_object_ptr dropped = json_hash_get(tippecanoe, "dropped");
+				json_object *dropped = json_hash_get(tippecanoe, "dropped");
 				if (dropped != nullptr && dropped->type == JSON_TRUE) {
 					sf.dropped = FEATURE_DROPPED;  // dropped
 				} else {
@@ -295,7 +302,7 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 				}
 			}
 
-			json_object_ptr id = json_hash_get(j, "id");
+			json_object *id = json_hash_get(j, "id");
 			if (id != nullptr && id->type == JSON_NUMBER) {
 				sf.id = id->number();
 				if (id->large_unsigned() > 0) {
@@ -345,7 +352,7 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 
 			if (properties->type == JSON_HASH) {
 				for (const auto &e : properties->entries()) {
-					serial_val v = stringify_value(e.value, "Filter output", jp->line, j);
+					serial_val v = stringify_value(e.value.get(), "Filter output", jp->line, j);
 
 					// Nulls can be excluded here because the expression evaluation filter
 					// would have already run before prefiltering
@@ -361,8 +368,11 @@ serial_feature parse_feature(json_pull_ptr jp, int z, unsigned x, unsigned y, st
 				}
 			}
 
+			json_free(j);
 			return sf;
 		}
+
+		json_free(j);
 	}
 }
 

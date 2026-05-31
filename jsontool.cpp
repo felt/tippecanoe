@@ -140,12 +140,12 @@ std::string sort_quote(const char *s) {
 	return ret;
 }
 
-void out(std::string const &s, int type, json_object_ptr properties) {
+void out(std::string const &s, int type, json_object *properties) {
 	if (extract != NULL) {
 		std::string extracted = sort_quote("null");
 		bool found = false;
 
-		json_object_ptr o = json_hash_get(properties, extract);
+		json_object *o = json_hash_get(properties, extract);
 		if (o != nullptr) {
 			found = true;
 			if (o->type == JSON_STRING) {
@@ -204,7 +204,7 @@ void out(std::string const &s, int type, json_object_ptr properties) {
 
 std::string prev_joinkey;
 
-void join_csv(json_object_ptr j) {
+void join_csv(json_object *j) {
 	if (header.size() == 0) {
 		std::string s = csv_getline(csvfile);
 		if (s.size() == 0) {
@@ -230,8 +230,8 @@ void join_csv(json_object_ptr j) {
 		}
 	}
 
-	json_object_ptr properties = json_hash_get(j, "properties");
-	json_object_ptr key;
+	json_object *properties = json_hash_get(j, "properties");
+	json_object *key = nullptr;
 
 	if (properties != nullptr) {
 		key = json_hash_get(properties, header[0].c_str());
@@ -320,30 +320,28 @@ void join_csv(json_object_ptr j) {
 			}
 
 			if (attr_type != JSON_NULL) {
-				auto ko = std::make_shared<json_string>(properties.get(), properties->parser);
-				ko->string_value = k;
+				json_object_ptr ko(new json_string(properties, properties->parser));
+				ko->string() = k;
 
 				json_object_ptr vo;
 				if (attr_type == JSON_STRING) {
-					auto s = std::make_shared<json_string>(properties.get(), properties->parser);
-					s->string_value = v;
-					vo = s;
+					vo = json_object_ptr(new json_string(properties, properties->parser));
+					vo->string() = v;
 				} else if (attr_type == JSON_NUMBER) {
-					auto n = std::make_shared<json_number>(properties.get(), properties->parser);
-					n->set_number(atof(v.c_str()));
-					vo = n;
+					vo = json_object_ptr(new json_number(properties, properties->parser));
+					vo->set_number(atof(v.c_str()));
 				} else {
 					abort();
 				}
 
-				properties->entries().push_back({ko, vo});
+				properties->entries().push_back({std::move(ko), std::move(vo)});
 			}
 		}
 	}
 }
 
 struct json_join_action : json_feature_action {
-	int add_feature(json_object_ptr geometry, bool, json_object_ptr, json_object_ptr, json_object_ptr, json_object_ptr feature) {
+	int add_feature(json_object *geometry, bool, json_object *, json_object *, json_object *, json_object *feature) {
 		if (feature != geometry) {  // a real feature, not a bare geometry
 			if (csvfile != NULL) {
 				join_csv(feature);
@@ -357,7 +355,7 @@ struct json_join_action : json_feature_action {
 		return 1;
 	}
 
-	void check_crs(json_object_ptr) {
+	void check_crs(json_object *) {
 	}
 };
 

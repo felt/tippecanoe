@@ -422,21 +422,21 @@ sqlite3 *pmtilesmeta2tmp(const char *fname, const char *pmtiles_map) {
 			state.nospace = true;
 			state.json_write_string("vector_layers");
 			state.nospace = true;
-			state.json_write_json(json_stringify(e.value));
+			state.json_write_json(json_stringify(e.value.get()));
 		} else if (key == "tilestats" && e.value->type == JSON_HASH) {
 			has_json = true;
 			state.nospace = true;
 			state.json_write_string("tilestats");
 			state.nospace = true;
-			state.json_write_json(json_stringify(e.value));
+			state.json_write_json(json_stringify(e.value.get()));
 		} else if (key == "strategies" && e.value->type == JSON_ARRAY) {
-			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('strategies', %Q);", json_stringify(e.value).c_str());
+			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('strategies', %Q);", json_stringify(e.value.get()).c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
 				fprintf(stderr, "set %s in metadata: %s\n", key.c_str(), err);
 			}
 			sqlite3_free(sql);
 		} else if (key == "tippecanoe_decisions" && e.value->type == JSON_HASH) {
-			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('tippecanoe_decisions', %Q);", json_stringify(e.value).c_str());
+			sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES ('tippecanoe_decisions', %Q);", json_stringify(e.value.get()).c_str());
 			if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
 				fprintf(stderr, "set %s in metadata: %s\n", key.c_str(), err);
 			}

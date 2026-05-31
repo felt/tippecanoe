@@ -89,26 +89,23 @@ static inline int read_wrap(json_pull *j) {
 // Construct an instance of the right subclass for the given type.
 // JSON_TRUE / JSON_FALSE / JSON_NULL and the parse-token types are bare
 // json_objects; the value-bearing types each get their own subclass.
+//
+// Returns a json_object_ptr (unique_ptr with a type-dispatching deleter,
+// see jsonpull.h), so the caller doesn't have to remember which subclass
+// was constructed when it eventually deletes.
 static json_object_ptr make_object(json_type type, json_object *parent, json_pull *jp) {
-	json_object_ptr o;
 	switch (type) {
 	case JSON_NUMBER:
-		o = std::make_shared<json_number>(parent, jp);
-		break;
+		return json_object_ptr(new json_number(parent, jp));
 	case JSON_STRING:
-		o = std::make_shared<json_string>(parent, jp);
-		break;
+		return json_object_ptr(new json_string(parent, jp));
 	case JSON_ARRAY:
-		o = std::make_shared<json_array>(parent, jp);
-		break;
+		return json_object_ptr(new json_array(parent, jp));
 	case JSON_HASH:
-		o = std::make_shared<json_hash>(parent, jp);
-		break;
+		return json_object_ptr(new json_hash(parent, jp));
 	default:
-		o = std::make_shared<json_object>(type, parent, jp);
-		break;
+		return json_object_ptr(new json_object(type, parent, jp));
 	}
-	return o;
 }
 
 static json_object_ptr fabricate_object(json_pull *jp, json_object *parent, json_type type) {
@@ -119,15 +116,22 @@ static inline json_pull::parse_frame *current_frame(json_pull *j) {
 	return j->container_stack.empty() ? nullptr : &j->container_stack.back();
 }
 
-static json_object_ptr add_object(json_pull *j, json_type type) {
+// Construct a new node of `type` and install it as a child of the
+// current container (or as the parser's root, if the container stack
+// is empty). Returns a borrowed pointer into the parser-owned tree;
+// the unique_ptr that owns the node lives in whichever vector slot
+// we just pushed it into. Returns nullptr on error after setting
+// j->error.
+static json_object *add_object(json_pull *j, json_type type) {
 	json_pull::parse_frame *f = current_frame(j);
-	json_object *c = f ? f->container.get() : nullptr;
+	json_object *c = f ? f->container : nullptr;
 	json_object_ptr o = make_object(type, c, j);
+	json_object *raw = o.get();
 
 	if (f != nullptr) {
 		if (c->type == JSON_ARRAY) {
 			if (f->expect == JSON_ITEM) {
-				c->array().push_back(o);
+				c->array().push_back(std::move(o));
 				f->expect = JSON_COMMA;
 			} else {
 				j->error = "Expected a comma, not a list item";
@@ -135,7 +139,7 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 			}
 		} else if (c->type == JSON_HASH) {
 			if (f->expect == JSON_VALUE) {
-				c->entries().back().value = o;
+				c->entries().back().value = std::move(o);
 				f->expect = JSON_COMMA;
 			} else if (f->expect == JSON_KEY) {
 				if (type != JSON_STRING) {
@@ -143,7 +147,7 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 					return nullptr;
 				}
 
-				c->entries().push_back({o, nullptr});
+				c->entries().push_back({std::move(o), nullptr});
 				f->expect = JSON_COLON;
 			} else {
 				j->error = "Expected a comma or colon";
@@ -151,33 +155,34 @@ static json_object_ptr add_object(json_pull *j, json_type type) {
 			}
 		}
 	} else {
-		// Drop the previous top-level value; replacing the parser's root
-		// shared_ptr will free it if no one else holds a reference.
-		j->root = o;
+		// Replacing the parser's root destroys the previous top-level
+		// value (if no one called json_disconnect / json_read_tree to
+		// take ownership of it).
+		j->root = std::move(o);
 	}
 
-	return o;
+	return raw;
 }
 
-json_object_ptr json_hash_get(json_object *o, const char *s) {
+json_object *json_hash_get(json_object *o, const char *s) {
 	if (o == nullptr || o->type != JSON_HASH) {
 		return nullptr;
 	}
 
 	for (const auto &e : o->entries()) {
 		if (e.key != nullptr && e.key->type == JSON_STRING && e.key->string() == s) {
-			return e.value;
+			return e.value.get();
 		}
 	}
 
 	return nullptr;
 }
 
-json_object_ptr json_hash_get(json_object_ptr o, const char *s) {
+json_object *json_hash_get(const json_object_ptr &o, const char *s) {
 	return json_hash_get(o.get(), s);
 }
 
-json_object_ptr json_read_separators(json_pull_ptr jp, json_separator_callback cb, void *state) {
+json_object *json_read_separators(json_pull_ptr &jp, json_separator_callback cb, void *state) {
 	int c;
 	json_pull *j = jp.get();
 
@@ -226,14 +231,13 @@ again:
 		/////////////////////////// Arrays
 
 	case '[': {
-		json_object_ptr o = add_object(j, JSON_ARRAY);
+		json_object *o = add_object(j, JSON_ARRAY);
 		if (o == nullptr) {
 			return nullptr;
 		}
 		// add_object already installed `o` in the parent (or the
-		// parser's root); moving the local copy into the frame
-		// avoids one shared_ptr atomic inc/dec pair per container.
-		j->container_stack.push_back({std::move(o), JSON_ITEM});
+		// parser's root) as a unique_ptr; the frame just borrows.
+		j->container_stack.push_back({o, JSON_ITEM});
 
 		if (cb != nullptr) {
 			cb(JSON_ARRAY, j, state);
@@ -249,7 +253,7 @@ again:
 			return nullptr;
 		}
 
-		json_object *cc = f->container.get();
+		json_object *cc = f->container;
 		if (cc->type != JSON_ARRAY) {
 			j->error = "Found ] not in an array";
 			return nullptr;
@@ -262,23 +266,20 @@ again:
 			}
 		}
 
-		// Move the container out of the frame so pop_back doesn't
-		// drop the last reference; saves one atomic inc/dec.
-		json_object_ptr ret = std::move(f->container);
+		// Pop the frame; ownership of `cc` stays with whatever
+		// surrounding container (or jp->root) installed it.
 		j->container_stack.pop_back();
-		return ret;
+		return cc;
 	}
 
 		/////////////////////////// Hashes
 
 	case '{': {
-		json_object_ptr o = add_object(j, JSON_HASH);
+		json_object *o = add_object(j, JSON_HASH);
 		if (o == nullptr) {
 			return nullptr;
 		}
-		// See the [ case above: move into the frame to skip a
-		// shared_ptr atomic inc/dec round-trip.
-		j->container_stack.push_back({std::move(o), JSON_KEY});
+		j->container_stack.push_back({o, JSON_KEY});
 
 		if (cb != nullptr) {
 			cb(JSON_HASH, j, state);
@@ -294,7 +295,7 @@ again:
 			return nullptr;
 		}
 
-		json_object *cc = f->container.get();
+		json_object *cc = f->container;
 		if (cc->type != JSON_HASH) {
 			j->error = "Found } not in a hash";
 			return nullptr;
@@ -307,10 +308,8 @@ again:
 			}
 		}
 
-		// See the ] case: move out to skip an atomic refcount round-trip.
-		json_object_ptr ret = std::move(f->container);
 		j->container_stack.pop_back();
-		return ret;
+		return cc;
 	}
 
 		/////////////////////////// Null
@@ -488,7 +487,7 @@ again:
 			}
 		}
 
-		json_object_ptr n = add_object(j, JSON_NUMBER);
+		json_object *n = add_object(j, JSON_NUMBER);
 		if (n != nullptr) {
 			double d = atof(j->number_buffer.c_str());
 			n->set_number(d);
@@ -642,7 +641,7 @@ again:
 			return nullptr;
 		}
 
-		json_object_ptr s = add_object(j, JSON_STRING);
+		json_object *s = add_object(j, JSON_STRING);
 		if (s != nullptr) {
 			// Copy (don't move) so j->string_buffer retains its
 			// grown capacity for the next token. The copy is a
@@ -659,48 +658,71 @@ again:
 	return nullptr;
 }
 
-json_object_ptr json_read(json_pull_ptr j) {
+json_object *json_read(json_pull_ptr &j) {
 	return json_read_separators(j, nullptr, nullptr);
 }
 
-json_object_ptr json_read_tree(json_pull_ptr p) {
-	json_object_ptr j;
+// Forward declaration so json_read_tree can clear back-pointers on
+// the tree it hands out -- this lets callers (like the filter loaders)
+// keep the returned tree past the parser's lifetime without having to
+// follow up with a separate json_disconnect call.
+static void clear_back_pointers(json_object *o);
+
+json_object_ptr json_read_tree(json_pull_ptr &p) {
+	json_object *j;
 
 	while ((j = json_read(p)) != nullptr) {
 		if (j->parent == nullptr) {
-			return j;
+			// The parser owns the top-level value via p->root;
+			// transfer ownership out to the caller and detach
+			// the subtree from the parser so the caller can
+			// outlive the json_pull.
+			json_object_ptr tree = std::move(p->root);
+			clear_back_pointers(tree.get());
+			return tree;
 		}
 	}
 
 	return nullptr;
 }
 
-// Splice `o` out of its parent's array or object, dropping the
-// parent's owning reference. After this returns, the parent no longer
-// holds any pointer to `o`; the caller's reference is the only thing
-// keeping the subtree alive.
+// Take ownership of `o` away from its parent (or from the parser's
+// root) by moving the owning json_object_ptr out of whatever vector
+// slot or hash entry holds it. Returns the unique_ptr to the caller,
+// who is now solely responsible for it. Returns an empty
+// json_object_ptr if `o` is not currently owned by a parent or by
+// the parser (e.g. already detached, or only borrowed from somewhere
+// untracked).
 //
 // For a hash, removing a single key or value individually would
-// disturb the surrounding key/value pairing, so we replace the removed
-// half with a placeholder JSON_NULL and only erase the entry once both
-// halves have been detached. This matches the historical
-// json_disconnect semantics.
-static void splice_from_parent(json_object *o) {
+// disturb the surrounding key/value pairing, so we replace the
+// extracted half with a fresh JSON_NULL placeholder and only erase
+// the entry once both halves have been detached. This matches the
+// historical json_disconnect semantics for partially-disconnected
+// pairs.
+static json_object_ptr take_from_owner(json_object *o) {
 	if (o == nullptr) {
-		return;
+		return nullptr;
 	}
 
 	json_object *parent = o->parent;
 	if (parent == nullptr) {
-		return;
+		// Top-level value: the parser owns it via root, unless the
+		// caller already moved it out.
+		json_pull *parser = o->parser;
+		if (parser != nullptr && parser->root.get() == o) {
+			return std::move(parser->root);
+		}
+		return nullptr;
 	}
 
 	if (parent->type == JSON_ARRAY) {
 		auto &arr = parent->array();
 		for (size_t i = 0; i < arr.size(); i++) {
 			if (arr[i].get() == o) {
+				json_object_ptr taken = std::move(arr[i]);
 				arr.erase(arr.begin() + i);
-				break;
+				return taken;
 			}
 		}
 	} else if (parent->type == JSON_HASH) {
@@ -708,49 +730,43 @@ static void splice_from_parent(json_object *o) {
 		for (size_t i = 0; i < entries.size(); i++) {
 			auto &e = entries[i];
 			if (e.key.get() == o) {
+				json_object_ptr taken = std::move(e.key);
 				e.key = fabricate_object(parent->parser, parent, JSON_NULL);
 				if (e.value != nullptr && e.value->type == JSON_NULL && e.key->type == JSON_NULL) {
 					entries.erase(entries.begin() + i);
 				}
-				break;
+				return taken;
 			}
 			if (e.value.get() == o) {
+				json_object_ptr taken = std::move(e.value);
 				e.value = fabricate_object(parent->parser, parent, JSON_NULL);
 				if (e.key != nullptr && e.key->type == JSON_NULL && e.value->type == JSON_NULL) {
 					entries.erase(entries.begin() + i);
 				}
-				break;
+				return taken;
 			}
 		}
 	}
+
+	return nullptr;
 }
 
-// json_free splices `o` out of its parent (if any) so that the
-// parent no longer keeps the subtree alive, then drops the caller's
-// reference. The subtree is freed when the last reference is gone
-// (typically right here, since the parent's reference was just
-// dropped). geojson-loop.cpp relies on this to release each feature
-// after it has been serialized, so that already-serialized features
-// don't sit in memory while subsequent features are parsed.
+// json_free splices `o` out of its parent (if any), or out of the
+// parser's root (if `o` is the most recently completed top-level
+// value), and destroys the subtree. After this call, `o` is a
+// dangling pointer and must not be used.
 //
-// If `o` is the parser's current root (the most recently completed
-// top-level value), drop the parser's reference too -- otherwise a
-// line-delimited stream would always hold the previously-completed
-// feature until the next one started parsing.
+// geojson-loop.cpp relies on this to release each feature after it
+// has been serialized, so that already-serialized features don't sit
+// in memory while subsequent features are parsed.
 //
 // Unlike json_disconnect, this does NOT walk the subtree clearing
 // parent/parser back-pointers, because the subtree is about to be
-// destroyed and those pointers will never be observed again.
-void json_free(json_object_ptr &o) {
-	if (o != nullptr) {
-		splice_from_parent(o.get());
-
-		json_pull *parser = o->parser;
-		if (parser != nullptr && parser->root.get() == o.get()) {
-			parser->root.reset();
-		}
-	}
-	o.reset();
+// destroyed and those pointers will never be observed again -- the
+// unique_ptr returned by take_from_owner goes out of scope at the end
+// of this function and runs the type-dispatching deleter.
+void json_free(json_object *o) {
+	(void) take_from_owner(o);
 }
 
 // Walk the subtree clearing parent/parser back-pointers so the detached
@@ -776,23 +792,12 @@ static void clear_back_pointers(json_object *o) {
 	o->parser = nullptr;
 }
 
-void json_disconnect(json_object_ptr o) {
-	if (o == nullptr) {
-		return;
+json_object_ptr json_disconnect(json_object *o) {
+	json_object_ptr taken = take_from_owner(o);
+	if (taken != nullptr) {
+		clear_back_pointers(taken.get());
 	}
-
-	// Splice o out of its parent's array or object. The parent's vector
-	// holds the shared_ptr to this child; erasing it removes one reference,
-	// but the caller still holds `o`, so the subtree stays alive.
-	splice_from_parent(o.get());
-
-	// Drop the parser's reference to this subtree if it was the root.
-	json_pull *parser = o->parser;
-	if (parser != nullptr && parser->root.get() == o.get()) {
-		parser->root.reset();
-	}
-
-	clear_back_pointers(o.get());
+	return taken;
 }
 
 static void string_append_c(std::string &val, char c) {
@@ -803,7 +808,7 @@ static void string_append(std::string &val, const char *add) {
 	val.append(add);
 }
 
-static void json_print_one(std::string &val, json_object *o) {
+static void json_print_one(std::string &val, const json_object *o) {
 	if (o == nullptr) {
 		string_append(val, "...");
 	} else if (o->type == JSON_STRING) {
@@ -852,7 +857,7 @@ static void json_print_one(std::string &val, json_object *o) {
 	}
 }
 
-static void json_print(std::string &val, json_object *o) {
+static void json_print(std::string &val, const json_object *o) {
 	if (o == nullptr) {
 		// Hash value in incompletely read hash
 		string_append(val, "...");
@@ -884,8 +889,8 @@ static void json_print(std::string &val, json_object *o) {
 	}
 }
 
-std::string json_stringify(json_object_ptr o) {
+std::string json_stringify(const json_object *o) {
 	std::string val;
-	json_print(val, o.get());
+	json_print(val, o);
 	return val;
 }

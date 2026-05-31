@@ -25,7 +25,7 @@ static const char *geometry_names[GEOM_TYPES] = {
 };
 
 // XXX duplicated
-static void json_context(json_object_ptr j) {
+static void json_context(json_object *j) {
 	std::string s = json_stringify(j);
 
 	if (s.size() >= 500) {
@@ -36,18 +36,18 @@ static void json_context(json_object_ptr j) {
 	fprintf(stderr, "in JSON object %s\n", s.c_str());
 }
 
-void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
+void parse_json(json_feature_action *jfa, json_pull_ptr &jp) {
 	long long found_hashes = 0;
 	long long found_features = 0;
 	long long found_geometries = 0;
 
 	while (1) {
-		json_object_ptr j = json_read(jp);
+		json_object *j = json_read(jp);
 		if (j == nullptr) {
 			if (jp->error != nullptr) {
 				fprintf(stderr, "%s:%d: %s: ", jfa->fname.c_str(), jp->line, jp->error);
 				if (jp->root != nullptr) {
-					json_context(jp->root);
+					json_context(jp->root.get());
 				} else {
 					fprintf(stderr, "\n");
 				}
@@ -65,7 +65,7 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			}
 		}
 
-		json_object_ptr type = json_hash_get(j, "type");
+		json_object *type = json_hash_get(j, "type");
 		if (type == nullptr || type->type != JSON_STRING) {
 			continue;
 		}
@@ -84,14 +84,14 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 				if (j->parent != nullptr) {
 					if (j->parent->type == JSON_ARRAY && j->parent->parent != nullptr) {
 						if (j->parent->parent->type == JSON_HASH) {
-							json_object_ptr geometries = json_hash_get(j->parent->parent, "geometries");
+							json_object *geometries = json_hash_get(j->parent->parent, "geometries");
 							if (geometries != nullptr) {
 								// Parent of Parent must be a GeometryCollection
 								is_geometry = 0;
 							}
 						}
 					} else if (j->parent->type == JSON_HASH) {
-						json_object_ptr geometry = json_hash_get(j->parent, "geometry");
+						json_object *geometry = json_hash_get(j->parent, "geometry");
 						if (geometry != nullptr) {
 							// Parent must be a Feature
 							is_geometry = 0;
@@ -101,10 +101,10 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			}
 
 			if (is_geometry) {
-				json_object *jo = j.get();
+				json_object *jo = j;
 				while (jo != nullptr) {
 					if (jo->parent != nullptr && jo->parent->type == JSON_HASH) {
-						if (json_hash_get(jo->parent, "properties").get() == jo) {
+						if (json_hash_get(jo->parent, "properties") == jo) {
 							// Ancestor is the value corresponding to a properties key
 							is_geometry = 0;
 							break;
@@ -140,7 +140,7 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 		}
 		found_features++;
 
-		json_object_ptr geometry = json_hash_get(j, "geometry");
+		json_object *geometry = json_hash_get(j, "geometry");
 		if (geometry == nullptr) {
 			fprintf(stderr, "%s:%d: feature with no geometry: ", jfa->fname.c_str(), jp->line);
 			json_context(j);
@@ -148,7 +148,7 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			continue;
 		}
 
-		json_object_ptr properties = json_hash_get(j, "properties");
+		json_object *properties = json_hash_get(j, "properties");
 		if (properties == nullptr || (properties->type != JSON_HASH && properties->type != JSON_NULL)) {
 			fprintf(stderr, "%s:%d: feature without properties hash: ", jfa->fname.c_str(), jp->line);
 			json_context(j);
@@ -158,10 +158,10 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 
 		bool is_feature = true;
 		{
-			json_object *jo = j.get();
+			json_object *jo = j;
 			while (jo != nullptr) {
 				if (jo->parent != nullptr && jo->parent->type == JSON_HASH) {
-					if (json_hash_get(jo->parent, "properties").get() == jo) {
+					if (json_hash_get(jo->parent, "properties") == jo) {
 						// Ancestor is the value corresponding to a properties key
 						is_feature = false;
 						break;
@@ -174,10 +174,10 @@ void parse_json(json_feature_action *jfa, json_pull_ptr jp) {
 			continue;
 		}
 
-		json_object_ptr tippecanoe = json_hash_get(j, "tippecanoe");
-		json_object_ptr id = json_hash_get(j, "id");
+		json_object *tippecanoe = json_hash_get(j, "tippecanoe");
+		json_object *id = json_hash_get(j, "id");
 
-		json_object_ptr geometries = json_hash_get(geometry, "geometries");
+		json_object *geometries = json_hash_get(geometry, "geometries");
 		if (geometries != nullptr && geometries->type == JSON_ARRAY) {
 			jfa->add_feature(geometries, true, properties, id, tippecanoe, j);
 		} else {

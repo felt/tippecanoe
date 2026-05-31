@@ -9,7 +9,7 @@
 #include "milo/dtoa_milo.h"
 #include "text.hpp"
 
-int compare(mvt_value const &one, json_object_ptr two, bool &fail) {
+int compare(mvt_value const &one, json_object *two, bool &fail) {
 	switch (one.type) {
 	case mvt_string:
 		if (two->type != JSON_STRING) {
@@ -91,7 +91,7 @@ int compare(mvt_value const &one, json_object_ptr two, bool &fail) {
 // 0: false
 // 1: true
 // -1: incomparable (sql null), treated as false in final output
-static int eval(std::function<mvt_value(std::string const &)> feature, json_object_ptr f, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
+static int eval(std::function<mvt_value(std::string const &)> feature, json_object *f, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	if (f != nullptr) {
 		if (f->type == JSON_TRUE) {
 			return 1;
@@ -188,7 +188,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		bool fail = false;
-		int cmp = compare(ff, f->array()[2], fail);
+		int cmp = compare(ff, f->array()[2].get(), fail);
 
 		if (fail) {
 			static bool warned = false;
@@ -237,7 +237,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		}
 
 		for (size_t i = 1; i < f->array().size(); i++) {
-			int out = eval(feature, f->array()[i], exclude_attributes, unidecode_data);
+			int out = eval(feature, f->array()[i].get(), exclude_attributes, unidecode_data);
 
 			if (out >= 0) {	 // nulls are ignored in boolean and/or expressions
 				if (op == "all") {
@@ -289,7 +289,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		bool found = false;
 		for (size_t i = 2; i < f->array().size(); i++) {
 			bool fail = false;
-			int cmp = compare(ff, f->array()[i], fail);
+			int cmp = compare(ff, f->array()[i].get(), fail);
 
 			if (fail) {
 				static bool warned = false;
@@ -324,7 +324,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			exit(EXIT_FILTER);
 		}
 
-		bool ok = eval(feature, f->array()[2], exclude_attributes, unidecode_data) > 0;
+		bool ok = eval(feature, f->array()[2].get(), exclude_attributes, unidecode_data) > 0;
 		if (!ok) {
 			exclude_attributes.insert(f->array()[1]->string());
 		}
@@ -336,14 +336,14 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	exit(EXIT_FILTER);
 }
 
-bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string const &layer, json_object_ptr filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
+static bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	if (filter == nullptr || filter->type != JSON_HASH) {
 		fprintf(stderr, "Error: filter is not a hash: %s\n", json_stringify(filter).c_str());
 		exit(EXIT_JSON);
 	}
 
 	bool ok = true;
-	json_object_ptr f;
+	json_object *f;
 
 	f = json_hash_get(filter, layer.c_str());
 	if (ok && f != nullptr) {
@@ -371,7 +371,6 @@ json_object_ptr read_filter(const char *fname) {
 		fprintf(stderr, "%s: %s\n", fname, jp->error);
 		exit(EXIT_JSON);
 	}
-	json_disconnect(filter);
 	fclose(fp);
 	return filter;
 }
@@ -384,11 +383,10 @@ json_object_ptr parse_filter(const char *s) {
 		fprintf(stderr, "%s\n", jp->error);
 		exit(EXIT_JSON);
 	}
-	json_disconnect(filter);
 	return filter;
 }
 
-bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object_ptr filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
+bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
 		auto f = feature.find(key);
 		if (f != feature.end()) {
@@ -404,7 +402,7 @@ bool evaluate(std::unordered_map<std::string, mvt_value> const &feature, std::st
 	return evaluate(getter, layer, filter, exclude_attributes, unidecode_data);
 }
 
-bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object_ptr filter, std::set<std::string> &exclude_attributes, int z, std::vector<std::string> const &unidecode_data) {
+bool evaluate(mvt_feature const &feat, mvt_layer const &layer, json_object *filter, std::set<std::string> &exclude_attributes, int z, std::vector<std::string> const &unidecode_data) {
 	std::function<mvt_value(std::string const &)> getter = [&](std::string const &key) {
 		const static std::string dollar_id = "$id";
 		if (key == dollar_id && feat.has_id) {
