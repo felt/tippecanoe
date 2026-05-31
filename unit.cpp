@@ -162,3 +162,74 @@ TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
 	const std::string buggy = "\xF0\x9F\x90\x80";
 	REQUIRE(o->string() != buggy);
 }
+
+// geojson-loop.cpp calls json_free(j) after jfa->add_feature has
+// serialized the feature, intending to drop the JSON subtree from the
+// in-progress parse tree so that already-serialized features don't sit
+// in memory while subsequent features are parsed. That intent was
+// never tested; this test pins it down. The pre-fix behavior of
+// json_free was a bare unique_ptr/shared_ptr reset that only dropped
+// the caller's local reference; the parent container kept the subtree
+// alive, so memory grew until the top-level parse completed.
+TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
+	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
+
+	json_object_ptr outer;
+	int arrays_seen = 0;
+
+	json_object_ptr j;
+	while ((j = json_read(jp)) != nullptr) {
+		if (j->type != JSON_ARRAY) {
+			continue;
+		}
+		arrays_seen++;
+		if (arrays_seen == 2) {
+			// This is [3, 4]; verify, then ask the parser to drop it.
+			REQUIRE(j->array().size() == 2);
+			REQUIRE(j->array()[0]->number() == 3);
+			REQUIRE(j->array()[1]->number() == 4);
+			json_free(j);
+		} else if (j->parent == nullptr) {
+			// The completed outer array.
+			outer = j;
+			break;
+		}
+	}
+
+	REQUIRE(outer != nullptr);
+	REQUIRE(outer->type == JSON_ARRAY);
+	REQUIRE(outer->array().size() == 2);
+
+	// First surviving element: [1, 2].
+	REQUIRE(outer->array()[0]->type == JSON_ARRAY);
+	REQUIRE(outer->array()[0]->array().size() == 2);
+	REQUIRE(outer->array()[0]->array()[0]->number() == 1);
+	REQUIRE(outer->array()[0]->array()[1]->number() == 2);
+
+	// Second surviving element (previously third): [5, 6].
+	REQUIRE(outer->array()[1]->type == JSON_ARRAY);
+	REQUIRE(outer->array()[1]->array().size() == 2);
+	REQUIRE(outer->array()[1]->array()[0]->number() == 5);
+	REQUIRE(outer->array()[1]->array()[1]->number() == 6);
+}
+
+// The companion case to the pruning test above: in a line-delimited
+// stream, each feature returned by json_read is a top-level value
+// with no parent, but the parser still co-owns it via jp->root.
+// json_free must drop that parser reference too, otherwise the
+// just-serialized feature stays in memory until the next feature
+// starts parsing.
+TEST_CASE("json_free releases a top-level value held by the parser", "[jsonpull][memory]") {
+	std::weak_ptr<json_object> observer;
+
+	json_pull_ptr jp = json_begin_string(R"({"a": 1, "b": [2, 3]})");
+	json_object_ptr j = json_read_tree(jp);
+	REQUIRE(j != nullptr);
+	REQUIRE(j->type == JSON_HASH);
+	REQUIRE(j->parent == nullptr);
+	observer = j;
+
+	json_free(j);
+
+	REQUIRE(observer.expired());
+}

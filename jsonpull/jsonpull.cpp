@@ -675,7 +675,81 @@ json_object_ptr json_read_tree(json_pull_ptr p) {
 	return nullptr;
 }
 
+// Splice `o` out of its parent's array or object, dropping the
+// parent's owning reference. After this returns, the parent no longer
+// holds any pointer to `o`; the caller's reference is the only thing
+// keeping the subtree alive.
+//
+// For a hash, removing a single key or value individually would
+// disturb the surrounding key/value pairing, so we replace the removed
+// half with a placeholder JSON_NULL and only erase the entry once both
+// halves have been detached. This matches the historical
+// json_disconnect semantics.
+static void splice_from_parent(json_object *o) {
+	if (o == nullptr) {
+		return;
+	}
+
+	json_object *parent = o->parent;
+	if (parent == nullptr) {
+		return;
+	}
+
+	if (parent->type == JSON_ARRAY) {
+		auto &arr = parent->array();
+		for (size_t i = 0; i < arr.size(); i++) {
+			if (arr[i].get() == o) {
+				arr.erase(arr.begin() + i);
+				break;
+			}
+		}
+	} else if (parent->type == JSON_HASH) {
+		auto &entries = parent->entries();
+		for (size_t i = 0; i < entries.size(); i++) {
+			auto &e = entries[i];
+			if (e.key.get() == o) {
+				e.key = fabricate_object(parent->parser, parent, JSON_NULL);
+				if (e.value != nullptr && e.value->type == JSON_NULL && e.key->type == JSON_NULL) {
+					entries.erase(entries.begin() + i);
+				}
+				break;
+			}
+			if (e.value.get() == o) {
+				e.value = fabricate_object(parent->parser, parent, JSON_NULL);
+				if (e.key != nullptr && e.key->type == JSON_NULL && e.value->type == JSON_NULL) {
+					entries.erase(entries.begin() + i);
+				}
+				break;
+			}
+		}
+	}
+}
+
+// json_free splices `o` out of its parent (if any) so that the
+// parent no longer keeps the subtree alive, then drops the caller's
+// reference. The subtree is freed when the last reference is gone
+// (typically right here, since the parent's reference was just
+// dropped). geojson-loop.cpp relies on this to release each feature
+// after it has been serialized, so that already-serialized features
+// don't sit in memory while subsequent features are parsed.
+//
+// If `o` is the parser's current root (the most recently completed
+// top-level value), drop the parser's reference too -- otherwise a
+// line-delimited stream would always hold the previously-completed
+// feature until the next one started parsing.
+//
+// Unlike json_disconnect, this does NOT walk the subtree clearing
+// parent/parser back-pointers, because the subtree is about to be
+// destroyed and those pointers will never be observed again.
 void json_free(json_object_ptr &o) {
+	if (o != nullptr) {
+		splice_from_parent(o.get());
+
+		json_pull *parser = o->parser;
+		if (parser != nullptr && parser->root.get() == o.get()) {
+			parser->root.reset();
+		}
+	}
 	o.reset();
 }
 
@@ -710,44 +784,7 @@ void json_disconnect(json_object_ptr o) {
 	// Splice o out of its parent's array or object. The parent's vector
 	// holds the shared_ptr to this child; erasing it removes one reference,
 	// but the caller still holds `o`, so the subtree stays alive.
-
-	json_object *parent = o->parent;
-	if (parent != nullptr) {
-		if (parent->type == JSON_ARRAY) {
-			auto &arr = parent->array();
-			for (size_t i = 0; i < arr.size(); i++) {
-				if (arr[i].get() == o.get()) {
-					arr.erase(arr.begin() + i);
-					break;
-				}
-			}
-		} else if (parent->type == JSON_HASH) {
-			auto &entries = parent->entries();
-
-			for (size_t i = 0; i < entries.size(); i++) {
-				auto &e = entries[i];
-				if (e.key.get() == o.get()) {
-					// Leave a NULL placeholder in the key slot so the
-					// surrounding value isn't shifted; if the corresponding
-					// value is also detached the pair is removed below.
-					e.key = fabricate_object(parent->parser, parent, JSON_NULL);
-
-					if (e.value != nullptr && e.value->type == JSON_NULL && e.key->type == JSON_NULL) {
-						entries.erase(entries.begin() + i);
-					}
-					break;
-				}
-				if (e.value.get() == o.get()) {
-					e.value = fabricate_object(parent->parser, parent, JSON_NULL);
-
-					if (e.key != nullptr && e.key->type == JSON_NULL && e.value->type == JSON_NULL) {
-						entries.erase(entries.begin() + i);
-					}
-					break;
-				}
-			}
-		}
-	}
+	splice_from_parent(o.get());
 
 	// Drop the parser's reference to this subtree if it was the root.
 	json_pull *parser = o->parser;
