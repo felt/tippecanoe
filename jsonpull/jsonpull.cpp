@@ -230,7 +230,10 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		j->container_stack.push_back({o, JSON_ITEM});
+		// add_object already installed `o` in the parent (or the
+		// parser's root); moving the local copy into the frame
+		// avoids one shared_ptr atomic inc/dec pair per container.
+		j->container_stack.push_back({std::move(o), JSON_ITEM});
 
 		if (cb != nullptr) {
 			cb(JSON_ARRAY, j, state);
@@ -259,7 +262,9 @@ again:
 			}
 		}
 
-		json_object_ptr ret = f->container;
+		// Move the container out of the frame so pop_back doesn't
+		// drop the last reference; saves one atomic inc/dec.
+		json_object_ptr ret = std::move(f->container);
 		j->container_stack.pop_back();
 		return ret;
 	}
@@ -271,7 +276,9 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		j->container_stack.push_back({o, JSON_KEY});
+		// See the [ case above: move into the frame to skip a
+		// shared_ptr atomic inc/dec round-trip.
+		j->container_stack.push_back({std::move(o), JSON_KEY});
 
 		if (cb != nullptr) {
 			cb(JSON_HASH, j, state);
@@ -300,7 +307,8 @@ again:
 			}
 		}
 
-		json_object_ptr ret = f->container;
+		// See the ] case: move out to skip an atomic refcount round-trip.
+		json_object_ptr ret = std::move(f->container);
 		j->container_stack.pop_back();
 		return ret;
 	}
@@ -511,7 +519,11 @@ again:
 		/////////////////////////// Strings
 
 	case '"': {
-		std::string val;
+		// Reuse the parser-wide string buffer so we don't construct a
+		// fresh std::string (with its inevitable SSO->heap promotion
+		// and capacity doublings) for every JSON_STRING token.
+		std::string &val = j->string_buffer;
+		val.clear();
 
 		int surrogate = -1;
 		while ((c = read_wrap(j)) != EOF) {
@@ -632,7 +644,12 @@ again:
 
 		json_object_ptr s = add_object(j, JSON_STRING);
 		if (s != nullptr) {
-			s->string() = std::move(val);
+			// Copy (don't move) so j->string_buffer retains its
+			// grown capacity for the next token. The copy is a
+			// single right-sized allocation plus one memcpy, which
+			// is cheaper than the multiple capacity doublings the
+			// per-token std::string would otherwise incur.
+			s->string() = val;
 		}
 		return s;
 	}

@@ -128,15 +128,25 @@ struct json_string : json_object {
 struct json_array : json_object {
 	std::vector<json_object_ptr> array_value;
 
-	json_array() : json_object(JSON_ARRAY) {}
-	json_array(json_object *p, json_pull *pl) : json_object(JSON_ARRAY, p, pl) {}
+	// Coordinate-heavy GeoJSON dominates the parse workload, and every
+	// `[x, y]` (or `[x, y, z]`) pair would otherwise force the inner
+	// vector through 0 -> 1 -> 2 -> 4 growths plus the matching
+	// shared_ptr copies. Reserving 2 slots up front eliminates those
+	// reallocations for the common case and adds only a single small
+	// allocation for larger rings (which still grow geometrically).
+	json_array() : json_object(JSON_ARRAY) { array_value.reserve(2); }
+	json_array(json_object *p, json_pull *pl) : json_object(JSON_ARRAY, p, pl) { array_value.reserve(2); }
 };
 
 struct json_hash : json_object {
 	std::vector<json_entry> entries_value;
 
-	json_hash() : json_object(JSON_HASH) {}
-	json_hash(json_object *p, json_pull *pl) : json_object(JSON_HASH, p, pl) {}
+	// Most GeoJSON property hashes have a handful of keys (type, id,
+	// properties, geometry, plus a few attribute fields). Reserving 4
+	// slots avoids the 0 -> 1 -> 2 -> 4 growth chain for the typical
+	// case while only modestly over-allocating for one-key hashes.
+	json_hash() : json_object(JSON_HASH) { entries_value.reserve(4); }
+	json_hash(json_object *p, json_pull *pl) : json_object(JSON_HASH, p, pl) { entries_value.reserve(4); }
 };
 
 inline std::string &json_object::string() {
@@ -232,7 +242,14 @@ struct json_pull {
 	std::vector<parse_frame> container_stack;
 	json_object_ptr root;
 
+	// Scratch buffers reused across tokens so we don't reallocate per
+	// number/string. number_buffer accumulates raw digits before atof();
+	// string_buffer accumulates decoded bytes before being copied into
+	// the final json_string. Both are cleared (capacity preserved) at
+	// the start of each token, so once they grow to the largest seen
+	// size they stop reallocating entirely.
 	std::string number_buffer;
+	std::string string_buffer;
 };
 
 json_pull_ptr json_begin_file(FILE *f);
