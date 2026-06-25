@@ -24,7 +24,7 @@ something that looks like "[All Streets](http://benfry.com/allstreets/map5.html)
 rather than something that looks like an Interstate road atlas.
 
 If you give it all the building footprints in Los Angeles and zoom out
-far enough that most individual buildings are no longer discernable, you
+far enough that most individual buildings are no longer discernible, you
 should still be able to see the extent and variety of development in every neighborhood,
 not just the largest downtown buildings.
 
@@ -641,7 +641,7 @@ If you have a feature like this:
 }
 ```
 
-with a `tippecanoe` object specifiying a `maxzoom` of 9 and a `minzoom` of 4, the feature
+with a `tippecanoe` object specifying a `maxzoom` of 9 and a `minzoom` of 4, the feature
 will only appear in the vector tiles for zoom levels 4 through 9. Note that the `tippecanoe`
 object belongs to the Feature, not to its `properties`. If you specify a `minzoom` for a feature,
 it will be preserved down to that zoom level even if dot-dropping with `-r` would otherwise have
