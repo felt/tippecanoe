@@ -4,7 +4,7 @@ tippecanoe
 Builds [vector tilesets](https://github.com/mapbox/vector-tile-spec/) from large (or small) collections of [GeoJSON](http://geojson.org/), [FlatGeobuf](https://github.com/flatgeobuf/flatgeobuf), or [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) features,
 [like these](MADE_WITH.md).
 
-This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com). 
+This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com).
 
 For a self-hosted, API driven version of Tippecanoe, contact a technical sales engineer at sales@felt.com. Felt produces highly performant, automatically projected versions of your data, and utilizes a rendering engine, built on top of [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js), to style vector and raster data.
 
@@ -320,7 +320,7 @@ If your input is formatted as newline-delimited GeoJSON, use `-P` to make input 
 tippecanoe -z5 -o world.mbtiles -L'{"file":"ne_10m_admin_0_countries.json", "layer":"countries", "description":"Natural Earth countries"}'
 ```
 
-CSV input files currently support only Point geometries, from columns named `latitude`, `longitude`, `lat`, `lon`, `long`, `lng`, `x`, or `y`.
+CSV input files currently support Point geometries, from columns named `latitude`, `longitude`, `lat`, `lon`, `long`, `lng`, `x`, or `y`and Point, LineString, and Polygon geometries as a WKT string from columns named `geometry` or `wkt`.
 
 ### Parallel processing of input
 
