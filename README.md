@@ -44,7 +44,7 @@ $ brew install tippecanoe
 On Ubuntu it will usually be easiest to build from the source repository:
 
 ```sh
-$ git clone https://github.com/felt/tippecanoe.git
+$ git clone --recurse-submodules https://github.com/felt/tippecanoe.git
 $ cd tippecanoe
 $ make -j
 $ make install

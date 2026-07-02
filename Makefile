@@ -58,19 +58,24 @@ C = $(wildcard *.c) $(wildcard *.cpp)
 
 INCLUDES = -I/usr/local/include -I. -Iclipper2/include
 MLT_INCLUDES = -Imaplibre-tile-spec/cpp/include -isystem maplibre-tile-spec/cpp/vendor/fsst
-MLT_LIBS = mlt-build/libmlt-cpp-encoder.a mlt-build/libfsst-lib.a
+MLT_LIBS = mlt-build/libmlt-cpp-encoder.a mlt-build/libfsst-lib.a mlt-build/fastpfor/libFastPFOR.a
+MLT_BUILD_STAMP = mlt-build/.built
 LIBS = -L/usr/local/lib
 
-mlt-build/libmlt-cpp-encoder.a: maplibre-tile-spec/cpp/CMakeLists.txt
+$(MLT_BUILD_STAMP): maplibre-tile-spec/cpp/CMakeLists.txt
 	cmake -S maplibre-tile-spec/cpp -B mlt-build \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DMLT_WITH_FASTPFOR=OFF \
+		-DCMAKE_BUILD_TYPE=$(BUILDTYPE) \
+		-DMLT_WITH_FASTPFOR=ON \
+		-DMLT_WITH_FASTPFOR_SIMD=OFF \
 		-DMLT_WITH_JSON=OFF \
 		-DMLT_WITH_TESTS=OFF \
 		-DMLT_WITH_TOOLS=OFF \
 		-DCMAKE_CXX_STANDARD=20 \
 		$(if $(VERBOSE),,--log-level=WARNING) > /dev/null
 	cmake --build mlt-build --target mlt-cpp-encoder $(if $(VERBOSE),,-- -s) > /dev/null
+	touch $@
+
+$(MLT_LIBS): $(MLT_BUILD_STAMP)
 
 tippecanoe: geojson.o jsonpull/jsonpull.o tile.o pool.o mbtiles.o geometry.o projection.o memfile.o mvt.o mlt.o serial.o main.o platform.o text.o dirtiles.o pmtiles_file.o plugin.o read_json.o write_json.o geobuf.o flatgeobuf.o evaluator.o geocsv.o csv.o geojson-loop.o json_logger.o visvalingam.o compression.o clip.o sort.o attribute.o thread.o shared_borders.o clipper2/src/clipper.engine.o $(MLT_LIBS)
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
@@ -605,23 +610,18 @@ mlt-test: tippecanoe
 	./tippecanoe -q --output-format=mlt -z5 -f -o tests/mlt/points.mbtiles tests/mlt/points.geojson
 	./tippecanoe -q -z5 -f -o tests/mlt/points-mvt.mbtiles tests/mlt/points.geojson
 	@test $$(sqlite3 tests/mlt/points.mbtiles "SELECT COUNT(*) FROM tiles") -eq $$(sqlite3 tests/mlt/points-mvt.mbtiles "SELECT COUNT(*) FROM tiles") || (echo "FAIL: MLT and MVT tile counts differ" && exit 1)
-	@echo "PASS: MLT tile count matches MVT"
 	# Verify format metadata
 	@test "$$(sqlite3 tests/mlt/points.mbtiles "SELECT value FROM metadata WHERE name='format'")" = "mlt" || (echo "FAIL: format metadata is not 'mlt'" && exit 1)
-	@echo "PASS: MLT format metadata correct"
 	# Verify tiles are gzip compressed
 	@sqlite3 tests/mlt/points.mbtiles "SELECT hex(substr(tile_data, 1, 2)) FROM tiles LIMIT 1" | grep -q "1F8B" || (echo "FAIL: MLT tiles not gzip compressed" && exit 1)
-	@echo "PASS: MLT tiles are gzip compressed"
 	# Directory output with .mlt extension
 	rm -rf tests/mlt/dir-out
 	./tippecanoe -q --output-format=mlt -z2 -f -e tests/mlt/dir-out tests/mlt/points.geojson
 	@test $$(find tests/mlt/dir-out -name '*.mlt' | wc -l) -gt 0 || (echo "FAIL: No .mlt files in directory output" && exit 1)
 	@test $$(find tests/mlt/dir-out -name '*.pbf' | wc -l) -eq 0 || (echo "FAIL: .pbf files in MLT directory output" && exit 1)
-	@echo "PASS: Directory output uses .mlt extension"
 	# Pretessellate flag
 	./tippecanoe -q --output-format=mlt --pretessellate -z5 -f -o tests/mlt/points-tess.mbtiles tests/mlt/points.geojson
 	@test $$(sqlite3 tests/mlt/points-tess.mbtiles "SELECT COUNT(*) FROM tiles") -gt 0 || (echo "FAIL: No tiles with pretessellate" && exit 1)
-	@echo "PASS: --pretessellate produces tiles"
 	rm -f tests/mlt/points.mbtiles tests/mlt/points-mvt.mbtiles tests/mlt/points-tess.mbtiles
 	rm -rf tests/mlt/dir-out
 

@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,7 +30,9 @@ static bool try_parse_json_object(const std::string &s, mlt::Encoder::StructValu
 		json_object *key = obj->value.object.keys[i];
 		json_object *val = obj->value.object.values[i];
 
-		if (key->type != JSON_STRING) continue;
+		if (key->type != JSON_STRING) {
+			continue;
+		}
 
 		std::string child_key = key->value.string.string;
 		std::string child_val;
@@ -211,7 +214,11 @@ static mlt::Encoder::Layer convert_layer(const mvt_layer &layer) {
 
 	for (const auto &feature : layer.features) {
 		mlt::Encoder::Feature f;
-		f.id = feature.id;
+		if (feature.has_id) {
+			f.id = feature.id;
+		} else {
+			f.id = std::nullopt;
+		}
 		f.geometry = convert_geometry(feature);
 
 		for (size_t t = 0; t + 1 < feature.tags.size(); t += 2) {
@@ -245,7 +252,9 @@ std::string encode_as_mlt(const mvt_tile &tile, bool sort_features, bool pretess
 				break;
 			}
 		}
-		if (any_has_id) break;
+		if (any_has_id) {
+			break;
+		}
 	}
 	config.includeIds = any_has_id;
 
