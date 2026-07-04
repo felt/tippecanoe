@@ -606,20 +606,15 @@ layer-json-test: tippecanoe tippecanoe-decode
 	rm -f tests/layer-json/out.mbtiles.json.check tests/layer-json/out.mbtiles
 
 mlt-test: tippecanoe
-	# Points: MLT output, verify tile count matches MVT
 	./tippecanoe -q --output-format=mlt -z5 -f -o tests/mlt/points.mbtiles tests/mlt/points.geojson
 	./tippecanoe -q -z5 -f -o tests/mlt/points-mvt.mbtiles tests/mlt/points.geojson
 	@test $$(sqlite3 tests/mlt/points.mbtiles "SELECT COUNT(*) FROM tiles") -eq $$(sqlite3 tests/mlt/points-mvt.mbtiles "SELECT COUNT(*) FROM tiles") || (echo "FAIL: MLT and MVT tile counts differ" && exit 1)
-	# Verify format metadata
 	@test "$$(sqlite3 tests/mlt/points.mbtiles "SELECT value FROM metadata WHERE name='format'")" = "mlt" || (echo "FAIL: format metadata is not 'mlt'" && exit 1)
-	# Verify tiles are gzip compressed
 	@sqlite3 tests/mlt/points.mbtiles "SELECT hex(substr(tile_data, 1, 2)) FROM tiles LIMIT 1" | grep -q "1F8B" || (echo "FAIL: MLT tiles not gzip compressed" && exit 1)
-	# Directory output with .mlt extension
 	rm -rf tests/mlt/dir-out
 	./tippecanoe -q --output-format=mlt -z2 -f -e tests/mlt/dir-out tests/mlt/points.geojson
 	@test $$(find tests/mlt/dir-out -name '*.mlt' | wc -l) -gt 0 || (echo "FAIL: No .mlt files in directory output" && exit 1)
 	@test $$(find tests/mlt/dir-out -name '*.pbf' | wc -l) -eq 0 || (echo "FAIL: .pbf files in MLT directory output" && exit 1)
-	# Pretessellate flag
 	./tippecanoe -q --output-format=mlt --pretessellate -z5 -f -o tests/mlt/points-tess.mbtiles tests/mlt/points.geojson
 	@test $$(sqlite3 tests/mlt/points-tess.mbtiles "SELECT COUNT(*) FROM tiles") -gt 0 || (echo "FAIL: No tiles with pretessellate" && exit 1)
 	rm -f tests/mlt/points.mbtiles tests/mlt/points-mvt.mbtiles tests/mlt/points-tess.mbtiles

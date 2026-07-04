@@ -553,9 +553,9 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-pf` or `--no-feature-limit`: Don't limit tiles to 200,000 features
  * `-pk` or `--no-tile-size-limit`: Don't limit tiles to 500K bytes
  * `-pC` or `--no-tile-compression`: Don't compress the vector tile data. If you are getting "Unimplemented type 3" error messages from a renderer, it is probably because it expects uncompressed tiles using this option rather than the normal gzip-compressed tiles.
- * `--output-format=`*format*: Set the tile encoding format. Supported values: `mvt` (default, Mapbox Vector Tiles) or `mlt` ([MapLibre Tiles](https://github.com/maplibre/maplibre-tile-spec)). MLT is a columnar format that typically produces smaller tiles than MVT.
- * `--pretessellate`: When using `--output-format=mlt`, pre-triangulate polygon geometries for faster rendering. Only applies to layers where all features are polygons.
- * `--no-mlt-feature-sort`: When using `--output-format=mlt`, disable within-tile spatial sorting of features by Hilbert curve index. Sorting is on by default and improves compression.
+ * `--output-format=`*format*: Set the tile encoding format. Supported values: `mvt` (default, Mapbox Vector Tiles) or `mlt` ([MapLibre Tiles](https://github.com/maplibre/maplibre-tile-spec)).
+ * `--pretessellate`: When using `--output-format=mlt`, pre-triangulate polygon geometries. Only applies to layers where all features are polygons.
+ * `--no-mlt-feature-sort`: When using `--output-format=mlt`, disable within-tile spatial sorting of features by Hilbert curve index. Sorting is on by default.
  * `-pg` or `--no-tile-stats`: Don't generate the `tilestats` row in the tileset metadata. Uploads without [tilestats](https://github.com/mapbox/mapbox-geostats) will take longer to process.
  * `--tile-stats-attributes-limit=`*count*: Include `tilestats` information about at most *count* attributes instead of the default 1000.
  * `--tile-stats-sample-values-limit=`*count*: Calculate `tilestats` attribute statistics based on *count* values instead of the default 1000.

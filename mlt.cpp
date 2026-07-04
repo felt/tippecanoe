@@ -11,8 +11,7 @@
 
 using Vertex = mlt::Encoder::Vertex;
 
-// Try to parse a JSON object string into MLT STRUCT (flat string children only)
-static bool try_parse_json_object(const std::string &s, mlt::Encoder::StructValue &out) {
+static bool parse_json_object_property(const std::string &s, mlt::Encoder::StructValue &out) {
 	if (s.empty() || s[0] != '{') {
 		return false;
 	}
@@ -60,7 +59,6 @@ static bool try_parse_json_object(const std::string &s, mlt::Encoder::StructValu
 			child_val = "null";
 			break;
 		default:
-			// Nested object/array - stringify back
 			char *nested = json_stringify(val);
 			child_val = nested;
 			free(nested);
@@ -101,7 +99,7 @@ static mlt::Encoder::PropertyValue convert_value(const mvt_value &val) {
 	case mvt_string: {
 		std::string s = val.get_string_value();
 		mlt::Encoder::StructValue struct_val;
-		if (try_parse_json_object(s, struct_val)) {
+		if (parse_json_object_property(s, struct_val)) {
 			return struct_val;
 		}
 		return s;
@@ -111,8 +109,6 @@ static mlt::Encoder::PropertyValue convert_value(const mvt_value &val) {
 	}
 }
 
-// Split MVT command stream into coordinate rings (sequences between moveto commands).
-// Each ring is a vector of vertices. For polygons, closepath is implicit (MLT strips closing points).
 static std::vector<std::vector<Vertex>> extract_rings(const mvt_feature &feature) {
 	std::vector<std::vector<Vertex>> rings;
 
@@ -124,7 +120,6 @@ static std::vector<std::vector<Vertex>> extract_rings(const mvt_feature &feature
 		} else if (g.op == mvt_lineto) {
 			rings.back().push_back({static_cast<int32_t>(g.x), static_cast<int32_t>(g.y)});
 		}
-		// mvt_closepath: polygon ring close — MLT stores without closing point
 	}
 	return rings;
 }
@@ -160,12 +155,9 @@ static mlt::Encoder::Geometry convert_geometry(const mvt_feature &feature) {
 		break;
 
 	case mvt_polygon: {
-		// Outer rings are clockwise (positive area), holes are counter-clockwise.
-		// Group into polygons: each outer ring starts a new polygon.
 		std::vector<std::vector<std::vector<Vertex>>> polygons;
 
 		for (auto &ring : rings) {
-			// Signed area to detect winding: positive = clockwise = outer ring (in MVT screen coords)
 			long long area2 = 0;
 			for (size_t i = 0; i < ring.size(); i++) {
 				size_t j = (i + 1) % ring.size();
@@ -173,7 +165,6 @@ static mlt::Encoder::Geometry convert_geometry(const mvt_feature &feature) {
 			}
 
 			if (area2 >= 0) {
-				// Outer ring — start new polygon
 				polygons.emplace_back();
 			}
 			if (!polygons.empty()) {

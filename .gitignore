@@ -43,7 +43,6 @@ tests/**/*.mbtiles
 tests/**/*.check
 tests/**/*.geobuf
 
-# MLT build directory
 mlt-build/
 
 # Vim
