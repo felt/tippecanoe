@@ -43,6 +43,8 @@ tests/**/*.mbtiles
 tests/**/*.check
 tests/**/*.geobuf
 
+mlt-build/
+
 # Vim
 *.swp
 

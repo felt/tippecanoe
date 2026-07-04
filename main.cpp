@@ -104,6 +104,9 @@ bool drop_by_attribute_descending = false;
 std::vector<order_field> order_by;
 bool order_reverse;
 bool order_by_size = false;
+int output_format = OUTPUT_MVT;
+bool mlt_sort_features = true;
+bool mlt_pretessellate = false;
 
 int prevent[256];
 int additional[256];
@@ -2824,7 +2827,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		ai->second.maxzoom = maxzoom;
 	}
 
-	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
+	const char *tile_format = (output_format == OUTPUT_MLT) ? "mlt" : "pbf";
+	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, tile_format, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, forcetable);
 	} else {
@@ -3160,6 +3164,9 @@ int main(int argc, char **argv) {
 		{"no-feature-limit", no_argument, &prevent[P_FEATURE_LIMIT], 1},
 		{"no-tile-size-limit", no_argument, &prevent[P_KILOBYTE_LIMIT], 1},
 		{"no-tile-compression", no_argument, &prevent[P_TILE_COMPRESSION], 1},
+		{"output-format", required_argument, 0, '~'},
+		{"pretessellate", no_argument, 0, '~'},
+		{"no-mlt-feature-sort", no_argument, 0, '~'},
 		{"no-tile-stats", no_argument, &prevent[P_TILE_STATS], 1},
 		{"tile-stats-attributes-limit", required_argument, 0, '~'},
 		{"tile-stats-sample-values-limit", required_argument, 0, '~'},
@@ -3327,6 +3334,19 @@ int main(int argc, char **argv) {
 				unidecode_data = read_unidecode(optarg);
 			} else if (strcmp(opt, "maximum-string-attribute-length") == 0) {
 				maximum_string_attribute_length = atoll_require(optarg, "Maximum string attribute length");
+			} else if (strcmp(opt, "output-format") == 0) {
+				if (strcmp(optarg, "mvt") == 0 || strcmp(optarg, "pbf") == 0) {
+					output_format = OUTPUT_MVT;
+				} else if (strcmp(optarg, "mlt") == 0) {
+					output_format = OUTPUT_MLT;
+				} else {
+					fprintf(stderr, "%s: --output-format must be 'mvt' or 'mlt'\n", argv[0]);
+					exit(EXIT_ARGS);
+				}
+			} else if (strcmp(opt, "pretessellate") == 0) {
+				mlt_pretessellate = true;
+			} else if (strcmp(opt, "no-mlt-feature-sort") == 0) {
+				mlt_sort_features = false;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);

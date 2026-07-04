@@ -11,6 +11,8 @@ jobs:
         version: ['Release', 'Debug']
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get install libsqlite3-dev
