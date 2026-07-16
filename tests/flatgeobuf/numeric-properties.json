@@ -1,0 +1,5 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "numeric-properties", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "properties": { "byte_min": -128, "ubyte_max": 255, "bool_value": true, "short_min": -32768, "ushort_max": 65535, "int_min": -2147483648, "uint_max": 4294967295, "long_min": -9223372036854775808, "ulong_max": 18446744073709551615, "float_value": 1.25, "double_value": 12345.678901234, "guid_value": "123e4567-e89b-12d3-a456-426614174000" }, "geometry": { "type": "Point", "coordinates": [ 0.000000, 0.000000 ] } }
+] }
+] }
