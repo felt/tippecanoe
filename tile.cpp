@@ -1097,6 +1097,9 @@ static bool skip_next_feature(decompressor *geoms, std::atomic<long long> *geomp
 struct next_feature_state {
 	unsigned long long previndex = 0;
 	unsigned long long prev_not_dropped_index = 0;
+	// set when a feature excluded by tippecanoe_minzoom first appears beyond the next
+	// zoom, so variable-depth pyramids don't leaf above the feature's minzoom and prune it away
+	bool minzoom_feature_pending = false;
 };
 
 // This function is called repeatedly from write_tile() to retrieve the next feature
@@ -1202,6 +1205,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 
 		if (sf.tippecanoe_minzoom != -1 && z < sf.tippecanoe_minzoom) {
+			if (sf.tippecanoe_minzoom > z + 1) {
+				next_feature_state.minzoom_feature_pending = true;
+			}
 			continue;
 		}
 		if (sf.tippecanoe_maxzoom != -1 && z > sf.tippecanoe_maxzoom) {
@@ -2315,7 +2321,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			if (within[j]) {
 				long long estimated_complexity_out = geompos[j] - start_geompos[j];
 
-				if (dropping_by_rate) {
+				if (dropping_by_rate || next_feature_state.minzoom_feature_pending) {
 					// large enough to make it not try to stop early
 					estimated_complexity_out = 1LL << 32;
 				}
