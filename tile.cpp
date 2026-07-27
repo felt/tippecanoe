@@ -1205,9 +1205,9 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		}
 
 		if (sf.tippecanoe_minzoom != -1 && z < sf.tippecanoe_minzoom) {
-			if (sf.tippecanoe_minzoom > z + 1) {
-				next_feature_state.minzoom_feature_pending = true;
-			}
+			// a leaf at z carries only z-visible content, so an excluded feature at
+			// any deeper minzoom (even z + 1) must block leafing here
+			next_feature_state.minzoom_feature_pending = true;
 			continue;
 		}
 		if (sf.tippecanoe_maxzoom != -1 && z > sf.tippecanoe_maxzoom) {
@@ -2684,7 +2684,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			oprogress = progress;
 		}
 
-		if (trying_to_stop_early && line_detail == first_detail && !can_stop_early) {
+		if (trying_to_stop_early && line_detail == first_detail && (!can_stop_early || next_feature_state.minzoom_feature_pending)) {
 			// didn't work, try a lower detail
 			continue;
 		}
@@ -3036,9 +3036,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					exit(EXIT_PTHREAD);
 				}
 
-				if (trying_to_stop_early && line_detail == first_detail) {
-					// We succeeded in stopping early.
-					// Prune the child tiles.
+				if (trying_to_stop_early && line_detail == first_detail &&
+				    !next_feature_state.minzoom_feature_pending) {
+					// We succeeded in stopping early (and no excluded feature is
+					// waiting for a deeper zoom). Prune the child tiles.
 
 					strategy.truncated_zooms++;
 					skip_children_out.insert(zxy(z, tx, ty));
