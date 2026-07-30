@@ -20,7 +20,7 @@ the density and texture of the data rather than a simplification from dropping
 supposedly unimportant features or clustering or aggregating them.
 
 If you give it all of OpenStreetMap and zoom out, it should give you back
-something that looks like "[All Streets](http://benfry.com/allstreets/map5.html)"
+something that looks like "[All Streets](https://benfry.com/allstreets/)"
 rather than something that looks like an Interstate road atlas.
 
 If you give it all the building footprints in Los Angeles and zoom out
