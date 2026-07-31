@@ -1201,6 +1201,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				}
 				next_feature_state.deferrals.resize(next_feature_state.which_deferral + 1);
 				next_feature_state.deferrals[next_feature_state.which_deferral] = fp;
+			}
 
 			if (fwrite(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]) != 1) {
 				perror("write deferral length");
