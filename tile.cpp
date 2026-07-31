@@ -1182,7 +1182,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 		sf = deserialize_feature(s, z, tx, ty, initial_x, initial_y);
 		sf.stringpool = global_stringpool + pool_off[sf.segment];
 
-		if (!next_feature_state.doing_deferrals && first_zoom && additional[A_DISTINGUISH_DUPLICATES] && sf.index == next_feature_state.previndex) {
+		if (!next_feature_state.doing_deferrals && *original_features > 0 && first_zoom && additional[A_DISTINGUISH_DUPLICATES] && sf.index == next_feature_state.previndex) {
 			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
 				std::string tmpname = std::string(tmpdir) + std::string("/deferralXXXXXXXXXX");
 				int fd = mkstemp((char *) tmpname.c_str());
