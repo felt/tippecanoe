@@ -1184,12 +1184,16 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 
 		if (!next_feature_state.doing_deferrals && *original_features > 0 && first_zoom && additional[A_DISTINGUISH_DUPLICATES] && sf.index == next_feature_state.previndex) {
 			if (next_feature_state.which_deferral >= next_feature_state.deferrals.size()) {
-				std::string tmpname = std::string(tmpdir) + std::string("/deferralXXXXXXXXXX");
-				int fd = mkstemp((char *) tmpname.c_str());
+				std::string tmpname = std::string(tmpdir) + "/deferral.XXXXXX";
+				std::vector<char> tmpl(tmpname.begin(), tmpname.end());
+				tmpl.push_back('\0');
+
+				int fd = mkstemp_cloexec(tmpl.data());
 				if (fd < 0) {
 					fprintf(stderr, "Can't create temporary file %zu for feature deferral: %s\n", next_feature_state.which_deferral, strerror(errno));
 					exit(EXIT_OPEN);
 				}
+				unlink(tmpl.data());
 				FILE *fp = fdopen(fd, "wb+");
 				if (fp == NULL) {
 					fprintf(stderr, "Can't reopen temporary file for feature deferral: %s\n", strerror(errno));
@@ -1197,7 +1201,6 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 				}
 				next_feature_state.deferrals.resize(next_feature_state.which_deferral + 1);
 				next_feature_state.deferrals[next_feature_state.which_deferral] = fp;
-			}
 
 			if (fwrite(&len, sizeof(len), 1, next_feature_state.deferrals[next_feature_state.which_deferral]) != 1) {
 				perror("write deferral length");
