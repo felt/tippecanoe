@@ -1,21 +1,15 @@
 { "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
 { "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
-{ "type": "Feature", "properties": { "SCALERANK": 4, "NAME": "Castries" }, "geometry": { "type": "Point", "coordinates": [ -60.996094, 14.008696 ] } }
+{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Reykjavík", "LATITUDE": 64.150024 }, "geometry": { "type": "Point", "coordinates": [ -21.884766, 64.129784 ] } }
 ,
-{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Niamey" }, "geometry": { "type": "Point", "coordinates": [ 2.109375, 13.496473 ] } }
+{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Astana", "LATITUDE": 51.181125 }, "geometry": { "type": "Point", "coordinates": [ 71.455078, 51.179343 ] } }
 ,
-{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Wellington" }, "geometry": { "type": "MultiPoint", "coordinates": [ [ 174.814453, -41.310824 ], [ -185.273438, -41.310824 ] ] } }
+{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Yerevan", "LATITUDE": 40.181151 }, "geometry": { "type": "Point", "coordinates": [ 44.560547, 40.178873 ] } }
 ,
-{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Sucre" }, "geometry": { "type": "Point", "coordinates": [ -65.214844, -19.062118 ] } }
+{ "type": "Feature", "properties": { "SCALERANK": 2, "NAME": "Oslo", "LATITUDE": 59.91669 }, "geometry": { "type": "Point", "coordinates": [ 10.810547, 59.888937 ] } }
 ,
-{ "type": "Feature", "properties": { "SCALERANK": 3, "NAME": "Hargeysa" }, "geometry": { "type": "Point", "coordinates": [ 44.121094, 9.535749 ] } }
+{ "type": "Feature", "properties": { "SCALERANK": 1, "NAME": "Vancouver", "LATITUDE": 49.273417 }, "geometry": { "type": "Point", "coordinates": [ -123.134766, 49.267805 ] } }
 ,
-{ "type": "Feature", "properties": { "SCALERANK": 1, "NAME": "Chengdu" }, "geometry": { "type": "Point", "coordinates": [ 104.062500, 30.675715 ] } }
-,
-{ "type": "Feature", "properties": { "SCALERANK": 1, "NAME": "Vancouver" }, "geometry": { "type": "Point", "coordinates": [ -123.134766, 49.267805 ] } }
-,
-{ "type": "Feature", "properties": { "SCALERANK": 1, "NAME": "Vienna" }, "geometry": { "type": "Point", "coordinates": [ 16.347656, 48.166085 ] } }
-,
-{ "type": "Feature", "properties": { "SCALERANK": 0, "NAME": "Cape Town" }, "geometry": { "type": "Point", "coordinates": [ 18.457031, -33.943360 ] } }
+{ "type": "Feature", "properties": { "SCALERANK": 1, "NAME": "Vienna", "LATITUDE": 48.200015 }, "geometry": { "type": "Point", "coordinates": [ 16.347656, 48.166085 ] } }
 ] }
 ] }

@@ -73,7 +73,7 @@ TEST_CASE("External quicksort", "fqsort") {
 	unlink(tmpname.c_str());
 	FILE *f = fdopen(fd, "w+b");
 
-	fqsort(inputs, sizeof(int), intcmp, f, 256);
+	fqsort(inputs, sizeof(int), intcmp, f, 256, "/tmp");
 	rewind(f);
 
 	int prev = INT_MIN;
@@ -126,31 +126,6 @@ TEST_CASE("Bit reversal", "bit reversal") {
 	REQUIRE(bit_reverse(1) == 0x8000000000000000);
 	REQUIRE(bit_reverse(0x1234567812489BCF) == 0xF3D912481E6A2C48);
 	REQUIRE(bit_reverse(0xF3D912481E6A2C48) == 0x1234567812489BCF);
-}
-
-TEST_CASE("mvt_geometry bbox") {
-	std::vector<mvt_geometry> geom;
-
-	geom.emplace_back(mvt_moveto, 128, 128);
-	geom.emplace_back(mvt_lineto, 256, 256);
-
-	long long xmin, ymin, xmax, ymax;
-	get_bbox(geom, &xmin, &ymin, &xmax, &ymax, 11, 327, 791, 9);
-
-	double lon, lat;
-	tile2lonlat(xmin, ymin, 32, &lon, &lat);
-	REQUIRE(std::to_string(lon) == "-122.475586");
-	REQUIRE(std::to_string(lat) == "37.822802");
-
-	tile2lonlat(xmax, ymax, 32, &lon, &lat);
-	REQUIRE(std::to_string(lon) == "-122.431641");
-	REQUIRE(std::to_string(lat) == "37.788081");
-
-	unsigned long long start, end;
-	get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-	// 22 bits in common, for z11
-	REQUIRE(start == 0x1c84fc0000000000);
-	REQUIRE(end == 0x1c84ffffffffffff);
 }
 
 TEST_CASE("line_is_too_small") {

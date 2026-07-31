@@ -407,7 +407,8 @@ std::string mvt_tile::encode() {
 			std::string feature_string;
 			protozero::pbf_writer feature_writer(feature_string);
 
-			feature_writer.add_enum(3, layers[i].features[f].type);
+			if (layers[i].features[f].type >= 0) 
+				feature_writer.add_enum(3, layers[i].features[f].type);
 
 			std::vector<unsigned> sorted_tags = layers[i].features[f].tags;
 			for (size_t v = 1; v < sorted_tags.size(); v += 2) {

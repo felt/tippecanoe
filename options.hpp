@@ -30,6 +30,7 @@
 #define A_DETECT_WRAPAROUND ((int) 'w')
 #define A_KEEP_POINT_CLUSTER_POSITION ((int) 'a')
 #define A_DISTINGUISH_DUPLICATES ((int) 'u')
+#define A_DROP_BY_ATTRIBUTE_AS_NEEDED ((int) 'A')
 
 #define P_TILE_COMPRESSION ((int) 'C')
 #define P_DUPLICATION ((int) 'D')
