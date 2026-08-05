@@ -53,6 +53,7 @@ extern long long extend_zooms_max;
 extern int retain_points_multiplier;
 extern size_t maximum_string_attribute_length;
 extern unsigned long long preserve_multiplier_density_threshold;
+extern const char *tmpdir;
 
 struct order_field {
 	std::string name;
