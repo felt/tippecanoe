@@ -136,3 +136,36 @@ TEST_CASE("line_is_too_small") {
 	dv.emplace_back(VT_LINETO, -51864809, 2683873977);
 	REQUIRE(line_is_too_small(dv, 0, 10));
 }
+
+TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {
+	// Two mutually reversed self-intersecting rings whose union leaves a hole
+	// that wagyu's topology correction cannot assign to any surviving parent
+	// ring (found by fuzzing; same failure as mapbox/tippecanoe#761). Without
+	// the fix in mapbox/geometry/wagyu/topology_correction.hpp, this exits
+	// through the "Could not properly place hole to a parent." handler in
+	// clean_or_clip_poly instead of returning.
+	static const std::vector<std::vector<std::pair<long long, long long>>> rings = {
+	    {{0, 5}, {5, 4}, {5, 1}, {4, 4}, {4, 2}, {7, 1}, {0, 5}},
+	    {{0, 5}, {7, 1}, {4, 2}, {4, 4}, {5, 1}, {5, 4}, {0, 0}, {0, 5}},
+	};
+
+	drawvec geom;
+	for (auto const &ring : rings) {
+		for (size_t i = 0; i < ring.size(); i++) {
+			geom.push_back(draw(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].first, ring[i].second));
+		}
+	}
+
+	drawvec out = clean_or_clip_poly(geom, 0, 0, false, false);
+
+	// The regression signal is getting here at all: without the fix,
+	// clean_or_clip_poly exits the process from its wagyu error handler.
+	SUCCEED("clean_or_clip_poly returned");
+
+	// Anything that survives must be sanely wound: first ring positive.
+	if (out.size() > 0) {
+		size_t j = 1;
+		while (j < out.size() && out[j].op == VT_LINETO) j++;
+		REQUIRE(get_area(out, 0, j) > 0);
+	}
+}
