@@ -1,3 +1,7 @@
+# 2.81.0
+
+* Add --distinguish-duplicates option
+
 # 2.80.0
 
 * Remove undocumented command-line options

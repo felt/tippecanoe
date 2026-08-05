@@ -621,6 +621,8 @@ preference to retaining points in sparse areas and dropping points in dense area
 \fB\fC\-pd\fR or \fB\fC\-\-force\-feature\-limit\fR: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like \fB\fC\-ad\fR but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
 .IP \(bu 2
 \fB\fC\-aC\fR or \fB\fC\-\-cluster\-densest\-as\-needed\fR: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a \fB\fC"clustered": true\fR attribute to indicate that it represents a cluster, a \fB\fC"point_count"\fR attribute to indicate the number of features that were clustered into it, and a \fB\fC"sqrt_point_count"\fR attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations; otherwise, one of the original features will be left as the representative.
+.IP \(bu 2
+\fB\fC\-\-distinguish\-duplicates\fR: Treat features that share a location with some other feature as belonging to a series of sub\-layers, so that they will be dropped or coalesced within their own sub\-layer's feature sequence instead of being treated as infinitely dense and dropped or coalesced first. Up to 50 duplicates of each location are distinguished; any beyond that are all deferred to one final sub\-layer.
 .RE
 .SS Dropping tightly overlapping features
 .RS

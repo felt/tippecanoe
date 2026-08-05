@@ -348,7 +348,123 @@ int calc_feature_minzoom(struct index *ix, struct drop_state *ds, int maxzoom, d
 	return feature_minzoom;
 }
 
-static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, double gamma, struct drop_state *ds) {
+// The features that share a location with some other feature are deferred to
+// a later pass through the feature sequence, so that they are not treated as
+// infinitely dense and therefore dropped or coalesced before any of the
+// features whose locations are distinct.
+//
+// The number of duplicates that are distinguished at each location is limited,
+// because with a large number of features that all share the same location,
+// some of them will still have to be dropped or coalesced in some sequence,
+// and because each pass costs a temporary file. The duplicates beyond the
+// limit are all deferred to one final pass.
+#define MAX_DUPLICATES_DISTINGUISHED 50
+
+struct duplicate_deferral {
+	const char *tmpdir = NULL;
+
+	// The greatest number of extra passes that features can be deferred to,
+	// or 0 if duplicate locations are not being distinguished at all
+	size_t max_passes = 0;
+
+	// One temporary file per pass beyond the first: pass n is files[n - 1]
+	std::vector<FILE *> files;
+
+	// State for detecting runs of features that share the same index
+	unsigned long long previndex = 0;
+	bool have_previndex = false;
+	size_t pass = 0;
+};
+
+// Return the temporary file that features deferred to the specified pass
+// are accumulated in, creating it if this is the first feature to be
+// deferred that far.
+static FILE *deferral_file(struct duplicate_deferral *dd, size_t pass) {
+	while (dd->files.size() < pass) {
+		std::string name = std::string(dd->tmpdir) + "/dup.XXXXXXXX";
+		std::vector<char> tmpl(name.begin(), name.end());
+		tmpl.push_back('\0');
+
+		int fd = mkstemp_cloexec(tmpl.data());
+		if (fd < 0) {
+			perror("temporary file for duplicate features");
+			exit(EXIT_OPEN);
+		}
+		unlink(tmpl.data());
+
+		FILE *fp = fdopen(fd, "wb+");
+		if (fp == NULL) {
+			perror("reopen temporary file for duplicate features");
+			exit(EXIT_OPEN);
+		}
+
+		dd->files.push_back(fp);
+	}
+
+	return dd->files[pass - 1];
+}
+
+// Write one feature, and the index record that locates it, to the sorted
+// output. The features arrive here in index order, so a feature whose index
+// matches the previous feature's is a duplicate location, and is set aside
+// to be appended to the output later by replay_deferrals().
+static void write_feature(struct index ix, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, FILE *indexfile, int maxzoom, double gamma, struct drop_state *ds, struct duplicate_deferral *dd) {
+	if (dd->max_passes > 0) {
+		if (dd->have_previndex && ix.ix == dd->previndex) {
+			if (dd->pass < dd->max_passes) {
+				dd->pass++;
+			}
+		} else {
+			dd->pass = 0;
+		}
+
+		dd->previndex = ix.ix;
+		dd->have_previndex = true;
+	}
+
+	// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
+	// and is writing one byte less and then adding the byte for the minzoom.
+
+	long long len = ix.end - ix.start - 1;
+	int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
+
+	if (dd->pass > 0) {
+		FILE *fp = deferral_file(dd, dd->pass);
+
+		// The index record has to be written now, to keep the index in the
+		// same order that the features were read in, but its location will
+		// not be known until the geometry is appended to the output, so
+		// remember where to come back and correct it.
+
+		long long indexoff = ftello(indexfile);
+		if (indexoff < 0) {
+			perror("ftello index");
+			exit(EXIT_SEEK);
+		}
+
+		unsigned char minzoom_byte = feature_minzoom;
+		if (fwrite(&indexoff, sizeof(indexoff), 1, fp) != 1 ||
+		    fwrite(&ix, sizeof(ix), 1, fp) != 1 ||
+		    fwrite(geom_map + ix.start, 1, len, fp) != (size_t) len ||
+		    fwrite(&minzoom_byte, 1, 1, fp) != 1) {
+			perror("write duplicate feature");
+			exit(EXIT_WRITE);
+		}
+	} else {
+		long long pos = *geompos;
+
+		fwrite_check(geom_map + ix.start, 1, len, geom_out, geompos, "merge geometry");
+		serialize_byte(geom_out, feature_minzoom, geompos, "merge geometry");
+
+		ix.start = pos;
+		ix.end = *geompos;
+	}
+
+	std::atomic<long long> indexpos(0);
+	fwrite_check(&ix, sizeof(struct index), 1, indexfile, &indexpos, "merge temporary");
+}
+
+static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, FILE *indexfile, int bytes, char *geom_map, FILE *geom_out, std::atomic<long long> *geompos, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, double gamma, struct drop_state *ds, struct duplicate_deferral *dd) {
 	struct mergelist *head = NULL;
 
 	for (size_t i = 0; i < nmerges; i++) {
@@ -361,14 +477,8 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 
 	while (head != NULL) {
 		struct index ix = *((struct index *) (map + head->start));
-		long long pos = *geompos;
 
-		// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
-		// and is writing one byte less and then adding the byte for the minzoom.
-
-		fwrite_check(geom_map + ix.start, 1, ix.end - ix.start - 1, geom_out, geompos, "merge geometry");
-		int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
-		serialize_byte(geom_out, feature_minzoom, geompos, "merge geometry");
+		write_feature(ix, geom_map, geom_out, geompos, indexfile, maxzoom, gamma, ds, dd);
 
 		// Count this as an 75%-accomplishment, since we already 25%-counted it
 		*progress += (ix.end - ix.start) * 3 / 4;
@@ -378,10 +488,6 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 			*progress_reported = 100 * *progress / *progress_max;
 		}
 
-		ix.start = pos;
-		ix.end = *geompos;
-		std::atomic<long long> indexpos;
-		fwrite_check(&ix, bytes, 1, indexfile, &indexpos, "merge temporary");
 		head->start += bytes;
 
 		struct mergelist *m = head;
@@ -392,6 +498,72 @@ static void merge(struct mergelist *merges, size_t nmerges, unsigned char *map, 
 			insert(m, &head, map);
 		}
 	}
+}
+
+// Append the features that were deferred because they shared a location with
+// some other feature, one pass at a time, and correct the index records that
+// were written for them with the locations they have ended up at.
+static void replay_deferrals(struct duplicate_deferral *dd, FILE *geom_out, std::atomic<long long> *geompos, FILE *indexfile) {
+	if (dd->files.size() == 0) {
+		return;
+	}
+
+	// so that the corrections below aren't overwritten by buffered index writes
+	if (fflush(indexfile) != 0) {
+		perror("flush index");
+		exit(EXIT_WRITE);
+	}
+	int indexfd = fileno(indexfile);
+
+	for (size_t i = 0; i < dd->files.size(); i++) {
+		FILE *fp = dd->files[i];
+
+		if (fseeko(fp, 0, SEEK_SET) < 0) {
+			perror("rewind duplicate features");
+			exit(EXIT_SEEK);
+		}
+
+		while (true) {
+			long long indexoff;
+			struct index ix;
+
+			if (fread(&indexoff, sizeof(indexoff), 1, fp) != 1) {
+				if (ferror(fp)) {
+					perror("read duplicate features");
+					exit(EXIT_READ);
+				}
+				break;  // end of this pass
+			}
+			if (fread(&ix, sizeof(ix), 1, fp) != 1) {
+				fprintf(stderr, "Short read of duplicate feature index\n");
+				exit(EXIT_READ);
+			}
+
+			std::string s;
+			s.resize(ix.end - ix.start);
+			if (fread((void *) s.c_str(), 1, s.size(), fp) != s.size()) {
+				fprintf(stderr, "Short read of duplicate feature geometry\n");
+				exit(EXIT_READ);
+			}
+
+			long long pos = *geompos;
+			fwrite_check(s.c_str(), 1, s.size(), geom_out, geompos, "deferred geometry");
+
+			ix.start = pos;
+			ix.end = *geompos;
+			if (pwrite(indexfd, &ix, sizeof(ix), indexoff) != (ssize_t) sizeof(ix)) {
+				perror("correct duplicate feature index");
+				exit(EXIT_WRITE);
+			}
+		}
+
+		if (fclose(fp) != 0) {
+			perror("close duplicate features");
+			exit(EXIT_CLOSE);
+		}
+	}
+
+	dd->files.clear();
 }
 
 struct sort_arg {
@@ -741,7 +913,7 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 	parser_created = true;
 }
 
-void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds) {
+void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds, struct duplicate_deferral *dd) {
 	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge
 	int splitbits = log(splits) / log(2);
 	splits = 1 << splitbits;
@@ -960,7 +1132,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
 
-				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
+				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds, dd);
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
 				if (munmap(indexmap, indexst.st_size) < 0) {
@@ -991,11 +1163,8 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 
 				for (size_t a = 0; a < indexst.st_size / sizeof(struct index); a++) {
 					struct index ix = indexmap[a];
-					long long pos = *geompos_out;
 
-					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
-					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
-					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
+					write_feature(ix, geommap, geomfile, geompos_out, indexfile, maxzoom, gamma, ds, dd);
 
 					// Count this as an 75%-accomplishment, since we already 25%-counted it
 					*progress += (ix.end - ix.start) * 3 / 4;
@@ -1004,11 +1173,6 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 						fflush(stderr);
 						*progress_reported = 100 * *progress / *progress_max;
 					}
-
-					ix.start = pos;
-					ix.end = *geompos_out;
-					std::atomic<long long> indexpos;
-					fwrite_check(&ix, sizeof(struct index), 1, indexfile, &indexpos, "index");
 				}
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
@@ -1029,7 +1193,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				// counter backward but will be an honest estimate of the work remaining.
 				*progress_max += geomst.st_size / 4;
 
-				radix1(&geomfds[i], &indexfds[i], 1, prefix + splitbits, *availfiles / 4, mem, tmpdir, availfiles, geomfile, indexfile, geompos_out, progress, progress_max, progress_reported, maxzoom, basezoom, droprate, gamma, ds);
+				radix1(&geomfds[i], &indexfds[i], 1, prefix + splitbits, *availfiles / 4, mem, tmpdir, availfiles, geomfile, indexfile, geompos_out, progress, progress_max, progress_reported, maxzoom, basezoom, droprate, gamma, ds, dd);
 				already_closed = 1;
 			}
 		}
@@ -1087,6 +1251,24 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 			       - 4			 // top-level geom and index output, both FILE and fd
 			       - 3;			 // stdin, stdout, stderr
 
+	struct duplicate_deferral dd;
+	dd.tmpdir = tmpdir;
+
+	if (additional[A_DISTINGUISH_DUPLICATES]) {
+		// one file for each pass that duplicate features can be deferred to,
+		// including the final pass for the ones beyond the limit,
+		// but not so many that there are none left to sort with
+		dd.max_passes = MAX_DUPLICATES_DISTINGUISHED + 1;
+		if ((long long) dd.max_passes > availfiles - 8) {
+			dd.max_passes = std::max(0LL, availfiles - 8);
+
+			if (dd.max_passes == 0) {
+				fprintf(stderr, "Warning: not enough available files to distinguish duplicate locations\n");
+			}
+		}
+		availfiles -= dd.max_passes;
+	}
+
 	// 4 because for each we have output and input FILE and fd for geom and index
 	int splits = availfiles / 4;
 
@@ -1114,12 +1296,14 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
 	long long availfiles_before = availfiles;
-	radix1(geomfds, indexfds, nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds);
+	radix1(geomfds, indexfds, nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds, &dd);
 
 	if (availfiles - 2 * nreaders != availfiles_before) {
 		fprintf(stderr, "Internal error: miscounted available file descriptors: %lld vs %lld\n", availfiles - 2 * nreaders, availfiles);
 		exit(EXIT_IMPOSSIBLE);
 	}
+
+	replay_deferrals(&dd, geomfile, geompos, indexfile);
 }
 
 void choose_first_zoom(long long *file_bbox, long long *file_bbox1, long long *file_bbox2, std::vector<struct reader> &readers, unsigned *iz, unsigned *ix, unsigned *iy, int minzoom, int buffer) {
@@ -2716,7 +2900,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			}
 		} else {
 			for (long long ip = 0; ip < indices; ip++) {
-				if (ip > 0 && map[ip].start != map[ip - 1].end) {
+				// The features are not consecutive in the geometry if some of them
+				// were deferred to a later pass for sharing a location with another
+				if (ip > 0 && map[ip].start != map[ip - 1].end && !additional[A_DISTINGUISH_DUPLICATES]) {
 					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
 				}
 				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
@@ -3100,6 +3286,7 @@ int main(int argc, char **argv) {
 		{"force-feature-limit", no_argument, &prevent[P_DYNAMIC_DROP], 1},
 		{"cluster-densest-as-needed", no_argument, &additional[A_CLUSTER_DENSEST_AS_NEEDED], 1},
 		{"keep-point-cluster-position", no_argument, &additional[A_KEEP_POINT_CLUSTER_POSITION], 1},
+		{"distinguish-duplicates", no_argument, &additional[A_DISTINGUISH_DUPLICATES], 1},
 
 		{"Dropping tightly overlapping features", 0, 0, 0},
 		{"gamma", required_argument, 0, 'g'},
