@@ -541,14 +541,13 @@ static void replay_deferrals(struct duplicate_deferral *dd, FILE *geom_out, std:
 
 			std::string s;
 			s.resize(ix.end - ix.start);
-			if (fread((void *) s.c_str(), 1, s.size(), fp) != s.size()) {
+			if (s.size() != 0 && fread(&s[0], 1, s.size(), fp) != s.size()) {
 				fprintf(stderr, "Short read of duplicate feature geometry\n");
 				exit(EXIT_READ);
 			}
 
 			long long pos = *geompos;
-			fwrite_check(s.c_str(), 1, s.size(), geom_out, geompos, "deferred geometry");
-
+			fwrite_check(s.data(), 1, s.size(), geom_out, geompos, "deferred geometry");
 			ix.start = pos;
 			ix.end = *geompos;
 			if (pwrite(indexfd, &ix, sizeof(ix), indexoff) != (ssize_t) sizeof(ix)) {
