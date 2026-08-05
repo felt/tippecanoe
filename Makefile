@@ -97,7 +97,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
 	./unit
 
 suffixes = json json.gz
@@ -132,7 +132,7 @@ nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
 
 # For quicker address sanitizer build, hope that regular JSON parsing is tested enough by parallel and join tests
-fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
+fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit
 
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkbuf:
@@ -142,6 +142,41 @@ fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-te
 	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkbuf/check/g' | sed 's/\.geobuf//g' > $@.out
 	cmp $@.out $(patsubst %.checkbuf,%,$@)
 	rm $@.out $@.mbtiles
+
+# The result of the sort must not depend on how the sort was performed, so instead of
+# checking the sorted output against an expected copy of it, check that sorting by radix
+# produces the same tiles as sorting in memory. --prefer-radix-sort lowers the memory
+# limit to 8K so that the radix subdivision has to recurse, and how deeply it recurses
+# then depends on how many files the machine will let us open at once, but the sorted
+# result is the same either way, so this comparison doesn't depend on that.
+#
+# What sends the sort down its rarely-taken paths is the shape of the input rather than
+# the size of it: a feature whose geometry alone is bigger than the memory limit is
+# sorted as a bucket of its own, and features that share a long run of leading index
+# bits have to be subdivided until there are no bits left. The first two inputs are
+# each one of those on purpose -- several separated features too big to sort in memory,
+# and many features at one location -- and the rest are for breadth.
+radix-sort-test: tippecanoe tippecanoe-decode
+	mkdir -p tests/radix-sort
+	perl -e 'for ($$f = 0; $$f < 8; $$f++) { print "{ \"type\": \"Feature\", \"properties\": { \"f\": $$f }, \"geometry\": { \"type\": \"LineString\", \"coordinates\": ["; for ($$i = 0; $$i < 2000; $$i++) { print "," unless $$i == 0; printf "[%f,%f]", $$f * 40 - 175 + $$i * 0.001, $$i % 2 * 0.5 - 20; } print "] } }\n"; }' > tests/radix-sort/bigfeatures.json
+	perl -e 'for ($$i = 0; $$i < 500; $$i++) { print "{ \"type\": \"Feature\", \"properties\": { \"i\": $$i }, \"geometry\": { \"type\": \"Point\", \"coordinates\": [ 17, 42 ] } }\n"; }' > tests/radix-sort/onelocation.json
+	$(MAKE) radix-sort-compare RADIXIN="tests/radix-sort/bigfeatures.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/radix-sort/onelocation.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/feature-filter/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/ne_110m_ocean/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/border/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/loop/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/tl_2022_11_tract/in.json.gz" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/epsg-3857/in.json" RADIXARGS="-z4 -sEPSG:3857"
+	rm -r tests/radix-sort
+
+radix-sort-compare:
+	./tippecanoe -q -f $(RADIXARGS) -o tests/radix-sort/memory.mbtiles $(RADIXIN)
+	./tippecanoe -q -f $(RADIXARGS) -aR -o tests/radix-sort/radix.mbtiles $(RADIXIN)
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/radix-sort/memory.mbtiles > tests/radix-sort/memory.json
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/radix-sort/radix.mbtiles > tests/radix-sort/radix.json
+	cmp tests/radix-sort/memory.json tests/radix-sort/radix.json
+	rm tests/radix-sort/memory.mbtiles tests/radix-sort/radix.mbtiles tests/radix-sort/memory.json tests/radix-sort/radix.json
 
 parallel-test: $(eval SHELL:=$(ADVSHELL))
 	mkdir -p tests/parallel
