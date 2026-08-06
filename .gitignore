@@ -42,6 +42,9 @@ unit
 tests/**/*.mbtiles
 tests/**/*.check
 tests/**/*.geobuf
+tests/mlt/dir-out/
+tests/mlt/roundtrip-dir/
+tests/mlt/overzoom.pbf
 
 mlt-build/
 

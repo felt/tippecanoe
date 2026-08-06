@@ -553,7 +553,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-pf` or `--no-feature-limit`: Don't limit tiles to 200,000 features
  * `-pk` or `--no-tile-size-limit`: Don't limit tiles to 500K bytes
  * `-pC` or `--no-tile-compression`: Don't compress the vector tile data. If you are getting "Unimplemented type 3" error messages from a renderer, it is probably because it expects uncompressed tiles using this option rather than the normal gzip-compressed tiles.
- * `--output-format=`*format*: Set the tile encoding format. Supported values: `mvt` (default, Mapbox Vector Tiles) or `mlt` ([MapLibre Tiles](https://github.com/maplibre/maplibre-tile-spec)).
+ * `--output-format=`*format*: Set the tile encoding format. Supported values: `mvt` (default, Mapbox Vector Tiles) or `mlt` ([MapLibre Tiles](https://github.com/maplibre/maplibre-tile-spec)). MLT tilesets can be read back by `tippecanoe-decode`, `tile-join`, and `tippecanoe-overzoom`. Because MLT attribute columns have a single type for the whole layer, while MVT attribute values are individually typed, an attribute whose values are a mix of numbers and strings (or of booleans and numbers) is encoded as strings.
  * `--pretessellate`: When using `--output-format=mlt`, pre-triangulate polygon geometries. Only applies to layers where all features are polygons.
  * `--no-mlt-feature-sort`: When using `--output-format=mlt`, disable within-tile spatial sorting of features by Hilbert curve index. Sorting is on by default.
  * `-pg` or `--no-tile-stats`: Don't generate the `tilestats` row in the tileset metadata. Uploads without [tilestats](https://github.com/mapbox/mapbox-geostats) will take longer to process.
@@ -776,6 +776,10 @@ all the sources are read and their combined contents are written to the new
 mbtiles output. If they define the same layers or the same tiles, the layers
 or tiles are merged.
 
+Sources may contain either Mapbox Vector Tiles or MapLibre Tiles, in any combination,
+since the encoding is detected from the tile data. The output is always written as
+Mapbox Vector Tiles.
+
 The options are:
 
 ### Output tileset
@@ -906,6 +910,10 @@ or on an individual tile:
     tippecanoe-decode file.mbtiles zoom x y
     tippecanoe-decode file.vector.pbf zoom x y
 
+Tiles can be either Mapbox Vector Tiles or MapLibre Tiles; the encoding is detected
+from the tile data, so no option is needed to decode a tileset that was written with
+`--output-format=mlt`.
+
 Unless you use `-c`, the output is a set of nested FeatureCollections identifying each
 tile and layer separately. Note that the same features generally appear at all zooms,
 so the output for the file will have many copies of the same features at different
@@ -1005,6 +1013,9 @@ reads tile `inz/inx/iny` of `in.mvt.gz` and produces tile `outz/outx/outy` of `o
 
 reads tile `inz/inx/iny` of `in.mvt.gz`, tile `in2z/in2x/in2y` of `in2.mvt.gz`, and tile `in3z/in3x/in3y` of `in3.mvt.gz`,
 and produces tile `outz/outx/outy` of `out.mvt.gz` from them.
+
+The input tiles may be either Mapbox Vector Tiles or MapLibre Tiles, since the encoding
+is detected from the tile data. The output tile is always a Mapbox Vector Tile.
 
 ### Options
 

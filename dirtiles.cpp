@@ -76,12 +76,18 @@ static bool numeric(const char *s) {
 	return true;
 }
 
-static bool pbfname(const char *s) {
+// If this is the name of a tile within a tile directory, returns the
+// extension that it uses, or NULL if it isn't a tile at all.
+static const char *tile_extension(const char *s) {
 	while (*s >= '0' && *s <= '9') {
 		s++;
 	}
 
-	return strcmp(s, ".pbf") == 0 || strcmp(s, ".mvt") == 0 || strcmp(s, ".mlt") == 0;
+	if (strcmp(s, ".pbf") == 0 || strcmp(s, ".mvt") == 0 || strcmp(s, ".mlt") == 0) {
+		return s;
+	}
+
+	return NULL;
 }
 
 void check_dir(const char *dir, char **argv, bool force, bool forcetable) {
@@ -154,12 +160,11 @@ std::vector<zxy> enumerate_dirtiles(const char *fname, int minzoom, int maxzoom)
 
 						struct dirent *dp3;
 						while ((dp3 = readdir(d3)) != NULL) {
-							if (pbfname(dp3->d_name)) {
+							const char *ext = tile_extension(dp3->d_name);
+							if (ext != NULL) {
 								int ty = atoi(dp3->d_name);
 								zxy tile(tz, tx, ty);
-								if (strstr(dp3->d_name, ".mvt") != NULL) {
-									tile.extension = ".mvt";
-								}
+								tile.extension = ext;
 
 								tiles.push_back(tile);
 							}
@@ -207,7 +212,7 @@ void dir_erase_zoom(const char *fname, int zoom) {
 
 						struct dirent *dp3;
 						while ((dp3 = readdir(d3)) != NULL) {
-							if (pbfname(dp3->d_name)) {
+							if (tile_extension(dp3->d_name) != NULL) {
 								std::string y = x + "/" + dp3->d_name;
 								if (unlink(y.c_str()) != 0) {
 									perror(y.c_str());

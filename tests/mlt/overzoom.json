@@ -1,0 +1,13 @@
+{ "type": "FeatureCollection", "properties": { "zoom": 4, "x": 2, "y": 6 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.497559, 37.892196 ], [ -122.453613, 37.857507 ], [ -122.541504, 37.944198 ] ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.695312, 37.596824 ], [ -122.607422, 37.649034 ] ], [ [ -122.497559, 37.596824 ], [ -122.387695, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.607422, 37.701207 ], [ -122.497559, 37.753344 ], [ -122.387695, 37.701207 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.387695, 37.544577 ], [ -122.387695, 37.405074 ], [ -122.805176, 37.405074 ], [ -122.805176, 37.544577 ], [ -122.387695, 37.544577 ] ], [ [ -122.695312, 37.457418 ], [ -122.497559, 37.457418 ], [ -122.497559, 37.492294 ], [ -122.695312, 37.492294 ], [ -122.695312, 37.457418 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -122.695312, 37.300275 ], [ -122.695312, 37.195331 ], [ -122.893066, 37.195331 ], [ -122.893066, 37.300275 ], [ -122.695312, 37.300275 ] ] ], [ [ [ -122.387695, 37.300275 ], [ -122.387695, 37.195331 ], [ -122.607422, 37.195331 ], [ -122.607422, 37.300275 ], [ -122.387695, 37.300275 ] ], [ [ -122.541504, 37.212832 ], [ -122.453613, 37.212832 ], [ -122.453613, 37.282795 ], [ -122.541504, 37.282795 ], [ -122.541504, 37.212832 ] ] ] ] } }
+] }
+] }
