@@ -924,8 +924,12 @@ struct write_tile_args {
 	long long minextent_out = 0;
 	unsigned long long mindrop_sequence = 0;
 	unsigned long long mindrop_sequence_out = 0;
-	double minattribute = 0;
-	double minattribute_out = 0;
+	// the infinity that excludes nothing, for the ascending order that
+	// drop_by_attribute_descending also defaults to. dropping_features()
+	// reads these, so they must not start out at a value that looks like
+	// a threshold that has already been chosen.
+	double minattribute = -HUGE_VAL;
+	double minattribute_out = -HUGE_VAL;
 	std::string const *drop_by_attribute_as_needed_attribute = NULL;
 	bool drop_by_attribute_descending = false;
 	size_t tile_size_out = 0;
