@@ -1,3 +1,42 @@
+# 2.81.0
+
+* Add `--drop-by-attribute-as-needed=`*attribute* to drop the features with
+  the lowest values of a numeric attribute from oversized tiles, and
+  `--drop-by-attribute-order=desc` to drop the highest values instead.
+  Features exactly at the threshold are kept rather than dropped. (#384, #385)
+* Add `--exclude-all-tile-geometries` to tile-join, to produce tiles that
+  carry only attributes. (#382)
+* Read FlatGeobuf integer and float properties as numbers. They were tagged
+  with types that the rest of tippecanoe does not treat as numeric, so they
+  were reported in tilestats as "mixed", with quoted values and no min or
+  max, and warned when used as a feature ID. ULong properties are now also
+  read as unsigned rather than signed. (#395)
+* Respect the `-t` temporary directory option in sorting operations, which
+  previously always used the system temporary directory. (#368)
+* Keep `--generate-variable-depth-tile-pyramid` from silently dropping
+  features whose explicit per-feature `minzoom` is deeper than the zoom at
+  which their region becomes a leaf. Such a feature was excluded from the
+  leaf tile while its children were never generated, so it appeared at no
+  zoom at all. (#397, #399)
+* Drop a polygon hole that no remaining ring can parent, instead of failing
+  the whole run. Degenerate input could abort tiling over a single
+  unrepresentable sliver. (#401)
+* Clamp the feature extent to the `long long` range before converting it.
+  `LLONG_MAX` is not representable as a double, so an extent at the very top
+  of the double range overflowed the conversion and became the most negative
+  value rather than the largest. (#406)
+* Initialize the full width of the `mvt_value` numeric union, which left the
+  bytes of the wider unused member indeterminate even though the implicit
+  copy constructor copies the union as a whole. (#406)
+* Replace all variable-length arrays with `std::vector` and `std::string`,
+  and build with `-Wvla`. VLAs are a compiler extension rather than standard
+  C++, and clang warns about every one of them by default. (#406)
+* Remove the unused Dockerfiles, Travis configuration, and lambda
+  directory. (#365)
+* Documentation fixes: correct three misspellings in the README and man
+  page, repair the dead All Streets link, and tag more README code blocks
+  with their language. (#375, #391, #400)
+
 # 2.80.0
 
 * Remove undocumented command-line options
