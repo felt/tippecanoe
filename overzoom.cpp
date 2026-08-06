@@ -48,7 +48,6 @@ static const struct option long_options[] = {
 
 	{"Modifying feature attributes", 0, 0, 0},
 	{"accumulate-attribute", required_argument, 0, 'E'},
-	{"unidecode-data", required_argument, 0, 'u' & 0x1F},
 
 	{"Filtering features", 0, 0, 0},
 	{"feature-filter", required_argument, 0, 'j'},
@@ -62,6 +61,9 @@ static const struct option long_options[] = {
 
 	{"Reordering features within the tile", 0, 0, 0},
 	{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
+
+	{"", 0, 0, 0},
+	{"unidecode-data", required_argument, 0, 'u' & 0x1F},
 
 	{0, 0, 0, 0},
 };

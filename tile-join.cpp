@@ -1291,9 +1291,6 @@ static const struct option long_options[] = {
 	{"exclude-all-tile-attributes", no_argument, 0, '~'},
 	{"exclude-all-tile-geometries", no_argument, 0, '~'},
 
-	{"Modifying feature attributes", 0, 0, 0},
-	{"unidecode-data", required_argument, 0, '~'},
-
 	{"Filtering features by attributes", 0, 0, 0},
 	{"feature-filter-file", required_argument, 0, 'J'},
 	{"feature-filter", required_argument, 0, 'j'},
@@ -1311,6 +1308,7 @@ static const struct option long_options[] = {
 
 	{"", 0, 0, 0},
 	{"prevent", required_argument, 0, 'p'},
+	{"unidecode-data", required_argument, 0, '~'},
 
 	{0, 0, 0, 0},
 };
