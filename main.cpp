@@ -743,8 +743,20 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 }
 
 void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds) {
-	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge
-	int splitbits = log(splits) / log(2);
+	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge.
+	//
+	// There must be at least two buckets. With only one, each subdivision would
+	// consume no bits of the index, so it would never reach the maximum prefix
+	// that stops the recursion, and the shift that chooses a feature's bucket
+	// below would be by the full width of the index. That shift is undefined,
+	// and what it does in practice is to mask the shift count down to zero, so
+	// the bucket number comes out as the whole shifted index instead of as 0
+	// and the writes are made through whatever is found beyond the end of the
+	// arrays of buckets.
+	int splitbits = 1;
+	if (splits > 1) {
+		splitbits = log(splits) / log(2);
+	}
 	splits = 1 << splitbits;
 
 	FILE *geomfiles[splits];
@@ -891,7 +903,14 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 		}
 
 		if (indexst.st_size > 0) {
-			if (indexst.st_size + geomst.st_size < mem) {
+			// Subdividing again would only make progress if the next level could
+			// split into at least two buckets, which it can't if there are no longer
+			// enough files left to do it with. In that case, sort in memory instead,
+			// even though this is more memory than we wanted to use at once, since
+			// it is the only way left to get this bucket sorted.
+			bool can_subdivide = *availfiles / 4 > 1;
+
+			if (indexst.st_size + geomst.st_size < mem || !can_subdivide) {
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
@@ -994,7 +1013,11 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					struct index ix = indexmap[a];
 					long long pos = *geompos_out;
 
-					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
+					// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
+					// and is writing one byte less and then adding the byte for the minzoom,
+					// the same as merge() does.
+
+					fwrite_check(geommap + ix.start, 1, ix.end - ix.start - 1, geomfile, geompos_out, "geom");
 					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
 
