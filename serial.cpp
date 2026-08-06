@@ -665,7 +665,11 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		// VT_POINT extent will be calculated in write_tile from the distance between adjacent features.
 	}
 
-	if (extent <= LLONG_MAX) {
+	// LLONG_MAX is not representable as a double, so it rounds up to 2^63,
+	// which is one more than a long long can hold. The bound therefore has to
+	// be exclusive: every double below it truncates into range, but 2^63
+	// itself would overflow the conversion.
+	if (extent < (double) LLONG_MAX) {
 		sf.extent = (long long) extent;
 	} else {
 		sf.extent = LLONG_MAX;
