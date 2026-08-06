@@ -48,8 +48,44 @@ install: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join tippecanoe-
 uninstall:
 	rm $(PREFIX)/bin/tippecanoe $(PREFIX)/bin/tippecanoe-enumerate $(PREFIX)/bin/tippecanoe-decode $(PREFIX)/bin/tile-join $(MANDIR)/tippecanoe.1 $(PREFIX)/bin/tippecanoe-json-tool
 
+# The man page is generated from README.md by go-md2man, which is packaged for
+# most systems (`brew install go-md2man`, `apt-get install go-md2man`) or can be
+# built with `go install github.com/cpuguy83/go-md2man/v2@v2.0.7`. CI checks that
+# the committed man page matches the README, so you don't have to regenerate it
+# yourself if you don't have go-md2man installed.
+#
+# README.md has no .TH or NAME section of its own, since neither would make sense
+# on GitHub, so prepend them here. go-md2man reads the leading "%" line as the
+# man page's title, section, date, and source. The version deliberately doesn't
+# appear there: it would make this page a build product of version.hpp, so every
+# release would have to regenerate it just to rewrite that one line, and the docs
+# CI job would fail on any version bump that forgot to.
+#
+# Two fixups on the way out:
+#
+#   - README.md's own title heading becomes the second .SH, right below the NAME
+#     section added above, which reads as a stray "tippecanoe" section. Rename it
+#     to DESCRIPTION, where the text under it belongs anyway.
+#   - go-md2man separates paragraphs with a blank line in addition to the .PP
+#     macro, and a blank line is itself a break in roff, so the two together
+#     double-space the whole page. Drop them, except within .EX and .TS blocks,
+#     where a blank line is part of the example or table rather than spacing.
 man/tippecanoe.1: README.md
-	md2man-roff README.md > man/tippecanoe.1
+	{ \
+		echo '% TIPPECANOE 1 "" "tippecanoe"'; \
+		echo; \
+		echo '# NAME'; \
+		echo; \
+		echo 'tippecanoe - build vector tilesets from GeoJSON, FlatGeobuf, or CSV features'; \
+		echo; \
+		cat README.md; \
+	} | go-md2man \
+	  | awk ' \
+		/^\.SH / && ++sh == 2 { print ".SH DESCRIPTION"; next } \
+		/^\.(EX|TS)$$/ { lit = 1 } \
+		/^\.(EE|TE)$$/ { lit = 0 } \
+		lit || !/^$$/ \
+	    ' > $@.tmp && mv $@.tmp $@
 
 PG=
 
