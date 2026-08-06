@@ -1,8 +1,8 @@
 #include "mlt.hpp"
-#include "jsonpull/jsonpull.h"
 
 #include <mlt/encoder.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -11,101 +11,117 @@
 
 using Vertex = mlt::Encoder::Vertex;
 
-static bool parse_json_object_property(const std::string &s, mlt::Encoder::StructValue &out) {
-	if (s.empty() || s[0] != '{') {
-		return false;
-	}
+// An MLT property column has a single type for the whole layer, while MVT
+// values each carry their own type, so a type that can hold every value of
+// an attribute has to be chosen before the layer can be converted.
 
-	json_pull *jp = json_begin_string(s.c_str());
-	json_object *obj = json_read_tree(jp);
+enum mlt_column_type {
+	MLT_COLUMN_BOOL,
+	MLT_COLUMN_INT32,
+	MLT_COLUMN_INT64,
+	MLT_COLUMN_UINT32,
+	MLT_COLUMN_UINT64,
+	MLT_COLUMN_DOUBLE,
+	MLT_COLUMN_STRING,
+};
 
-	if (obj == nullptr || obj->type != JSON_HASH) {
-		json_free(obj);
-		json_end(jp);
-		return false;
-	}
+struct column_summary {
+	bool has_bool = false;
+	bool has_string = false;
+	bool has_floating = false;
+	bool has_signed = false;
+	bool has_unsigned = false;
+	long long min_signed = 0;
+	long long max_signed = 0;
+	unsigned long long max_unsigned = 0;
 
-	for (size_t i = 0; i < obj->value.object.length; i++) {
-		json_object *key = obj->value.object.keys[i];
-		json_object *val = obj->value.object.values[i];
-
-		if (key->type != JSON_STRING) {
-			continue;
-		}
-
-		std::string child_key = key->value.string.string;
-		std::string child_val;
-
-		switch (val->type) {
-		case JSON_STRING:
-			child_val = val->value.string.string;
+	void add(const mvt_value &val) {
+		switch (val.type) {
+		case mvt_bool:
+			has_bool = true;
 			break;
-		case JSON_NUMBER:
-			if (val->value.number.large_unsigned != 0) {
-				child_val = std::to_string(val->value.number.large_unsigned);
-			} else if (val->value.number.large_signed != 0) {
-				child_val = std::to_string(val->value.number.large_signed);
+
+		case mvt_float:
+		case mvt_double:
+			has_floating = true;
+			break;
+
+		case mvt_int:
+		case mvt_sint: {
+			long long v = (val.type == mvt_int) ? val.numeric_value.int_value : val.numeric_value.sint_value;
+			if (!has_signed) {
+				min_signed = max_signed = v;
+				has_signed = true;
 			} else {
-				child_val = std::to_string(val->value.number.number);
+				min_signed = std::min(min_signed, v);
+				max_signed = std::max(max_signed, v);
 			}
 			break;
-		case JSON_TRUE:
-			child_val = "true";
+		}
+
+		case mvt_uint:
+			has_unsigned = true;
+			max_unsigned = std::max(max_unsigned, val.numeric_value.uint_value);
 			break;
-		case JSON_FALSE:
-			child_val = "false";
-			break;
-		case JSON_NULL:
-			child_val = "null";
-			break;
+
 		default:
-			char *nested = json_stringify(val);
-			child_val = nested;
-			free(nested);
+			has_string = true;
 			break;
 		}
-
-		out[child_key] = child_val;
 	}
 
-	json_free(obj);
-	json_end(jp);
-	return true;
-}
+	mlt_column_type resolve() const {
+		if (has_string) {
+			return MLT_COLUMN_STRING;
+		}
 
-static mlt::Encoder::PropertyValue convert_value(const mvt_value &val) {
-	switch (val.type) {
-	case mvt_bool:
+		bool has_number = has_floating || has_signed || has_unsigned;
+		if (has_bool) {
+			// A column of booleans and numbers has no common numeric type
+			return has_number ? MLT_COLUMN_STRING : MLT_COLUMN_BOOL;
+		}
+		if (has_floating) {
+			return MLT_COLUMN_DOUBLE;
+		}
+
+		if (has_unsigned && !has_signed) {
+			return max_unsigned <= UINT32_MAX ? MLT_COLUMN_UINT32 : MLT_COLUMN_UINT64;
+		}
+		if (has_signed && !has_unsigned) {
+			return (min_signed >= INT32_MIN && max_signed <= INT32_MAX) ? MLT_COLUMN_INT32 : MLT_COLUMN_INT64;
+		}
+		if (has_signed && has_unsigned) {
+			if (max_unsigned > (unsigned long long) INT64_MAX) {
+				// Too wide for any integer type that can also hold the signed values
+				return MLT_COLUMN_DOUBLE;
+			}
+			return MLT_COLUMN_INT64;
+		}
+
+		return MLT_COLUMN_STRING;
+	}
+};
+
+static mlt::Encoder::PropertyValue convert_value(const mvt_value &val, mlt_column_type type) {
+	switch (type) {
+	case MLT_COLUMN_BOOL:
 		return val.numeric_value.bool_value;
-	case mvt_int:
-		if (val.numeric_value.int_value >= INT32_MIN && val.numeric_value.int_value <= INT32_MAX) {
-			return static_cast<std::int32_t>(val.numeric_value.int_value);
-		}
-		return static_cast<std::int64_t>(val.numeric_value.int_value);
-	case mvt_uint:
-		if (val.numeric_value.uint_value <= UINT32_MAX) {
-			return static_cast<std::uint32_t>(val.numeric_value.uint_value);
-		}
+	case MLT_COLUMN_INT32:
+		return static_cast<std::int32_t>(mvt_value_to_long_long(val));
+	case MLT_COLUMN_INT64:
+		return static_cast<std::int64_t>(mvt_value_to_long_long(val));
+	case MLT_COLUMN_UINT32:
+		return static_cast<std::uint32_t>(val.numeric_value.uint_value);
+	case MLT_COLUMN_UINT64:
 		return static_cast<std::uint64_t>(val.numeric_value.uint_value);
-	case mvt_sint:
-		if (val.numeric_value.sint_value >= INT32_MIN && val.numeric_value.sint_value <= INT32_MAX) {
-			return static_cast<std::int32_t>(val.numeric_value.sint_value);
-		}
-		return static_cast<std::int64_t>(val.numeric_value.sint_value);
-	case mvt_float:
-		return val.numeric_value.float_value;
-	case mvt_double:
-		return val.numeric_value.double_value;
-	case mvt_string: {
-		std::string s = val.get_string_value();
-		mlt::Encoder::StructValue struct_val;
-		if (parse_json_object_property(s, struct_val)) {
-			return struct_val;
-		}
-		return s;
-	}
+	case MLT_COLUMN_DOUBLE:
+		return val.to_double();
+	case MLT_COLUMN_STRING:
 	default:
-		return std::string{};
+		// Nested JSON objects stay JSON text, the way MVT carries them,
+		// because MLT struct columns can only hold strings and are
+		// flattened into their parent column name when decoded.
+		return val.get_string_value();
 	}
 }
 
@@ -203,6 +219,25 @@ static mlt::Encoder::Layer convert_layer(const mvt_layer &layer) {
 	out.name = layer.name;
 	out.extent = static_cast<uint32_t>(layer.extent);
 
+	std::vector<column_summary> summaries(layer.keys.size());
+	for (const auto &feature : layer.features) {
+		for (size_t t = 0; t + 1 < feature.tags.size(); t += 2) {
+			unsigned key_idx = feature.tags[t];
+			unsigned val_idx = feature.tags[t + 1];
+			if (key_idx < layer.keys.size() && val_idx < layer.values.size()) {
+				const auto &val = layer.values[val_idx];
+				if (val.type != mvt_null) {
+					summaries[key_idx].add(val);
+				}
+			}
+		}
+	}
+
+	std::vector<mlt_column_type> types(layer.keys.size(), MLT_COLUMN_STRING);
+	for (size_t i = 0; i < summaries.size(); i++) {
+		types[i] = summaries[i].resolve();
+	}
+
 	for (const auto &feature : layer.features) {
 		mlt::Encoder::Feature f;
 		if (feature.has_id) {
@@ -218,7 +253,7 @@ static mlt::Encoder::Layer convert_layer(const mvt_layer &layer) {
 			if (key_idx < layer.keys.size() && val_idx < layer.values.size()) {
 				const auto &val = layer.values[val_idx];
 				if (val.type != mvt_null) {
-					f.properties[layer.keys[key_idx]] = convert_value(val);
+					f.properties[layer.keys[key_idx]] = convert_value(val, types[key_idx]);
 				}
 			}
 		}
