@@ -146,9 +146,10 @@ fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-te
 # The result of the sort must not depend on how the sort was performed, so instead of
 # checking the sorted output against an expected copy of it, check that sorting by radix
 # produces the same tiles as sorting in memory. --prefer-radix-sort lowers the memory
-# limit to 8K so that the radix subdivision has to recurse, and how deeply it recurses
-# then depends on how many files the machine will let us open at once, but the sorted
-# result is the same either way, so this comparison doesn't depend on that.
+# limit to 8K, which radix() then halves again, so the radix subdivision has to recurse
+# until each bucket is under 4K. How deeply that recurses depends on how many files the
+# machine will let us open at once, but the sorted result is the same either way, so
+# this comparison doesn't depend on that.
 #
 # What sends the sort down its rarely-taken paths is the shape of the input rather than
 # the size of it: a feature whose geometry alone is bigger than the memory limit is

@@ -744,10 +744,14 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds) {
 	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge.
 	//
-	// There must be at least two buckets: with only one, each subdivision would
+	// There must be at least two buckets. With only one, each subdivision would
 	// consume no bits of the index, so it would never reach the maximum prefix
-	// that stops the recursion, and the shift below would be by the full width
-	// of the index, which is undefined.
+	// that stops the recursion, and the shift that chooses a feature's bucket
+	// below would be by the full width of the index. That shift is undefined,
+	// and what it does in practice is to mask the shift count down to zero, so
+	// the bucket number comes out as the whole shifted index instead of as 0
+	// and the writes are made through whatever is found beyond the end of the
+	// arrays of buckets.
 	int splitbits = 1;
 	if (splits > 1) {
 		splitbits = log(splits) / log(2);
