@@ -947,7 +947,19 @@ struct write_tile_args {
 	std::string const *shared_nodes_bloom;
 	std::set<zxy> const *skip_children;  // what is being skipped at this zoom
 	std::set<zxy> skip_children_out;     // what will be skipped in the next zoom
+	bool first_dropping_pass = false;    // is this the first pass of this zoom that is dropping features?
 };
+
+// Is this zoom level discarding features to make its tiles fit? The thresholds
+// are zero until some tile in the zoom fails to fit and the whole zoom is retried
+// with a threshold for discarding features, and from then on they only increase.
+//
+// Pyramid truncation is disabled while this is true, so that every tile in the
+// zoom is reduced consistently, and tiles that were skipped because an ancestor
+// truncated its pyramid are revived.
+static bool dropping_features(unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence) {
+	return mingap != 0 || minextent != 0 || mindrop_sequence != 0;
+}
 
 // Clips a feature's geometry to the tile bounds at the specified zoom level
 // with the specified buffer. Returns true if the feature was entirely clipped away
@@ -1100,7 +1112,7 @@ struct next_feature_state {
 // This function is called repeatedly from write_tile() to retrieve the next feature
 // from the input stream. If the stream is at an end, it returns a feature with the
 // geometry type set to -2.
-static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, next_feature_state &next_feature_state, double droprate) {
+static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *geompos_in, int z, unsigned tx, unsigned ty, unsigned *initial_x, unsigned *initial_y, long long *original_features, long long *unclipped_features, int nextzoom, int maxzoom, int minzoom, int max_zoom_increment, size_t pass, std::atomic<long long> *along, long long alongminus, int buffer, std::atomic<bool> *within, compressor **geomfile, std::atomic<long long> *geompos, long long start_geompos[], std::atomic<double> *oprogress, double todo, const char *fname, int child_shards, json_object *filter, const char *global_stringpool, long long *pool_off, std::vector<std::vector<std::string>> *layer_unmaps, bool first_time, bool write_children, bool compressed, multiplier_state *multiplier_state, std::shared_ptr<std::string> &tile_stringpool, std::vector<std::string> const &unidecode_data, next_feature_state &next_feature_state, double droprate) {
 	double extra_multiplier_zooms = log(retain_points_multiplier) / log(droprate);
 
 	while (1) {
@@ -1189,7 +1201,7 @@ static serial_feature next_feature(decompressor *geoms, std::atomic<long long> *
 			// XXX should continue, but affects test outputs
 		}
 
-		if (first_time && pass == 0) { /* only write out the next zoom once, even if we retry */
+		if (first_time && write_children) { /* only write out the next zoom once, even if we retry */
 			if (sf.tippecanoe_maxzoom == -1 || sf.tippecanoe_maxzoom >= nextzoom) {
 				rewrite(sf, z, nextzoom, maxzoom, tx, ty, buffer, within, geompos, start_geompos, geomfile, fname, child_shards, max_zoom_increment, sf.segment, initial_x, initial_y);
 			}
@@ -1354,6 +1366,7 @@ struct run_prefilter_args {
 	json_object *filter = NULL;
 	std::vector<std::string> const *unidecode_data;
 	bool first_time = false;
+	bool write_children = false;
 	bool compressed = false;
 	double droprate = 1;
 };
@@ -1366,7 +1379,7 @@ void *run_prefilter(void *v) {
 	next_feature_state next_feature_state;
 
 	while (1) {
-		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate);
+		serial_feature sf = next_feature(rpa->geoms, rpa->geompos_in, rpa->z, rpa->tx, rpa->ty, rpa->initial_x, rpa->initial_y, rpa->original_features, rpa->unclipped_features, rpa->nextzoom, rpa->maxzoom, rpa->minzoom, rpa->max_zoom_increment, rpa->pass, rpa->along, rpa->alongminus, rpa->buffer, rpa->within, rpa->geomfile, rpa->geompos, rpa->start_geompos, rpa->oprogress, rpa->todo, rpa->fname, rpa->child_shards, rpa->filter, rpa->global_stringpool, rpa->pool_off, rpa->layer_unmaps, rpa->first_time, rpa->write_children, rpa->compressed, &multiplier_state, tile_stringpool, *(rpa->unidecode_data), next_feature_state, rpa->droprate);
 		if (sf.t < 0) {
 			break;
 		}
@@ -1642,7 +1655,7 @@ void skip_tile(decompressor *geoms, std::atomic<long long> *geompos_in, bool com
 	}
 }
 
-long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, double minattribute, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, std::set<zxy> &skip_children_out) {
+long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, char *global_stringpool, int z, const unsigned tx, const unsigned ty, const int detail, int min_detail, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, compressor **geomfile, std::atomic<long long> *geompos, int minzoom, int maxzoom, double todo, std::atomic<long long> *along, long long alongminus, double gamma, int child_shards, long long *pool_off, unsigned *initial_x, unsigned *initial_y, std::atomic<int> *running, double simplification, std::vector<std::map<std::string, layermap_entry>> *layermaps, std::vector<std::vector<std::string>> *layer_unmaps, size_t tiling_seg, size_t pass, unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, double minattribute, const char *prefilter, const char *postfilter, json_object *filter, write_tile_args *arg, atomic_strategy *strategy_out, bool compressed_input, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, std::vector<std::string> const &unidecode_data, long long estimated_complexity, bool write_children, std::set<zxy> &skip_children_out) {
 	double merge_fraction = 1;
 	double mingap_fraction = 1;
 	double minextent_fraction = 1;
@@ -1678,7 +1691,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
 	bool can_stop_early = true;
-	if (additional[A_VARIABLE_DEPTH_PYRAMID] && mingap == 0 && minextent == 0 && mindrop_sequence == 0) {
+	if (additional[A_VARIABLE_DEPTH_PYRAMID] && !dropping_features(mingap, minextent, mindrop_sequence)) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 
@@ -1823,6 +1836,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.filter = filter;
 			rpa.unidecode_data = &unidecode_data;
 			rpa.first_time = first_time;
+			rpa.write_children = write_children;
 			rpa.compressed = compressed_input;
 			rpa.droprate = arg->droprate;
 
@@ -1856,7 +1870,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, write_children, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
@@ -3149,10 +3163,25 @@ exit(EXIT_IMPOSSIBLE);
 
 			struct zxy parent(z - 1, x / 2, y / 2);
 			bool skip = false;
+
+			// Normally a tile writes the geometry for its children on pass 0, and the
+			// later passes of the same zoom, which are only retries with new thresholds,
+			// must not write it again.
+			bool write_children = (arg->pass == 0);
+
 			if (arg->skip_children->count(parent) > 0) {
-				if (arg->mingap != 0 || arg->minextent != 0 || arg->mindrop_sequence != 0) {
-					// revive if we are trying to drop features and we still have the data
+				if (dropping_features(arg->mingap, arg->minextent, arg->mindrop_sequence)) {
+					// The parent truncated its pyramid here, but the zoom has since had to
+					// start dropping features, so the truncation no longer holds and this
+					// tile has to be written after all. Its geometry is still in the stream.
 					skip = false;
+
+					// It was skipped on every earlier pass of this zoom, so its children
+					// have never been written out. Write them on the first pass that
+					// actually tiles it, rather than on pass 0 as usual. The thresholds
+					// only ever increase within a zoom, so that is exactly the pass on
+					// which this zoom started dropping.
+					write_children = arg->first_dropping_pass;
 				} else {
 					// skip if the parent tile finished at the last zoom level and we aren't trying to drop
 					skip = true;
@@ -3167,7 +3196,7 @@ exit(EXIT_IMPOSSIBLE);
 				len = 1;
 			} else {
 				arg->wrote_zoom = z;
-				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->minattribute, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, arg->skip_children_out);
+				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->minattribute, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, write_children, arg->skip_children_out);
 			}
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
@@ -3352,8 +3381,16 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		size_t zoom_tile_size = 0;
 		size_t zoom_feature_count = 0;
 		std::set<zxy> skip_children_out;
+		bool was_dropping = false;
 
 		for (size_t pass = 0;; pass++) {
+			// Tiles that were skipped because an ancestor truncated its pyramid are
+			// revived on the pass where this zoom starts dropping features, and that
+			// is the pass on which they have to write out their children.
+			bool is_dropping = dropping_features(zoom_mingap, zoom_minextent, zoom_mindrop_sequence);
+			bool first_dropping_pass = is_dropping && !was_dropping;
+			was_dropping = is_dropping;
+
 			pthread_t pthreads[threads];
 			std::vector<write_tile_args> args;
 			args.resize(threads);
@@ -3435,6 +3472,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].shared_nodes_bloom = &shared_nodes_bloom;
 				args[thread].skip_children = &skip_children;
 				args[thread].skip_children_out.clear();
+				args[thread].first_dropping_pass = first_dropping_pass;
 
 				if (thread_create(&pthreads[thread], NULL, run_thread, &args[thread]) != 0) {
 					perror("pthread_create");
