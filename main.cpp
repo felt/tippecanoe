@@ -57,6 +57,7 @@
 #include "geometry.hpp"
 #include "serial.hpp"
 #include "options.hpp"
+#include "usage.hpp"
 #include "mvt.hpp"
 #include "dirtiles.hpp"
 #include "evaluator.hpp"
@@ -3187,27 +3188,10 @@ int main(int argc, char **argv) {
 	};
 
 	static struct option long_options[sizeof(long_options_orig) / sizeof(long_options_orig[0])];
-	static char getopt_str[sizeof(long_options_orig) / sizeof(long_options_orig[0]) * 2 + 1];
+
+	strip_usage_headings(long_options_orig, long_options);
 
 	{
-		size_t out = 0;
-		size_t cout = 0;
-		for (size_t lo = 0; long_options_orig[lo].name != NULL; lo++) {
-			if (long_options_orig[lo].val != 0) {
-				long_options[out++] = long_options_orig[lo];
-
-				if (long_options_orig[lo].val > ' ') {
-					getopt_str[cout++] = long_options_orig[lo].val;
-
-					if (long_options_orig[lo].has_arg == required_argument) {
-						getopt_str[cout++] = ':';
-					}
-				}
-			}
-		}
-		long_options[out] = {0, 0, 0, 0};
-		getopt_str[cout] = '\0';
-
 		for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
 			if (long_options[lo].flag != NULL) {
 				if (*long_options[lo].flag != 0) {
@@ -3226,9 +3210,10 @@ int main(int argc, char **argv) {
 	}
 
 	std::string commandline = format_commandline(argc, argv);
+	std::string getopt_str = getopt_string(long_options);
 
 	int option_index = 0;
-	while ((i = getopt_long(argc, argv, getopt_str, long_options, &option_index)) != -1) {
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, &option_index)) != -1) {
 		switch (i) {
 		case 0:
 			break;
@@ -3656,33 +3641,15 @@ int main(int argc, char **argv) {
 			if (i != 'H' && i != '?') {
 				fprintf(stderr, "Unknown option -%c\n", i);
 			}
-			int width = 7 + strlen(argv[0]);
-			fprintf(stderr, "Usage: %s [options] [file.json ...]", argv[0]);
-			for (size_t lo = 0; long_options_orig[lo].name != NULL && strlen(long_options_orig[lo].name) > 0; lo++) {
-				if (long_options_orig[lo].val == 0) {
-					fprintf(stderr, "\n  %s\n        ", long_options_orig[lo].name);
-					width = 8;
-					continue;
-				}
-				if (width + strlen(long_options_orig[lo].name) + 9 >= 80) {
-					fprintf(stderr, "\n        ");
-					width = 8;
-				}
-				width += strlen(long_options_orig[lo].name) + 9;
-				if (strcmp(long_options_orig[lo].name, "output") == 0) {
-					fprintf(stderr, " --%s=output.mbtiles", long_options_orig[lo].name);
-					width += 9;
-				} else if (long_options_orig[lo].has_arg) {
-					fprintf(stderr, " [--%s=...]", long_options_orig[lo].name);
-				} else {
-					fprintf(stderr, " [--%s]", long_options_orig[lo].name);
-				}
-			}
-			if (width + 16 >= 80) {
-				fprintf(stderr, "\n        ");
-				width = 8;
-			}
-			fprintf(stderr, "\n");
+			static const char *const forms[] = {
+				"[options] [file.json ...]",
+				NULL,
+			};
+			static const struct usage_required_option required[] = {
+				{"output", "output.mbtiles"},
+				{NULL, NULL},
+			};
+			print_usage(stderr, argv[0], forms, long_options_orig, required);
 			if (i == 'H') {
 				exit(EXIT_SUCCESS);
 			} else {

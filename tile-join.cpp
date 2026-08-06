@@ -44,6 +44,7 @@
 #include "geometry.hpp"
 #include "thread.hpp"
 #include "platform.hpp"
+#include "usage.hpp"
 
 int pk = false;
 int pC = false;
@@ -1253,8 +1254,83 @@ void decode(struct tileset_reader *readers, std::map<std::string, layermap_entry
 	}
 }
 
+static const struct option long_options[] = {
+	{"Output tileset", 0, 0, 0},
+	{"output", required_argument, 0, 'o'},
+	{"output-to-directory", required_argument, 0, 'e'},
+	{"force", no_argument, 0, 'f'},
+
+	{"Tileset description and attribution", 0, 0, 0},
+	{"name", required_argument, 0, 'n'},
+	{"attribution", required_argument, 0, 'A'},
+	{"description", required_argument, 0, 'N'},
+
+	{"Input tilesets", 0, 0, 0},
+	{"read-from", required_argument, 0, 'r'},
+
+	{"Zoom levels", 0, 0, 0},
+	{"maximum-zoom", required_argument, 0, 'z'},
+	{"minimum-zoom", required_argument, 0, 'Z'},
+	{"overzoom", no_argument, 0, 'O'},
+	{"buffer", required_argument, 0, 'b'},
+
+	{"Layer names", 0, 0, 0},
+	{"layer", required_argument, 0, 'l'},
+	{"exclude-layer", required_argument, 0, 'L'},
+	{"rename-layer", required_argument, 0, 'R'},
+
+	{"Joining with a CSV file", 0, 0, 0},
+	{"csv", required_argument, 0, 'c'},
+	{"if-matched", no_argument, 0, 'i'},
+	{"empty-csv-columns-are-null", no_argument, &pe, 1},
+
+	{"Filtering feature attributes", 0, 0, 0},
+	{"exclude", required_argument, 0, 'x'},
+	{"include", required_argument, 0, 'y'},
+	{"exclude-all", no_argument, 0, 'X'},
+	{"exclude-all-tile-attributes", no_argument, 0, '~'},
+	{"exclude-all-tile-geometries", no_argument, 0, '~'},
+
+	{"Modifying feature attributes", 0, 0, 0},
+	{"use-attribute-for-id", required_argument, 0, '~'},
+	{"unidecode-data", required_argument, 0, '~'},
+
+	{"Filtering features by attributes", 0, 0, 0},
+	{"feature-filter-file", required_argument, 0, 'J'},
+	{"feature-filter", required_argument, 0, 'j'},
+
+	{"Setting or disabling tile size limits", 0, 0, 0},
+	{"no-tile-size-limit", no_argument, &pk, 1},
+	{"no-tile-compression", no_argument, &pC, 1},
+	{"no-tile-stats", no_argument, &pg, 1},
+	{"tile-stats-attributes-limit", required_argument, 0, '~'},
+	{"tile-stats-sample-values-limit", required_argument, 0, '~'},
+	{"tile-stats-values-limit", required_argument, 0, '~'},
+
+	{"Progress indicator", 0, 0, 0},
+	{"quiet", no_argument, 0, 'q'},
+
+	{"", 0, 0, 0},
+	{"prevent", required_argument, 0, 'p'},
+
+	{0, 0, 0, 0},
+};
+
+// the options above, with the usage message headings removed
+static struct option real_long_options[sizeof(long_options) / sizeof(long_options[0])];
+
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s [-f] [-i] [-pk] [-pC] [-c joins.csv] [-X] [-x exclude ...] [-y include ...] [-r inputfile.txt ] -o new.mbtiles source.mbtiles ...\n", argv[0]);
+	static const char *const forms[] = {
+		"[options] source.mbtiles ...",
+		"[options] --read-from=inputfile.txt",
+		NULL,
+	};
+	static const struct usage_required_option required[] = {
+		{"output", "new.mbtiles"},
+		{NULL, NULL},
+	};
+
+	print_usage(stderr, argv[0], forms, long_options, required);
 	exit(EXIT_ARGS);
 }
 
@@ -1298,57 +1374,8 @@ int main(int argc, char **argv) {
 
 	std::string set_name, set_description, set_attribution;
 
-	struct option long_options[] = {
-		{"output", required_argument, 0, 'o'},
-		{"output-to-directory", required_argument, 0, 'e'},
-		{"force", no_argument, 0, 'f'},
-		{"overzoom", no_argument, 0, 'O'},
-		{"buffer", required_argument, 0, 'b'},
-		{"if-matched", no_argument, 0, 'i'},
-		{"attribution", required_argument, 0, 'A'},
-		{"name", required_argument, 0, 'n'},
-		{"description", required_argument, 0, 'N'},
-		{"prevent", required_argument, 0, 'p'},
-		{"csv", required_argument, 0, 'c'},
-		{"exclude", required_argument, 0, 'x'},
-		{"exclude-all", no_argument, 0, 'X'},
-		{"include", required_argument, 0, 'y'},
-		{"exclude-all-tile-attributes", no_argument, 0, '~'},
-		{"exclude-all-tile-geometries", no_argument, 0, '~'},
-		{"layer", required_argument, 0, 'l'},
-		{"exclude-layer", required_argument, 0, 'L'},
-		{"quiet", no_argument, 0, 'q'},
-		{"maximum-zoom", required_argument, 0, 'z'},
-		{"minimum-zoom", required_argument, 0, 'Z'},
-		{"feature-filter-file", required_argument, 0, 'J'},
-		{"feature-filter", required_argument, 0, 'j'},
-		{"rename-layer", required_argument, 0, 'R'},
-		{"read-from", required_argument, 0, 'r'},
-
-		{"use-attribute-for-id", required_argument, 0, '~'},
-
-		{"no-tile-size-limit", no_argument, &pk, 1},
-		{"no-tile-compression", no_argument, &pC, 1},
-		{"empty-csv-columns-are-null", no_argument, &pe, 1},
-		{"no-tile-stats", no_argument, &pg, 1},
-		{"tile-stats-attributes-limit", required_argument, 0, '~'},
-		{"tile-stats-sample-values-limit", required_argument, 0, '~'},
-		{"tile-stats-values-limit", required_argument, 0, '~'},
-		{"unidecode-data", required_argument, 0, '~'},
-
-		{0, 0, 0, 0},
-	};
-
-	std::string getopt_str;
-	for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
-		if (long_options[lo].val > ' ') {
-			getopt_str.push_back(long_options[lo].val);
-
-			if (long_options[lo].has_arg == required_argument) {
-				getopt_str.push_back(':');
-			}
-		}
-	}
+	strip_usage_headings(long_options, real_long_options);
+	std::string getopt_str = getopt_string(real_long_options);
 
 	extern int optind;
 	extern char *optarg;
@@ -1357,7 +1384,7 @@ int main(int argc, char **argv) {
 	std::string commandline = format_commandline(argc, argv);
 
 	int option_index = 0;
-	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, &option_index)) != -1) {
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), real_long_options, &option_index)) != -1) {
 		switch (i) {
 		case 0:
 			break;
@@ -1502,7 +1529,7 @@ int main(int argc, char **argv) {
 			break;
 
 		case '~': {
-			const char *opt = long_options[option_index].name;
+			const char *opt = real_long_options[option_index].name;
 			if (strcmp(opt, "tile-stats-attributes-limit") == 0) {
 				max_tilestats_attributes = atoi(optarg);
 			} else if (strcmp(opt, "tile-stats-sample-values-limit") == 0) {
