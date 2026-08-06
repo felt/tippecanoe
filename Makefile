@@ -59,6 +59,11 @@ uninstall:
 # README.md has no .TH or NAME section of its own, since neither would make sense
 # on GitHub, so prepend them here. go-md2man reads the leading "%" line as the
 # man page's title, section, date, and source.
+#
+# go-md2man separates paragraphs with a blank line in addition to the .PP macro,
+# and a blank line is itself a break in roff, so the two together double-space the
+# whole page. Drop them, except within .EX and .TS blocks, where a blank line is
+# part of the example or table rather than spacing around it.
 man/tippecanoe.1: README.md version.hpp
 	{ \
 		echo '% TIPPECANOE 1 "" "tippecanoe $(VERSION)"'; \
@@ -68,7 +73,9 @@ man/tippecanoe.1: README.md version.hpp
 		echo 'tippecanoe - build vector tilesets from GeoJSON, FlatGeobuf, or CSV features'; \
 		echo; \
 		cat README.md; \
-	} | go-md2man > $@.tmp && mv $@.tmp $@
+	} | go-md2man \
+	  | awk '/^\.(EX|TS)$$/ { lit = 1 } /^\.(EE|TE)$$/ { lit = 0 } lit || !/^$$/' \
+	  > $@.tmp && mv $@.tmp $@
 
 PG=
 
