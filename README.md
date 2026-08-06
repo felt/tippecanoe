@@ -569,6 +569,9 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-Q` or `--no-progress-indicator`: Don't report progress, but still give warnings
  * `-U` _seconds_ or `--progress-interval=`_seconds_: Don't report progress more often than the specified number of _seconds_.
  * `-u` or `--json-progress`: like `-quiet` but logs progress as a JSON object. Use in combination with `-U`.
+
+### Version
+
  * `-v` or `--version`: Report Tippecanoe's version number
 
 ### Filters

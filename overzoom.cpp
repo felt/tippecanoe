@@ -11,6 +11,7 @@
 #include "text.hpp"
 #include "read_json.hpp"
 #include "projection.hpp"
+#include "usage.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -30,11 +31,58 @@ std::set<std::string> keep;
 std::set<std::string> exclude;
 std::vector<std::string> exclude_prefix;
 
+static const struct option long_options[] = {
+	{"Output tile", 0, 0, 0},
+	{"output", required_argument, 0, 'o'},
+	{"source-tile", required_argument, 0, 't'},
+	{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
+
+	{"Tile resolution", 0, 0, 0},
+	{"full-detail", required_argument, 0, 'd'},
+	{"buffer", required_argument, 0, 'b'},
+
+	{"Filtering feature attributes", 0, 0, 0},
+	{"include", required_argument, 0, 'y'},
+	{"exclude", required_argument, 0, 'x'},
+	{"exclude-prefix", required_argument, 0, 'x' & 0x1F},
+
+	{"Modifying feature attributes", 0, 0, 0},
+	{"accumulate-attribute", required_argument, 0, 'E'},
+	{"unidecode-data", required_argument, 0, 'u' & 0x1F},
+
+	{"Filtering features", 0, 0, 0},
+	{"feature-filter", required_argument, 0, 'j'},
+	{"feature-filter-file", required_argument, 0, 'J'},
+	{"filter-points-multiplier", no_argument, 0, 'm'},
+	{"deduplicate-by-id", no_argument, 0, 'i' & 0x1F},
+
+	{"Line and polygon simplification", 0, 0, 0},
+	{"line-simplification", required_argument, 0, 'S'},
+	{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
+
+	{"Reordering features within the tile", 0, 0, 0},
+	{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
+
+	{0, 0, 0, 0},
+};
+
+// the options above, with the usage message headings removed
+static struct option real_long_options[sizeof(long_options) / sizeof(long_options[0])];
+
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s -o newtile.pbf.gz tile.pbf.gz oz/ox/oy nz/nx/ny\n", argv[0]);
-	fprintf(stderr, "to create tile nz/nx/ny from tile oz/ox/oy\n");
-	fprintf(stderr, "Usage: %s -o newtile.pbf.gz -t nz/nx/ny tile.pbf.gz oz/ox/oy tile2.pbf.gz oz2/ox2/oy2\n", argv[0]);
-	fprintf(stderr, "to create tile nz/nx/ny from tiles oz/ox/oy and oz2/ox2/oy2\n");
+	static const char *const forms[] = {
+		"[options] tile.pbf.gz oz/ox/oy nz/nx/ny",
+		"[options] --source-tile=nz/nx/ny tile.pbf.gz oz/ox/oy ...",
+		NULL,
+	};
+	static const struct usage_required_option required[] = {
+		{"output", "newtile.pbf.gz", 0},
+		{NULL, NULL, 0},
+	};
+
+	print_usage(stderr, argv[0], forms, long_options, required);
+	fprintf(stderr, "\nThe tile nz/nx/ny is created from the tile or tiles oz/ox/oy that contain it.\n");
+	fprintf(stderr, "In the second form, each source tile is named by a file name and a z/x/y pair.\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -67,41 +115,11 @@ int main(int argc, char **argv) {
 
 	std::vector<input_tile> sources;
 
-	struct option long_options[] = {
-		{"include", required_argument, 0, 'y'},
-		{"exclude", required_argument, 0, 'x'},
-		{"exclude-prefix", required_argument, 0, 'x' & 0x1F},
-		{"full-detail", required_argument, 0, 'd'},
-		{"buffer", required_argument, 0, 'b'},
-		{"output", required_argument, 0, 'o'},
-		{"filter-points-multiplier", no_argument, 0, 'm'},
-		{"feature-filter", required_argument, 0, 'j'},
-		{"feature-filter-file", required_argument, 0, 'J'},
-		{"preserve-input-order", no_argument, 0, 'o' & 0x1F},
-		{"accumulate-attribute", required_argument, 0, 'E'},
-		{"unidecode-data", required_argument, 0, 'u' & 0x1F},
-		{"line-simplification", required_argument, 0, 'S'},
-		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
-		{"source-tile", required_argument, 0, 't'},
-		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
-		{"deduplicate-by-id", no_argument, 0, 'i' & 0x1F},
-
-		{0, 0, 0, 0},
-	};
-
-	std::string getopt_str;
-	for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
-		if (long_options[lo].val > ' ') {
-			getopt_str.push_back(long_options[lo].val);
-
-			if (long_options[lo].has_arg == required_argument) {
-				getopt_str.push_back(':');
-			}
-		}
-	}
+	strip_usage_headings(long_options, real_long_options);
+	std::string getopt_str = getopt_string(real_long_options);
 
 	int option_index = 0;
-	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, &option_index)) != -1) {
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), real_long_options, &option_index)) != -1) {
 		switch (i) {
 		case 'y':
 			keep.insert(optarg);
@@ -180,6 +198,11 @@ int main(int argc, char **argv) {
 
 	std::vector<input_tile> its;
 	int nz, nx, ny;
+
+	if (outfile == NULL) {
+		fprintf(stderr, "%s: must specify -o newtile.pbf.gz\n", argv[0]);
+		usage(argv);
+	}
 
 	if (outtile == NULL) {	// single input
 		if (argc - optind != 3) {
