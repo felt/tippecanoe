@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include <string>
 #include <vector>
+#include <filesystem>
 #include <map>
 #include <set>
 #include <zlib.h>
@@ -24,6 +25,8 @@
 #include "dirtiles.hpp"
 #include "pmtiles_file.hpp"
 #include "errors.hpp"
+
+namespace fs = std::filesystem;
 
 int minzoom = 0;
 int maxzoom = 32;
@@ -278,21 +281,19 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 		perror(fname);
 	}
 
-	struct stat st;
 	std::vector<zxy> tiles;
-
 	char *pmtiles_map = NULL;
 	std::vector<pmtiles::entry_zxy> entries;
 	bool is_pmtiles = false;
 
-	if (stat(fname, &st) == 0 && (st.st_mode & S_IFDIR) != 0) {
+	if (fs::is_directory(fname)) {
 		isdir = true;
-
 		db = dirmeta2tmp(fname);
 		tiles = enumerate_dirtiles(fname, minzoom, maxzoom);
 	} else if (pmtiles_has_suffix(fname)) {
+		auto file_size = fs::file_size(fname);
 		int pmtiles_fd = open(fname, O_RDONLY | O_CLOEXEC);
-		pmtiles_map = (char *) mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
+		pmtiles_map = (char *) mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, pmtiles_fd, 0);
 		if (pmtiles_map == MAP_FAILED) {
 			perror("mmap in decode");
 			exit(EXIT_MEMORY);
