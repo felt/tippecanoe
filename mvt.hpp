@@ -213,8 +213,8 @@ struct mvt_layer {
 	void tag(mvt_feature &feature, std::string const &key, mvt_value const &value);
 
 	// For tracking the key-value constants already used in this layer
-	std::vector<ssize_t> key_dedup = std::vector<ssize_t>(65536, -1);
-	std::vector<ssize_t> value_dedup = std::vector<ssize_t>(65536, -1);
+	std::vector<std::vector<ssize_t>> key_dedup = std::vector<std::vector<ssize_t>>(500, std::vector<ssize_t>());
+	std::vector<std::vector<ssize_t>> value_dedup = std::vector<std::vector<ssize_t>>(500, std::vector<ssize_t>());
 
 	int detail() const {
 		return std::round(std::log(extent) / std::log(2));
