@@ -1,0 +1,104 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "-122.915039,37.160317,-122.343750,37.961523",
+"bounds": "-122.915039,37.160317,-122.343750,37.961523",
+"center": "-122.350000,37.200000,5",
+"description": "tests/mlt/mvt-source.mbtiles",
+"format": "mlt",
+"json": "{\"vector_layers\":[{\"id\":\"roundtrip\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":5,\"fields\":{\"active\":\"Boolean\",\"count\":\"Number\",\"kind\":\"String\",\"name\":\"String\",\"nested\":\"String\",\"ratio\":\"Number\",\"unicode\":\"String\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"roundtrip\",\"count\":33,\"geometry\":\"LineString\",\"attributeCount\":7,\"attributes\":[{\"attribute\":\"active\",\"count\":2,\"type\":\"boolean\",\"values\":[false,true]},{\"attribute\":\"count\",\"count\":6,\"type\":\"number\",\"values\":[-200,100,300,4000000000,500,600],\"min\":-200,\"max\":4000000000},{\"attribute\":\"kind\",\"count\":3,\"type\":\"string\",\"values\":[\"line\",\"point\",\"polygon\"]},{\"attribute\":\"name\",\"count\":7,\"type\":\"string\",\"values\":[\"line\",\"multiline\",\"multipoint\",\"multipolygon\",\"no id\",\"point\",\"polygon with hole\"]},{\"attribute\":\"nested\",\"count\":1,\"type\":\"string\",\"values\":[\"{\\\"a\\\":1,\\\"b\\\":\\\"two\\\"}\"]},{\"attribute\":\"ratio\",\"count\":5,\"type\":\"number\",\"values\":[-0.25,0.125,1.5,2,3.25],\"min\":-0.25,\"max\":3.25},{\"attribute\":\"unicode\",\"count\":1,\"type\":\"string\",\"values\":[\"påíñtß 堤防\"]}]}]}}",
+"maxzoom": "5",
+"minzoom": "0",
+"name": "tests/mlt/mvt-source.mbtiles",
+"strategies": "[{\"dropped_by_rate\":2,\"tiny_polygons\":1},{\"dropped_by_rate\":2},{\"dropped_by_rate\":2},{\"dropped_by_rate\":2},{\"dropped_by_rate\":1}]",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 0, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.519531, 37.926868 ], [ -122.431641, 37.857507 ], [ -122.519531, 37.926868 ] ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.695312, 37.579413 ], [ -122.607422, 37.649034 ] ], [ [ -122.519531, 37.579413 ], [ -122.431641, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.607422, 37.718590 ], [ -122.431641, 37.718590 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.431641, 37.579413 ], [ -122.431641, 37.370157 ], [ -122.783203, 37.370157 ], [ -122.783203, 37.579413 ], [ -122.431641, 37.579413 ] ], [ [ -122.519531, 37.439974 ], [ -122.519531, 37.509726 ], [ -122.695312, 37.509726 ], [ -122.519531, 37.439974 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.343750, 37.300275 ], [ -122.343750, 37.160317 ], [ -122.519531, 37.160317 ], [ -122.519531, 37.300275 ], [ -122.343750, 37.300275 ] ] ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 1, "x": 0, "y": 0 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.519531, 37.892196 ], [ -122.431641, 37.857507 ], [ -122.563477, 37.961523 ] ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.695312, 37.614231 ], [ -122.607422, 37.649034 ] ], [ [ -122.519531, 37.614231 ], [ -122.387695, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.607422, 37.683820 ], [ -122.519531, 37.753344 ], [ -122.387695, 37.683820 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.387695, 37.544577 ], [ -122.387695, 37.405074 ], [ -122.783203, 37.405074 ], [ -122.783203, 37.544577 ], [ -122.387695, 37.544577 ] ], [ [ -122.695312, 37.439974 ], [ -122.519531, 37.439974 ], [ -122.519531, 37.509726 ], [ -122.695312, 37.509726 ], [ -122.695312, 37.439974 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -122.695312, 37.300275 ], [ -122.695312, 37.195331 ], [ -122.915039, 37.195331 ], [ -122.915039, 37.300275 ], [ -122.695312, 37.300275 ] ] ], [ [ [ -122.387695, 37.300275 ], [ -122.387695, 37.195331 ], [ -122.607422, 37.195331 ], [ -122.607422, 37.300275 ], [ -122.387695, 37.300275 ] ], [ [ -122.563477, 37.230328 ], [ -122.431641, 37.230328 ], [ -122.431641, 37.265310 ], [ -122.563477, 37.265310 ], [ -122.563477, 37.230328 ] ] ] ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 2, "x": 0, "y": 1 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.497559, 37.892196 ], [ -122.453613, 37.857507 ], [ -122.541504, 37.944198 ] ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.695312, 37.596824 ], [ -122.607422, 37.649034 ] ], [ [ -122.497559, 37.596824 ], [ -122.387695, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.607422, 37.701207 ], [ -122.497559, 37.753344 ], [ -122.387695, 37.701207 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.387695, 37.544577 ], [ -122.387695, 37.405074 ], [ -122.805176, 37.405074 ], [ -122.805176, 37.544577 ], [ -122.387695, 37.544577 ] ], [ [ -122.695312, 37.457418 ], [ -122.497559, 37.457418 ], [ -122.497559, 37.492294 ], [ -122.695312, 37.492294 ], [ -122.695312, 37.457418 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -122.695312, 37.300275 ], [ -122.695312, 37.195331 ], [ -122.893066, 37.195331 ], [ -122.893066, 37.300275 ], [ -122.695312, 37.300275 ] ] ], [ [ [ -122.387695, 37.300275 ], [ -122.387695, 37.195331 ], [ -122.607422, 37.195331 ], [ -122.607422, 37.300275 ], [ -122.387695, 37.300275 ] ], [ [ -122.541504, 37.212832 ], [ -122.453613, 37.212832 ], [ -122.453613, 37.282795 ], [ -122.541504, 37.282795 ], [ -122.541504, 37.212832 ] ] ] ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 3, "x": 1, "y": 3 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.497559, 37.900865 ], [ -122.453613, 37.848833 ], [ -122.552490, 37.952861 ] ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.695312, 37.596824 ], [ -122.596436, 37.649034 ] ], [ [ -122.497559, 37.596824 ], [ -122.398682, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.596436, 37.701207 ], [ -122.497559, 37.744657 ], [ -122.398682, 37.701207 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.398682, 37.544577 ], [ -122.398682, 37.396346 ], [ -122.794189, 37.396346 ], [ -122.794189, 37.544577 ], [ -122.398682, 37.544577 ] ], [ [ -122.695312, 37.448697 ], [ -122.497559, 37.448697 ], [ -122.497559, 37.501010 ], [ -122.695312, 37.501010 ], [ -122.695312, 37.448697 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -122.695312, 37.300275 ], [ -122.695312, 37.195331 ], [ -122.904053, 37.195331 ], [ -122.904053, 37.300275 ], [ -122.695312, 37.300275 ] ] ], [ [ [ -122.398682, 37.300275 ], [ -122.398682, 37.195331 ], [ -122.596436, 37.195331 ], [ -122.596436, 37.300275 ], [ -122.398682, 37.300275 ] ], [ [ -122.552490, 37.221580 ], [ -122.453613, 37.221580 ], [ -122.453613, 37.282795 ], [ -122.552490, 37.282795 ], [ -122.552490, 37.221580 ] ] ] ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 4, "x": 2, "y": 6 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.497559, 37.900865 ], [ -122.448120, 37.848833 ], [ -122.546997, 37.948529 ] ] } }
+,
+{ "type": "Feature", "properties": { "kind": "point", "name": "no id", "unicode": "påíñtß 堤防" }, "geometry": { "type": "Point", "coordinates": [ -122.349243, 37.749001 ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.700806, 37.596824 ], [ -122.596436, 37.649034 ] ], [ [ -122.497559, 37.596824 ], [ -122.398682, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.596436, 37.696861 ], [ -122.497559, 37.749001 ], [ -122.398682, 37.696861 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.398682, 37.548933 ], [ -122.398682, 37.400710 ], [ -122.799683, 37.400710 ], [ -122.799683, 37.548933 ], [ -122.398682, 37.548933 ] ], [ [ -122.700806, 37.448697 ], [ -122.497559, 37.448697 ], [ -122.497559, 37.501010 ], [ -122.700806, 37.501010 ], [ -122.700806, 37.448697 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -122.700806, 37.300275 ], [ -122.700806, 37.199706 ], [ -122.898560, 37.199706 ], [ -122.898560, 37.300275 ], [ -122.700806, 37.300275 ] ] ], [ [ [ -122.398682, 37.300275 ], [ -122.398682, 37.199706 ], [ -122.596436, 37.199706 ], [ -122.596436, 37.300275 ], [ -122.398682, 37.300275 ] ], [ [ -122.546997, 37.217206 ], [ -122.448120, 37.217206 ], [ -122.448120, 37.278424 ], [ -122.546997, 37.278424 ], [ -122.546997, 37.217206 ] ] ] ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 5, "x": 5, "y": 12 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "roundtrip", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 2, "properties": { "active": false, "count": -200, "kind": "point", "name": "multipoint", "ratio": -0.25 }, "geometry": { "type": "MultiPoint", "coordinates": [ [ -122.500305, 37.900865 ], [ -122.450867, 37.851001 ], [ -122.549744, 37.950695 ] ] } }
+,
+{ "type": "Feature", "id": 1, "properties": { "active": true, "count": 100, "kind": "point", "name": "point", "nested": "{\"a\":1,\"b\":\"two\"}", "ratio": 1.5 }, "geometry": { "type": "Point", "coordinates": [ -122.398682, 37.798933 ] } }
+,
+{ "type": "Feature", "properties": { "kind": "point", "name": "no id", "unicode": "påíñtß 堤防" }, "geometry": { "type": "Point", "coordinates": [ -122.349243, 37.749001 ] } }
+,
+{ "type": "Feature", "id": 4, "properties": { "count": 4000000000, "kind": "line", "name": "multiline", "ratio": 0.125 }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -122.700806, 37.599000 ], [ -122.599182, 37.649034 ] ], [ [ -122.500305, 37.599000 ], [ -122.398682, 37.649034 ] ] ] } }
+,
+{ "type": "Feature", "id": 3, "properties": { "count": 300, "kind": "line", "name": "line", "ratio": 2 }, "geometry": { "type": "LineString", "coordinates": [ [ -122.599182, 37.699034 ], [ -122.500305, 37.749001 ], [ -122.398682, 37.699034 ] ] } }
+,
+{ "type": "Feature", "id": 5, "properties": { "active": true, "count": 500, "kind": "polygon", "name": "polygon with hole", "ratio": 3.25 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -122.398682, 37.548933 ], [ -122.398682, 37.400710 ], [ -122.799683, 37.400710 ], [ -122.799683, 37.548933 ], [ -122.398682, 37.548933 ] ], [ [ -122.700806, 37.450877 ], [ -122.500305, 37.450877 ], [ -122.500305, 37.501010 ], [ -122.700806, 37.501010 ], [ -122.700806, 37.450877 ] ] ] } }
+,
+{ "type": "Feature", "id": 6, "properties": { "count": 600, "kind": "polygon", "name": "multipolygon" }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -122.700806, 37.300275 ], [ -122.700806, 37.199706 ], [ -122.901306, 37.199706 ], [ -122.901306, 37.300275 ], [ -122.700806, 37.300275 ] ] ], [ [ [ -122.398682, 37.300275 ], [ -122.398682, 37.199706 ], [ -122.599182, 37.199706 ], [ -122.599182, 37.300275 ], [ -122.398682, 37.300275 ] ], [ [ -122.549744, 37.219393 ], [ -122.450867, 37.219393 ], [ -122.450867, 37.280609 ], [ -122.549744, 37.280609 ], [ -122.549744, 37.219393 ] ] ] ] } }
+] }
+] }
+] }

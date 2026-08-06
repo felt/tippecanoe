@@ -87,16 +87,16 @@ tippecanoe-enumerate: enumerate.o
 tippecanoe-decode: decode.o projection.o mvt.o mlt_decode.o write_json.o text.o jsonpull/jsonpull.o dirtiles.o pmtiles_file.o $(MLT_DECODE_LIBS)
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3
 
-tile-join: tile-join.o platform.o projection.o mbtiles.o mvt.o mlt_decode.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o attribute.o thread.o read_json.o clipper2/src/clipper.engine.o $(MLT_DECODE_LIBS)
+tile-join: tile-join.o platform.o projection.o mbtiles.o mvt.o mlt.o mlt_decode.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o attribute.o thread.o read_json.o clipper2/src/clipper.engine.o $(MLT_LIBS)
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-unit: unit.o text.o sort.o mvt.o mlt_decode.o projection.o clip.o attribute.o jsonpull/jsonpull.o evaluator.o read_json.o clipper2/src/clipper.engine.o $(MLT_DECODE_LIBS)
+unit: unit.o text.o sort.o mvt.o mlt.o mlt_decode.o projection.o clip.o attribute.o jsonpull/jsonpull.o evaluator.o read_json.o clipper2/src/clipper.engine.o $(MLT_LIBS)
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-tippecanoe-overzoom: overzoom.o mvt.o mlt_decode.o clip.o evaluator.o jsonpull/jsonpull.o text.o attribute.o read_json.o projection.o read_json.o clipper2/src/clipper.engine.o $(MLT_DECODE_LIBS)
+tippecanoe-overzoom: overzoom.o mvt.o mlt.o mlt_decode.o clip.o evaluator.o jsonpull/jsonpull.o text.o attribute.o read_json.o projection.o read_json.o clipper2/src/clipper.engine.o $(MLT_LIBS)
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 -include $(wildcard *.d)
@@ -119,7 +119,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test mlt-test mlt-decode-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test mlt-test mlt-decode-test mlt-output-test
 	./unit
 
 suffixes = json json.gz
@@ -649,6 +649,29 @@ mlt-decode-test: tippecanoe tippecanoe-decode tile-join tippecanoe-overzoom
 	rm -f tests/mlt/joined.mbtiles tests/mlt/joined.mbtiles.json.check
 	rm -f tests/mlt/roundtrip-dir.json.check tests/mlt/overzoom.pbf tests/mlt/overzoom.json.check
 	rm -rf tests/mlt/roundtrip-dir
+
+mlt-output-test: tippecanoe tippecanoe-decode tile-join tippecanoe-overzoom
+	./tippecanoe -q -z5 -f -o tests/mlt/mvt-source.mbtiles tests/mlt/roundtrip.geojson
+	# tile-join writes MLT tiles to an mbtiles file, whatever the sources are encoded in
+	./tile-join -f --output-format=mlt -o tests/mlt/join-out.mbtiles tests/mlt/mvt-source.mbtiles
+	./tippecanoe-decode -x generator -x generator_options tests/mlt/join-out.mbtiles > tests/mlt/join-out.mbtiles.json.check
+	cmp tests/mlt/join-out.mbtiles.json.check tests/mlt/join-out.mbtiles.json
+	# tile-join writes MLT tiles to a tile directory
+	rm -rf tests/mlt/join-out-dir
+	./tile-join -f --output-format=mlt -e tests/mlt/join-out-dir tests/mlt/mvt-source.mbtiles
+	@test $$(find tests/mlt/join-out-dir -name '*.mlt' | wc -l) -gt 0 || (echo "FAIL: No .mlt files in tile-join directory output" && exit 1)
+	@test $$(find tests/mlt/join-out-dir -name '*.pbf' | wc -l) -eq 0 || (echo "FAIL: .pbf files in tile-join MLT directory output" && exit 1)
+	# tippecanoe-overzoom writes MLT tiles
+	rm -rf tests/mlt/mvt-source-dir
+	./tippecanoe -q -z5 -f -e tests/mlt/mvt-source-dir tests/mlt/roundtrip.geojson
+	# The same features come out whichever direction the formats are converted in,
+	# so this is compared against the standard for overzooming an MLT tile to MVT
+	./tippecanoe-overzoom --output-format=mlt -o tests/mlt/overzoom-out.mlt tests/mlt/mvt-source-dir/2/0/1.pbf 2/0/1 4/2/6
+	./tippecanoe-decode tests/mlt/overzoom-out.mlt 4 2 6 > tests/mlt/overzoom-out.json.check
+	cmp tests/mlt/overzoom-out.json.check tests/mlt/overzoom.json
+	rm -f tests/mlt/mvt-source.mbtiles tests/mlt/join-out.mbtiles tests/mlt/join-out.mbtiles.json.check
+	rm -f tests/mlt/overzoom-out.mlt tests/mlt/overzoom-out.json.check
+	rm -rf tests/mlt/join-out-dir tests/mlt/mvt-source-dir
 
 # Use this target to regenerate the standards that the tests are compared against
 # after making a change that legitimately changes their output

@@ -50,6 +50,7 @@
 #include "projection.hpp"
 #include "memfile.hpp"
 #include "main.hpp"
+#include "mlt.hpp"
 #include "geojson.hpp"
 #include "geobuf.hpp"
 #include "flatgeobuf.hpp"
@@ -104,9 +105,6 @@ bool drop_by_attribute_descending = false;
 std::vector<order_field> order_by;
 bool order_reverse;
 bool order_by_size = false;
-int output_format = OUTPUT_MVT;
-bool mlt_sort_features = true;
-bool mlt_pretessellate = false;
 
 int prevent[256];
 int additional[256];
@@ -2827,7 +2825,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		ai->second.maxzoom = maxzoom;
 	}
 
-	const char *tile_format = (output_format == OUTPUT_MLT) ? "mlt" : "pbf";
+	const char *tile_format = tile_format_name(output_format);
 	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, tile_format, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, forcetable);
@@ -3335,14 +3333,7 @@ int main(int argc, char **argv) {
 			} else if (strcmp(opt, "maximum-string-attribute-length") == 0) {
 				maximum_string_attribute_length = atoll_require(optarg, "Maximum string attribute length");
 			} else if (strcmp(opt, "output-format") == 0) {
-				if (strcmp(optarg, "mvt") == 0 || strcmp(optarg, "pbf") == 0) {
-					output_format = OUTPUT_MVT;
-				} else if (strcmp(optarg, "mlt") == 0) {
-					output_format = OUTPUT_MLT;
-				} else {
-					fprintf(stderr, "%s: --output-format must be 'mvt' or 'mlt'\n", argv[0]);
-					exit(EXIT_ARGS);
-				}
+				set_output_format(argv, optarg);
 			} else if (strcmp(opt, "pretessellate") == 0) {
 				mlt_pretessellate = true;
 			} else if (strcmp(opt, "no-mlt-feature-sort") == 0) {

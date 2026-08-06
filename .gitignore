@@ -45,6 +45,9 @@ tests/**/*.geobuf
 tests/mlt/dir-out/
 tests/mlt/roundtrip-dir/
 tests/mlt/overzoom.pbf
+tests/mlt/join-out-dir/
+tests/mlt/mvt-source-dir/
+tests/mlt/overzoom-out.mlt
 
 mlt-build/
 

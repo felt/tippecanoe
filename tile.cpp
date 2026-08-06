@@ -2854,12 +2854,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			std::string compressed;
-			std::string pbf;
-			if (output_format == OUTPUT_MLT) {
-				pbf = encode_as_mlt(tile, mlt_sort_features, mlt_pretessellate);
-			} else {
-				pbf = tile.encode();
-			}
+			std::string pbf = encode_tile(tile, output_format);
 
 			tile.layers.clear();
 
@@ -3034,8 +3029,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (outdb != NULL) {
 					mbtiles_write_tile(outdb, z, tx, ty, compressed.data(), compressed.size());
 				} else if (outdir != NULL) {
-					const char *tile_ext = (output_format == OUTPUT_MLT) ? ".mlt" : ".pbf";
-					dir_write_tile(outdir, z, tx, ty, compressed, tile_ext);
+					dir_write_tile(outdir, z, tx, ty, compressed, tile_format_extension(output_format));
 				}
 
 				if (pthread_mutex_unlock(&db_lock) != 0) {

@@ -777,8 +777,8 @@ mbtiles output. If they define the same layers or the same tiles, the layers
 or tiles are merged.
 
 Sources may contain either Mapbox Vector Tiles or MapLibre Tiles, in any combination,
-since the encoding is detected from the tile data. The output is always written as
-Mapbox Vector Tiles.
+since the encoding is detected from the tile data. The output is written as Mapbox
+Vector Tiles unless `--output-format=mlt` is specified.
 
 The options are:
 
@@ -829,6 +829,9 @@ The options are:
 
  * `-pk` or `--no-tile-size-limit`: Don't skip tiles larger than 500K.
  * `-pC` or `--no-tile-compression`: Don't compress the vector tile data.
+ * `--output-format=`*format*: Set the tile encoding format. Supported values: `mvt` (default, Mapbox Vector Tiles) or `mlt` ([MapLibre Tiles](https://github.com/maplibre/maplibre-tile-spec)). Applies regardless of what the sources are encoded in.
+ * `--pretessellate`: When using `--output-format=mlt`, pre-triangulate polygon geometries. Only applies to layers where all features are polygons.
+ * `--no-mlt-feature-sort`: When using `--output-format=mlt`, disable within-tile spatial sorting of features by Hilbert curve index. Sorting is on by default.
  * `-pg` or `--no-tile-stats`: Don't generate the `tilestats` row in the tileset metadata. Uploads without [tilestats](https://github.com/mapbox/mapbox-geostats) will take longer to process.
  * `--tile-stats-attributes-limit=`*count*: Include `tilestats` information about at most *count* attributes instead of the default 1000.
  * `--tile-stats-sample-values-limit=`*count*: Calculate `tilestats` attribute statistics based on *count* values instead of the default 1000.
@@ -1015,7 +1018,8 @@ reads tile `inz/inx/iny` of `in.mvt.gz`, tile `in2z/in2x/in2y` of `in2.mvt.gz`, 
 and produces tile `outz/outx/outy` of `out.mvt.gz` from them.
 
 The input tiles may be either Mapbox Vector Tiles or MapLibre Tiles, since the encoding
-is detected from the tile data. The output tile is always a Mapbox Vector Tile.
+is detected from the tile data. The output tile is a Mapbox Vector Tile unless
+`--output-format=mlt` is specified.
 
 ### Options
 
@@ -1026,3 +1030,6 @@ is detected from the tile data. The output tile is always a Mapbox Vector Tile.
  * `-m`: If a tile was created with the `--retain-points-multiplier` option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless `-j` is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
  * `--preserve-input-order`: Restore a set of filtered features to its original input order
  * `--accumulate-attribute`: Behaves as in `tippecanoe` to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with `-j` are *not* accumulated onto the output feature.
+ * `--output-format=`*format*: Set the tile encoding format. Supported values: `mvt` (default, Mapbox Vector Tiles) or `mlt` ([MapLibre Tiles](https://github.com/maplibre/maplibre-tile-spec)). Applies regardless of what the input tiles are encoded in.
+ * `--pretessellate`: When using `--output-format=mlt`, pre-triangulate polygon geometries. Only applies to layers where all features are polygons.
+ * `--no-mlt-feature-sort`: When using `--output-format=mlt`, disable within-tile spatial sorting of features by Hilbert curve index. Sorting is on by default.

@@ -10,6 +10,7 @@
 #include "errors.hpp"
 #include "compression.hpp"
 #include "mvt.hpp"
+#include "mlt.hpp"
 #include "evaluator.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
@@ -1228,7 +1229,8 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		     std::vector<mvt_layer> const &unused2, std::string const &unused3,
 		     std::string const &unused, size_t feature_limit,
 		     std::vector<clipbbox> const &unused4,
-		     bool deduplicate_by_id) {
+		     bool deduplicate_by_id,
+		     int tile_format) {
 	std::vector<source_tile> decoded;
 
 	for (auto const &t : tiles) {
@@ -1254,7 +1256,7 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		decoded.push_back(out);
 	}
 
-	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, unused2, unused3, unused, feature_limit, unused4, deduplicate_by_id);
+	return overzoom(decoded, nz, nx, ny, detail_or_unspecified, buffer, keep, exclude, exclude_prefix, do_compress, next_overzoomed_tiles, demultiply, filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, unused2, unused3, unused, feature_limit, unused4, deduplicate_by_id, tile_format);
 }
 
 // like a minimal serial_feature, but with mvt_feature-style attributes
@@ -1464,7 +1466,8 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 		     std::vector<mvt_layer> const &unused2, std::string const &unused3,
 		     std::string const &unused, size_t feature_limit,
 		     std::vector<clipbbox> const &unused4,
-		     bool deduplicate_by_id) {
+		     bool deduplicate_by_id,
+		     int tile_format) {
 	mvt_tile outtile;
 	key_pool key_pool;
 
@@ -1737,7 +1740,7 @@ std::string overzoom(std::vector<source_tile> const &tiles, int nz, int nx, int 
 	}
 
 	if (outtile.layers.size() > 0) {
-		std::string pbf = outtile.encode();
+		std::string pbf = encode_tile(outtile, tile_format);
 
 		std::string compressed;
 		if (do_compress) {

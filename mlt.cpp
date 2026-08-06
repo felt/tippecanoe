@@ -1,15 +1,49 @@
 #include "mlt.hpp"
+#include "errors.hpp"
 
 #include <mlt/encoder.hpp>
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
 
 using Vertex = mlt::Encoder::Vertex;
+
+int output_format = OUTPUT_MVT;
+bool mlt_sort_features = true;
+bool mlt_pretessellate = false;
+
+void set_output_format(char **argv, const char *format) {
+	if (strcmp(format, "mvt") == 0 || strcmp(format, "pbf") == 0) {
+		output_format = OUTPUT_MVT;
+	} else if (strcmp(format, "mlt") == 0) {
+		output_format = OUTPUT_MLT;
+	} else {
+		fprintf(stderr, "%s: --output-format must be 'mvt' or 'mlt'\n", argv[0]);
+		exit(EXIT_ARGS);
+	}
+}
+
+const char *tile_format_name(int format) {
+	return (format == OUTPUT_MLT) ? "mlt" : "pbf";
+}
+
+const char *tile_format_extension(int format) {
+	return (format == OUTPUT_MLT) ? ".mlt" : ".pbf";
+}
+
+std::string encode_tile(mvt_tile &tile, int format) {
+	if (format == OUTPUT_MLT) {
+		return encode_as_mlt(tile, mlt_sort_features, mlt_pretessellate);
+	} else {
+		return tile.encode();
+	}
+}
 
 // An MLT property column has a single type for the whole layer, while MVT
 // values each carry their own type, so a type that can hold every value of
