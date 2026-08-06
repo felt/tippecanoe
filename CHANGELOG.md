@@ -21,10 +21,13 @@
 * Drop a polygon hole that no remaining ring can parent, instead of failing
   the whole run. Degenerate input could abort tiling over a single
   unrepresentable sliver. (#401)
-* Clamp the feature extent to the `long long` range before converting it.
-  `LLONG_MAX` is not representable as a double, so an extent at the very top
-  of the double range overflowed the conversion and became the most negative
-  value rather than the largest. (#406)
+* Clamp the feature extent to the `long long` range before converting it,
+  at both ends. The previous `extent <= LLONG_MAX` guard was doubly wrong:
+  `LLONG_MAX` is not representable as a double and rounds up, so an extent
+  at the very top of the range overflowed the conversion and came out as the
+  most negative value rather than the largest, and the guard admitted
+  everything below `LLONG_MIN` as well, which overflowed the other way. Areas
+  are signed, so holes that outweigh their rings can reach the low end. (#406)
 * Initialize the full width of the `mvt_value` numeric union, which left the
   bytes of the wider unused member indeterminate even though the implicit
   copy constructor copies the union as a whole. (#406)
