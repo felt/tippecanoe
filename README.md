@@ -704,8 +704,13 @@ lower resolutions before failing if it still doesn't fit.
 Development
 -----------
 
-Requires sqlite3 and zlib (should already be installed on MacOS). Rebuilding the manpage
-uses md2man (`gem install md2man`).
+Requires sqlite3 and zlib (should already be installed on MacOS).
+
+The manpage is generated from this README by `make docs`, which uses
+[go-md2man](https://github.com/cpuguy83/go-md2man) (`brew install go-md2man` or
+`apt-get install go-md2man`). You don't have to run it yourself: CI regenerates the
+manpage and fails if the committed copy doesn't match, so it will tell you if an
+edit here needs `make docs` run against it.
 
 Linux:
 

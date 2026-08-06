@@ -38,6 +38,9 @@ tippecanoe-json-tool
 tippecanoe-overzoom
 unit
 
+# Left behind if man page generation fails
+man/tippecanoe.1.tmp
+
 # Tests
 tests/**/*.mbtiles
 tests/**/*.check

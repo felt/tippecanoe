@@ -4,6 +4,8 @@ BUILDTYPE ?= Release
 BUILD_INFO ?=
 SHELL = /bin/sh
 
+VERSION := $(shell sed -n 's/^#define VERSION "\(.*\)"$$/\1/p' version.hpp)
+
 
 # inherit from env if set
 CC := $(CC)
@@ -48,8 +50,25 @@ install: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join tippecanoe-
 uninstall:
 	rm $(PREFIX)/bin/tippecanoe $(PREFIX)/bin/tippecanoe-enumerate $(PREFIX)/bin/tippecanoe-decode $(PREFIX)/bin/tile-join $(MANDIR)/tippecanoe.1 $(PREFIX)/bin/tippecanoe-json-tool
 
-man/tippecanoe.1: README.md
-	md2man-roff README.md > man/tippecanoe.1
+# The man page is generated from README.md by go-md2man, which is packaged for
+# most systems (`brew install go-md2man`, `apt-get install go-md2man`) or can be
+# built with `go install github.com/cpuguy83/go-md2man/v2@v2.0.7`. CI checks that
+# the committed man page matches the README, so you don't have to regenerate it
+# yourself if you don't have go-md2man installed.
+#
+# README.md has no .TH or NAME section of its own, since neither would make sense
+# on GitHub, so prepend them here. go-md2man reads the leading "%" line as the
+# man page's title, section, date, and source.
+man/tippecanoe.1: README.md version.hpp
+	{ \
+		echo '% TIPPECANOE 1 "" "tippecanoe $(VERSION)"'; \
+		echo; \
+		echo '# NAME'; \
+		echo; \
+		echo 'tippecanoe - build vector tilesets from GeoJSON, FlatGeobuf, or CSV features'; \
+		echo; \
+		cat README.md; \
+	} | go-md2man > $@.tmp && mv $@.tmp $@
 
 PG=
 
