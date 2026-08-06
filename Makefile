@@ -24,7 +24,7 @@ MLT_FLAGS =
 MLT_INCLUDES = -isystem maplibre-tile-spec/cpp/include -isystem maplibre-tile-spec/cpp/vendor/fsst
 MLT_STD = -std=c++20
 MLT_DEPS = $(MLT_BUILD_STAMP)
-MLT_DECODE_LIBS = mlt-build/libmlt-cpp.a mlt-build/libfsst-lib.a mlt-build/fastpfor/libFastPFOR.a
+MLT_DECODE_LIBS = mlt-build/libmlt-cpp.a mlt-build/libfsst-lib.a mlt-build/libfastpfor-lib.a
 MLT_LIBS = mlt-build/libmlt-cpp-encoder.a $(MLT_DECODE_LIBS)
 MLT_TESTS = mlt-test mlt-decode-test mlt-output-test
 endif
@@ -86,8 +86,6 @@ LIBS = -L/usr/local/lib
 $(MLT_BUILD_STAMP): maplibre-tile-spec/cpp/CMakeLists.txt
 	cmake -S maplibre-tile-spec/cpp -B mlt-build \
 		-DCMAKE_BUILD_TYPE=$(BUILDTYPE) \
-		-DMLT_WITH_FASTPFOR=ON \
-		-DMLT_WITH_FASTPFOR_SIMD=OFF \
 		-DMLT_WITH_JSON=OFF \
 		-DMLT_WITH_TESTS=OFF \
 		-DMLT_WITH_TOOLS=OFF \
