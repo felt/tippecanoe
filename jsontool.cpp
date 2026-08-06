@@ -13,6 +13,7 @@
 #include "geojson-loop.hpp"
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
+#include "usage.hpp"
 
 int fail = EXIT_SUCCESS;
 bool wrap = false;
@@ -407,34 +408,45 @@ void process(FILE *fp, const char *fname) {
 	json_end(jp);
 }
 
+static const struct option long_options[] = {
+	{"Wrapping the output", 0, 0, 0},
+	{"wrap", no_argument, 0, 'w'},
+
+	{"Sorting and joining", 0, 0, 0},
+	{"extract", required_argument, 0, 'e'},
+	{"csv", required_argument, 0, 'c'},
+	{"empty-csv-columns-are-null", no_argument, &pe, 1},
+
+	{"", 0, 0, 0},
+	{"prevent", required_argument, 0, 'p'},
+
+	{0, 0, 0, 0},
+};
+
+// the options above, with the usage message headings removed
+static struct option real_long_options[sizeof(long_options) / sizeof(long_options[0])];
+
+void usage(char **argv) {
+	static const char *const forms[] = {
+		"[options] [file.json ...]",
+		NULL,
+	};
+
+	print_usage(stderr, argv[0], forms, long_options, NULL);
+	fprintf(stderr, "\nIf no files are named, the JSON is read from the standard input.\n");
+	exit(EXIT_ARGS);
+}
+
 int main(int argc, char **argv) {
 	const char *csv = NULL;
 
-	struct option long_options[] = {
-		{"wrap", no_argument, 0, 'w'},
-		{"extract", required_argument, 0, 'e'},
-		{"csv", required_argument, 0, 'c'},
-		{"empty-csv-columns-are-null", no_argument, &pe, 1},
-		{"prevent", required_argument, 0, 'p'},
-
-		{0, 0, 0, 0},
-	};
-
-	std::string getopt_str;
-	for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
-		if (long_options[lo].val > ' ') {
-			getopt_str.push_back(long_options[lo].val);
-
-			if (long_options[lo].has_arg == required_argument) {
-				getopt_str.push_back(':');
-			}
-		}
-	}
+	strip_usage_headings(long_options, real_long_options);
+	std::string getopt_str = getopt_string(real_long_options);
 
 	extern int optind;
 	int i;
 
-	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, NULL)) != -1) {
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), real_long_options, NULL)) != -1) {
 		switch (i) {
 		case 0:
 			break;
@@ -461,8 +473,7 @@ int main(int argc, char **argv) {
 			break;
 
 		default:
-			fprintf(stderr, "Unexpected option -%c\n", i);
-			exit(EXIT_ARGS);
+			usage(argv);
 		}
 	}
 
