@@ -951,14 +951,20 @@ struct write_tile_args {
 };
 
 // Is this zoom level discarding features to make its tiles fit? The thresholds
-// are zero until some tile in the zoom fails to fit and the whole zoom is retried
-// with a threshold for discarding features, and from then on they only increase.
+// start out excluding nothing, and only move inward once some tile in the zoom
+// fails to fit and the whole zoom is retried with a threshold for discarding
+// features. For mingap, minextent, and mindrop_sequence that starting point is
+// zero; for minattribute it is the infinity on whichever side is being kept.
 //
 // Pyramid truncation is disabled while this is true, so that every tile in the
 // zoom is reduced consistently, and tiles that were skipped because an ancestor
 // truncated its pyramid are revived.
-static bool dropping_features(unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence) {
-	return mingap != 0 || minextent != 0 || mindrop_sequence != 0;
+static bool dropping_features(unsigned long long mingap, long long minextent, unsigned long long mindrop_sequence, double minattribute, bool drop_by_attribute_descending) {
+	bool dropping_by_attribute = drop_by_attribute_descending
+					     ? minattribute != HUGE_VAL
+					     : minattribute != -HUGE_VAL;
+
+	return mingap != 0 || minextent != 0 || mindrop_sequence != 0 || dropping_by_attribute;
 }
 
 // Clips a feature's geometry to the tile bounds at the specified zoom level
@@ -1691,7 +1697,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 	int first_detail = detail, second_detail = detail - 1;
 	bool trying_to_stop_early = false;
 	bool can_stop_early = true;
-	if (additional[A_VARIABLE_DEPTH_PYRAMID] && !dropping_features(mingap, minextent, mindrop_sequence)) {
+	if (additional[A_VARIABLE_DEPTH_PYRAMID] && !dropping_features(mingap, minextent, mindrop_sequence, minattribute, arg->drop_by_attribute_descending)) {
 		// If we are trying to stop early, there is an extra first pass with full+extra detail,
 		// and which loops if everything doesn't fit rather than trying to drop or union features.
 
@@ -3170,7 +3176,7 @@ exit(EXIT_IMPOSSIBLE);
 			bool write_children = (arg->pass == 0);
 
 			if (arg->skip_children->count(parent) > 0) {
-				if (dropping_features(arg->mingap, arg->minextent, arg->mindrop_sequence)) {
+				if (dropping_features(arg->mingap, arg->minextent, arg->mindrop_sequence, arg->minattribute, arg->drop_by_attribute_descending)) {
 					// The parent truncated its pyramid here, but the zoom has since had to
 					// start dropping features, so the truncation no longer holds and this
 					// tile has to be written after all. Its geometry is still in the stream.
@@ -3387,7 +3393,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			// Tiles that were skipped because an ancestor truncated its pyramid are
 			// revived on the pass where this zoom starts dropping features, and that
 			// is the pass on which they have to write out their children.
-			bool is_dropping = dropping_features(zoom_mingap, zoom_minextent, zoom_mindrop_sequence);
+			bool is_dropping = dropping_features(zoom_mingap, zoom_minextent, zoom_mindrop_sequence, zoom_minattribute, drop_by_attribute_descending);
 			bool first_dropping_pass = is_dropping && !was_dropping;
 			was_dropping = is_dropping;
 
