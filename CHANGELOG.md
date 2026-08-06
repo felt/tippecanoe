@@ -6,6 +6,21 @@
   Features exactly at the threshold are kept rather than dropped. (#384, #385)
 * Add `--exclude-all-tile-geometries` to tile-join, to produce tiles that
   carry only attributes. (#382)
+* Generate each tool's usage message from the same option table that
+  `getopt_long()` reads, so the hand-written lists in tile-join,
+  tippecanoe-overzoom, tippecanoe-json-tool, tippecanoe-decode, and
+  tippecanoe-enumerate can no longer fall behind the options actually
+  accepted. Options previously reachable only by their short names are now
+  listed. tippecanoe-overzoom reports a missing `-o` instead of passing a
+  null pointer to `fopen()`, and tippecanoe prints its usage when run with
+  no arguments. (#409)
+* Fix the radix sort used by `--prefer-radix-sort`. A bucket written out
+  directly rather than through the merge was written one byte longer than
+  its length prefix claimed, desynchronizing everything read from the
+  geometry after it. Subdividing could also recurse forever once it ran out
+  of files to split with, shifting by the full width of the index and
+  writing past the end of the arrays of buckets. Radix-sorted output is now
+  checked against the in-memory sort rather than against a stored copy. (#404)
 * Read FlatGeobuf integer and float properties as numbers. They were tagged
   with types that the rest of tippecanoe does not treat as numeric, so they
   were reported in tilestats as "mixed", with quoted values and no min or
@@ -36,6 +51,17 @@
   C++, and clang warns about every one of them by default. (#406)
 * Remove the unused Dockerfiles, Travis configuration, and lambda
   directory. (#365)
+* Correct README statements that disagreed with the code. Among them, `-aD`
+  and `-aS` were documented the wrong way round,
+  `--limit-base-zoom-to-maximum-zoom` was given as `-Pb` rather than `-pb`,
+  and the dot-dropping description had both the fraction and the zoom
+  direction backwards: tippecanoe keeps 1/2.5 of the dots at zooms below the
+  base zoom, rather than dropping that share above it. (#410)
+* Generate `man/tippecanoe.1` with go-md2man rather than md2man-roff, which
+  is packaged only as a Ruby gem and so had let the page drift out of date.
+  The page now has a proper header and a NAME section, so `man -k` and
+  `whatis` can find it, and no longer silently drops or mangles text the old
+  converter mishandled. CI checks it against README.md. (#408)
 * Documentation fixes: correct three misspellings in the README and man
   page, repair the dead All Streets link, and tag more README code blocks
   with their language. (#375, #391, #400)
