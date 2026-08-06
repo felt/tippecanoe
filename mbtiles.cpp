@@ -665,14 +665,14 @@ std::string version_str() {
 	return s;
 }
 
-metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, bool vector, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, int retain_points_multiplier) {
+metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minlat, double minlon, double maxlat, double maxlon, double minlat2, double minlon2, double maxlat2, double maxlon2, double midlat, double midlon, const char *attribution, std::map<std::string, layermap_entry> const &layermap, const char *tile_format, const char *description, bool do_tilestats, std::map<std::string, std::string> const &attribute_descriptions, std::string const &program, std::string const &commandline, std::vector<strategy> const &strategies, int basezoom, double droprate, int retain_points_multiplier) {
 	metadata m;
 
 	m.name = fname;
 	m.description = description != NULL ? description : fname;
 	m.version = 2;
 	m.type = "overlay";
-	m.format = vector ? "pbf" : "png";
+	m.format = tile_format;
 
 	m.minzoom = minzoom;
 	m.maxzoom = maxzoom;
@@ -711,7 +711,8 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 				   std::string("}");
 	}
 
-	if (vector) {
+	bool is_vector_format = (strcmp(tile_format, "pbf") == 0 || strcmp(tile_format, "mlt") == 0);
+	if (is_vector_format) {
 		{
 			json_writer state(&m.vector_layers_json);
 
