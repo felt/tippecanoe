@@ -4,8 +4,6 @@ BUILDTYPE ?= Release
 BUILD_INFO ?=
 SHELL = /bin/sh
 
-VERSION := $(shell sed -n 's/^#define VERSION "\(.*\)"$$/\1/p' version.hpp)
-
 
 # inherit from env if set
 CC := $(CC)
@@ -58,15 +56,23 @@ uninstall:
 #
 # README.md has no .TH or NAME section of its own, since neither would make sense
 # on GitHub, so prepend them here. go-md2man reads the leading "%" line as the
-# man page's title, section, date, and source.
+# man page's title, section, date, and source. The version deliberately doesn't
+# appear there: it would make this page a build product of version.hpp, so every
+# release would have to regenerate it just to rewrite that one line, and the docs
+# CI job would fail on any version bump that forgot to.
 #
-# go-md2man separates paragraphs with a blank line in addition to the .PP macro,
-# and a blank line is itself a break in roff, so the two together double-space the
-# whole page. Drop them, except within .EX and .TS blocks, where a blank line is
-# part of the example or table rather than spacing around it.
-man/tippecanoe.1: README.md version.hpp
+# Two fixups on the way out:
+#
+#   - README.md's own title heading becomes the second .SH, right below the NAME
+#     section added above, which reads as a stray "tippecanoe" section. Rename it
+#     to DESCRIPTION, where the text under it belongs anyway.
+#   - go-md2man separates paragraphs with a blank line in addition to the .PP
+#     macro, and a blank line is itself a break in roff, so the two together
+#     double-space the whole page. Drop them, except within .EX and .TS blocks,
+#     where a blank line is part of the example or table rather than spacing.
+man/tippecanoe.1: README.md
 	{ \
-		echo '% TIPPECANOE 1 "" "tippecanoe $(VERSION)"'; \
+		echo '% TIPPECANOE 1 "" "tippecanoe"'; \
 		echo; \
 		echo '# NAME'; \
 		echo; \
@@ -74,8 +80,12 @@ man/tippecanoe.1: README.md version.hpp
 		echo; \
 		cat README.md; \
 	} | go-md2man \
-	  | awk '/^\.(EX|TS)$$/ { lit = 1 } /^\.(EE|TE)$$/ { lit = 0 } lit || !/^$$/' \
-	  > $@.tmp && mv $@.tmp $@
+	  | awk ' \
+		/^\.SH / && ++sh == 2 { print ".SH DESCRIPTION"; next } \
+		/^\.(EX|TS)$$/ { lit = 1 } \
+		/^\.(EE|TE)$$/ { lit = 0 } \
+		lit || !/^$$/ \
+	    ' > $@.tmp && mv $@.tmp $@
 
 PG=
 
