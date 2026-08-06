@@ -1292,7 +1292,6 @@ static const struct option long_options[] = {
 	{"exclude-all-tile-geometries", no_argument, 0, '~'},
 
 	{"Modifying feature attributes", 0, 0, 0},
-	{"use-attribute-for-id", required_argument, 0, '~'},
 	{"unidecode-data", required_argument, 0, '~'},
 
 	{"Filtering features by attributes", 0, 0, 0},
@@ -1326,8 +1325,9 @@ void usage(char **argv) {
 		NULL,
 	};
 	static const struct usage_required_option required[] = {
-		{"output", "new.mbtiles"},
-		{NULL, NULL},
+		{"output", "new.mbtiles", 1},
+		{"output-to-directory", "directory", 1},
+		{NULL, NULL, 0},
 	};
 
 	print_usage(stderr, argv[0], forms, long_options, required);

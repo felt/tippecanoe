@@ -76,8 +76,8 @@ void usage(char **argv) {
 		NULL,
 	};
 	static const struct usage_required_option required[] = {
-		{"output", "newtile.pbf.gz"},
-		{NULL, NULL},
+		{"output", "newtile.pbf.gz", 0},
+		{NULL, NULL, 0},
 	};
 
 	print_usage(stderr, argv[0], forms, long_options, required);

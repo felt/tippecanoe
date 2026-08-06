@@ -3122,6 +3122,8 @@ static const struct option long_options_orig[] = {
 	{"no-progress-indicator", no_argument, 0, 'Q'},
 	{"progress-interval", required_argument, 0, 'U'},
 	{"json-progress", no_argument, 0, 'u'},
+
+	{"Version", 0, 0, 0},
 	{"version", no_argument, 0, 'v'},
 
 	{"", 0, 0, 0},
@@ -3144,8 +3146,9 @@ void usage(char **argv, int status) {
 		NULL,
 	};
 	static const struct usage_required_option required[] = {
-		{"output", "output.mbtiles"},
-		{NULL, NULL},
+		{"output", "output.mbtiles", 1},
+		{"output-to-directory", "directory", 1},
+		{NULL, NULL, 0},
 	};
 
 	print_usage(stderr, argv[0], forms, long_options_orig, required);

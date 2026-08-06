@@ -6,10 +6,15 @@
 #include <string>
 
 // An option that must be specified rather than being optional, and the
-// placeholder to show for its argument in the usage message
+// placeholder to show for its argument in the usage message.
+//
+// Options that share the same non-zero `alternation` are alternatives to
+// each other: one of them must be specified, but not more than one, and
+// they are listed together as `(--this=... | --that=...)`.
 struct usage_required_option {
 	const char *name;
 	const char *placeholder;
+	int alternation;
 };
 
 // Returns the short option string to pass to getopt_long() for the
@@ -36,9 +41,10 @@ void strip_usage_headings(const struct option *long_options, struct option *real
 //
 // Options named in `required` (a list terminated by a NULL name, or NULL
 // if there are none) are shown without brackets, using the placeholder
-// given there for their argument. An entry in `long_options` with no
-// `val` is printed as a heading for the options that follow it, and an
-// entry with an empty name ends the listing, hiding any options after it.
+// given there for their argument, and grouped with any alternatives to
+// them. An entry in `long_options` with no `val` is printed as a heading
+// for the options that follow it, and an entry with an empty name ends
+// the listing, hiding any options after it.
 void print_usage(FILE *out, const char *program, const char *const *forms,
 		 const struct option *long_options,
 		 const struct usage_required_option *required);
