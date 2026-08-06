@@ -20,7 +20,7 @@ something that looks like "All Streets \[la]http://benfry.com/allstreets/map5.ht
 rather than something that looks like an Interstate road atlas.
 .PP
 If you give it all the building footprints in Los Angeles and zoom out
-far enough that most individual buildings are no longer discernable, you
+far enough that most individual buildings are no longer discernible, you
 should still be able to see the extent and variety of development in every neighborhood,
 not just the largest downtown buildings.
 .PP
@@ -601,7 +601,7 @@ preference to retaining points in sparse areas and dropping points in dense area
 .IP \(bu 2
 \fB\fC\-kg\fR or \fB\fC\-\-cluster\-maxzoom=g\fR: Set \fB\fC\-\-cluster\-maxzoom=\fR to \fB\fCmaxzoom \- 1\fR so that all features are visible at the maximum zoom level.
 .IP \(bu 2
-\fB\fC\-\-preserve\-point\-density\-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specfied drop rate would normally call for it, so that low\-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
+\fB\fC\-\-preserve\-point\-density\-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specified drop rate would normally call for it, so that low\-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
 .RE
 .SS Dropping a fraction of features to keep under tile size limits
 .RS
@@ -836,7 +836,7 @@ If you have a feature like this:
 .fi
 .RE
 .PP
-with a \fB\fCtippecanoe\fR object specifiying a \fB\fCmaxzoom\fR of 9 and a \fB\fCminzoom\fR of 4, the feature
+with a \fB\fCtippecanoe\fR object specifying a \fB\fCmaxzoom\fR of 9 and a \fB\fCminzoom\fR of 4, the feature
 will only appear in the vector tiles for zoom levels 4 through 9. Note that the \fB\fCtippecanoe\fR
 object belongs to the Feature, not to its \fB\fCproperties\fR\&. If you specify a \fB\fCminzoom\fR for a feature,
 it will be preserved down to that zoom level even if dot\-dropping with \fB\fC\-r\fR would otherwise have

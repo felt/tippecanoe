@@ -25,13 +25,10 @@ std::string filter;
 bool preserve_input_order = false;
 std::unordered_map<std::string, attribute_op> attribute_accum;
 std::vector<std::string> unidecode_data;
-std::vector<mvt_layer> bins;
-std::string accumulate_numeric;
 
 std::set<std::string> keep;
 std::set<std::string> exclude;
 std::vector<std::string> exclude_prefix;
-std::vector<clipbbox> clipbboxes;
 
 void usage(char **argv) {
 	fprintf(stderr, "Usage: %s -o newtile.pbf.gz tile.pbf.gz oz/ox/oy nz/nx/ny\n", argv[0]);
@@ -67,8 +64,6 @@ int main(int argc, char **argv) {
 	const char *outfile = NULL;
 	double simplification = 0;
 	double tiny_polygon_size = 0;
-	std::string assign_to_bins;
-	std::string bin_by_id_list;
 
 	std::vector<input_tile> sources;
 
@@ -88,13 +83,7 @@ int main(int argc, char **argv) {
 		{"line-simplification", required_argument, 0, 'S'},
 		{"tiny-polygon-size", required_argument, 0, 's' & 0x1F},
 		{"source-tile", required_argument, 0, 't'},
-		{"assign-to-bins", required_argument, 0, 'b' & 0x1F},
-		{"bin-by-id-list", required_argument, 0, 'c' & 0x1F},
-		{"accumulate-numeric-attributes", required_argument, 0, 'a' & 0x1F},
 		{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
-		{"clip-bounding-box", required_argument, 0, 'k' & 0x1F},
-		{"clip-polygon", required_argument, 0, 'l' & 0x1F},
-		{"clip-polygon-file", required_argument, 0, 'm' & 0x1F},
 		{"deduplicate-by-id", no_argument, 0, 'i' & 0x1F},
 
 		{0, 0, 0, 0},
@@ -174,46 +163,9 @@ int main(int argc, char **argv) {
 			simplification = atof(optarg);
 			break;
 
-		case 'b' & 0x1F:
-			assign_to_bins = optarg;
-			break;
-
-		case 'c' & 0x1F:
-			bin_by_id_list = optarg;
-			break;
-
-		case 'a' & 0x1F:
-			accumulate_numeric = optarg;
-			break;
-
 		case 'd' & 0x1F:
 			do_compress = false;
 			break;
-
-		case 'k' & 0x1F: {
-			clipbbox clip;
-			if (sscanf(optarg, "%lf,%lf,%lf,%lf", &clip.lon1, &clip.lat1, &clip.lon2, &clip.lat2) == 4) {
-				projection->project(clip.lon1, clip.lat1, 32, &clip.minx, &clip.maxy);
-				projection->project(clip.lon2, clip.lat2, 32, &clip.maxx, &clip.miny);
-				clipbboxes.push_back(clip);
-			} else {
-				fprintf(stderr, "%s: Can't parse bounding box --clip-bounding-box=%s\n", argv[0], optarg);
-				exit(EXIT_ARGS);
-			}
-			break;
-		}
-
-		case 'l' & 0x1F: {
-			clipbbox clip = parse_clip_poly(optarg);
-			clipbboxes.push_back(clip);
-			break;
-		}
-
-		case 'm' & 0x1F: {
-			clipbbox clip = parse_clip_poly(read_json_file(optarg));
-			clipbboxes.push_back(clip);
-			break;
-		}
 
 		case 'i' & 0x1F: {
 			deduplicate_by_id = true;
@@ -283,58 +235,9 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (assign_to_bins.size() != 0) {
-		FILE *f = fopen(assign_to_bins.c_str(), "r");
-		if (f == NULL) {
-			perror(assign_to_bins.c_str());
-			exit(EXIT_OPEN);
-		}
-
-		int det = detail;
-		if (det < 0) {
-			det = 12;
-		}
-		bins = parse_layers(f, nz, nx, ny, 1LL << det, true);
-		fclose(f);
-	}
-
-	// clip the clip polygons, if any, to the tile bounds,
-	// to reduce their complexity
-
-	bool clipped_to_nothing = false;
-	if (clipbboxes.size() > 0) {
-		long long wx1 = (nx - buffer / 256.0) * (1LL << (32 - nz));
-		long long wy1 = (ny - buffer / 256.0) * (1LL << (32 - nz));
-		long long wx2 = (nx + 1 + buffer / 256.0) * (1LL << (32 - nz));
-		long long wy2 = (ny + 1 + buffer / 256.0) * (1LL << (32 - nz));
-
-		drawvec tile_bounds;
-		tile_bounds.emplace_back(VT_MOVETO, wx1, wy1);
-		tile_bounds.emplace_back(VT_LINETO, wx2, wy1);
-		tile_bounds.emplace_back(VT_LINETO, wx2, wy2);
-		tile_bounds.emplace_back(VT_LINETO, wx1, wy2);
-		tile_bounds.emplace_back(VT_LINETO, wx1, wy1);
-
-		for (auto &c : clipbboxes) {
-			c.minx = std::max(c.minx, wx1);
-			c.miny = std::max(c.miny, wy1);
-			c.maxx = std::min(c.maxx, wx2);
-			c.maxy = std::min(c.maxy, wy2);
-
-			if (c.dv.size() > 0) {
-				c.dv = clip_poly_poly(c.dv, tile_bounds);
-
-				if (c.dv.size() == 0) {
-					clipped_to_nothing = true;
-					break;
-				}
-			}
-		}
-	}
-
 	std::string out;
 
-	if (!clipped_to_nothing) {
+	{
 		json_object *json_filter = NULL;
 		if (filter.size() > 0) {
 			json_filter = parse_filter(filter.c_str());
@@ -361,7 +264,7 @@ int main(int argc, char **argv) {
 			its.push_back(std::move(t));
 		}
 
-		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, bins, bin_by_id_list, accumulate_numeric, SIZE_MAX, clipbboxes, deduplicate_by_id);
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, std::vector<clipbbox>(), deduplicate_by_id);
 	}
 
 	FILE *f = fopen(outfile, "wb");

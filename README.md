@@ -20,11 +20,11 @@ the density and texture of the data rather than a simplification from dropping
 supposedly unimportant features or clustering or aggregating them.
 
 If you give it all of OpenStreetMap and zoom out, it should give you back
-something that looks like "[All Streets](http://benfry.com/allstreets/map5.html)"
+something that looks like "[All Streets](https://benfry.com/allstreets/)"
 rather than something that looks like an Interstate road atlas.
 
 If you give it all the building footprints in Los Angeles and zoom out
-far enough that most individual buildings are no longer discernable, you
+far enough that most individual buildings are no longer discernible, you
 should still be able to see the extent and variety of development in every neighborhood,
 not just the largest downtown buildings.
 
@@ -57,7 +57,7 @@ compiler errors.
 Usage
 -----
 
-```sh
+```
 $ tippecanoe -o file.mbtiles [options] [file.json file.json.gz file.fgb ...]
 ```
 
@@ -99,7 +99,7 @@ $ tippecanoe -o alameda.mbtiles -l alameda -n "Alameda County from TIGER" -z13 t
 Create a tileset of all TIGER roads, at only zoom level 12, but with higher detail than normal,
 with a custom layer name and description, and leaving out the `LINEARID` and `RTTYP` attributes:
 
-```
+```sh
 $ cat tiger/tl_2014_*_roads.json | tippecanoe -o tiger.mbtiles -l roads -n "All TIGER roads, one zoom" -z12 -Z12 -d14 -x LINEARID -x RTTYP
 ```
 
@@ -108,7 +108,7 @@ Cookbook
 
 ### Linear features (world railroads), visible at all zoom levels
 
-```
+```sh
 curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_railroads.zip
 unzip ne_10m_railroads.zip
 ogr2ogr -f GeoJSON ne_10m_railroads.geojson ne_10m_railroads.shp
@@ -122,7 +122,7 @@ tippecanoe -zg -o ne_10m_railroads.mbtiles --drop-densest-as-needed --extend-zoo
 
 ### Discontinuous polygon features (buildings of Rhode Island), visible at all zoom levels
 
-```
+```sh
 curl -L -O https://usbuildingdata.blob.core.windows.net/usbuildings-v1-1/RhodeIsland.zip
 unzip RhodeIsland.zip
 
@@ -135,7 +135,7 @@ tippecanoe -zg -o RhodeIsland.mbtiles --drop-densest-as-needed --extend-zooms-if
 
 ### Continuous polygon features (states and provinces), visible at all zoom levels
 
-```
+```sh
 curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_1_states_provinces.zip
 unzip -o ne_10m_admin_1_states_provinces.zip
 ogr2ogr -f GeoJSON ne_10m_admin_1_states_provinces.geojson ne_10m_admin_1_states_provinces.shp
@@ -149,7 +149,7 @@ tippecanoe -zg -o ne_10m_admin_1_states_provinces.mbtiles --coalesce-densest-as-
 
 ### Large point dataset (GPS bus locations), for visualization at all zoom levels
 
-```
+```sh
 curl -L -O ftp://avl-data.sfmta.com/avl_data/avl_raw/sfmtaAVLRawData01012013.csv
 sed 's/PREDICTABLE.*/PREDICTABLE/' sfmtaAVLRawData01012013.csv > sfmta.csv
 tippecanoe -zg -o sfmta.mbtiles --drop-densest-as-needed --extend-zooms-if-still-dropping sfmta.csv
@@ -163,7 +163,7 @@ tippecanoe -zg -o sfmta.mbtiles --drop-densest-as-needed --extend-zooms-if-still
 
 ### Clustered points (world cities), summing the clustered population, visible at all zoom levels
 
-```
+```sh
 curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_populated_places.zip
 unzip -o ne_10m_populated_places.zip
 ogr2ogr -f GeoJSON ne_10m_populated_places.geojson ne_10m_populated_places.shp
@@ -178,7 +178,7 @@ tippecanoe -zg -o ne_10m_populated_places.mbtiles -r1 --cluster-distance=10 --ac
 
 ### Show countries at low zoom levels but states at higher zoom levels
 
-```
+```sh
 curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip
 unzip ne_10m_admin_0_countries.zip
 ogr2ogr -f GeoJSON ne_10m_admin_0_countries.geojson ne_10m_admin_0_countries.shp
@@ -206,7 +206,7 @@ States and Provinces:
 
 ### Represent multiple sources (Illinois and Indiana counties) as separate layers
 
-```
+```sh
 curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_17_county10.zip
 unzip tl_2010_17_county10.zip
 ogr2ogr -f GeoJSON tl_2010_17_county10.geojson tl_2010_17_county10.shp
@@ -224,7 +224,7 @@ tippecanoe -zg -o counties-separate.mbtiles --coalesce-densest-as-needed --exten
 
 ### Merge multiple sources (Illinois and Indiana counties) into the same layer
 
-```
+```sh
 curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_17_county10.zip
 unzip tl_2010_17_county10.zip
 ogr2ogr -f GeoJSON tl_2010_17_county10.geojson tl_2010_17_county10.shp
@@ -242,7 +242,7 @@ As above, but
 
 ### Selectively remove and replace features (Census tracts) to update a tileset
 
-```
+```sh
 # Retrieve and tile California 2000 Census tracts
 curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/TRACT/2000/tl_2010_06_tract00.zip
 unzip tl_2010_06_tract00.zip
@@ -316,7 +316,7 @@ If your input is formatted as newline-delimited GeoJSON, use `-P` to make input 
  * `-L` _name_`:`_file.json_ or `--named-layer=`_name_`:`_file.json_: Specify layer names for individual files. If your shell supports it, you can use a subshell redirect like `-L` _name_`:<(cat dir/*.json)` to specify a layer name for the output of streamed input.
  * `-L{`_layer-json_`}` or `--named-layer={`_layer-json_`}`: Specify an input file and layer options by a JSON object. The JSON object must contain a `"file"` key to specify the filename to read from. (If the `"file"` key is an empty string, it means to read from the standard input stream.) It may also contain a `"layer"` field to specify the name of the layer, and/or a `"description"` field to specify the layer's description in the tileset metadata, and/or a `"format"` field to specify `csv` or `fgb` file format if it is not obvious from the `name`. Example:
 
-```
+```sh
 tippecanoe -z5 -o world.mbtiles -L'{"file":"ne_10m_admin_0_countries.json", "layer":"countries", "description":"Natural Earth countries"}'
 ```
 
@@ -433,20 +433,20 @@ be reduced to the maximum that can be used with the specified _maxzoom_.
 
 Example: to find the Natural Earth countries with low `scalerank` but high `LABELRANK`:
 
-```
+```sh
 tippecanoe -z5 -o filtered.mbtiles -j '{ "ne_10m_admin_0_countries": [ "all", [ "<", "scalerank", 3 ], [ ">", "LABELRANK", 5 ] ] }' ne_10m_admin_0_countries.geojson
 ```
 
 Example: to retain only major TIGER roads at low zoom levels:
 
-```
+```sh
 tippecanoe -o roads.mbtiles -j '{ "*": [ "any", [ ">=", "$zoom", 11 ], [ "in", "MTFCC", "S1100", "S1200" ] ] }' tl_2015_06001_roads.json
 ```
 
 Tippecanoe also accepts expressions of the form `[ "attribute-filter", name, expression ]`, to filter individual feature attributes
 instead of entire features. For example, you can exclude the road names at low zoom levels by doing
 
-```
+```sh
 tippecanoe -o roads.mbtiles -j '{ "*": [ "attribute-filter", "FULLNAME", [ ">=", "$zoom", 9 ] ] }' tl_2015_06001_roads.json
 ```
 
@@ -475,13 +475,14 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-K` _distance_ or `--cluster-distance=`_distance_: Cluster points (as with `--cluster-densest-as-needed`, but without the experimental discovery process) that are approximately within _distance_ of each other. The units are tile coordinates within a nominally 256-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See `--cluster-densest-as-needed` below for behavior.
  * `-k` _zoom_ or `--cluster-maxzoom=`_zoom_: Max zoom on which to cluster points if clustering is enabled.
  * `-kg` or `--cluster-maxzoom=g`: Set `--cluster-maxzoom=` to `maxzoom - 1` so that all features are visible at the maximum zoom level.
- * `--preserve-point-density-threshold=`_level_: At the low zoom levels, do not reduce point density below the specified _level_, even if the specfied drop rate would normally call for it, so that low-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
+ * `--preserve-point-density-threshold=`_level_: At the low zoom levels, do not reduce point density below the specified _level_, even if the specified drop rate would normally call for it, so that low-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
 
 ### Dropping a fraction of features to keep under tile size limits
 
  * `-as` or `--drop-densest-as-needed`: If a tile is too large, try to reduce it to under 500K by increasing the minimum spacing between features. The discovered spacing applies to the entire zoom level.
  * `-ad` or `--drop-fraction-as-needed`: Dynamically drop some fraction of features from each zoom level to keep large tiles under the 500K size limit. (This is like `-pd` but applies to the entire zoom level, not to each tile.)
  * `-an` or `--drop-smallest-as-needed`: Dynamically drop the smallest features (physically smallest: the shortest lines or the smallest polygons) from each zoom level to keep large tiles under the 500K size limit.
+ * `--drop-by-attribute-as-needed=`_attribute_: Dynamically drop features with the lowest values of the specified numeric _attribute_ from each zoom level to keep large tiles under the 500K size limit. Use `--drop-by-attribute-order=desc` to instead drop features with the highest values.
  * `-aN` or `--coalesce-smallest-as-needed`: Dynamically combine the smallest features (physically smallest: the shortest lines or the smallest polygons or the densest points) from each zoom level into other nearby features to keep large tiles under the 500K size limit. This option will probably not help very much with LineStrings. It is mostly intended for polygons, to maintain the full original area covered by polygons while still reducing the feature count somehow. The attributes of the small polygons are *not* preserved into the combined features (except through `--accumulate-attribute`), only their geometry. Furthermore, the polygons to which nested polygons are coalesced may not necessarily be the immediately enclosing features.
  * `-aD` or `--coalesce-densest-as-needed`: Dynamically combine the densest features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
  * `-aS` or `--coalesce-fraction-as-needed`: Dynamically combine a fraction of features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
@@ -597,7 +598,7 @@ contain `index`, `sequence`, `extent`, and `dropped`, elements, which must be pa
  * Make a tileset of the Natural Earth countries to zoom level 5, and also copy the GeoJSON features
    to files in a `tiles/z/x/y.geojson` directory hierarchy.
 
-```
+```sh
 tippecanoe -o countries.mbtiles -z5 -C 'mkdir -p tiles/$1/$2; tee tiles/$1/$2/$3.geojson' ne_10m_admin_0_countries.json
 ```
 
@@ -605,13 +606,13 @@ tippecanoe -o countries.mbtiles -z5 -C 'mkdir -p tiles/$1/$2; tee tiles/$1/$2/$3
    intersect the [bounding box of Germany](https://www.flickr.com/places/info/23424829).
    (The `limit-tiles-to-bbox` script is [in the Tippecanoe source directory](filters/limit-tiles-to-bbox).)
 
-```
+```sh
 tippecanoe -o countries.mbtiles -z5 -C './filters/limit-tiles-to-bbox 5.8662 47.2702 15.0421 55.0581 $*' ne_10m_admin_0_countries.json
 ```
 
  * Make a tileset of TIGER roads in Tippecanoe County, leaving out all but primary and secondary roads (as [classified by TIGER](https://www.census.gov/geo/reference/mtfcc.html)) below zoom level 11.
 
-```
+```sh
 tippecanoe -o roads.mbtiles -c 'if [ $1 -lt 11 ]; then grep "\"MTFCC\": \"S1[12]00\""; else cat; fi' tl_2016_18157_roads.json
 ```
 
@@ -628,7 +629,7 @@ Tippecanoe defines a GeoJSON extension that you can use to specify the minimum a
 at which an individual feature will be included in the vector tileset being produced.
 If you have a feature like this:
 
-```
+```json
 {
     "type" : "Feature",
     "tippecanoe" : { "maxzoom" : 9, "minzoom" : 4 },
@@ -640,7 +641,7 @@ If you have a feature like this:
 }
 ```
 
-with a `tippecanoe` object specifiying a `maxzoom` of 9 and a `minzoom` of 4, the feature
+with a `tippecanoe` object specifying a `maxzoom` of 9 and a `minzoom` of 4, the feature
 will only appear in the vector tiles for zoom levels 4 through 9. Note that the `tippecanoe`
 object belongs to the Feature, not to its `properties`. If you specify a `minzoom` for a feature,
 it will be preserved down to that zoom level even if dot-dropping with `-r` would otherwise have
@@ -649,7 +650,7 @@ dropped it.
 You can also specify a layer name in the `tippecanoe` object, which will take precedence over
 the filename or name specified using `--layer`, like this:
 
-```
+```json
 {
     "type" : "Feature",
     "tippecanoe" : { "layer" : "streets" },
@@ -719,10 +720,10 @@ and perhaps
     make install
 
 Tippecanoe now requires features from the 2011 C++ standard. If your compiler is older than
-that, you will need to install a newer one. On MacOS, updating to the lastest XCode should
+that, you will need to install a newer one. On MacOS, updating to the latest XCode should
 get you a new enough version of `clang++`. On Linux, you should be able to upgrade `g++` with
 
-```
+```sh
 sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 sudo apt-get update -y
 sudo apt-get install -y g++-5
@@ -858,7 +859,7 @@ awk 'BEGIN {
 
 which looks like this:
 
-```
+```csv
 GEOID10,population
 "060014277003018",0
 "060014283014046",0
@@ -956,7 +957,7 @@ for Tippecanoe County, Indiana.
 
 Download Census block geometry, and convert to GeoJSON:
 
-```
+```sh
 $ curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/TABBLOCK/2010/tl_2010_18157_tabblock10.zip
 $ unzip tl_2010_18157_tabblock10.zip
 $ ogr2ogr -f GeoJSON tl_2010_18157_tabblock10.json tl_2010_18157_tabblock10.shp
@@ -964,7 +965,7 @@ $ ogr2ogr -f GeoJSON tl_2010_18157_tabblock10.json tl_2010_18157_tabblock10.shp
 
 Download Indiana employment data, and fix name of join key in header
 
-```
+```sh
 $ curl -L -O https://lehd.ces.census.gov/data/lodes/LODES7/in/wac/in_wac_S000_JT00_2015.csv.gz
 $ gzip -dc in_wac_S000_JT00_2015.csv.gz | sed '1s/w_geocode/GEOID10/' > in_wac_S000_JT00_2015.csv
 ```
@@ -972,13 +973,13 @@ $ gzip -dc in_wac_S000_JT00_2015.csv.gz | sed '1s/w_geocode/GEOID10/' > in_wac_S
 Sort GeoJSON block geometry so it is ordered by block ID. If you don't do this, you will get a
 "GeoJSON file is out of sort" error.
 
-```
+```sh
 $ tippecanoe-json-tool -e GEOID10 tl_2010_18157_tabblock10.json | LC_ALL=C sort > tl_2010_18157_tabblock10.sort.json
 ```
 
 Join block geometries to employment attributes:
 
-```
+```sh
 $ tippecanoe-json-tool -c in_wac_S000_JT00_2015.csv tl_2010_18157_tabblock10.sort.json > blocks-wac.json
 ```
 

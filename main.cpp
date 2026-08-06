@@ -98,7 +98,8 @@ long long extend_zooms_max = 0;
 int retain_points_multiplier = 1;
 std::vector<std::string> unidecode_data;
 size_t maximum_string_attribute_length = 0;
-std::string accumulate_numeric;
+std::string drop_by_attribute_as_needed_attribute;
+bool drop_by_attribute_descending = false;
 
 std::vector<order_field> order_by;
 bool order_reverse;
@@ -2019,7 +2020,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			vertex_readers.push_back(readers[i].vertexfile);
 			rewind(readers[i].vertexfile);
 		}
-		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out, memsize / 20);
+		fqsort(vertex_readers, sizeof(vertex), vertexcmp, vertex_out, memsize / 20, tmpdir);
 
 		for (size_t i = 0; i < CPUS; i++) {
 			if (fclose(readers[i].vertexfile) != 0) {
@@ -2088,7 +2089,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			rewind(readers[i].nodefile);
 		}
 
-		fqsort(node_readers, sizeof(node), nodecmp, node_out, memsize / 20);
+		fqsort(node_readers, sizeof(node), nodecmp, node_out, memsize / 20, tmpdir);
 
 		for (size_t i = 0; i < CPUS; i++) {
 			if (fclose(readers[i].nodefile) != 0) {
@@ -2755,7 +2756,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data);
+	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data, &drop_by_attribute_as_needed_attribute, drop_by_attribute_descending);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -3062,7 +3063,6 @@ int main(int argc, char **argv) {
 		{"attribute-type", required_argument, 0, 'T'},
 		{"attribute-description", required_argument, 0, 'Y'},
 		{"accumulate-attribute", required_argument, 0, 'E'},
-		{"accumulate-numeric-attributes", required_argument, 0, '~'},
 		{"empty-csv-columns-are-null", no_argument, &prevent[P_EMPTY_CSV_COLUMNS], 1},
 		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
 		{"use-attribute-for-id", required_argument, 0, '~'},
@@ -3092,6 +3092,8 @@ int main(int argc, char **argv) {
 		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
 		{"drop-fraction-as-needed", no_argument, &additional[A_DROP_FRACTION_AS_NEEDED], 1},
 		{"drop-smallest-as-needed", no_argument, &additional[A_DROP_SMALLEST_AS_NEEDED], 1},
+		{"drop-by-attribute-as-needed", required_argument, 0, '~'},
+		{"drop-by-attribute-order", required_argument, 0, '~'},
 		{"coalesce-densest-as-needed", no_argument, &additional[A_COALESCE_DENSEST_AS_NEEDED], 1},
 		{"coalesce-fraction-as-needed", no_argument, &additional[A_COALESCE_FRACTION_AS_NEEDED], 1},
 		{"coalesce-smallest-as-needed", no_argument, &additional[A_COALESCE_SMALLEST_AS_NEEDED], 1},
@@ -3280,6 +3282,22 @@ int main(int argc, char **argv) {
 			} else if (strcmp(opt, "order-largest-first") == 0) {
 				order_by.push_back(order_field(ORDER_BY_SIZE, true));
 				order_by_size = true;
+			} else if (strcmp(opt, "drop-by-attribute-as-needed") == 0) {
+				if (optarg[0] == '\0') {
+					fprintf(stderr, "%s: --drop-by-attribute-as-needed requires a non-empty attribute name\n", argv[0]);
+					exit(EXIT_ARGS);
+				}
+				drop_by_attribute_as_needed_attribute = optarg;
+				additional[A_DROP_BY_ATTRIBUTE_AS_NEEDED] = 1;
+			} else if (strcmp(opt, "drop-by-attribute-order") == 0) {
+				if (strcmp(optarg, "asc") == 0) {
+					drop_by_attribute_descending = false;
+				} else if (strcmp(optarg, "desc") == 0) {
+					drop_by_attribute_descending = true;
+				} else {
+					fprintf(stderr, "%s: %s: order must be one of: asc, desc\n", argv[0], optarg);
+					exit(EXIT_ARGS);
+				}
 			} else if (strcmp(opt, "simplification-at-maximum-zoom") == 0) {
 				maxzoom_simplification = atof_require(optarg, "Mazoom simplification");
 				if (maxzoom_simplification <= 0) {
@@ -3309,8 +3327,6 @@ int main(int argc, char **argv) {
 				unidecode_data = read_unidecode(optarg);
 			} else if (strcmp(opt, "maximum-string-attribute-length") == 0) {
 				maximum_string_attribute_length = atoll_require(optarg, "Maximum string attribute length");
-			} else if (strcmp(opt, "accumulate-numeric-attributes") == 0) {
-				accumulate_numeric = optarg;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
@@ -3801,6 +3817,11 @@ int main(int argc, char **argv) {
 	}
 	if (out_dir != NULL) {
 		check_dir(out_dir, argv, force, forcetable);
+	}
+
+	if (additional[A_DROP_BY_ATTRIBUTE_AS_NEEDED] && drop_by_attribute_as_needed_attribute.empty()) {
+		fprintf(stderr, "%s: --drop-by-attribute-as-needed requires an attribute name\n", argv[0]);
+		exit(EXIT_ARGS);
 	}
 
 	int ret = EXIT_SUCCESS;

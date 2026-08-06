@@ -73,7 +73,7 @@ TEST_CASE("External quicksort", "fqsort") {
 	unlink(tmpname.c_str());
 	FILE *f = fdopen(fd, "w+b");
 
-	fqsort(inputs, sizeof(int), intcmp, f, 256);
+	fqsort(inputs, sizeof(int), intcmp, f, 256, "/tmp");
 	rewind(f);
 
 	int prev = INT_MIN;
@@ -128,31 +128,6 @@ TEST_CASE("Bit reversal", "bit reversal") {
 	REQUIRE(bit_reverse(0xF3D912481E6A2C48) == 0x1234567812489BCF);
 }
 
-TEST_CASE("mvt_geometry bbox") {
-	std::vector<mvt_geometry> geom;
-
-	geom.emplace_back(mvt_moveto, 128, 128);
-	geom.emplace_back(mvt_lineto, 256, 256);
-
-	long long xmin, ymin, xmax, ymax;
-	get_bbox(geom, &xmin, &ymin, &xmax, &ymax, 11, 327, 791, 9);
-
-	double lon, lat;
-	tile2lonlat(xmin, ymin, 32, &lon, &lat);
-	REQUIRE(std::to_string(lon) == "-122.475586");
-	REQUIRE(std::to_string(lat) == "37.822802");
-
-	tile2lonlat(xmax, ymax, 32, &lon, &lat);
-	REQUIRE(std::to_string(lon) == "-122.431641");
-	REQUIRE(std::to_string(lat) == "37.788081");
-
-	unsigned long long start, end;
-	get_quadkey_bounds(xmin, ymin, xmax, ymax, &start, &end);
-	// 22 bits in common, for z11
-	REQUIRE(start == 0x1c84fc0000000000);
-	REQUIRE(end == 0x1c84ffffffffffff);
-}
-
 TEST_CASE("line_is_too_small") {
 	drawvec dv;
 	dv.emplace_back(VT_MOVETO, 4243099709, 2683872952);
@@ -160,4 +135,37 @@ TEST_CASE("line_is_too_small") {
 	dv.emplace_back(VT_MOVETO, -51867587, 2683872952);
 	dv.emplace_back(VT_LINETO, -51864809, 2683873977);
 	REQUIRE(line_is_too_small(dv, 0, 10));
+}
+
+TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {
+	// Two mutually reversed self-intersecting rings whose union leaves a hole
+	// that wagyu's topology correction cannot assign to any surviving parent
+	// ring (found by fuzzing; same failure as mapbox/tippecanoe#761). Without
+	// the fix in mapbox/geometry/wagyu/topology_correction.hpp, this exits
+	// through the "Could not properly place hole to a parent." handler in
+	// clean_or_clip_poly instead of returning.
+	static const std::vector<std::vector<std::pair<long long, long long>>> rings = {
+	    {{0, 5}, {5, 4}, {5, 1}, {4, 4}, {4, 2}, {7, 1}, {0, 5}},
+	    {{0, 5}, {7, 1}, {4, 2}, {4, 4}, {5, 1}, {5, 4}, {0, 0}, {0, 5}},
+	};
+
+	drawvec geom;
+	for (auto const &ring : rings) {
+		for (size_t i = 0; i < ring.size(); i++) {
+			geom.push_back(draw(i == 0 ? VT_MOVETO : VT_LINETO, ring[i].first, ring[i].second));
+		}
+	}
+
+	drawvec out = clean_or_clip_poly(geom, 0, 0, false, false);
+
+	// The regression signal is getting here at all: without the fix,
+	// clean_or_clip_poly exits the process from its wagyu error handler.
+	SUCCEED("clean_or_clip_poly returned");
+
+	// Anything that survives must be sanely wound: first ring positive.
+	if (out.size() > 0) {
+		size_t j = 1;
+		while (j < out.size() && out[j].op == VT_LINETO) j++;
+		REQUIRE(get_area(out, 0, j) > 0);
+	}
 }
