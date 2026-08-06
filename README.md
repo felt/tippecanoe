@@ -50,6 +50,12 @@ $ make -j
 $ make install
 ```
 
+The submodule is the [MapLibre Tile](https://github.com/maplibre/maplibre-tile-spec)
+implementation, which is built with `cmake`. If you don't need MapLibre Tile support,
+build with `make MLT=0` instead, which needs neither the submodule nor `cmake`. Such a
+build can't read or write MLT, and rejects `--output-format=mlt`, but is otherwise the same.
+Run `make clean` first if you are switching an existing build directory between the two.
+
 See [Development](#development) below for how to upgrade your
 C++ compiler or install prerequisite packages if you get
 compiler errors.

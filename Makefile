@@ -4,12 +4,36 @@ BUILDTYPE ?= Release
 BUILD_INFO ?=
 SHELL = /bin/sh
 
+# MapLibre Tile support requires the maplibre-tile-spec submodule and cmake
+# to build it. Use `make MLT=0` for a build with no dependencies beyond the
+# ones that Mapbox Vector Tiles need; it can neither read nor write MLT.
+MLT ?= 1
+
+MLT_BUILD_STAMP = mlt-build/.built
+
+ifeq ($(MLT),0)
+MLT_FLAGS = -DNO_MLT
+MLT_INCLUDES =
+MLT_STD =
+MLT_DEPS =
+MLT_DECODE_LIBS =
+MLT_LIBS =
+MLT_TESTS =
+else
+MLT_FLAGS =
+MLT_INCLUDES = -isystem maplibre-tile-spec/cpp/include -isystem maplibre-tile-spec/cpp/vendor/fsst
+MLT_STD = -std=c++20
+MLT_DEPS = $(MLT_BUILD_STAMP)
+MLT_DECODE_LIBS = mlt-build/libmlt-cpp.a mlt-build/libfsst-lib.a mlt-build/fastpfor/libFastPFOR.a
+MLT_LIBS = mlt-build/libmlt-cpp-encoder.a $(MLT_DECODE_LIBS)
+MLT_TESTS = mlt-test mlt-decode-test mlt-output-test
+endif
 
 # inherit from env if set
 CC := $(CC)
 CXX := $(CXX)
 CFLAGS := $(CFLAGS) -fPIE -DBUILD_INFO=$(BUILD_INFO)
-CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE -DBUILD_INFO=$(BUILD_INFO)
+CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE -DBUILD_INFO=$(BUILD_INFO) $(MLT_FLAGS)
 LDFLAGS := $(LDFLAGS)
 WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow
 RELEASE_FLAGS := -O3 -DNDEBUG
@@ -57,10 +81,6 @@ H = $(wildcard *.h) $(wildcard *.hpp)
 C = $(wildcard *.c) $(wildcard *.cpp)
 
 INCLUDES = -I/usr/local/include -I. -Iclipper2/include
-MLT_INCLUDES = -isystem maplibre-tile-spec/cpp/include -isystem maplibre-tile-spec/cpp/vendor/fsst
-MLT_DECODE_LIBS = mlt-build/libmlt-cpp.a mlt-build/libfsst-lib.a mlt-build/fastpfor/libFastPFOR.a
-MLT_LIBS = mlt-build/libmlt-cpp-encoder.a $(MLT_DECODE_LIBS)
-MLT_BUILD_STAMP = mlt-build/.built
 LIBS = -L/usr/local/lib
 
 $(MLT_BUILD_STAMP): maplibre-tile-spec/cpp/CMakeLists.txt
@@ -76,7 +96,9 @@ $(MLT_BUILD_STAMP): maplibre-tile-spec/cpp/CMakeLists.txt
 	cmake --build mlt-build --target mlt-cpp mlt-cpp-encoder $(if $(VERBOSE),,-- -s) > /dev/null
 	touch $@
 
+ifneq ($(MLT),0)
 $(MLT_LIBS): $(MLT_BUILD_STAMP)
+endif
 
 tippecanoe: geojson.o jsonpull/jsonpull.o tile.o pool.o mbtiles.o geometry.o projection.o memfile.o mvt.o mlt.o mlt_decode.o serial.o main.o platform.o text.o dirtiles.o pmtiles_file.o plugin.o read_json.o write_json.o geobuf.o flatgeobuf.o evaluator.o geocsv.o csv.o geojson-loop.o json_logger.o visvalingam.o compression.o clip.o sort.o attribute.o thread.o shared_borders.o clipper2/src/clipper.engine.o $(MLT_LIBS)
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
@@ -104,8 +126,8 @@ tippecanoe-overzoom: overzoom.o mvt.o mlt.o mlt_decode.o clip.o evaluator.o json
 %.o: %.c
 	$(CC) -MMD $(PG) $(INCLUDES) $(FINAL_FLAGS) $(CFLAGS) -c -o $@ $<
 
-mlt.o mlt_decode.o: %.o: %.cpp $(MLT_BUILD_STAMP)
-	$(CXX) -MMD $(PG) $(INCLUDES) $(MLT_INCLUDES) $(FINAL_FLAGS) $(CXXFLAGS) -std=c++20 -c -o $@ $<
+mlt.o mlt_decode.o: %.o: %.cpp $(MLT_DEPS)
+	$(CXX) -MMD $(PG) $(INCLUDES) $(MLT_INCLUDES) $(FINAL_FLAGS) $(CXXFLAGS) $(MLT_STD) -c -o $@ $<
 
 %.o: %.cpp
 	$(CXX) -MMD $(PG) $(INCLUDES) $(FINAL_FLAGS) $(CXXFLAGS) -c -o $@ $<
@@ -119,7 +141,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test mlt-test mlt-decode-test mlt-output-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test $(MLT_TESTS)
 	./unit
 
 suffixes = json json.gz

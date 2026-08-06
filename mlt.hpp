@@ -24,14 +24,17 @@ const char *tile_format_extension(int format);
 // options were selected on the command line
 std::string encode_tile(mvt_tile &tile, int format);
 
+#ifndef NO_MLT
 std::string encode_as_mlt(const mvt_tile &tile, bool sort_features, bool pretessellate);
+#endif
 
 // Does this (already decompressed) tile look like MapLibre Tile rather than
 // Mapbox Vector Tile data?
 bool is_mlt(const std::string &message);
 
 // Decode a MapLibre Tile into the equivalent vector tile, returning false
-// (and complaining to stderr) if it can't be parsed.
+// (and complaining to stderr) if it can't be parsed, or if this build
+// doesn't have MLT support compiled in.
 bool decode_mlt(const std::string &message, mvt_tile &out);
 
 #endif

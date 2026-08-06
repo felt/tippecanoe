@@ -1,8 +1,6 @@
 #include "mlt.hpp"
 #include "errors.hpp"
 
-#include <mlt/encoder.hpp>
-
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -12,7 +10,11 @@
 #include <string>
 #include <vector>
 
+#ifndef NO_MLT
+#include <mlt/encoder.hpp>
+
 using Vertex = mlt::Encoder::Vertex;
+#endif
 
 int output_format = OUTPUT_MVT;
 bool mlt_sort_features = true;
@@ -22,7 +24,12 @@ void set_output_format(char **argv, const char *format) {
 	if (strcmp(format, "mvt") == 0 || strcmp(format, "pbf") == 0) {
 		output_format = OUTPUT_MVT;
 	} else if (strcmp(format, "mlt") == 0) {
+#ifdef NO_MLT
+		fprintf(stderr, "%s: this build was compiled without MapLibre Tile support\n", argv[0]);
+		exit(EXIT_ARGS);
+#else
 		output_format = OUTPUT_MLT;
+#endif
 	} else {
 		fprintf(stderr, "%s: --output-format must be 'mvt' or 'mlt'\n", argv[0]);
 		exit(EXIT_ARGS);
@@ -38,12 +45,18 @@ const char *tile_format_extension(int format) {
 }
 
 std::string encode_tile(mvt_tile &tile, int format) {
+#ifndef NO_MLT
 	if (format == OUTPUT_MLT) {
 		return encode_as_mlt(tile, mlt_sort_features, mlt_pretessellate);
-	} else {
-		return tile.encode();
 	}
+#else
+	(void) format;
+#endif
+
+	return tile.encode();
 }
+
+#ifndef NO_MLT
 
 // An MLT property column has a single type for the whole layer, while MVT
 // values each carry their own type, so a type that can hold every value of
@@ -327,3 +340,5 @@ std::string encode_as_mlt(const mvt_tile &tile, bool sort_features, bool pretess
 	auto bytes = encoder.encode(layers, config);
 	return std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
+
+#endif

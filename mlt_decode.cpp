@@ -1,11 +1,5 @@
 #include "mlt.hpp"
 
-#include <mlt/decoder.hpp>
-#include <mlt/geometry.hpp>
-#include <mlt/layer.hpp>
-#include <mlt/properties.hpp>
-#include <mlt/tile.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -17,6 +11,14 @@
 #include <string_view>
 #include <variant>
 #include <vector>
+
+#ifndef NO_MLT
+#include <mlt/decoder.hpp>
+#include <mlt/geometry.hpp>
+#include <mlt/layer.hpp>
+#include <mlt/properties.hpp>
+#include <mlt/tile.hpp>
+#endif
 
 namespace {
 
@@ -38,6 +40,8 @@ bool read_varint(const char *&p, const char *end, unsigned long long &out) {
 
 	return false;
 }
+
+#ifndef NO_MLT
 
 long long round_coord(float v) {
 	return (long long) std::llround(v);
@@ -237,6 +241,8 @@ void convert_layer(const mlt::Layer &in, mvt_layer &out, const std::shared_ptr<s
 	}
 }
 
+#endif
+
 }  // namespace
 
 bool is_mlt(const std::string &message) {
@@ -267,6 +273,18 @@ bool is_mlt(const std::string &message) {
 	return layer_tag == 1;
 }
 
+#ifdef NO_MLT
+
+bool decode_mlt(const std::string &message, mvt_tile &out) {
+	(void) message;
+	(void) out;
+
+	fprintf(stderr, "This build was compiled without MapLibre Tile support\n");
+	return false;
+}
+
+#else
+
 bool decode_mlt(const std::string &message, mvt_tile &out) {
 	try {
 		mlt::Decoder decoder(true);
@@ -289,3 +307,5 @@ bool decode_mlt(const std::string &message, mvt_tile &out) {
 		return false;
 	}
 }
+
+#endif
