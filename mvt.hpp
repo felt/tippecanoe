@@ -93,10 +93,15 @@ struct mvt_value {
 		long long sint_value;
 		bool bool_value;
 		int null_value;
+		// string_value is the widest member of the union, so initializing it
+		// initializes the union's full width. Setting only a narrower member
+		// (a double, say) would leave the remaining bytes indeterminate, and
+		// the implicit copy constructor copies the union as a whole, so those
+		// bytes get read even when they aren't the member in use.
 		struct {
 			size_t off;
 			size_t len;
-		} string_value;
+		} string_value = {0, 0};
 	} numeric_value;
 
 	std::string get_string_value() const {
