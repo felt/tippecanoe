@@ -3022,7 +3022,6 @@ static const struct option long_options_orig[] = {
 	{"Filtering features by attributes", 0, 0, 0},
 	{"feature-filter-file", required_argument, 0, 'J'},
 	{"feature-filter", required_argument, 0, 'j'},
-	{"unidecode-data", required_argument, 0, '~'},
 
 	{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
 	{"drop-rate", required_argument, 0, 'r'},
@@ -3132,6 +3131,7 @@ static const struct option long_options_orig[] = {
 	{"check-polygons", no_argument, &additional[A_DEBUG_POLYGON], 1},
 	{"no-polygon-splitting", no_argument, &prevent[P_POLYGON_SPLIT], 1},
 	{"prefer-radix-sort", no_argument, &additional[A_PREFER_RADIX_SORT], 1},
+	{"unidecode-data", required_argument, 0, '~'},
 	{"help", no_argument, 0, 'H'},
 
 	{0, 0, 0, 0},
