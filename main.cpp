@@ -993,7 +993,11 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					struct index ix = indexmap[a];
 					long long pos = *geompos_out;
 
-					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
+					// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
+					// and is writing one byte less and then adding the byte for the minzoom,
+					// the same as merge() does.
+
+					fwrite_check(geommap + ix.start, 1, ix.end - ix.start - 1, geomfile, geompos_out, "geom");
 					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
 
