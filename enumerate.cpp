@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <getopt.h>
+#include <string>
 #include <sqlite3.h>
 #include "errors.hpp"
+#include "usage.hpp"
 
 void enumerate(char *fname) {
 	sqlite3 *db;
@@ -48,8 +51,20 @@ void enumerate(char *fname) {
 	}
 }
 
+// there are no options, but the table is still what the usage message
+// and the getopt string are derived from, so that they will keep up
+// with any options that are added later
+static const struct option long_options[] = {
+	{0, 0, 0, 0},
+};
+
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s file.mbtiles ...\n", argv[0]);
+	static const char *const forms[] = {
+		"file.mbtiles ...",
+		NULL,
+	};
+
+	print_usage(stderr, argv[0], forms, long_options, NULL);
 	exit(EXIT_ARGS);
 }
 
@@ -58,7 +73,9 @@ int main(int argc, char **argv) {
 	// extern char *optarg;
 	int i;
 
-	while ((i = getopt(argc, argv, "")) != -1) {
+	std::string getopt_str = getopt_string(long_options);
+
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, NULL)) != -1) {
 		usage(argv);
 	}
 
