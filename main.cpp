@@ -215,7 +215,7 @@ void init_cpus() {
 	// MacOS can run out of system file descriptors
 	// even if we stay under the rlimit, so try to
 	// find out the real limit.
-	long long fds[MAX_FILES];
+	std::vector<long long> fds(MAX_FILES);
 	long long i;
 	for (i = 0; i < MAX_FILES; i++) {
 		fds[i] = open(get_null_device(), O_RDONLY | O_CLOEXEC);
@@ -449,7 +449,7 @@ void *run_sort(void *v) {
 }
 
 void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
-	long long segs[CPUS + 1];
+	std::vector<long long> segs(CPUS + 1);
 	segs[0] = 0;
 	segs[CPUS] = len;
 
@@ -461,11 +461,11 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 		}
 	}
 
-	double dist_sums[CPUS];
-	size_t dist_counts[CPUS];
-	double area_sums[CPUS];
+	std::vector<double> dist_sums(CPUS);
+	std::vector<size_t> dist_counts(CPUS);
+	std::vector<double> area_sums(CPUS);
 
-	std::atomic<long long> layer_seq[CPUS];
+	std::vector<std::atomic<long long> > layer_seq(CPUS);
 	for (size_t i = 0; i < CPUS; i++) {
 		// To preserve feature ordering, unique id for each segment
 		// begins with that segment's offset into the input
@@ -479,7 +479,7 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	std::vector<serialization_state> sst;
 	sst.resize(CPUS);
 
-	pthread_t pthreads[CPUS];
+	std::vector<pthread_t> pthreads(CPUS);
 	std::vector<std::set<serial_val> > file_subkeys;
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -759,47 +759,45 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 	}
 	splits = 1 << splitbits;
 
-	FILE *geomfiles[splits];
-	FILE *indexfiles[splits];
-	int geomfds[splits];
-	int indexfds[splits];
-	std::atomic<long long> sub_geompos[splits];
+	std::vector<FILE *> geomfiles(splits);
+	std::vector<FILE *> indexfiles(splits);
+	std::vector<int> geomfds(splits);
+	std::vector<int> indexfds(splits);
+	std::vector<std::atomic<long long> > sub_geompos(splits);
 
 	int i;
 	for (i = 0; i < splits; i++) {
 		sub_geompos[i] = 0;
 
-		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
-		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+		std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
+		std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
 
-		geomfds[i] = mkstemp_cloexec(geomname);
+		geomfds[i] = mkstemp_cloexec(&geomname[0]);
 		if (geomfds[i] < 0) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		indexfds[i] = mkstemp_cloexec(indexname);
+		indexfds[i] = mkstemp_cloexec(&indexname[0]);
 		if (indexfds[i] < 0) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
 
-		geomfiles[i] = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+		geomfiles[i] = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (geomfiles[i] == NULL) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		indexfiles[i] = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+		indexfiles[i] = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (indexfiles[i] == NULL) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
 
 		*availfiles -= 4;
 
-		unlink(geomname);
-		unlink(indexname);
+		unlink(geomname.c_str());
+		unlink(indexname.c_str());
 	}
 
 	for (i = 0; i < inputs; i++) {
@@ -928,13 +926,13 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				}
 
 				size_t nmerges = (indexpos + unit - 1) / unit;
-				struct mergelist merges[nmerges];
+				std::vector<struct mergelist> merges(nmerges);
 
 				for (size_t a = 0; a < nmerges; a++) {
 					merges[a].start = merges[a].end = 0;
 				}
 
-				pthread_t pthreads[CPUS];
+				std::vector<pthread_t> pthreads(CPUS);
 				std::vector<sort_arg> args;
 
 				for (size_t a = 0; a < CPUS; a++) {
@@ -942,7 +940,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 						a,
 						CPUS,
 						indexpos,
-						merges,
+						merges.data(),
 						indexfds[i],
 						nmerges,
 						unit,
@@ -980,7 +978,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
 
-				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
+				merge(merges.data(), nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
 				if (munmap(indexmap, indexst.st_size) < 0) {
@@ -1119,8 +1117,8 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 	mem /= 2;
 
 	long long geom_total = 0;
-	int geomfds[nreaders];
-	int indexfds[nreaders];
+	std::vector<int> geomfds(nreaders);
+	std::vector<int> indexfds(nreaders);
 	for (int i = 0; i < nreaders; i++) {
 		geomfds[i] = readers[i].geomfd;
 		indexfds[i] = readers[i].indexfd;
@@ -1133,12 +1131,12 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 		geom_total += geomst.st_size;
 	}
 
-	struct drop_state ds[maxzoom + 1];
-	prep_drop_states(ds, maxzoom, basezoom, droprate);
+	std::vector<struct drop_state> ds(maxzoom + 1);
+	prep_drop_states(ds.data(), maxzoom, basezoom, droprate);
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
 	long long availfiles_before = availfiles;
-	radix1(geomfds, indexfds, nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds);
+	radix1(geomfds.data(), indexfds.data(), nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds.data());
 
 	if (availfiles - 2 * nreaders != availfiles_before) {
 		fprintf(stderr, "Internal error: miscounted available file descriptors: %lld vs %lld\n", availfiles - 2 * nreaders, availfiles);
@@ -1247,79 +1245,72 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	for (size_t i = 0; i < CPUS; i++) {
 		struct reader *r = &readers[i];
 
-		char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-		char treename[strlen(tmpdir) + strlen("/tree.XXXXXXXX") + 1];
-		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		char vertexname[strlen(tmpdir) + strlen("/vertex.XXXXXXXX") + 1];
-		char nodename[strlen(tmpdir) + strlen("/node.XXXXXXXX") + 1];
+		std::string poolname = std::string(tmpdir) + "/pool.XXXXXXXX";
+		std::string treename = std::string(tmpdir) + "/tree.XXXXXXXX";
+		std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
+		std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
+		std::string vertexname = std::string(tmpdir) + "/vertex.XXXXXXXX";
+		std::string nodename = std::string(tmpdir) + "/node.XXXXXXXX";
 
-		snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
-		snprintf(treename, sizeof(treename), "%s%s", tmpdir, "/tree.XXXXXXXX");
-		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
-		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
-		snprintf(vertexname, sizeof(vertexname), "%s%s", tmpdir, "/vertex.XXXXXXXX");
-		snprintf(nodename, sizeof(nodename), "%s%s", tmpdir, "/node.XXXXXXXX");
-
-		r->poolfd = mkstemp_cloexec(poolname);
+		r->poolfd = mkstemp_cloexec(&poolname[0]);
 		if (r->poolfd < 0) {
-			perror(poolname);
+			perror(poolname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->treefd = mkstemp_cloexec(treename);
+		r->treefd = mkstemp_cloexec(&treename[0]);
 		if (r->treefd < 0) {
-			perror(treename);
+			perror(treename.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->geomfd = mkstemp_cloexec(geomname);
+		r->geomfd = mkstemp_cloexec(&geomname[0]);
 		if (r->geomfd < 0) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->indexfd = mkstemp_cloexec(indexname);
+		r->indexfd = mkstemp_cloexec(&indexname[0]);
 		if (r->indexfd < 0) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->vertexfd = mkstemp_cloexec(vertexname);
+		r->vertexfd = mkstemp_cloexec(&vertexname[0]);
 		if (r->vertexfd < 0) {
-			perror(vertexname);
+			perror(vertexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefd = mkstemp_cloexec(nodename);
+		r->nodefd = mkstemp_cloexec(&nodename[0]);
 		if (r->nodefd < 0) {
-			perror(nodename);
+			perror(nodename.c_str());
 			exit(EXIT_OPEN);
 		}
 
 		r->poolfile = memfile_open(r->poolfd);
 		if (r->poolfile == NULL) {
-			perror(poolname);
+			perror(poolname.c_str());
 			exit(EXIT_OPEN);
 		}
 		r->treefile = memfile_open(r->treefd);
 		if (r->treefile == NULL) {
-			perror(treename);
+			perror(treename.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->geomfile = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+		r->geomfile = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (r->geomfile == NULL) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->indexfile = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+		r->indexfile = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (r->indexfile == NULL) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->vertexfile = fopen_oflag(vertexname, "w+b", O_RDWR | O_CLOEXEC);
+		r->vertexfile = fopen_oflag(vertexname.c_str(), "w+b", O_RDWR | O_CLOEXEC);
 		if (r->vertexfile == NULL) {
-			perror(("open vertexfile " + std::string(vertexname)).c_str());
+			perror(("open vertexfile " + vertexname).c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefile = fopen_oflag(nodename, "w+b", O_RDWR | O_CLOEXEC);
+		r->nodefile = fopen_oflag(nodename.c_str(), "w+b", O_RDWR | O_CLOEXEC);
 		if (r->nodefile == NULL) {
-			perror(nodename);
+			perror(nodename.c_str());
 			exit(EXIT_OPEN);
 		}
 		r->geompos = 0;
@@ -1327,12 +1318,12 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->vertexpos = 0;
 		r->nodepos = 0;
 
-		unlink(poolname);
-		unlink(treename);
-		unlink(geomname);
-		unlink(indexname);
-		unlink(vertexname);
-		unlink(nodename);
+		unlink(poolname.c_str());
+		unlink(treename.c_str());
+		unlink(geomname.c_str());
+		unlink(indexname.c_str());
+		unlink(vertexname.c_str());
+		unlink(nodename.c_str());
 
 		// To distinguish a null value
 		{
@@ -1357,8 +1348,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<long long> progress_seq(0);
 
 	// 2 * CPUS: One per reader thread, one per tiling thread
-	int initialized[2 * CPUS];
-	unsigned initial_x[2 * CPUS], initial_y[2 * CPUS];
+	std::vector<int> initialized(2 * CPUS);
+	std::vector<unsigned> initial_x(2 * CPUS), initial_y(2 * CPUS);
 	for (size_t i = 0; i < 2 * CPUS; i++) {
 		initialized[i] = initial_x[i] = initial_y[i] = 0;
 	}
@@ -1489,10 +1480,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				exit(EXIT_MEMORY);
 			}
 
-			std::atomic<long long> layer_seq[CPUS];
-			double dist_sums[CPUS];
-			size_t dist_counts[CPUS];
-			double area_sums[CPUS];
+			std::vector<std::atomic<long long> > layer_seq(CPUS);
+			std::vector<double> dist_sums(CPUS);
+			std::vector<size_t> dist_counts(CPUS);
+			std::vector<double> area_sums(CPUS);
 			std::vector<struct serialization_state> sst;
 			sst.resize(CPUS);
 
@@ -1562,10 +1553,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				exit(EXIT_MEMORY);
 			}
 
-			std::atomic<long long> layer_seq[CPUS];
-			double dist_sums[CPUS];
-			size_t dist_counts[CPUS];
-			double area_sums[CPUS];
+			std::vector<std::atomic<long long> > layer_seq(CPUS);
+			std::vector<double> dist_sums(CPUS);
+			std::vector<size_t> dist_counts(CPUS);
+			std::vector<double> area_sums(CPUS);
 			std::vector<struct serialization_state> sst;
 			sst.resize(CPUS);
 
@@ -1622,10 +1613,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 
 		if (sources[source].format == "csv" || (sources[source].file.size() > 4 && sources[source].file.substr(sources[source].file.size() - 4) == std::string(".csv"))) {
-			std::atomic<long long> layer_seq[CPUS];
-			double dist_sums[CPUS];
-			size_t dist_counts[CPUS];
-			double area_sums[CPUS];
+			std::vector<std::atomic<long long> > layer_seq(CPUS);
+			std::vector<double> dist_sums(CPUS);
+			std::vector<size_t> dist_counts(CPUS);
+			std::vector<double> area_sums(CPUS);
 
 			std::vector<struct serialization_state> sst;
 			sst.resize(CPUS);
@@ -1710,7 +1701,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 
 		if (map != NULL && map != MAP_FAILED && read_parallel_this) {
-			do_read_parallel(map, st.st_size - off, overall_offset, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, &layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, uses_gamma, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+			do_read_parallel(map, st.st_size - off, overall_offset, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, &layermaps, initialized.data(), initial_x.data(), initial_y.data(), maxzoom, sources[layer].layer, uses_gamma, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 			overall_offset += st.st_size - off;
 			checkdisk(&readers);
 
@@ -1742,19 +1733,18 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (read_parallel_this) {
 				// Serial reading of chunks that are then parsed in parallel
 
-				char readname[strlen(tmpdir) + strlen("/read.XXXXXXXX") + 1];
-				snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
-				int readfd = mkstemp_cloexec(readname);
+				std::string readname = std::string(tmpdir) + "/read.XXXXXXXX";
+				int readfd = mkstemp_cloexec(&readname[0]);
 				if (readfd < 0) {
-					perror(readname);
+					perror(readname.c_str());
 					exit(EXIT_OPEN);
 				}
 				FILE *readfp = fdopen(readfd, "w");
 				if (readfp == NULL) {
-					perror(readname);
+					perror(readname.c_str());
 					exit(EXIT_OPEN);
 				}
-				unlink(readname);
+				unlink(readname.c_str());
 
 				std::atomic<int> is_parsing(0);
 				long long ahead = 0;
@@ -1789,25 +1779,25 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 							}
 
 							fflush(readfp);
-							start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+							start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized.data(), initial_x.data(), initial_y.data(), maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 
 							initial_offset += ahead;
 							overall_offset += ahead;
 							checkdisk(&readers);
 							ahead = 0;
 
-							snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
-							readfd = mkstemp_cloexec(readname);
+							readname = std::string(tmpdir) + "/read.XXXXXXXX";
+							readfd = mkstemp_cloexec(&readname[0]);
 							if (readfd < 0) {
-								perror(readname);
+								perror(readname.c_str());
 								exit(EXIT_OPEN);
 							}
 							readfp = fdopen(readfd, "w");
 							if (readfp == NULL) {
-								perror(readname);
+								perror(readname.c_str());
 								exit(EXIT_OPEN);
 							}
-							unlink(readname);
+							unlink(readname.c_str());
 						}
 					}
 				}
@@ -1826,7 +1816,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				fflush(readfp);
 
 				if (ahead > 0) {
-					start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+					start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized.data(), initial_x.data(), initial_y.data(), maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 
 					if (parser_created) {
 						if (pthread_join(parallel_parser, NULL) != 0) {
@@ -1935,27 +1925,26 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	// segment+offset to find the data.
 
 	// 2 * CPUS: One per input thread, one per tiling thread
-	long long pool_off[2 * CPUS];
+	std::vector<long long> pool_off(2 * CPUS);
 	for (size_t i = 0; i < 2 * CPUS; i++) {
 		pool_off[i] = 0;
 	}
 
-	char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-	snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
+	std::string poolname = std::string(tmpdir) + "/pool.XXXXXXXX";
 
-	int poolfd = mkstemp_cloexec(poolname);
+	int poolfd = mkstemp_cloexec(&poolname[0]);
 	if (poolfd < 0) {
-		perror(poolname);
+		perror(poolname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	FILE *poolfile = fopen_oflag(poolname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *poolfile = fopen_oflag(poolname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (poolfile == NULL) {
-		perror(poolname);
+		perror(poolname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	unlink(poolname);
+	unlink(poolname.c_str());
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -2183,36 +2172,34 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fprintf(stderr, "Merging index                 \r");
 	}
 
-	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+	std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
 
-	int indexfd = mkstemp_cloexec(indexname);
+	int indexfd = mkstemp_cloexec(&indexname[0]);
 	if (indexfd < 0) {
-		perror(indexname);
+		perror(indexname.c_str());
 		exit(EXIT_OPEN);
 	}
-	FILE *indexfile = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *indexfile = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (indexfile == NULL) {
-		perror(indexname);
+		perror(indexname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	unlink(indexname);
+	unlink(indexname.c_str());
 
-	char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-	snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
+	std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
 
-	int geomfd = mkstemp_cloexec(geomname);
+	int geomfd = mkstemp_cloexec(&geomname[0]);
 	if (geomfd < 0) {
-		perror(geomname);
+		perror(geomname.c_str());
 		exit(EXIT_CLOSE);
 	}
-	FILE *geomfile = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *geomfile = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (geomfile == NULL) {
-		perror(geomname);
+		perror(geomname.c_str());
 		exit(EXIT_OPEN);
 	}
-	unlink(geomname);
+	unlink(geomname.c_str());
 
 	unsigned iz = 0, ix = 0, iy = 0;
 	choose_first_zoom(file_bbox, file_bbox1, file_bbox2, readers, &iz, &ix, &iy, minzoom, buffer);
@@ -2699,8 +2686,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
 
-		struct drop_state ds[maxzoom + 1];
-		prep_drop_states(ds, maxzoom, basezoom, droprate);
+		std::vector<struct drop_state> ds(maxzoom + 1);
+		prep_drop_states(ds.data(), maxzoom, basezoom, droprate);
 
 		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
@@ -2718,7 +2705,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 						previndex = map[ip].ix;
 					} else {
-						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+						int feature_minzoom = calc_feature_minzoom(&map[ip], ds.data(), maxzoom, gamma);
 						geom[map[ip].end - 1] = feature_minzoom;
 					}
 				}
@@ -2743,7 +2730,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (ip > 0 && map[ip].start != map[ip - 1].end) {
 					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
 				}
-				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+				int feature_minzoom = calc_feature_minzoom(&map[ip], ds.data(), maxzoom, gamma);
 				geom[map[ip].end - 1] = feature_minzoom;
 			}
 		}
@@ -2766,8 +2753,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		exit(EXIT_STAT);
 	}
 
-	int fd[TEMP_FILES];
-	off_t size[TEMP_FILES];
+	std::vector<int> fd(TEMP_FILES);
+	std::vector<off_t> size(TEMP_FILES);
 
 	fd[0] = geomfd;
 	size[0] = geomst.st_size;
@@ -2780,7 +2767,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data, &drop_by_attribute_as_needed_attribute, drop_by_attribute_descending);
+	int written = traverse_zooms(fd.data(), size.data(), stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off.data(), initial_x.data(), initial_y.data(), simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data, &drop_by_attribute_as_needed_attribute, drop_by_attribute_descending);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {

@@ -893,7 +893,7 @@ void *join_worker(void *v) {
 }
 
 void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<std::map<std::string, layermap_entry>> &layermaps, sqlite3 *outdb, const char *outdir, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 *db, std::set<std::string> &exclude, std::set<std::string> &include, int ifmatched, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, json_object *filter, struct tileset_reader *readers, double *minlat, double *minlon, double *maxlat, double *maxlon, double *minlon2, double *maxlon2) {
-	pthread_t pthreads[CPUS];
+	std::vector<pthread_t> pthreads(CPUS);
 	std::vector<arg> args;
 
 	for (size_t i = 0; i < CPUS; i++) {
