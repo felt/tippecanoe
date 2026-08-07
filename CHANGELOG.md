@@ -6,6 +6,12 @@
   Features exactly at the threshold are kept rather than dropped. (#384, #385)
 * Add `--exclude-all-tile-geometries` to tile-join, to produce tiles that
   carry only attributes. (#382)
+* Add `--use-attribute-for-id=`*name* to tile-join, which had been advertised
+  as an option for years without an implementation. The attribute can be one
+  from the source tiles or one joined from a CSV, and supplies the ID even if
+  the attribute filters would otherwise remove it. An attribute value of `0`
+  is now usable as a feature ID in tippecanoe as well, instead of being
+  reported as too large to represent.
 * Generate each tool's usage message from the same option table that
   `getopt_long()` reads, so the hand-written lists in tile-join,
   tippecanoe-overzoom, tippecanoe-json-tool, tippecanoe-decode, and

@@ -844,6 +844,10 @@ The options are:
  * `-J` *filter-file* or `--feature-filter-file`=*filter-file*: Like `-j`, but read the filter from a file.
  * `-pe` or `--empty-csv-columns-are-null`: Treat empty CSV columns as nulls rather than as empty strings.
 
+### Setting feature IDs
+
+ * `--use-attribute-for-id=`*name*: Use the attribute with the specified *name*, whether it was already present in the source tiles or was joined from a CSV with `-c`, as if it were specified as the feature ID. The attribute is not also copied to the output. It is used for the ID even if `-x`, `-y`, `-X`, or `--exclude-all-tile-attributes` would otherwise remove it, so you can take the ID from an attribute that you don't want to keep. Unlike in tippecanoe, an attribute that is a stringified number is converted without any additional option. If its value can't be represented as a feature ID, a warning is printed and it is kept as an ordinary attribute instead.
+
 ### Setting or disabling tile size limits
 
  * `-pk` or `--no-tile-size-limit`: Don't skip tiles larger than 500K.

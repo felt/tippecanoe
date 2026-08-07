@@ -59,6 +59,7 @@ bool exclude_all = false;
 bool exclude_all_tile_attributes = false;
 bool exclude_all_tile_geometries = false;
 std::vector<std::string> unidecode_data;
+std::string attribute_for_id;
 
 bool want_overzoom = false;
 int buffer = 5;
@@ -97,6 +98,36 @@ struct arg {
 	double maxlat, maxlon;
 	double minlon2, maxlon2;
 };
+
+// one output feature: the attributes it will be written with, which are the ones
+// copied from the source tile plus any that were joined to it from the CSV
+struct match {
+	bool has_id = false;
+	unsigned long long id;
+	std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
+	std::vector<std::string> key_order;
+};
+
+// --use-attribute-for-id: if this is the attribute that was named as the source of the
+// feature ID, use its value as the ID and report that it should not also be copied
+// through as an attribute.
+//
+// This is checked before the -x, -y, -X, and --exclude-all-tile-attributes filters,
+// so that the attribute that supplies the ID doesn't have to be one that is kept.
+static bool used_for_id(match &m, std::string const &key, serial_val const &sv) {
+	if (attribute_for_id.size() == 0 || key != attribute_for_id || sv.type == mvt_null) {
+		return false;
+	}
+
+	unsigned long long id;
+	if (!attribute_to_feature_id(key, sv, true, &id)) {
+		return false;
+	}
+
+	m.has_id = true;
+	m.id = id;
+	return true;
+}
 
 void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<std::string, layermap_entry> &layermap, std::vector<std::string> &header, std::map<std::string, std::vector<std::string>> &mapping, sqlite3 * /* db */, std::set<std::string> &exclude, std::set<std::string> &include, std::set<std::string> &keep_layers, std::set<std::string> &remove_layers, int ifmatched, mvt_tile &outtile, json_object *filter, struct arg *a) {
 	mvt_tile tile;
@@ -183,13 +214,6 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				continue;
 			}
 
-			struct match {
-				bool has_id = false;
-				unsigned long long id;
-				std::map<std::string, std::pair<mvt_value, serial_val>> attributes;
-				std::vector<std::string> key_order;
-			};
-
 			std::vector<match> matches;
 			bool matched = false;
 
@@ -213,7 +237,12 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 						continue;
 					}
 
-					if (!exclude_all_tile_attributes) {
+					// the attribute that supplies the feature ID is still checked
+					// against the CSV below, but is not copied through
+
+					bool is_id = used_for_id(m, key, sv);
+
+					if (!exclude_all_tile_attributes && !is_id) {
 						if (include.count(std::string(key)) || (!exclude_all && exclude.count(std::string(key)) == 0 && exclude_attributes.count(std::string(key)) == 0)) {
 							m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
 							m.key_order.push_back(key);
@@ -243,6 +272,22 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 								}
 
 								const char *sjoinkey = joinkey.c_str();
+
+								serial_val joinsv;
+								joinsv.type = attr_type;
+								joinsv.s = joinval;
+
+								if (used_for_id(m, joinkey, joinsv)) {
+									// a joined ID supersedes one from the tile, as
+									// joined attributes supersede tile attributes
+
+									auto fa = m.attributes.find(sjoinkey);
+									if (fa != m.attributes.end()) {
+										m.attributes.erase(fa);
+									}
+
+									continue;
+								}
 
 								if (include.count(joinkey) || (!exclude_all && exclude.count(joinkey) == 0 && exclude_attributes.count(joinkey) == 0 && attr_type != mvt_null)) {
 									mvt_value outval;
@@ -286,13 +331,20 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 				m.id = feat.id;
 				m.has_id = feat.has_id;
 
-				if (!exclude_all_tile_attributes) {
+				// the tags are still walked if the attributes are all being excluded,
+				// in case one of them is the one that supplies the feature ID
+
+				if (!exclude_all_tile_attributes || attribute_for_id.size() > 0) {
 					for (size_t t = 0; t + 1 < feat.tags.size(); t += 2) {
 						const std::string &key = layer.keys[feat.tags[t]];
 						mvt_value &val = layer.values[feat.tags[t + 1]];
 						serial_val sv = mvt_value_to_serial_val(val);
 
-						if (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0)) {
+						if (used_for_id(m, key, sv)) {
+							continue;
+						}
+
+						if (!exclude_all_tile_attributes && (include.count(key) || (!exclude_all && exclude.count(key) == 0 && exclude_attributes.count(key) == 0))) {
 							m.attributes.insert(std::pair<std::string, std::pair<mvt_value, serial_val>>(key, std::pair<mvt_value, serial_val>(val, sv)));
 							m.key_order.push_back(key);
 						}
@@ -1295,6 +1347,9 @@ static const struct option long_options[] = {
 	{"feature-filter-file", required_argument, 0, 'J'},
 	{"feature-filter", required_argument, 0, 'j'},
 
+	{"Setting feature IDs", 0, 0, 0},
+	{"use-attribute-for-id", required_argument, 0, '~'},
+
 	{"Setting or disabling tile size limits", 0, 0, 0},
 	{"no-tile-size-limit", no_argument, &pk, 1},
 	{"no-tile-compression", no_argument, &pC, 1},
@@ -1540,6 +1595,8 @@ int main(int argc, char **argv) {
 				exclude_all_tile_attributes = true;
 			} else if (strcmp(opt, "exclude-all-tile-geometries") == 0) {
 				exclude_all_tile_geometries = true;
+			} else if (strcmp(opt, "use-attribute-for-id") == 0) {
+				attribute_for_id = optarg;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
