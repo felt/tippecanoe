@@ -1,3 +1,15 @@
+# 2.81.1
+
+* Fix the placement of `--convert-polygons-to-label-points` anchors, most
+  visibly in the buffer of the z0 tile. The anchor was stored as a packed
+  index of two unsigned 32-bit coordinates, so an anchor in the tile buffer
+  outside the [0, 2^32) plane was wrapped to the opposite edge of the world
+  instead of kept where it was, and an anchor at exactly (0, 0) was
+  indistinguishable from having no anchor at all. Store the anchor as a pair
+  of signed coordinates with a separate presence flag, and place it directly
+  when it falls within the tile plus its buffer rather than searching the
+  repeating checkerboard for a substitute.
+
 # 2.81.0
 
 * Add `--drop-by-attribute-as-needed=`*attribute* to drop the features with
