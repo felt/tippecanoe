@@ -1230,6 +1230,10 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 			if (!tile.decode(t.tile, was_compressed)) {
 				throw_tippecanoe_error(EXIT_MVT, "Couldn't parse tile %d/%u/%u", t.z, t.x, t.y);
 			}
+		} catch (tippecanoe_error &e) {
+			// a tippecanoe_error is a std::exception, so it would
+			// otherwise be caught below and reattributed to protobuf
+			throw;
 		} catch (std::exception const &e) {
 			throw_tippecanoe_error(EXIT_PROTOBUF, "PBF decoding error in tile %d/%u/%u", t.z, t.x, t.y);
 		}

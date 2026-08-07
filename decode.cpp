@@ -102,6 +102,10 @@ void handle(std::string message, int z, unsigned x, unsigned y, std::set<std::st
 			fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", z, x, y);
 			exit(EXIT_MVT);
 		}
+	} catch (tippecanoe_error &e) {
+		// a tippecanoe_error is a std::exception, so it would
+		// otherwise be caught below and reattributed to protobuf
+		throw;
 	} catch (std::exception const &e) {
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
 		exit(EXIT_PROTOBUF);
