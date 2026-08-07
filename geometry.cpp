@@ -508,8 +508,7 @@ drawvec stairstep(drawvec &geom, int z, int detail) {
 
 			// out.push_back(draw(VT_LINETO, xx, yy));
 		} else {
-			fprintf(stderr, "Can't happen: stairstepping lineto with no moveto\n");
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Can't happen: stairstepping lineto with no moveto");
 		}
 	}
 

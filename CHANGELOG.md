@@ -1,5 +1,13 @@
 # 2.81.0
 
+* Report errors from the tile clipping and overzooming code by throwing a
+  `tippecanoe_error` rather than by calling `exit()`, and give that code
+  RAII ownership of its `FILE *` and `json_pull *` handles so that nothing
+  leaks when an error unwinds the stack. Each command-line tool catches the
+  exception in `main()` and exits with the same status it would have
+  before. Along the way this fixes a leaked `z_stream` when `compress()`
+  failed and two `exit()` calls that could run from a destructor or from
+  `mvt_value`'s hash function.
 * Add `--drop-by-attribute-as-needed=`*attribute* to drop the features with
   the lowest values of a numeric attribute from oversized tiles, and
   `--drop-by-attribute-order=desc` to drop the highest values instead.

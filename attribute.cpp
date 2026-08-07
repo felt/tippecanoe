@@ -5,6 +5,7 @@
 #include "serial.hpp"
 #include "jsonpull/jsonpull.h"
 #include "milo/dtoa_milo.h"
+#include "raii.hpp"
 
 std::map<std::string, attribute_op> numeric_operations = {
 	{"sum", op_sum},
@@ -33,8 +34,7 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 	} else if (type == "count") {
 		t = op_count;
 	} else {
-		fprintf(stderr, "Attribute method (%s) must be sum, product, mean, max, min, concat, comma, or count\n", type.c_str());
-		exit(EXIT_ARGS);
+		throw_tippecanoe_error(EXIT_ARGS, "Attribute method (%s) must be sum, product, mean, max, min, concat, comma, or count", type.c_str());
 	}
 
 	attribute_accum.insert(std::pair<std::string, attribute_op>(name, t));
@@ -42,17 +42,15 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 
 void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribute_accum, const char *arg, char **argv) {
 	if (*arg == '{') {
-		json_pull *jp = json_begin_string(arg);
-		json_object *o = json_read_tree(jp);
+		unique_json_pull jp(json_begin_string(arg));
+		json_object *o = json_read_tree(jp.get());
 
 		if (o == NULL) {
-			fprintf(stderr, "%s: -E%s: %s\n", *argv, arg, jp->error);
-			exit(EXIT_JSON);
+			throw_tippecanoe_error(EXIT_JSON, "%s: -E%s: %s", *argv, arg, jp->error);
 		}
 
 		if (o->type != JSON_HASH) {
-			fprintf(stderr, "%s: -E%s: not a JSON object\n", *argv, arg);
-			exit(EXIT_JSON);
+			throw_tippecanoe_error(EXIT_JSON, "%s: -E%s: not a JSON object", *argv, arg);
 		}
 
 		for (size_t i = 0; i < o->value.object.length; i++) {
@@ -60,26 +58,22 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 			json_object *v = o->value.object.values[i];
 
 			if (k->type != JSON_STRING) {
-				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *argv, arg, i);
-				exit(EXIT_JSON);
+				throw_tippecanoe_error(EXIT_JSON, "%s: -E%s: key %zu not a string", *argv, arg, i);
 			}
 			if (v->type != JSON_STRING) {
-				fprintf(stderr, "%s: -E%s: value %zu not a string\n", *argv, arg, i);
-				exit(EXIT_JSON);
+				throw_tippecanoe_error(EXIT_JSON, "%s: -E%s: value %zu not a string", *argv, arg, i);
 			}
 
 			set_attribute_accum(attribute_accum, k->value.string.string, v->value.string.string);
 		}
 
 		json_free(o);
-		json_end(jp);
 		return;
 	}
 
 	const char *s = strchr(arg, ':');
 	if (s == NULL) {
-		fprintf(stderr, "-E%s option must be in the form -Ename:method\n", arg);
-		exit(EXIT_ARGS);
+		throw_tippecanoe_error(EXIT_ARGS, "-E%s option must be in the form -Ename:method", arg);
 	}
 
 	std::string name = std::string(arg, s - arg);
@@ -171,8 +165,7 @@ static void preserve_attribute1(attribute_op const &op, std::string const &key, 
 		break;
 
 	default:
-		fprintf(stderr, "can't happen: operation that isn't used by --accumulate-numeric-attributes\n");
-		exit(EXIT_IMPOSSIBLE);
+		throw_tippecanoe_error(EXIT_IMPOSSIBLE, "can't happen: operation that isn't used by --accumulate-numeric-attributes");
 	}
 
 	full_keys.push_back(key_pool.pool(key));

@@ -365,7 +365,7 @@ void join_csv(json_object *j) {
 					vo->value.number.large_unsigned = 0;
 					vo->value.number.large_signed = 0;
 				} else {
-					abort();
+					throw_tippecanoe_error(EXIT_IMPOSSIBLE, "unexpected JSON attribute type %d", attr_type);
 				}
 
 				properties->value.object.keys[properties->value.object.length] = ko;
@@ -437,7 +437,7 @@ void usage(char **argv) {
 	exit(EXIT_ARGS);
 }
 
-int main(int argc, char **argv) {
+int inner_main(int argc, char **argv) {
 	const char *csv = NULL;
 
 	strip_usage_headings(long_options, real_long_options);
@@ -519,4 +519,16 @@ int main(int argc, char **argv) {
 	}
 
 	return fail;
+}
+
+int main(int argc, char **argv) {
+	try {
+		return inner_main(argc, argv);
+	} catch (tippecanoe_error &e) {
+		fprintf(stderr, "%s\n", e.what());
+		return e.exit_code;
+	} catch (std::exception &e) {
+		fprintf(stderr, "Error: %s\n", e.what());
+		return EXIT_FAILURE;
+	}
 }
