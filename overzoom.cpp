@@ -12,6 +12,7 @@
 #include "read_json.hpp"
 #include "projection.hpp"
 #include "usage.hpp"
+#include "raii.hpp"
 
 extern char *optarg;
 extern int optind;
@@ -91,24 +92,21 @@ void usage(char **argv) {
 std::string read_json_file(const char *fname) {
 	std::string out;
 
-	FILE *f = fopen(fname, "r");
-	if (f == NULL) {
-		perror(optarg);
-		exit(EXIT_OPEN);
+	unique_file f(fopen(fname, "r"));
+	if (!f) {
+		throw_perror(EXIT_OPEN, fname);
 	}
 
 	char buf[2000];
 	size_t nread;
-	while ((nread = fread(buf, sizeof(char), 2000, f)) != 0) {
+	while ((nread = fread(buf, sizeof(char), 2000, f.get())) != 0) {
 		out += std::string(buf, nread);
 	}
-
-	fclose(f);
 
 	return out;
 }
 
-int main(int argc, char **argv) {
+int inner_main(int argc, char **argv) {
 	int i;
 	const char *outtile = NULL;
 	const char *outfile = NULL;
@@ -273,16 +271,14 @@ int main(int argc, char **argv) {
 			char buf[1000];
 			int len;
 
-			FILE *f = fopen(s.tile.c_str(), "rb");
-			if (f == NULL) {
-				perror(s.tile.c_str());
-				exit(EXIT_FAILURE);
+			unique_file f(fopen(s.tile.c_str(), "rb"));
+			if (!f) {
+				throw_perror(EXIT_OPEN, s.tile.c_str());
 			}
 
-			while ((len = fread(buf, sizeof(char), 1000, f)) > 0) {
+			while ((len = fread(buf, sizeof(char), 1000, f.get())) > 0) {
 				tile.append(std::string(buf, len));
 			}
-			fclose(f);
 
 			input_tile t = s;
 			t.tile = std::move(tile);
@@ -292,14 +288,24 @@ int main(int argc, char **argv) {
 		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, std::vector<clipbbox>(), deduplicate_by_id);
 	}
 
-	FILE *f = fopen(outfile, "wb");
-	if (f == NULL) {
-		perror(outfile);
-		exit(EXIT_FAILURE);
+	unique_file f(fopen(outfile, "wb"));
+	if (!f) {
+		throw_perror(EXIT_OPEN, outfile);
 	}
 
-	fwrite(out.c_str(), sizeof(char), out.size(), f);
-	fclose(f);
+	fwrite(out.c_str(), sizeof(char), out.size(), f.get());
 
 	return 0;
+}
+
+int main(int argc, char **argv) {
+	try {
+		return inner_main(argc, argv);
+	} catch (tippecanoe_error &e) {
+		fprintf(stderr, "%s\n", e.what());
+		return e.exit_code;
+	} catch (std::exception &e) {
+		fprintf(stderr, "Error: %s\n", e.what());
+		return EXIT_FAILURE;
+	}
 }

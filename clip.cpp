@@ -46,8 +46,7 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, edge_nodes, prevent_simplify_shared_nodes);
 			if (tmp.size() > 0) {
 				if (tmp[0].first != tmp[tmp.size() - 1].first || tmp[0].second != tmp[tmp.size() - 1].second) {
-					fprintf(stderr, "Internal error: Polygon ring not closed\n");
-					exit(EXIT_FAILURE);
+					throw_tippecanoe_error(EXIT_FAILURE, "Internal error: Polygon ring not closed");
 				}
 			}
 			for (size_t k = 0; k < tmp.size(); k++) {
@@ -60,8 +59,7 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 
 			i = j - 1;
 		} else {
-			fprintf(stderr, "Unexpected operation in polygon %d\n", (int) geom[i].op);
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Unexpected operation in polygon %d", (int) geom[i].op);
 		}
 	}
 
@@ -246,8 +244,7 @@ static void decode_clipped(mapbox::geometry::multi_polygon<long long> &t, drawve
 			double area = get_area(ring, 0, ring.size());
 
 			if ((j == 0 && area < 0) || (j != 0 && area > 0)) {
-				fprintf(stderr, "Ring area has wrong sign: %f for %zu\n", area, j);
-				exit(EXIT_IMPOSSIBLE);
+				throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Ring area has wrong sign: %f for %zu", area, j);
 			}
 
 			for (size_t k = 0; k < ring.size(); k++) {
@@ -362,8 +359,7 @@ drawvec clean_or_clip_poly(drawvec &geom, int z, int buffer, bool clip, bool try
 			fprintf(f, "\n\n\n\n\n");
 
 			fclose(f);
-			fprintf(stderr, "Internal error: Polygon cleaning failed. Log in /tmp/wagyu.log\n");
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: Polygon cleaning failed. Log in /tmp/wagyu.log");
 		}
 
 		if (scale != 1) {
@@ -439,8 +435,7 @@ drawvec clip_poly_poly(drawvec const &geom, drawvec const &bounds) {
 			result.clear();
 			wagyu.execute(mapbox::geometry::wagyu::clip_type_intersection, result, mapbox::geometry::wagyu::fill_type_positive, mapbox::geometry::wagyu::fill_type_positive);
 		} catch (std::runtime_error &e) {
-			fprintf(stderr, "Internal error: Polygon clipping failed\n");
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: Polygon clipping failed");
 		}
 	}
 
@@ -635,8 +630,7 @@ double get_area_scaled(const drawvec &geom, size_t i, size_t j) {
 		}
 	}
 
-	fprintf(stderr, "get_area_scaled: can't happen\n");
-	exit(EXIT_IMPOSSIBLE);
+	throw_tippecanoe_error(EXIT_IMPOSSIBLE, "get_area_scaled: can't happen");
 }
 
 double get_area(const drawvec &geom, size_t i, size_t j) {
@@ -754,8 +748,7 @@ static bool inside(std::pair<double, double> d, int edge, long long minx, long l
 		return d.first > minx;
 	}
 
-	fprintf(stderr, "internal error inside\n");
-	exit(EXIT_FAILURE);
+	throw_tippecanoe_error(EXIT_FAILURE, "internal error inside");
 }
 
 static std::pair<double, double> intersect(std::pair<double, double> a, std::pair<double, double> b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
@@ -773,8 +766,7 @@ static std::pair<double, double> intersect(std::pair<double, double> a, std::pai
 		return std::pair<double, double>(minx, (a.second + (double) (b.second - a.second) * (minx - a.first) / (b.first - a.first)));
 	}
 
-	fprintf(stderr, "internal error intersecting\n");
-	exit(EXIT_FAILURE);
+	throw_tippecanoe_error(EXIT_FAILURE, "internal error intersecting");
 }
 
 // http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
@@ -910,8 +902,7 @@ void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, siz
 	std::stack<int> recursion_stack;
 
 	if (!geom[start + 0].necessary || !geom[start + n - 1].necessary) {
-		fprintf(stderr, "endpoints not marked necessary\n");
-		exit(EXIT_IMPOSSIBLE);
+		throw_tippecanoe_error(EXIT_IMPOSSIBLE, "endpoints not marked necessary");
 	}
 
 	int prev = 0;
@@ -1237,12 +1228,10 @@ std::string overzoom(std::vector<input_tile> const &tiles, int nz, int nx, int n
 		try {
 			bool was_compressed;
 			if (!tile.decode(t.tile, was_compressed)) {
-				fprintf(stderr, "Couldn't parse tile %d/%u/%u\n", t.z, t.x, t.y);
-				exit(EXIT_MVT);
+				throw_tippecanoe_error(EXIT_MVT, "Couldn't parse tile %d/%u/%u", t.z, t.x, t.y);
 			}
 		} catch (std::exception const &e) {
-			fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", t.z, t.x, t.y);
-			exit(EXIT_PROTOBUF);
+			throw_tippecanoe_error(EXIT_PROTOBUF, "PBF decoding error in tile %d/%u/%u", t.z, t.x, t.y);
 		}
 
 		source_tile out;
@@ -1892,8 +1881,7 @@ drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding)
 			i = j - 1;
 			outer = 0;
 		} else {
-			fprintf(stderr, "Internal error: polygon ring begins with %d, not moveto\n", geom[i].op);
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: polygon ring begins with %d, not moveto", geom[i].op);
 		}
 	}
 

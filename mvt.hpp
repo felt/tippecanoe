@@ -204,8 +204,7 @@ struct std::hash<mvt_value> {
 			return fnv1a(sizeof(int), (void *) &k.numeric_value.null_value);
 
 		default:
-			fprintf(stderr, "mvt_value hash can't happen\n");
-			exit(EXIT_IMPOSSIBLE);
+			throw tippecanoe_error(EXIT_IMPOSSIBLE, "mvt_value hash: unexpected type");
 		}
 	}
 };

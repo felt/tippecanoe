@@ -14,6 +14,7 @@
 #include "milo/dtoa_milo.h"
 #include "errors.hpp"
 #include "serial.hpp"
+#include "raii.hpp"
 
 const char *geometry_names[GEOM_TYPES] = {
 	"Point",
@@ -99,7 +100,7 @@ void parse_coordinates(int t, json_object *j, drawvec &out, int op, const char *
 			json_context(j);
 			fprintf(stderr, "%s:%d: malformed point: ", fname, line);
 			json_context(feature);
-			exit(EXIT_JSON);
+			throw_tippecanoe_error(EXIT_JSON, "%s:%d: malformed point", fname, line);
 		}
 	}
 
@@ -135,7 +136,7 @@ serial_val stringify_value(json_object *value, const char *reading, int line, js
 			if (err.size() > 0) {
 				fprintf(stderr, "%s:%d: %s: ", reading, line, err.c_str());
 				json_context(feature);
-				exit(EXIT_UTF8);
+				throw_tippecanoe_error(EXIT_UTF8, "%s:%d: %s", reading, line, err.c_str());
 			}
 		} else if (vt == JSON_NUMBER) {
 			sv.type = mvt_double;
@@ -184,20 +185,20 @@ std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, jso
 	if (geometry_type == NULL) {
 		fprintf(stderr, "Filter output:%d: null geometry (additional not reported): ", jp->line);
 		json_context(j);
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: null geometry (additional not reported)", jp->line);
 	}
 
 	if (geometry_type->type != JSON_STRING) {
 		fprintf(stderr, "Filter output:%d: geometry type is not a string: ", jp->line);
 		json_context(j);
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: geometry type is not a string", jp->line);
 	}
 
 	json_object *coordinates = json_hash_get(geometry, "coordinates");
 	if (coordinates == NULL || coordinates->type != JSON_ARRAY) {
 		fprintf(stderr, "Filter output:%d: geometry without coordinates array: ", jp->line);
 		json_context(j);
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: geometry without coordinates array", jp->line);
 	}
 
 	int t;
@@ -209,7 +210,7 @@ std::pair<int, drawvec> parse_geometry(json_object *geometry, json_pull *jp, jso
 	if (t >= GEOM_TYPES) {
 		fprintf(stderr, "Filter output:%d: Can't handle geometry type %s: ", jp->line, geometry_type->value.string.string);
 		json_context(j);
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: Can't handle geometry type %s", jp->line, geometry_type->value.string.string);
 	}
 
 	drawvec dv;
@@ -305,9 +306,9 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 	std::map<std::string, mvt_layer> ret;
 	std::shared_ptr<std::string> tile_stringpool = std::make_shared<std::string>();
 
-	json_pull *jp = json_begin_file(fp);
+	unique_json_pull jp(json_begin_file(fp));
 	while (1) {
-		json_object *j = json_read(jp);
+		json_object *j = json_read(jp.get());
 		if (j == NULL) {
 			if (jp->error != NULL) {
 				fprintf(stderr, "Filter output:%d: %s: ", jp->line, jp->error);
@@ -316,7 +317,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 				} else {
 					fprintf(stderr, "\n");
 				}
-				exit(EXIT_JSON);
+				throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: %s", jp->line, jp->error);
 			}
 
 			json_free(jp->root);
@@ -336,7 +337,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			fprintf(stderr, "Filter output:%d: feature without properties hash: ", jp->line);
 			json_context(j);
 			json_free(j);
-			exit(EXIT_JSON);
+			throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: feature without properties hash", jp->line);
 		}
 
 		std::string layername = "unknown";
@@ -364,10 +365,10 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			fprintf(stderr, "Filter output:%d: filtered feature with no geometry: ", jp->line);
 			json_context(j);
 			json_free(j);
-			exit(EXIT_JSON);
+			throw_tippecanoe_error(EXIT_JSON, "Filter output:%d: filtered feature with no geometry", jp->line);
 		}
 
-		std::pair<int, drawvec> parsed_geometry = parse_geometry(geometry, jp, j, z, x, y, extent, fix_longitudes, true);
+		std::pair<int, drawvec> parsed_geometry = parse_geometry(geometry, jp.get(), j, z, x, y, extent, fix_longitudes, true);
 
 		int t = parsed_geometry.first;
 		drawvec &dv = parsed_geometry.second;
@@ -403,8 +404,6 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 
 		json_free(j);
 	}
-
-	json_end(jp);
 
 	std::vector<mvt_layer> final;
 	for (auto a : ret) {

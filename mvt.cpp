@@ -102,6 +102,7 @@ int compress(std::string const &input, std::string &output, bool gz) {
 		deflate_s.next_out = (Bytef *) (output.data() + length);
 		int ret = deflate(&deflate_s, Z_FINISH);
 		if (ret != Z_STREAM_END && ret != Z_OK && ret != Z_BUF_ERROR) {
+			deflateEnd(&deflate_s);
 			return -1;
 		}
 		length += (increase - deflate_s.avail_out);
@@ -118,7 +119,7 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 	if (is_compressed(message)) {
 		std::string uncompressed;
 		if (decompress(message, uncompressed) == 0) {
-			exit(EXIT_MVT);
+			throw_tippecanoe_error(EXIT_MVT, "Tile decompression failed");
 		}
 		src = uncompressed;
 		was_compressed = true;
@@ -368,11 +369,9 @@ std::string mvt_tile::encode() {
 				value_writer.add_bool(7, pbv.numeric_value.bool_value);
 				break;
 			case mvt_null:
-				fprintf(stderr, "Internal error: trying to write null attribute to tile\n");
-				exit(EXIT_IMPOSSIBLE);
+				throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: trying to write null attribute to tile");
 			default:
-				fprintf(stderr, "Internal error: trying to write undefined attribute type to tile\n");
-				exit(EXIT_IMPOSSIBLE);
+				throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: trying to write undefined attribute type to tile");
 			}
 
 			std::shared_ptr<sorted_value> sv = std::make_shared<sorted_value>();
@@ -451,8 +450,7 @@ std::string mvt_tile::encode() {
 					long long dy = wwy - py;
 
 					if (dx < INT_MIN || dx > INT_MAX || dy < INT_MIN || dy > INT_MAX) {
-						fprintf(stderr, "Internal error: Geometry delta is too big: %lld,%lld\n", dx, dy);
-						exit(EXIT_IMPOSSIBLE);
+						throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: Geometry delta is too big: %lld,%lld", dx, dy);
 					}
 
 					geometry.push_back(protozero::encode_zigzag32(dx));
@@ -464,8 +462,7 @@ std::string mvt_tile::encode() {
 				} else if (op == mvt_closepath) {
 					length++;
 				} else {
-					fprintf(stderr, "\nInternal error: corrupted geometry\n");
-					exit(EXIT_IMPOSSIBLE);
+					throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: corrupted geometry");
 				}
 			}
 
@@ -514,8 +511,7 @@ bool mvt_value::operator<(const mvt_value &o) const {
 			return numeric_value.null_value < o.numeric_value.null_value;
 
 		default:
-			fprintf(stderr, "mvt_value::operator<<: can't happen\n");
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "mvt_value::operator<<: can't happen");
 		}
 	}
 
@@ -550,8 +546,7 @@ bool mvt_value::operator==(const mvt_value &o) const {
 			return numeric_value.null_value == o.numeric_value.null_value;
 
 		default:
-			fprintf(stderr, "mvt_value::operator==: can't happen\n");
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "mvt_value::operator==: can't happen");
 		}
 	}
 
@@ -813,8 +808,7 @@ serial_val mvt_value_to_serial_val(mvt_value const &v) {
 		sv.s = "null";
 		break;
 	default:
-		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
-		exit(EXIT_IMPOSSIBLE);
+		throw_tippecanoe_error(EXIT_IMPOSSIBLE, "unhandled mvt_type %d", v.type);
 	}
 
 	return sv;
@@ -840,8 +834,7 @@ long long mvt_value_to_long_long(mvt_value const &v) {
 	case mvt_null:
 		return 0;
 	default:
-		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
-		exit(EXIT_IMPOSSIBLE);
+		throw_tippecanoe_error(EXIT_IMPOSSIBLE, "unhandled mvt_type %d", v.type);
 	}
 }
 
@@ -865,8 +858,7 @@ double mvt_value_to_double(mvt_value const &v) {
 	case mvt_null:
 		return 0;
 	default:
-		fprintf(stderr, "unhandled mvt_type %d\n", v.type);
-		exit(EXIT_IMPOSSIBLE);
+		throw_tippecanoe_error(EXIT_IMPOSSIBLE, "unhandled mvt_type %d", v.type);
 	}
 }
 

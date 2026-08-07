@@ -25,8 +25,9 @@ struct json_writer {
 	~json_writer() {
 		if (state.size() > 0) {
 			if (state.size() != 1 || state[0] != JSON_WRITE_TOP) {
+				// Log but don't throw — throwing from a destructor
+				// during stack unwinding calls std::terminate().
 				fprintf(stderr, "JSON not closed at end\n");
-				exit(EXIT_FAILURE);
 			}
 		}
 	}

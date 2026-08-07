@@ -1332,7 +1332,7 @@ void usage(char **argv) {
 	exit(EXIT_ARGS);
 }
 
-int main(int argc, char **argv) {
+int inner_main(int argc, char **argv) {
 	char *out_mbtiles = NULL;
 	char *out_dir = NULL;
 	sqlite3 *outdb = NULL;
@@ -1682,4 +1682,16 @@ int main(int argc, char **argv) {
 	}
 
 	return 0;
+}
+
+int main(int argc, char **argv) {
+	try {
+		return inner_main(argc, argv);
+	} catch (tippecanoe_error &e) {
+		fprintf(stderr, "%s\n", e.what());
+		return e.exit_code;
+	} catch (std::exception &e) {
+		fprintf(stderr, "Error: %s\n", e.what());
+		return EXIT_FAILURE;
+	}
 }

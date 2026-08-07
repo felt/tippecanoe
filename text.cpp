@@ -8,6 +8,7 @@
 #include "milo/dtoa_milo.h"
 #include "milo/milo.h"
 #include "errors.hpp"
+#include "raii.hpp"
 
 /**
  * Returns an empty string if `s` is valid utf8;
@@ -135,7 +136,7 @@ int integer_zoom(std::string where, std::string text) {
 	double d = atof(text.c_str());
 	if (!std::isfinite(d) || d != floor(d) || d < 0 || d > 32) {
 		fprintf(stderr, "%s: Expected integer zoom level in \"tippecanoe\" GeoJSON extension, not %s\n", where.c_str(), text.c_str());
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "%s: Expected integer zoom level in \"tippecanoe\" GeoJSON extension, not %s", where.c_str(), text.c_str());
 	}
 	return d;
 }
@@ -181,8 +182,7 @@ char *dtoa_milo(double val) {
 	std::string s = milo::dtoa_milo(val);
 	char *dup = strdup(s.c_str());
 	if (dup == NULL) {
-		perror("strdup");
-		exit(EXIT_MEMORY);
+		throw_perror(EXIT_MEMORY, "strdup");
 	}
 	return dup;
 }
@@ -191,24 +191,21 @@ char *dtoa_milo(double val) {
 std::vector<std::string> read_unidecode(const char *fname) {
 	std::string data;
 
-	FILE *f = fopen(fname, "rb");
+	unique_file f(fopen(fname, "rb"));
 	if (f == NULL) {
-		perror(fname);
-		exit(EXIT_OPEN);
+		throw_perror(EXIT_OPEN, fname);
 	}
 
 	std::string buf;
 	buf.resize(2000);
 
 	while (true) {
-		size_t nread = fread((void *) buf.c_str(), sizeof(char), buf.size(), f);
+		size_t nread = fread((void *) buf.c_str(), sizeof(char), buf.size(), f.get());
 		if (nread == 0) {
 			break;
 		}
 		data.append(buf.c_str(), nread);
 	}
-
-	fclose(f);
 
 	std::vector<std::string> out;
 	out.emplace_back();  // because the data file is 1-indexed
