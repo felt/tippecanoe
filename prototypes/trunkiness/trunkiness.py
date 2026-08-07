@@ -377,6 +377,36 @@ def tile_of(lon, lat, z):
     return (max(0, min(n - 1, x)), max(0, min(n - 1, y)))
 
 
+def adaptive_buckets(points, fine_zoom, min_pop=16, coarsest=4):
+    """Assign each point to the finest tile whose bucket has at least min_pop members.
+
+    A fixed fine neighbourhood is unusable for ranking: at z15 a third of the
+    buckets in a HUC8 hold a single edge, and a percentile within a bucket of
+    one is 1.0, so every isolated twig outranks the trunk it drains into.
+    Widening the neighbourhood until it holds enough features to be a real
+    comparison set removes that.
+    """
+    counts = []
+    keys = []
+    for z in range(fine_zoom, coarsest - 1, -1):
+        k = [tile_of(lon, lat, z) for lon, lat in points]
+        c = defaultdict(int)
+        for kk in k:
+            c[kk] += 1
+        keys.append(k)
+        counts.append(c)
+
+    out = []
+    for i in range(len(points)):
+        chosen = keys[-1][i]
+        for level in range(len(keys)):
+            if counts[level][keys[level][i]] >= min_pop:
+                chosen = keys[level][i]
+                break
+        out.append(chosen)
+    return out
+
+
 def local_percentile(values, buckets):
     """Percentile of each value within its bucket, in [0, 1]."""
     by_bucket = defaultdict(list)

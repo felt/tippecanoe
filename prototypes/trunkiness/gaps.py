@@ -20,6 +20,7 @@ Usage:
     python3 gaps.py <shapefile-base> <name-field> <zoom> [vertices-per-tile]
 """
 
+import math
 import sys
 from collections import defaultdict
 
@@ -27,8 +28,8 @@ import run as R
 import trunkiness as T
 
 
-def score_strokes(features, edges, stroke_of, num_nodes, local_zoom, per_stroke=True):
-    """Per-feature score. With per_stroke, every feature on a stroke gets one value."""
+def edge_scores(features, edges, stroke_of, num_nodes, local_zoom, per_stroke=True):
+    """Per-edge score, before rolling up to features."""
     stroke_len = defaultdict(float)
     for ei, e in enumerate(edges):
         stroke_len[stroke_of[ei]] += e["length"]
@@ -52,11 +53,17 @@ def score_strokes(features, edges, stroke_of, num_nodes, local_zoom, per_stroke=
     if local_zoom is None:
         edge_val = raw
     else:
-        buckets = []
-        for e in edges:
-            m = e["coords"][len(e["coords"]) // 2]
-            buckets.append(T.tile_of(m[0], m[1], local_zoom))
-        edge_val = T.local_percentile(raw, buckets)
+        pts = [(e["coords"][len(e["coords"]) // 2][0],
+                e["coords"][len(e["coords"]) // 2][1]) for e in edges]
+        buckets = T.adaptive_buckets(pts, local_zoom, min_pop=16)
+        pct = T.local_percentile(raw, buckets)
+        # Keep the global magnitude in play. A pure local rank says only "big
+        # for around here", which promotes a headwater twig in an empty bucket
+        # over a trunk river competing in a crowded one. A geometric mean keeps
+        # the hierarchy while still letting the best thing in a sparse area
+        # place ahead of its neighbours; a max would just restore 1.0 to the
+        # top of every bucket.
+        edge_val = [math.sqrt(raw[i] * pct[i]) for i in range(len(raw))]
 
     if per_stroke:
         # One value per stroke: the length-weighted mean of its edges. Taking a
@@ -69,6 +76,12 @@ def score_strokes(features, edges, stroke_of, num_nodes, local_zoom, per_stroke=
             den[stroke_of[ei]] += e["length"]
         edge_val = [num[stroke_of[ei]] / den[stroke_of[ei]] for ei in range(len(edges))]
 
+    return edge_val
+
+
+def score_strokes(features, edges, stroke_of, num_nodes, local_zoom, per_stroke=True):
+    """Per-feature score. With per_stroke, every feature on a stroke gets one value."""
+    edge_val = edge_scores(features, edges, stroke_of, num_nodes, local_zoom, per_stroke)
     vals = [0.0] * len(features)
     for ei, e in enumerate(edges):
         for fi in e["features"]:
@@ -136,6 +149,58 @@ def select(features, vals, z, budget, shared_threshold):
     return kept
 
 
+def stroke_groups(features, edges, stroke_of, edge_val):
+    """Assign each feature to its best-scoring stroke, and score each stroke."""
+    best = {}
+    val = [0.0] * len(features)
+    for ei, e in enumerate(edges):
+        for fi in e["features"]:
+            if edge_val[ei] > val[fi]:
+                val[fi] = edge_val[ei]
+                best[fi] = stroke_of[ei]
+    groups = defaultdict(list)
+    for fi, s in best.items():
+        groups[s].append(fi)
+    score = {}
+    for ei, e in enumerate(edges):
+        s = stroke_of[ei]
+        score[s] = max(score.get(s, 0.0), edge_val[ei])
+    return groups, score
+
+
+def select_greedy_strokes(features, groups, stroke_score, z, budget):
+    """Admit whole strokes, best first, if they fit in every tile they cross.
+
+    A threshold shared across the zoom also gives all-or-nothing strokes, but it
+    is set by the densest tile and so strips the whole zoom down to what
+    downtown can afford. Greedy admission does not have that problem: rejecting
+    a stroke frees nothing in tiles it never enters, so sparse tiles keep
+    filling with local strokes long after the trunks have been placed.
+    """
+    cost = defaultdict(lambda: defaultdict(int))
+    for i, f in enumerate(features):
+        for c in f["coords"]:
+            cost[i][T.tile_of(c[0], c[1], z)] += 1
+
+    remaining = defaultdict(lambda: budget)
+    kept = set()
+    for s in sorted(groups, key=lambda s: -stroke_score[s]):
+        need = defaultdict(int)
+        for fi in groups[s]:
+            for t, c in cost[fi].items():
+                need[t] += c
+        if all(remaining[t] >= c for t, c in need.items()):
+            for t, c in need.items():
+                remaining[t] -= c
+            kept.update(groups[s])
+
+    per_tile = defaultdict(set)
+    for i in kept:
+        for t in cost[i]:
+            per_tile[t].add(i)
+    return per_tile
+
+
 def measure(features, edges, stroke_of, kept_in, z, tol=1e-6):
     cell_total = defaultdict(float)
     cell_kept = defaultdict(float)
@@ -171,8 +236,26 @@ def measure(features, edges, stroke_of, kept_in, z, tol=1e-6):
             if i in kept_in.get(T.tile_of(c[0], c[1], z), ()):
                 covered.add(fine)
 
-    return (sum(cell_kept.values()) / 1000.0, within, cross, cross_gap / 1000.0,
-            100.0 * len(covered) / len(all_fine) if all_fine else 0.0)
+    # Largest connected component of what survives. Coverage alone is gameable:
+    # scattering isolated features maximizes distinct tiles touched while
+    # producing a map of disconnected fragments. This is the check that catches it.
+    max_node = max(max(e["u"], e["v"]) for e in edges) + 1
+    uf = T.UnionFind(max_node)
+    live = []
+    for ei, e in enumerate(edges):
+        m = e["coords"][len(e["coords"]) // 2]
+        if any(fi in kept_in.get(T.tile_of(m[0], m[1], z), ()) for fi in e["features"]):
+            live.append(e)
+    for e in live:
+        uf.union(e["u"], e["v"])
+    comp = defaultdict(float)
+    for e in live:
+        comp[uf.find(e["u"])] += e["length"]
+    kept_len = sum(cell_kept.values())
+    largest = 100.0 * max(comp.values()) / kept_len if comp and kept_len else 0.0
+
+    return (kept_len / 1000.0, within, cross, cross_gap / 1000.0,
+            100.0 * len(covered) / len(all_fine) if all_fine else 0.0, largest)
 
 
 def main():
@@ -196,13 +279,21 @@ def main():
     ]
 
     print("== %s z%d, %d vertices/tile" % (base, z, budget))
-    print("  %-32s %8s %8s %8s %10s %7s"
-          % ("variant", "kept km", "within#", "cross#", "cross gap", "cov"))
+    print("  %-32s %8s %8s %8s %10s %7s %8s"
+          % ("variant", "kept km", "within#", "cross#", "cross gap", "cov", "largest"))
     for label, per_stroke, lz, shared in variants:
         vals = score_strokes(features, edges, stroke_of, len(node_ids), lz, per_stroke)
         kept_in = select(features, vals, z, budget, shared)
-        k, w, c, cg, cov = measure(features, edges, stroke_of, kept_in, z)
-        print("  %-32s %8.0f %8d %8d %9.0fkm %6.1f%%" % (label, k, w, c, cg, cov))
+        k, w, c, cg, cov, lg = measure(features, edges, stroke_of, kept_in, z)
+        print("  %-32s %8.0f %8d %8d %9.0fkm %6.1f%% %7.1f%%"
+              % (label, k, w, c, cg, cov, lg))
+
+    ev = edge_scores(features, edges, stroke_of, len(node_ids), z + 4, True)
+    groups, sscore = stroke_groups(features, edges, stroke_of, ev)
+    kept_in = select_greedy_strokes(features, groups, sscore, z, budget)
+    k, w, c, cg, cov, lg = measure(features, edges, stroke_of, kept_in, z)
+    print("  %-32s %8.0f %8d %8d %9.0fkm %6.1f%% %7.1f%%"
+          % ("greedy whole strokes", k, w, c, cg, cov, lg))
 
 
 if __name__ == "__main__":

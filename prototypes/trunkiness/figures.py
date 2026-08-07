@@ -53,23 +53,20 @@ def main():
             for fi in e["features"]:
                 flen[fi] += e["length"]
 
-        per_edge = gaps.score_strokes(features, edges, stroke_of, len(node_ids),
-                                      None, per_stroke=False)
         per_stroke = gaps.score_strokes(features, edges, stroke_of, len(node_ids),
                                         None, per_stroke=True)
-        local = gaps.score_strokes(features, edges, stroke_of, len(node_ids),
-                                   z + 4, per_stroke=True)
-
-        variants = [
-            ("drop-smallest (today)", flen, False),
-            ("trunkiness, per-tile threshold", per_stroke, False),
-            ("per-stroke + local + shared threshold", local, True),
-        ]
 
         panels = []
-        for label, vals, shared in variants:
-            kept_in = gaps.select(features, vals, z, budget, shared)
+        for label, vals in (("drop-smallest (today)", flen),
+                            ("trunkiness, per-tile threshold", per_stroke)):
+            kept_in = gaps.select(features, vals, z, budget, False)
             panels.append((label, surviving_chains(features, kept_in, z)))
+
+        ev = gaps.edge_scores(features, edges, stroke_of, len(node_ids), z + 4, True)
+        groups, sscore = gaps.stroke_groups(features, edges, stroke_of, ev)
+        kept_in = gaps.select_greedy_strokes(features, groups, sscore, z, budget)
+        panels.append(("greedy whole-stroke admission",
+                       surviving_chains(features, kept_in, z)))
 
         render.render_chains(features, panels, out, title=title)
         print("wrote %s (%d features)" % (out, len(features)))
