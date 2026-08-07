@@ -108,6 +108,12 @@ void append_tile(std::string message, int z, unsigned x, unsigned y, std::map<st
 			fprintf(stderr, "Couldn't decompress tile %d/%u/%u\n", z, x, y);
 			exit(EXIT_MVT);
 		}
+	} catch (tippecanoe_error &e) {
+		// a tippecanoe_error is a std::exception, so without this it
+		// would be caught below and reattributed to protobuf. It can't
+		// be rethrown either, since this runs on a worker thread.
+		fprintf(stderr, "%s\n", e.what());
+		exit(e.exit_code);
 	} catch (std::exception const &e) {
 		fprintf(stderr, "PBF decoding error in tile %d/%u/%u\n", z, x, y);
 		exit(EXIT_MVT);
@@ -749,6 +755,11 @@ struct tileset_reader {
 				fprintf(stderr, "Couldn't parse tile %lld/%lld/%lld\n", tile.z, tile.x, tile.y);
 				exit(EXIT_MVT);
 			}
+		} catch (tippecanoe_error &e) {
+			// a tippecanoe_error is a std::exception, so without this
+			// it would be caught below and reattributed to protobuf
+			fprintf(stderr, "%s\n", e.what());
+			exit(e.exit_code);
 		} catch (std::exception const &e) {
 			fprintf(stderr, "PBF decoding error in tile %lld/%lld/%lld\n", tile.z, tile.x, tile.y);
 			exit(EXIT_PROTOBUF);

@@ -8,6 +8,11 @@
   before. Along the way this fixes a leaked `z_stream` when `compress()`
   failed and two `exit()` calls that could run from a destructor or from
   `mvt_value`'s hash function.
+* Keep reporting a tile that fails to decode as `EXIT_MVT`, and report why.
+  Now that decoding failures throw, the `catch` meant for protozero's
+  exceptions was catching tippecanoe's own as well, replacing their exit
+  status and message with `EXIT_PROTOBUF` and a generic "PBF decoding
+  error".
 * Add `--drop-by-attribute-as-needed=`*attribute* to drop the features with
   the lowest values of a numeric attribute from oversized tiles, and
   `--drop-by-attribute-order=desc` to drop the highest values instead.
