@@ -1,3 +1,71 @@
+# 2.81.0
+
+* Add `--drop-by-attribute-as-needed=`*attribute* to drop the features with
+  the lowest values of a numeric attribute from oversized tiles, and
+  `--drop-by-attribute-order=desc` to drop the highest values instead.
+  Features exactly at the threshold are kept rather than dropped. (#384, #385)
+* Add `--exclude-all-tile-geometries` to tile-join, to produce tiles that
+  carry only attributes. (#382)
+* Generate each tool's usage message from the same option table that
+  `getopt_long()` reads, so the hand-written lists in tile-join,
+  tippecanoe-overzoom, tippecanoe-json-tool, tippecanoe-decode, and
+  tippecanoe-enumerate can no longer fall behind the options actually
+  accepted. Options previously reachable only by their short names are now
+  listed. tippecanoe-overzoom reports a missing `-o` instead of passing a
+  null pointer to `fopen()`, and tippecanoe prints its usage when run with
+  no arguments. (#409)
+* Fix the radix sort used by `--prefer-radix-sort`. A bucket written out
+  directly rather than through the merge was written one byte longer than
+  its length prefix claimed, desynchronizing everything read from the
+  geometry after it. Subdividing could also recurse forever once it ran out
+  of files to split with, shifting by the full width of the index and
+  writing past the end of the arrays of buckets. Radix-sorted output is now
+  checked against the in-memory sort rather than against a stored copy. (#404)
+* Read FlatGeobuf integer and float properties as numbers. They were tagged
+  with types that the rest of tippecanoe does not treat as numeric, so they
+  were reported in tilestats as "mixed", with quoted values and no min or
+  max, and warned when used as a feature ID. ULong properties are now also
+  read as unsigned rather than signed. (#395)
+* Respect the `-t` temporary directory option in sorting operations, which
+  previously always used the system temporary directory. (#368)
+* Keep `--generate-variable-depth-tile-pyramid` from silently dropping
+  features whose explicit per-feature `minzoom` is deeper than the zoom at
+  which their region becomes a leaf. Such a feature was excluded from the
+  leaf tile while its children were never generated, so it appeared at no
+  zoom at all. (#397, #399)
+* Drop a polygon hole that no remaining ring can parent, instead of failing
+  the whole run. Degenerate input could abort tiling over a single
+  unrepresentable sliver. (#401)
+* Clamp the feature extent to the `long long` range before converting it,
+  at both ends. The previous `extent <= LLONG_MAX` guard was doubly wrong:
+  `LLONG_MAX` is not representable as a double and rounds up, so an extent
+  at the very top of the range overflowed the conversion and came out as the
+  most negative value rather than the largest, and the guard admitted
+  everything below `LLONG_MIN` as well, which overflowed the other way. Areas
+  are signed, so holes that outweigh their rings can reach the low end. (#406)
+* Initialize the full width of the `mvt_value` numeric union, which left the
+  bytes of the wider unused member indeterminate even though the implicit
+  copy constructor copies the union as a whole. (#406)
+* Replace all variable-length arrays with `std::vector` and `std::string`,
+  and build with `-Wvla`. VLAs are a compiler extension rather than standard
+  C++, and clang warns about every one of them by default. (#406)
+* Remove the unused Dockerfiles, Travis configuration, and lambda
+  directory. (#365)
+* Correct README statements that disagreed with the code. Among them, `-aD`
+  and `-aS` were documented the wrong way round,
+  `--limit-base-zoom-to-maximum-zoom` was given as `-Pb` rather than `-pb`,
+  and the dot-dropping description had both the fraction and the zoom
+  direction backwards: tippecanoe keeps 1/2.5 of the dots at zooms below the
+  base zoom, rather than dropping that share above it. (#410)
+* Generate `man/tippecanoe.1` with go-md2man rather than md2man-roff, which
+  is packaged only as a Ruby gem and so had let the page drift out of date.
+  The page now has a proper header and a NAME section, so `man -k` and
+  `whatis` can find it, and no longer silently drops or mangles text the old
+  converter mishandled. CI checks it against README.md. (#408)
+* Documentation fixes: correct three misspellings in the README and man
+  page, repair the dead All Streets link, and tag more README code blocks
+  with their language. (#375, #391, #400)
+
 # 2.80.0
 
 * Remove undocumented command-line options

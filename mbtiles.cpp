@@ -701,7 +701,10 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 	m.strategies_json = stringify_strategies(strategies);
 
 	if (std::isinf(droprate)) {
-		droprate = LLONG_MAX;
+		// JSON has no representation for infinity, so substitute a huge
+		// finite value. The cast is explicit because LLONG_MAX itself is
+		// not representable as a double and rounds up to 2^63.
+		droprate = (double) LLONG_MAX;
 	}
 	if (basezoom != maxzoom || droprate != 2.5 || retain_points_multiplier != 1) {
 		m.decisions_json = std::string("{") +

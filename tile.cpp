@@ -61,9 +61,6 @@ extern "C" {
 #define COORD_OFFSET (4LL << 32)
 #define SHIFT_RIGHT(a) ((long long) std::round((double) (a) / (1LL << geometry_scale)))
 
-#define XSTRINGIFY(s) STRINGIFY(s)
-#define STRINGIFY(s) #s
-
 pthread_mutex_t db_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t var_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t task_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -1765,8 +1762,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		key_pool key_pool;
 
-		std::atomic<bool> within[child_shards];
-		long long start_geompos[child_shards];
+		std::vector<std::atomic<bool> > within(child_shards);
+		std::vector<long long> start_geompos(child_shards);
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
 			within[i] = false;
 			start_geompos[i] = -1;
@@ -1831,10 +1828,10 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			rpa.along = along;
 			rpa.alongminus = alongminus;
 			rpa.buffer = buffer;
-			rpa.within = within;
+			rpa.within = within.data();
 			rpa.geomfile = geomfile;
 			rpa.geompos = geompos;
-			rpa.start_geompos = start_geompos;
+			rpa.start_geompos = start_geompos.data();
 			rpa.oprogress = &oprogress;
 			rpa.todo = todo;
 			rpa.fname = fname;
@@ -1880,7 +1877,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			ssize_t which_serial_feature = -1;
 
 			if (prefilter == NULL) {
-				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within, geomfile, geompos, start_geompos, &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, write_children, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
+				sf = next_feature(geoms, geompos_in, z, tx, ty, initial_x, initial_y, &original_features, &unclipped_features, nextzoom, maxzoom, minzoom, max_zoom_increment, pass, along, alongminus, buffer, within.data(), geomfile, geompos, start_geompos.data(), &oprogress, todo, fname, child_shards, filter, global_stringpool, pool_off, layer_unmaps, first_time, write_children, compressed_input, &multiplier_state, tile_stringpool, unidecode_data, next_feature_state, arg->droprate);
 			} else {
 				sf = parse_feature(prefilter_jp, z, tx, ty, layermaps, tiling_seg, layer_unmaps, postfilter != NULL, key_pool);
 			}
@@ -2423,7 +2420,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (p.clustered > 0) {
 					serial_val sv, sv2, sv3, sv4;
 					long long point_count = p.clustered + 1;
-					char abbrev[20];  // to_string(LLONG_MAX).length() / 1000 + 1;
+					char abbrev[24];  // fits "%lld" of any long long, including the sign and the NUL
 
 					p.full_keys.push_back(key_pool.pool("clustered"));
 					sv.type = mvt_bool;
@@ -2473,7 +2470,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			{
-				pthread_t pthreads[tasks];
+				std::vector<pthread_t> pthreads(tasks);
 				std::vector<simplification_worker_arg> args;
 				args.resize(tasks);
 				for (int i = 0; i < tasks; i++) {
@@ -3304,28 +3301,27 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 	for (z = iz; z <= maxzoom; z++) {
 		std::atomic<long long> most(0);
 
-		compressor compressors[TEMP_FILES];
-		compressor *sub[TEMP_FILES];
-		std::atomic<long long> subpos[TEMP_FILES];
-		int subfd[TEMP_FILES];
+		std::vector<compressor> compressors(TEMP_FILES);
+		std::vector<compressor *> sub(TEMP_FILES);
+		std::vector<std::atomic<long long> > subpos(TEMP_FILES);
+		std::vector<int> subfd(TEMP_FILES);
 		for (size_t j = 0; j < TEMP_FILES; j++) {
-			char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX" XSTRINGIFY(INT_MAX)) + 1];
-			snprintf(geomname, sizeof(geomname), "%s/geom%zu.XXXXXXXX", tmpdir, j);
-			subfd[j] = mkstemp_cloexec(geomname);
-			// printf("%s\n", geomname);
+			std::string geomname = std::string(tmpdir) + "/geom" + std::to_string(j) + ".XXXXXXXX";
+			subfd[j] = mkstemp_cloexec(&geomname[0]);
+			// printf("%s\n", geomname.c_str());
 			if (subfd[j] < 0) {
-				perror(geomname);
+				perror(geomname.c_str());
 				exit(EXIT_OPEN);
 			}
-			FILE *fp = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+			FILE *fp = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 			if (fp == NULL) {
-				perror(geomname);
+				perror(geomname.c_str());
 				exit(EXIT_OPEN);
 			}
 			compressors[j] = compressor(fp);
 			sub[j] = &compressors[j];
 			subpos[j] = 0;
-			unlink(geomname);
+			unlink(geomname.c_str());
 		}
 
 		size_t useful_threads = 0;
@@ -3401,7 +3397,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			bool first_dropping_pass = is_dropping && !was_dropping;
 			was_dropping = is_dropping;
 
-			pthread_t pthreads[threads];
+			std::vector<pthread_t> pthreads(threads);
 			std::vector<write_tile_args> args;
 			args.resize(threads);
 			std::atomic<int> running(threads);
@@ -3420,8 +3416,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].outdir = outdir;
 				args[thread].buffer = buffer;
 				args[thread].fname = fname;
-				args[thread].geomfile = sub + thread * (TEMP_FILES / threads);
-				args[thread].geompos = subpos + thread * (TEMP_FILES / threads);
+				args[thread].geomfile = sub.data() + thread * (TEMP_FILES / threads);
+				args[thread].geompos = subpos.data() + thread * (TEMP_FILES / threads);
 				args[thread].todo = todo;
 				args[thread].along = &along;  // locked with var_lock
 				args[thread].gamma = zoom_gamma;
