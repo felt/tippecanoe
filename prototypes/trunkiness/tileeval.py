@@ -62,7 +62,7 @@ def run(features, edges, ranks, z, budget, cover_zoom):
         kept_len = sum(features[i]["length"] for i in kept)
 
         uf = T.UnionFind(max_node)
-        live = [e for e in edges if e["feature"] in kept]
+        live = [e for e in edges if any(f in kept for f in e["features"])]
         for e in live:
             uf.union(e["u"], e["v"])
         comp_len = defaultdict(float)

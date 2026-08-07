@@ -78,10 +78,10 @@ def score(features, local_zoom=12, verbose=True):
     feat_stroke = defaultdict(float)
     feat_len = defaultdict(float)
     for ei, e in enumerate(edges):
-        fi = e["feature"]
-        feat_crit[fi] = max(feat_crit[fi], crit.get(ei, 0.0))
-        feat_stroke[fi] = max(feat_stroke[fi], stroke_len[stroke_of[ei]])
-        feat_len[fi] += e["length"]
+        for fi in e["features"]:
+            feat_crit[fi] = max(feat_crit[fi], crit.get(ei, 0.0))
+            feat_stroke[fi] = max(feat_stroke[fi], stroke_len[stroke_of[ei]])
+            feat_len[fi] += e["length"]
 
     # Local neighborhood for percentile ranking.
     buckets = []
@@ -171,7 +171,7 @@ def evaluate(features, edges, budget_fraction, local_zoom, cover_zoom=14):
         # Connectivity of the surviving subnetwork.
         uf = T.UnionFind(max(max(e["u"], e["v"]) for e in edges) + 1 if edges else 1)
         comp_len = defaultdict(float)
-        live = [e for e in edges if e["feature"] in kept]
+        live = [e for e in edges if any(f in kept for f in e["features"])]
         for e in live:
             uf.union(e["u"], e["v"])
         for e in live:

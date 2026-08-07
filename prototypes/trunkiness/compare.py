@@ -27,10 +27,10 @@ def build(features, local_zooms):
     feat_stroke = [0.0] * n
     feat_len = [0.0] * n
     for ei, e in enumerate(edges):
-        fi = e["feature"]
-        feat_crit[fi] = max(feat_crit[fi], crit.get(ei, 0.0))
-        feat_stroke[fi] = max(feat_stroke[fi], stroke_len[stroke_of[ei]])
-        feat_len[fi] += e["length"]
+        for fi in e["features"]:
+            feat_crit[fi] = max(feat_crit[fi], crit.get(ei, 0.0))
+            feat_stroke[fi] = max(feat_stroke[fi], stroke_len[stroke_of[ei]])
+            feat_len[fi] += e["length"]
     for i, f in enumerate(features):
         f["length"] = feat_len[i]
 

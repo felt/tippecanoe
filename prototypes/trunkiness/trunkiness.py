@@ -158,10 +158,35 @@ def build_graph(features, mx, my):
                         "coords": seg,
                         "length": chain_length(seg, mx, my),
                         "name": feat["name"],
-                        "feature": fi,
+                        "features": [fi],
                     })
                 start = i
-    return edges, node_ids
+
+    return collapse_coincident(edges), node_ids
+
+
+def collapse_coincident(edges):
+    """Merge graph edges that trace exactly the same chain of coordinates.
+
+    Source data routinely carries one centerline several times: TIGER files
+    I-880 and Nimitz Fwy as separate features over identical geometry. Left in
+    place these are parallel edges, which are never bridges, so they silently
+    suppress the whole criticality term. The surviving edge keeps every feature
+    that lies on it so scores still reach all of them.
+    """
+    groups = {}
+    order = []
+    for e in edges:
+        c = tuple(e["coords"])
+        key = c if c[0] <= c[-1] else c[::-1]
+        if key in groups:
+            groups[key]["features"].extend(e["features"])
+            if not groups[key]["name"]:
+                groups[key]["name"] = e["name"]
+        else:
+            groups[key] = e
+            order.append(key)
+    return [groups[k] for k in order]
 
 
 # ---------------------------------------------------------------- strokes
@@ -190,8 +215,8 @@ def build_strokes(edges, num_nodes, mx, my):
         for i in range(len(ends)):
             for j in range(i + 1, len(ends)):
                 e1, e2 = ends[i], ends[j]
-                if edges[e1[0]]["feature"] == edges[e2[0]]["feature"] and e1[0] == e2[0]:
-                    continue
+                if e1[0] == e2[0]:
+                    continue  # both ends of one edge at this node: a self loop
                 d = deflection_deg(bearing[e1], bearing[e2])
                 n1, n2 = edges[e1[0]]["name"], edges[e2[0]]["name"]
                 named = bool(n1) and n1 == n2
