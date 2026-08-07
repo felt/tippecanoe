@@ -1910,7 +1910,11 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (ngeom.size() == 0) {
 					continue;
 				}
-				sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point);
+				if (sf.has_label_point) {
+					sf.geometry = checkerboard_anchors(ngeom, tx, ty, z, sf.label_point_x, sf.label_point_y, buffer);
+				} else {
+					sf.geometry.clear();
+				}
 				if (sf.geometry.size() == 0) {
 					continue;
 				}

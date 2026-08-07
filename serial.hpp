@@ -119,8 +119,14 @@ struct serial_feature {
 	drawvec geometry = drawvec();
 	unsigned long long index = 0;
 	unsigned long long gap = 0;  // filled in during z0. square of planar distance
-	unsigned long long label_point = 0;
 	long long extent = 0;
+
+	// The anchor point for a polygon label, in world coordinates,
+	// which can legitimately be outside the [0, 2^32) plane, so a
+	// separate flag rather than a sentinel value marks its absence.
+	bool has_label_point = false;
+	long long label_point_x = 0;
+	long long label_point_y = 0;
 
 	// These fields are not directly serialized, but are used
 	// to create the keys and values references into the string pool
