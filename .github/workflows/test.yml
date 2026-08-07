@@ -36,3 +36,22 @@ jobs:
             echo "::error::man/tippecanoe.1 is out of date. Run 'make docs' and commit the result."
             exit 1
           }
+
+  indent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # Pinned, because different clang-format versions format the same input
+      # differently, which would make this check fail spuriously.
+      - name: Install clang-format
+        run: |
+          python3 -m venv /tmp/clang-format
+          /tmp/clang-format/bin/pip install clang-format==18.1.8
+      - name: Reformat the sources
+        run: PATH="/tmp/clang-format/bin:$PATH" make indent
+      - name: Check that the sources are correctly formatted
+        run: |
+          git diff --exit-code || {
+            echo "::error::Sources are not correctly formatted. Run 'make indent' and commit the result."
+            exit 1
+          }

@@ -693,7 +693,7 @@ struct sorty {
 struct sorty_sorter {
 	int kind;
 	sorty_sorter(int k)
-	    : kind(k){};
+	    : kind(k) {};
 
 	bool operator()(const sorty &a, const sorty &b) const {
 		long long xa, ya, xb, yb;

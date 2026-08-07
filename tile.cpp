@@ -832,7 +832,7 @@ static double choose_minattribute(std::vector<double> &attribute_values, double 
 	if (descending) {
 		// For descending: drop features > threshold, keep features <= threshold
 		// ix points at the last value to keep
-		size_t ix = (size_t)((attribute_values.size() - 1) * f);
+		size_t ix = (size_t) ((attribute_values.size() - 1) * f);
 		while (ix > 0 && attribute_values[ix] >= existing_attribute) {
 			ix--;
 		}
@@ -845,7 +845,7 @@ static double choose_minattribute(std::vector<double> &attribute_values, double 
 	} else {
 		// For ascending: drop features < threshold, keep features >= threshold
 		// ix points at the first value to keep
-		size_t ix = (size_t)ceil((double)(attribute_values.size() - 1) * (1 - f));
+		size_t ix = (size_t) ceil((double) (attribute_values.size() - 1) * (1 - f));
 		if (ix >= attribute_values.size()) {
 			ix = attribute_values.size() - 1;
 		}
@@ -1744,7 +1744,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 		key_pool key_pool;
 
-		std::vector<std::atomic<bool> > within(child_shards);
+		std::vector<std::atomic<bool>> within(child_shards);
 		std::vector<long long> start_geompos(child_shards);
 		for (size_t i = 0; i < (size_t) child_shards; i++) {
 			within[i] = false;
@@ -2113,8 +2113,8 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					if (attr_valid) {
 						add_sample_to(attribute_values, attr_numeric, attribute_values_increment, seq);
 						bool should_drop = arg->drop_by_attribute_descending
-							? (minattribute != HUGE_VAL && attr_numeric > minattribute)
-							: (minattribute != -HUGE_VAL && attr_numeric < minattribute);
+									   ? (minattribute != HUGE_VAL && attr_numeric > minattribute)
+									   : (minattribute != -HUGE_VAL && attr_numeric < minattribute);
 						if (should_drop) {
 							can_stop_early = false;
 							if (drop_feature_unless_it_can_be_added_to_a_multiplier_cluster(layer, sf, layer_unmaps, strategy, drop_rest, arg->attribute_accum, key_pool)) {
@@ -2777,7 +2777,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 					}
 				} else if (additional[A_DROP_BY_ATTRIBUTE_AS_NEEDED]) {
 					minattribute_fraction = minattribute_fraction *
-									adjusted_max_tile_features / adjusted_feature_count * 0.75;
+								adjusted_max_tile_features / adjusted_feature_count * 0.75;
 					if (minattribute_fraction > 0.80) {
 						if (!quiet) {
 							fprintf(stderr,
@@ -3251,7 +3251,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 
 		std::vector<compressor> compressors(TEMP_FILES);
 		std::vector<compressor *> sub(TEMP_FILES);
-		std::vector<std::atomic<long long> > subpos(TEMP_FILES);
+		std::vector<std::atomic<long long>> subpos(TEMP_FILES);
 		std::vector<int> subfd(TEMP_FILES);
 		for (size_t j = 0; j < TEMP_FILES; j++) {
 			std::string geomname = std::string(tmpdir) + "/geom" + std::to_string(j) + ".XXXXXXXX";
@@ -3459,8 +3459,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 					again = true;
 				}
 				bool attr_propagate = drop_by_attribute_descending
-						? args[thread].minattribute_out < zoom_minattribute
-						: args[thread].minattribute_out > zoom_minattribute;
+							      ? args[thread].minattribute_out < zoom_minattribute
+							      : args[thread].minattribute_out > zoom_minattribute;
 				if (attr_propagate) {
 					zoom_minattribute = args[thread].minattribute_out;
 					again = true;

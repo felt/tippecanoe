@@ -145,8 +145,8 @@ TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {
 	// through the "Could not properly place hole to a parent." handler in
 	// clean_or_clip_poly instead of returning.
 	static const std::vector<std::vector<std::pair<long long, long long>>> rings = {
-	    {{0, 5}, {5, 4}, {5, 1}, {4, 4}, {4, 2}, {7, 1}, {0, 5}},
-	    {{0, 5}, {7, 1}, {4, 2}, {4, 4}, {5, 1}, {5, 4}, {0, 0}, {0, 5}},
+		{{0, 5}, {5, 4}, {5, 1}, {4, 4}, {4, 2}, {7, 1}, {0, 5}},
+		{{0, 5}, {7, 1}, {4, 2}, {4, 4}, {5, 1}, {5, 4}, {0, 0}, {0, 5}},
 	};
 
 	drawvec geom;

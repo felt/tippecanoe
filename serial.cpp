@@ -676,7 +676,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	} else if (extent < 0) {
 		sf.extent = LLONG_MIN;
 	} else {
-		sf.extent = LLONG_MAX;  // also the NaN case
+		sf.extent = LLONG_MAX;	// also the NaN case
 	}
 
 	if (sst->want_dist && sf.t == VT_POLYGON) {
