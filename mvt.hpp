@@ -17,6 +17,10 @@
 struct mvt_value;
 struct mvt_layer;
 
+// Which of the two vector tile encodings a tile is written in
+#define OUTPUT_MVT 0
+#define OUTPUT_MLT 1
+
 enum mvt_operation {
 	mvt_moveto = 1,
 	mvt_lineto = 2,

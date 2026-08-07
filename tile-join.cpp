@@ -24,6 +24,7 @@
 #include <math.h>
 #include <pthread.h>
 #include "mvt.hpp"
+#include "mlt.hpp"
 #include "projection.hpp"
 #include "mbtiles.hpp"
 #include "geometry.hpp"
@@ -872,7 +873,7 @@ void *join_worker(void *v) {
 		}
 
 		if (anything) {
-			std::string pbf = outtile.encode();
+			std::string pbf = encode_tile(outtile, output_format);
 			std::string compressed;
 
 			if (!pC) {
@@ -959,7 +960,7 @@ void dispatch_tasks(std::map<zxy, std::vector<std::string>> &tasks, std::vector<
 			if (outdb != NULL) {
 				mbtiles_write_tile(outdb, ai->first.z, ai->first.x, ai->first.y, ai->second.data(), ai->second.size());
 			} else if (outdir != NULL) {
-				dir_write_tile(outdir, ai->first.z, ai->first.x, ai->first.y, ai->second);
+				dir_write_tile(outdir, ai->first.z, ai->first.x, ai->first.y, ai->second, tile_format_extension(output_format));
 			}
 		}
 	}
@@ -1298,6 +1299,9 @@ static const struct option long_options[] = {
 	{"Setting or disabling tile size limits", 0, 0, 0},
 	{"no-tile-size-limit", no_argument, &pk, 1},
 	{"no-tile-compression", no_argument, &pC, 1},
+	{"output-format", required_argument, 0, '~'},
+	{"pretessellate", no_argument, 0, '~'},
+	{"no-mlt-feature-sort", no_argument, 0, '~'},
 	{"no-tile-stats", no_argument, &pg, 1},
 	{"tile-stats-attributes-limit", required_argument, 0, '~'},
 	{"tile-stats-sample-values-limit", required_argument, 0, '~'},
@@ -1540,6 +1544,12 @@ int main(int argc, char **argv) {
 				exclude_all_tile_attributes = true;
 			} else if (strcmp(opt, "exclude-all-tile-geometries") == 0) {
 				exclude_all_tile_geometries = true;
+			} else if (strcmp(opt, "output-format") == 0) {
+				set_output_format(argv, optarg);
+			} else if (strcmp(opt, "pretessellate") == 0) {
+				mlt_pretessellate = true;
+			} else if (strcmp(opt, "no-mlt-feature-sort") == 0) {
+				mlt_sort_features = false;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
@@ -1661,7 +1671,7 @@ int main(int argc, char **argv) {
 		st.maxlon2 = st.maxlon;
 	}
 
-	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, true, description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies, st.maxzoom, 2.5, 1);
+	metadata m = make_metadata(name.c_str(), st.minzoom, st.maxzoom, st.minlat, st.minlon, st.maxlat, st.maxlon, st.minlat2, st.minlon2, st.maxlat2, st.maxlon2, st.midlat, st.midlon, attribution.size() != 0 ? attribution.c_str() : NULL, layermap, tile_format_name(output_format), description.c_str(), !pg, attribute_descriptions, "tile-join", generator_options, strategies, st.maxzoom, 2.5, 1);
 
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, true);

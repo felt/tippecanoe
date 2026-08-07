@@ -39,6 +39,7 @@
 #include "serial.hpp"
 #include "options.hpp"
 #include "main.hpp"
+#include "mlt.hpp"
 #include "write_json.hpp"
 #include "milo/dtoa_milo.h"
 #include "evaluator.hpp"
@@ -2850,7 +2851,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 			}
 
 			std::string compressed;
-			std::string pbf = tile.encode();
+			std::string pbf = encode_tile(tile, output_format);
 
 			tile.layers.clear();
 
@@ -3025,7 +3026,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 				if (outdb != NULL) {
 					mbtiles_write_tile(outdb, z, tx, ty, compressed.data(), compressed.size());
 				} else if (outdir != NULL) {
-					dir_write_tile(outdir, z, tx, ty, compressed);
+					dir_write_tile(outdir, z, tx, ty, compressed, tile_format_extension(output_format));
 				}
 
 				if (pthread_mutex_unlock(&db_lock) != 0) {

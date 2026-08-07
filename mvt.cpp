@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <ctype.h>
 #include "mvt.hpp"
+#include "mlt.hpp"
 #include "geometry.hpp"
 #include "protozero/varint.hpp"
 #include "protozero/pbf_reader.hpp"
@@ -125,6 +126,10 @@ bool mvt_tile::decode(const std::string &message, bool &was_compressed) {
 	} else {
 		src = message;
 		was_compressed = false;
+	}
+
+	if (is_mlt(src)) {
+		return decode_mlt(src, *this);
 	}
 
 	protozero::pbf_reader reader(src);

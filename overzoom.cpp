@@ -5,6 +5,7 @@
 #include <set>
 #include "errors.hpp"
 #include "mvt.hpp"
+#include "mlt.hpp"
 #include "geometry.hpp"
 #include "evaluator.hpp"
 #include "attribute.hpp"
@@ -36,6 +37,9 @@ static const struct option long_options[] = {
 	{"output", required_argument, 0, 'o'},
 	{"source-tile", required_argument, 0, 't'},
 	{"no-tile-compression", no_argument, 0, 'd' & 0x1F},
+	{"output-format", required_argument, 0, 'f' & 0x1F},
+	{"pretessellate", no_argument, 0, 'p' & 0x1F},
+	{"no-mlt-feature-sort", no_argument, 0, 'r' & 0x1F},
 
 	{"Tile resolution", 0, 0, 0},
 	{"full-detail", required_argument, 0, 'd'},
@@ -192,6 +196,18 @@ int main(int argc, char **argv) {
 			break;
 		}
 
+		case 'f' & 0x1F:
+			set_output_format(argv, optarg);
+			break;
+
+		case 'p' & 0x1F:
+			mlt_pretessellate = true;
+			break;
+
+		case 'r' & 0x1F:
+			mlt_sort_features = false;
+			break;
+
 		default:
 			fprintf(stderr, "Unrecognized flag -%c\n", i);
 			usage(argv);
@@ -289,7 +305,7 @@ int main(int argc, char **argv) {
 			its.push_back(std::move(t));
 		}
 
-		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, std::vector<clipbbox>(), deduplicate_by_id);
+		out = overzoom(its, nz, nx, ny, detail, buffer, keep, exclude, exclude_prefix, do_compress, NULL, demultiply, json_filter, preserve_input_order, attribute_accum, unidecode_data, simplification, tiny_polygon_size, std::vector<mvt_layer>(), "", "", SIZE_MAX, std::vector<clipbbox>(), deduplicate_by_id, output_format);
 	}
 
 	FILE *f = fopen(outfile, "wb");

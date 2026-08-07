@@ -11,6 +11,8 @@ jobs:
         version: ['Release', 'Debug']
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get install libsqlite3-dev
@@ -19,6 +21,15 @@ jobs:
         run: brew install sqlite3
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
+
+  test-without-mlt:
+    runs-on: ubuntu-latest
+    steps:
+      # No submodules: the MLT=0 build must not need them
+      - uses: actions/checkout@v3
+      - run: sudo apt-get install libsqlite3-dev
+      - run: uname -a; make MLT=0
+      - run: make MLT=0 test
 
   docs:
     runs-on: ubuntu-latest
