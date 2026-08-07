@@ -136,6 +136,65 @@ safer default: it beats `drop-smallest` on continuity at equal cost and never
 collapses. `trunk/local z14` approaches `drop-densest` on coverage while keeping
 far better continuity, but degrades at low zoom.
 
+## Continuity gaps: the thing that actually matters
+
+Ranking features is not really the goal. A ranking that is *right* but that
+draws half of I-80 is worse than a mediocre ranking that draws it whole. So
+`gaps.py` measures gaps directly, distinguishing two independent causes:
+
+- **within-tile** — the score varies along a stroke, so one tile's threshold
+  falls in the middle of it
+- **cross-tile** — the score is constant along the stroke, but neighbouring
+  tiles pick different thresholds, so it appears in one and not the next
+
+Both are measured against a threshold-style admission that mirrors
+`choose_minextent`: pick a value, keep everything at or above it. Modelling this
+as a greedy fill instead is wrong and hides the result, because a greedy fill
+splits sets of equally ranked features when the budget runs out partway through.
+
+NHD HU8 02070004 at z11, 1500 vertices/tile:
+
+    variant                           kept km  within#   cross#  cross gap     cov
+    per-edge score, per-tile             1634        5       57       365km   44.4%
+    per-stroke, per-tile                 1618        0       58       381km   43.8%
+    per-stroke, shared thresh             372        0        0         0km    8.8%
+    per-stroke local z15, per-tile       1128        0       55       623km   44.5%
+    per-stroke local z15, shared         1084        0        0         0km   54.4%
+
+TIGER Alameda County roads at z12:
+
+    variant                           kept km  within#   cross#  cross gap     cov
+    per-edge score, per-tile             1369       10      170       591km   52.2%
+    per-stroke, per-tile                 1368        9      170       591km   52.2%
+    per-stroke, shared thresh             287        2        1         1km   10.4%
+    per-stroke local z16, per-tile       1210       14      157       760km   57.4%
+    per-stroke local z16, shared          568       10        1        12km   36.6%
+
+Three findings:
+
+1. **Collapsing the score to one value per stroke removes within-tile gaps and
+   costs nothing.** On hydrography it goes to exactly zero. This is free and
+   should be done regardless of anything else. Roads keep a residue of 9-14
+   because a feature can lie on more than one stroke, and taking the max over
+   them drags in part of a lower-ranked stroke.
+
+2. **A threshold shared across the zoom removes cross-tile gaps, but on its own
+   is ruinous** — 1618 km down to 372 km, coverage 43.8% down to 8.8% — because
+   one global threshold is set by the densest tile and thins everywhere else to
+   what downtown can afford.
+
+3. **Normalizing locally first makes the shared threshold affordable.** With the
+   score converted to a percentile within a fine neighbourhood and then averaged
+   along the stroke, a single zoom-wide threshold gives zero gaps of either kind
+   *and better coverage than the per-tile baseline* (54.4% vs 43.8%), for about
+   a third less retained length. The neighbourhood has to be fine: at z+2 the
+   buckets are too coarse and the shared threshold is still set by the worst
+   tile.
+
+The roads case is weaker on every count — gaps drop to near zero but retained
+length halves and coverage falls from 57% to 37%. Road networks have far more
+strokes competing per tile, so a shared threshold binds harder.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
