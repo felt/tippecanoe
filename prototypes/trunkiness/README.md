@@ -327,6 +327,38 @@ and both score exactly 0 despite being the two longest chains in the subbasin.
 Combining cut with length (`sqrt(cut * length)`) blunts the first problem; the
 second is inherent to any measure based on what removal disconnects.
 
+### Coordinates must be metric before any angle or distance is taken
+
+The inputs are WGS84 degrees, and at these latitudes a degree of longitude is
+only about 0.79 of a degree of latitude on the ground. Every angle and every
+distance here is therefore computed after scaling longitude by cos(latitude):
+`local_scale()` returns `mx = cos(lat) * m/deg` and `my = m/deg`, and both
+`chain_length` and `departure_bearing` apply them before `hypot` and `atan2`
+respectively — including the 25 m window over which a departure bearing is
+measured, which is itself a distance.
+
+It matters more than the 0.79 factor suggests, because it compounds through
+every pairing decision:
+
+    NHD 02070004        chains   longest   length-wtd mean   trunk coherence
+    scaled (cos-lat)      4684  117.6 km          7.40 km   35% / 46% / 48%
+    raw degrees           4949   37.3 km          3.73 km   16% / 14% /  6%
+
+Two consequences for a real implementation:
+
+- **A single scale factor for the whole input is not good enough.** These runs
+  use the mean latitude of the dataset, which is fine here — cos varies only
+  0.7890 to 0.7938 across Alameda and 0.7634 to 0.7764 across the HUC8 — but
+  over a continental or global input it would be badly wrong. The scaling has to
+  come from each feature's own latitude.
+- **In tippecanoe's internal web mercator coordinates, angles need no correction
+  at all.** Mercator is conformal, so it preserves angles locally. Building the
+  same chains in mercator rather than in cos-lat metres reproduces 97.0% of the
+  chains on roads and 89.9% on hydrography, and the residual is not the angles:
+  it is the *bearing window*, since 25 mercator units is 25/cos(lat) ground
+  metres. So a C++ pass can take deflection angles straight from projected
+  coordinates and only needs latitude correction where it compares lengths.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
