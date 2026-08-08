@@ -107,7 +107,7 @@ def exit_angle_table(edges, incident, bearing):
 
 
 def build_strokes(edges, num_nodes, mx, my, alpha=6.0, beta=1.0,
-                  gate=T.MAX_DEFLECTION):
+                  gate=T.MAX_DEFLECTION, return_pairs=False):
     """Chain edges by deflection angle, penalized by how much each branch curves.
 
     Two penalties apply, and they catch different things. `alpha` weights the
@@ -152,6 +152,7 @@ def build_strokes(edges, num_nodes, mx, my, alpha=6.0, beta=1.0,
 
     uf = T.UnionFind(len(edges))
     paired = set()
+    pair_of = {}
     for _s, a, b in cands:
         if a in paired or b in paired:
             continue
@@ -160,4 +161,12 @@ def build_strokes(edges, num_nodes, mx, my, alpha=6.0, beta=1.0,
         uf.union(a[0], b[0])
         paired.add(a)
         paired.add(b)
-    return [uf.find(ei) for ei in range(len(edges))]
+        pair_of[a] = b
+        pair_of[b] = a
+
+    strokes = [uf.find(ei) for ei in range(len(edges))]
+    if return_pairs:
+        # Callers reconstructing chain geometry must follow these rather than
+        # node coincidence: two edges can share a node without being paired.
+        return strokes, pair_of
+    return strokes
