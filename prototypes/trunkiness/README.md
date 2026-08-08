@@ -467,32 +467,38 @@ Note what this separates. It is not ramp from not-ramp — ramps at 58.6 sit clo
 to local streets at 29.6 — it is *trunk from everything else*, since trunk roads
 are the only thing that does not curve.
 
-The measure is not comparable across datasets: rivers meander, so the NHD median
-is 134 degrees against 30 for roads, and a weight tuned on roads damages
-hydrography (Antietam Creek falls from 49% to 33% of its length in one chain).
-Normalizing each branch by the dataset's own median turning fixes that, and one
-weight then serves both:
+The raw measure is not comparable across datasets: rivers meander, so the NHD
+median is 134 degrees against 30 for roads, and an unnormalized weight tuned on
+roads damages hydrography. Normalizing each branch by the dataset's own median
+turning fixes that, and one weight then serves both. The useful range is about
+4 to 8, flat across it, degrading above 12 where the penalty starts overriding
+the angle that actually distinguishes a through-route:
 
-    alpha (in units of median turning)   longest   len-wtd mean   I-238   I-880
-    Alameda roads    0.0                 37.0 km        3.90 km     32%     32%
-                     1.5                 55.3 km        4.31 km     48%     48%
-                     2.5                 55.3 km        4.39 km     48%     48%
-    NHD 02070004     0.0                117.6 km        7.40 km       —       —
-                     2.5                117.6 km        7.41 km       —       —
+    alpha    Alameda longest / len-wtd     NHD len-wtd / Potomac
+    0        37.0 km        3.90 km        7.40 km        35%
+    4        64.3 km        4.67 km        7.70 km        51%
+    8        64.3 km        4.76 km        7.68 km        51%
+    12       53.6 km        4.62 km        7.66 km        51%
+    20       58.9 km        4.64 km        7.51 km   (Antietam 49 -> 33%)
 
-So it is a real gain on roads and harmless on hydrography — the first change
-tried that is not a wash or a trade. On the specific case that prompted it,
-LINEARID 11012813207468 breaking I-238, the road goes from 6 chains to 4 and its
-largest chain from 32% to 48% of its length.
+Downstream, with growth admission and simplified costing, the gain lands on
+hydrography rather than roads, which are already at the ceiling:
 
-Downstream the effect is muted, because growth admission is already close to the
-ceiling:
+    Alameda z12   largest 98.3% -> 98.2%   (no change; already saturated)
+    NHD     z11   largest 46.6% -> 56.8%
+    prisec  z8    largest 97.8% -> 97.7%   (no change)
 
-    Alameda z12   alpha 0.0 -> 1.5   largest 98.3% -> 98.5%, within-tile 144 -> 135
-    prisec  z8    alpha 0.0 -> 1.5   largest 97.8% -> 98.3%, within-tile  73 ->  69
+A hinge-shaped penalty — nothing until a branch is clearly abnormal, then steep
+— was tried on the theory that a linear penalty spends its budget on ordinary
+junctions. It is worse than plain linear at every comparable strength, on both
+datasets.
 
-Worth having, since chain length is what the ranking keys on and better chains
-make a better ranking, but it is not transformative at the output.
+On the specific case that prompted this, LINEARID 11012813207468 breaking I-238:
+the ramp's turning is measured correctly at 4.9 times the median, but it leaves
+at 1.6 degrees while I-238's own through-pair turns 10.9, so a weight of 1.5 is
+not enough to overcome the 9.3 degree deflection gap. Above alpha 2.5 the ramp
+is no longer chained into I-238 — but I-238's largest chain stays at 48% either
+way, so that particular ramp was not what was limiting it.
 
 ## What this does not fix
 

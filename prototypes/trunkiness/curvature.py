@@ -77,11 +77,14 @@ def turn_ahead_table(edges, incident, bearing, mx, my, window=WINDOW):
     return table
 
 
-def build_strokes(edges, num_nodes, mx, my, alpha=0.6, gate=T.MAX_DEFLECTION):
+def build_strokes(edges, num_nodes, mx, my, alpha=6.0, gate=T.MAX_DEFLECTION):
     """Chain edges by deflection angle, penalized by how much each branch curves.
 
     `alpha` is in units of the dataset's own median turning, so the same value
-    applies to a road network and a river network.
+    applies to a road network and a river network. The useful range is roughly
+    4 to 8 on both datasets tested; the response is flat across it and degrades
+    above about 12, where the penalty starts overriding the angle that actually
+    distinguishes a through-route from a side branch.
     """
     incident = defaultdict(list)
     for ei, e in enumerate(edges):
