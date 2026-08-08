@@ -27,55 +27,41 @@ CLASSES = [
 ]
 
 
-def stitch(edge_list):
-    """Order a chain's edges into coordinate sequences.
+def stitch(edge_ids, edges, links):
+    """Walk a chain along the pairings that built it.
 
-    Usually a chain is a simple path, but not always: at a 4-way node both
-    through-pairs can be joined and later merge into one chain, giving that node
-    degree 4. Rings and self-loops occur too. Together that is about 1.6% of
-    chains on TIGER roads. So walk repeatedly until every edge is consumed and
-    return one part per walk, rather than assuming a single path.
+    Each edge has two ends and the matching consumes each end at most once, so
+    in the pairing graph every edge has degree at most two: a chain is always a
+    path or a cycle and never branches. Reconstructing adjacency from node
+    coincidence instead is wrong, because two edges can share a node without
+    having been paired to each other.
     """
-    if len(edge_list) == 1:
-        return [list(edge_list[0]["coords"])]
-
-    at = defaultdict(list)
-    for e in edge_list:
-        at[e["u"]].append(e)
-        at[e["v"]].append(e)
-
-    used = set()
-    parts = []
-    starts = [n for n, es in at.items() if len(es) % 2 == 1] or list(at)
-
-    for start in starts + list(at):
-        while True:
-            if not any(id(e) not in used for e in at[start]):
+    ends_used = set()
+    start = None
+    for ei in edge_ids:
+        for end in (0, 1):
+            if (ei, end) not in links:
+                start = (ei, end)  # the chain terminates here, so enter here
                 break
-            coords = []
-            node = start
-            while True:
-                nxt = None
-                for e in at[node]:
-                    if id(e) not in used:
-                        nxt = e
-                        break
-                if nxt is None:
-                    break
-                used.add(id(nxt))
-                seq = nxt["coords"]
-                if seq[-1] == _node_coord(nxt, node):
-                    seq = seq[::-1]
-                if coords and coords[-1] == seq[0]:
-                    coords.extend(seq[1:])
-                else:
-                    coords.extend(seq)
-                node = nxt["v"] if nxt["u"] == node else nxt["u"]
-            if len(coords) >= 2:
-                parts.append(coords)
-        if len(used) == len(edge_list):
+        if start:
             break
-    return parts
+    if start is None:
+        start = (edge_ids[0], 0)  # a cycle: begin anywhere
+
+    coords = []
+    cur = start
+    while cur is not None and cur[0] not in ends_used:
+        ei, enter = cur
+        ends_used.add(ei)
+        seq = edges[ei]["coords"]
+        if enter == 1:
+            seq = seq[::-1]
+        if coords and coords[-1] == seq[0]:
+            coords.extend(seq[1:])
+        else:
+            coords.extend(seq)
+        cur = links.get((ei, 1 - enter))
+    return coords, len(ends_used) == len(edge_ids)
 
 
 def _node_coord(edge, node):
@@ -86,23 +72,31 @@ def build_chains(features):
     lats = [f["coords"][0][1] for f in features]
     mx, my = T.local_scale(sum(lats) / len(lats))
     edges, node_ids = T.build_graph(features, mx, my)
-    stroke_of = T.build_strokes(edges, len(node_ids), mx, my)  # untagged: angle only
+    # untagged: angle only. Keep the pairings, they are what defines the chain.
+    stroke_of, links = T.build_strokes(edges, len(node_ids), mx, my,
+                                       return_pairs=True)
 
     grouped = defaultdict(list)
-    for ei, e in enumerate(edges):
-        grouped[stroke_of[ei]].append(e)
+    for ei in range(len(edges)):
+        grouped[stroke_of[ei]].append(ei)
 
     chains = []
-    for s, es in grouped.items():
-        parts = stitch(es)
-        if not parts:
+    incomplete = 0
+    for s, eids in grouped.items():
+        coords, complete = stitch(eids, edges, links)
+        if len(coords) < 2:
             continue
+        if not complete:
+            incomplete += 1
         chains.append({
-            "parts": parts,
-            "coords": max(parts, key=len),
-            "length": sum(e["length"] for e in es),
-            "edges": len(es),
+            "parts": [coords],
+            "coords": coords,
+            "length": sum(edges[ei]["length"] for ei in eids),
+            "edges": len(eids),
         })
+    if incomplete:
+        print("  warning: %d chains not fully covered by their pairing walk"
+              % incomplete)
     chains.sort(key=lambda c: c["length"])
     return chains, edges
 

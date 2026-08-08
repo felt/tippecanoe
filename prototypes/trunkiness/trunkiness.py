@@ -191,7 +191,7 @@ def collapse_coincident(edges):
 
 # ---------------------------------------------------------------- strokes
 
-def build_strokes(edges, num_nodes, mx, my, use_names=False):
+def build_strokes(edges, num_nodes, mx, my, use_names=False, return_pairs=False):
     """Chain edges into strokes by good continuation. Returns a stroke id per edge.
 
     Name matching is off by default: this has to work on untagged data, and we
@@ -211,6 +211,7 @@ def build_strokes(edges, num_nodes, mx, my, use_names=False):
 
     uf = UnionFind(len(edges))
     paired = set()  # edge ends already consumed by a stroke
+    pair_of = {}
 
     for node, ends in incident.items():
         if len(ends) < 2:
@@ -237,8 +238,18 @@ def build_strokes(edges, num_nodes, mx, my, use_names=False):
             uf.union(e1[0], e2[0])
             paired.add(e1)
             paired.add(e2)
+            pair_of[e1] = e2
+            pair_of[e2] = e1
 
-    return [uf.find(ei) for ei in range(len(edges))]
+    strokes = [uf.find(ei) for ei in range(len(edges))]
+    if return_pairs:
+        # (edge, end) -> (edge, end). Each end is consumed at most once, so in
+        # this pairing graph every edge has degree <= 2: a chain is always a
+        # path or a cycle and never branches. Anything reconstructing chain
+        # geometry has to follow these rather than node coincidence, since two
+        # edges can share a node without having been paired to each other.
+        return strokes, pair_of
+    return strokes
 
 
 # ---------------------------------------------------------------- bridges
