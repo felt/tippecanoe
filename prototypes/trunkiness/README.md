@@ -450,6 +450,50 @@ drop-smallest; after, it is 94.0%. `simplify.py` does Douglas-Peucker in tile
 units, and admission is costed against the simplified geometry while length and
 continuity are still measured on the full geometry.
 
+## Deprioritizing ramp-like branches by shape
+
+At an interchange the mainline curves slightly while a ramp leaves almost
+straight, so the ramp wins on deflection and breaks the trunk. But a ramp gives
+itself away by what it does next: it keeps turning. `curvature.py` accumulates
+the total absolute turning over the next 300 m of each candidate branch and adds
+it to the deflection as a penalty. No attribute is read; turning is geometry.
+Road class is used only to check the result:
+
+    median turning over the next 300 m, TIGER Alameda
+      S1100 primary    9.3 deg      S1400 local   29.6 deg
+      S1200 secondary 10.0 deg      S1630 ramp    58.6 deg
+
+Note what this separates. It is not ramp from not-ramp — ramps at 58.6 sit close
+to local streets at 29.6 — it is *trunk from everything else*, since trunk roads
+are the only thing that does not curve.
+
+The measure is not comparable across datasets: rivers meander, so the NHD median
+is 134 degrees against 30 for roads, and a weight tuned on roads damages
+hydrography (Antietam Creek falls from 49% to 33% of its length in one chain).
+Normalizing each branch by the dataset's own median turning fixes that, and one
+weight then serves both:
+
+    alpha (in units of median turning)   longest   len-wtd mean   I-238   I-880
+    Alameda roads    0.0                 37.0 km        3.90 km     32%     32%
+                     1.5                 55.3 km        4.31 km     48%     48%
+                     2.5                 55.3 km        4.39 km     48%     48%
+    NHD 02070004     0.0                117.6 km        7.40 km       —       —
+                     2.5                117.6 km        7.41 km       —       —
+
+So it is a real gain on roads and harmless on hydrography — the first change
+tried that is not a wash or a trade. On the specific case that prompted it,
+LINEARID 11012813207468 breaking I-238, the road goes from 6 chains to 4 and its
+largest chain from 32% to 48% of its length.
+
+Downstream the effect is muted, because growth admission is already close to the
+ceiling:
+
+    Alameda z12   alpha 0.0 -> 1.5   largest 98.3% -> 98.5%, within-tile 144 -> 135
+    prisec  z8    alpha 0.0 -> 1.5   largest 97.8% -> 98.3%, within-tile  73 ->  69
+
+Worth having, since chain length is what the ranking keys on and better chains
+make a better ranking, but it is not transformative at the output.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
