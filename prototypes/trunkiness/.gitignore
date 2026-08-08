@@ -1,4 +1,5 @@
 __pycache__/
+data
 data/
 *.svg
 *_chains.json
