@@ -266,6 +266,34 @@ cases, equal in 11, and shorter in 0 — on hydrography 14 / 7 / 0. Angle and
 chain length never disagree, which is why iterative refinement on chain length
 is a fixed point from the first iteration.
 
+Recursive lookahead does not rescue it either. `lookahead.py` ranks each
+candidate join by how much chain is reachable if you extend outward from both
+sides for a few more steps, with angle demoted to a tiebreak. It is worse than
+plain angle at every depth tried:
+
+    NHD 02070004     chains   longest   len-wtd mean   trunk coherence
+    angle only         4684  117.6 km        7.40 km   35 / 46 / 48 / 49%
+    lookahead d=1      4689   47.1 km        5.32 km   20 / 33 / 30 / 39%
+    lookahead d=4      4687   64.6 km        6.81 km   20 / 17 / 44 / 53%
+
+    Alameda roads      chains   longest   len-wtd mean   I-880
+    angle only          19357   37.0 km        3.90 km     32%
+    lookahead d=0       19557   25.1 km        2.73 km      2%
+    lookahead d=4       19561   33.1 km        3.28 km      2%
+
+Depth does help relative to d=0 — 2.73 to 3.28 km on roads — so the lookahead is
+working; it just never recovers the ground that promoting length cost in the
+first place. The reason is that at a junction *on* a trunk every candidate
+continuation is attached to the same trunk, so all of them report nearly the
+same reachable length: the score is dominated by the shared network beyond and
+carries almost no signal, while the angle is the only thing that distinguishes
+the through-route from the ramp. Making length primary discards the
+discriminating signal and keeps the uninformative one.
+
+That is also the cleaner explanation of the 25/11/0 result above. Reach is
+roughly constant across the candidates at a trunk junction, which is precisely
+why it can never usefully overrule the angle.
+
 So a "% of I-580 in its largest chain" figure of 16% is not the algorithm
 failing. It is measuring name agreement, and at an interchange the geometry
 genuinely continues straighter into an adjoining chain that is itself 22-34 km
