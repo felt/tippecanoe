@@ -191,8 +191,12 @@ def collapse_coincident(edges):
 
 # ---------------------------------------------------------------- strokes
 
-def build_strokes(edges, num_nodes, mx, my):
-    """Chain edges into strokes by good continuation. Returns a stroke id per edge."""
+def build_strokes(edges, num_nodes, mx, my, use_names=False):
+    """Chain edges into strokes by good continuation. Returns a stroke id per edge.
+
+    Name matching is off by default: this has to work on untagged data, and we
+    cannot know which attributes any given input carries.
+    """
     incident = defaultdict(list)  # node -> [(edge index, which end)]
     for ei, e in enumerate(edges):
         incident[e["u"]].append((ei, 0))
@@ -219,7 +223,7 @@ def build_strokes(edges, num_nodes, mx, my):
                     continue  # both ends of one edge at this node: a self loop
                 d = deflection_deg(bearing[e1], bearing[e2])
                 n1, n2 = edges[e1[0]]["name"], edges[e2[0]]["name"]
-                named = bool(n1) and n1 == n2
+                named = use_names and bool(n1) and n1 == n2
                 limit = MAX_DEFLECTION_NAMED if named else MAX_DEFLECTION
                 if d <= limit:
                     # Name matches sort ahead of unnamed continuations.
@@ -238,6 +242,87 @@ def build_strokes(edges, num_nodes, mx, my):
 
 
 # ---------------------------------------------------------------- bridges
+
+def build_strokes_global(edges, num_nodes, mx, my, max_deflection=MAX_DEFLECTION,
+                         use_names=False, weight="projected"):
+    """Chain edges into strokes by a single global pass over all candidate pairs.
+
+    build_strokes() matches greedily *within* each node, with nodes visited in
+    arbitrary order, so a marginal pairing at one junction can consume an
+    edge-end that a much stronger continuation elsewhere needed. Ranking every
+    candidate pair in the whole network together and making one pass in that
+    order lets the strongest continuations claim their ends first.
+
+    Pairs are ordered by combined length and deflection together, so the long
+    shallow joins go first and the short sharp ones last. `weight` picks how the
+    two are combined:
+
+        projected   (d1 + d2) * cos(deflection)  — combined length projected
+                    onto the straight-through direction
+        linear      (d1 + d2) * (1 - deflection / max_deflection)
+
+    The pass is single: pair scores are computed once from edge lengths and not
+    updated as chains grow.
+    """
+    incident = defaultdict(list)
+    for ei, e in enumerate(edges):
+        incident[e["u"]].append((ei, 0))
+        if e["v"] != e["u"]:
+            incident[e["v"]].append((ei, 1))
+
+    bearing = {}
+    for ei, e in enumerate(edges):
+        bearing[(ei, 0)] = departure_bearing(e["coords"], mx, my)
+        bearing[(ei, 1)] = departure_bearing(e["coords"][::-1], mx, my)
+
+    candidates = []
+    for _node, ends in incident.items():
+        if len(ends) < 2:
+            continue
+        for i in range(len(ends)):
+            for j in range(i + 1, len(ends)):
+                e1, e2 = ends[i], ends[j]
+                if e1[0] == e2[0]:
+                    continue
+                d = deflection_deg(bearing[e1], bearing[e2])
+                n1, n2 = edges[e1[0]]["name"], edges[e2[0]]["name"]
+                named = use_names and bool(n1) and n1 == n2
+                limit = MAX_DEFLECTION_NAMED if named else max_deflection
+                if d > limit:
+                    continue
+                total = edges[e1[0]]["length"] + edges[e2[0]]["length"]
+                if weight == "angle":
+                    # Shallowest first, length ignored. The name bonus has to be
+                    # subtractive here: multiplying a negative score by 2 would
+                    # rank name matches last instead of first.
+                    w = -(d - (45.0 if named else 0.0))
+                    candidates.append((w, e1, e2))
+                    continue
+                if weight == "linear":
+                    w = total * max(0.0, 1.0 - d / max(1e-9, max_deflection))
+                else:
+                    w = total * math.cos(math.radians(min(d, 90.0)))
+                if named:
+                    # A shared name is strong evidence of continuation; let it
+                    # outrank geometry rather than merely loosening the limit.
+                    w *= 2.0
+                candidates.append((w, e1, e2))
+
+    candidates.sort(key=lambda c: -c[0])
+
+    uf = UnionFind(len(edges))
+    paired = set()
+    for _w, e1, e2 in candidates:
+        if e1 in paired or e2 in paired:
+            continue
+        if uf.find(e1[0]) == uf.find(e2[0]):
+            continue  # would close a loop onto itself
+        uf.union(e1[0], e2[0])
+        paired.add(e1)
+        paired.add(e2)
+
+    return [uf.find(ei) for ei in range(len(edges))]
+
 
 def find_bridges(edges, num_nodes):
     """Iterative Tarjan bridge finding. Returns a set of bridge edge indices."""

@@ -204,6 +204,59 @@ Report largest-connected-component alongside coverage. Coverage alone cannot
 tell a well-spread network from scattered debris, and that is exactly the
 failure it hid.
 
+### Stroke building on untagged data
+
+Names must not be used: the facility has to work on inputs whose attributes we
+cannot predict. `build_strokes` therefore defaults to `use_names=False`. That
+costs a lot, and it is worth being explicit about how much.
+
+With GNIS names, each of the four trunk streams in HU8 02070004 assembled into a
+single stroke (100%). Without them, the best is 35-49% of each trunk in its
+largest stroke. End to end, under greedy whole-stroke admission:
+
+    NHD 02070004 z11        kept km  within#   cross#     cov  largest
+    strokes built with names   1782        0        0   49.6%    86.8%
+    strokes built untagged     1733        0        0   51.5%    35.3%
+
+Retained length and coverage barely move, but largest-connected-component
+collapses from 86.8% to 35.3%. **The strong hydrography result depended on the
+name attribute.** On roads the difference is smaller: 66.3% to 70.2% largest,
+with more within-tile gaps (19 to 81).
+
+This also exposes a blind spot in the gap metric. Gaps are counted per stroke,
+so a trunk that fragments into three strokes, two admitted and one rejected,
+scores zero gaps while drawing a visibly broken river. When strokes stop
+corresponding to real linear features the metric stops meaning much, and
+largest-connected-component is the number that still tells the truth — the same
+lesson as the coverage-gaming episode above.
+
+### Ranking candidate joins globally is a no-op
+
+Ranking every edge-edge join in the network together and making one pass in that
+order, rather than matching greedily within each node, produces *identical*
+strokes on both datasets. The reason is structural: each edge-end belongs to
+exactly one node, so two nodes can never contend for the same end. The matching
+decomposes per node, and a global sort can only change which cycles get broken.
+
+Adding sum-of-distances to the ranking is not neutral, and its sign flips by
+dataset:
+
+    median edge length      network   trunk features
+    Alameda roads              74 m   33 m  (I-580, I-880)
+    NHD 02070004              382 m   453-651 m  (Potomac, Opequon)
+
+Trunk roads are noded at every ramp and cross street, so their edges are
+*shorter* than average and "longest pairs first" selects against them — I-880
+falls from 32% to 2% in its largest stroke. Trunk rivers have long reaches
+between confluences, so the same term helps slightly there. Same rule, opposite
+effect, which makes it unsafe as a generic heuristic. An agglomerative variant
+that ranks by accumulated chain length rather than edge length behaves
+identically.
+
+Widening the bearing window (25 m to 500 m) to smooth out ramp divergence does
+not help either: it degrades hydrography badly, since rivers meander and a long
+window mismeasures the local through-direction.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
