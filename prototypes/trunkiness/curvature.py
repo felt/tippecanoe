@@ -78,8 +78,15 @@ def turn_ahead_table(edges, incident, bearing, mx, my, window=WINDOW):
     return table
 
 
-def exit_angle_table(edges, incident, bearing):
-    """Straightest continuation available at the far end of each (edge, end).
+def exit_angle_table(edges, incident, bearing, rounds=1, decay=0.5):
+    """How cheaply a branch can keep going straight beyond its far end.
+
+    With rounds=0 this is simply the shallowest continuation available at the
+    far end. Each further round requires that continuation to itself have a good
+    continuation, discounted by `decay` — so an edge scores well only if it
+    meets a shallow mate at its far end *and* that mate does too. One round is
+    worth a lot on hydrography (largest connected component 59.6% to 66.6% at
+    z11) and is neutral on the road networks; two overshoots.
 
     A trunk continues straight at both ends; a ramp joins its far end at a
     steep angle because it is merging rather than passing through. This is a
@@ -95,7 +102,7 @@ def exit_angle_table(edges, incident, bearing):
         for end in (0, 1):
             far = 1 - end
             node = e["u"] if far == 0 else e["v"]
-            best = 180.0
+            best = EXIT_CAP
             for f, fe in incident[node]:
                 if f == ei:
                     continue
@@ -103,6 +110,23 @@ def exit_angle_table(edges, incident, bearing):
                 if d < best:
                     best = d
             table[(ei, end)] = min(best, EXIT_CAP)
+
+    for _ in range(rounds):
+        nxt = {}
+        for ei, e in enumerate(edges):
+            for end in (0, 1):
+                far = 1 - end
+                node = e["u"] if far == 0 else e["v"]
+                best = EXIT_CAP
+                for f, fe in incident[node]:
+                    if f == ei:
+                        continue
+                    d = (T.deflection_deg(bearing[(ei, far)], bearing[(f, fe)])
+                         + decay * table[(f, fe)])
+                    if d < best:
+                        best = d
+                nxt[(ei, end)] = min(best, EXIT_CAP)
+        table = nxt
     return table
 
 

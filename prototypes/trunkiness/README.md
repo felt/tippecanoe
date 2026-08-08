@@ -581,6 +581,36 @@ decomposition plus growth admission, which improved every dataset tried by a
 large margin. The shape penalties are a refinement whose sign depends on how the
 source happens to split its ways.
 
+### Requiring the mate to have a mate
+
+The far-end angle asks whether a branch has a shallow continuation onward. Made
+recursive — that continuation must itself have a shallow continuation, discounted
+by a decay — it gets better. `exit_angle_table(rounds=n)` relaxes
+
+    q_k[e] = min over mates f of ( deflection(e, f) + decay * q_{k-1}[f] )
+
+so an edge scores well only if it can keep going straight for several steps, not
+just one. One round is the useful setting:
+
+    rounds        Alameda      OSM SF       NHD
+    0 (plain)      98.1%       93.5%       59.6%   largest connected component
+    1              98.0%       93.5%       66.6%
+    2              97.9%       93.5%       61.9%
+
+Hydrography gains 7 points from a single round, about 20 over the unpenalized
+baseline; the road networks are saturated and do not move. Two rounds overshoot.
+Note the contrast with the same idea applied to chain *length*, which was a
+strict no-op: recursion pays off on the angle because the angle is the signal
+that discriminates, and does nothing on length because reachable length is
+near-constant across the candidates at a junction.
+
+Current defaults are alpha 6, beta 1, rounds 1, giving:
+
+    dataset                 longest   len-wtd   largest
+    Alameda roads   z12     64.3 km    5.10 km    98.0%
+    OSM SF          z13     16.0 km    1.57 km    93.5%
+    NHD 02070004    z11    117.6 km    8.04 km    66.6%
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
