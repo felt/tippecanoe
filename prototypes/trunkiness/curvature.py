@@ -23,6 +23,7 @@ import trunkiness as T
 
 WINDOW = 300.0     # metres of lookahead over which turning is accumulated
 MAX_STEPS = 6      # bound the walk when edges are short
+EXIT_CAP = 90.0    # a branch that dead-ends is no worse than one turning 90 deg
 
 
 def internal_turning(coords, mx, my):
@@ -77,14 +78,44 @@ def turn_ahead_table(edges, incident, bearing, mx, my, window=WINDOW):
     return table
 
 
-def build_strokes(edges, num_nodes, mx, my, alpha=6.0, gate=T.MAX_DEFLECTION):
+def exit_angle_table(edges, incident, bearing):
+    """Straightest continuation available at the far end of each (edge, end).
+
+    A trunk continues straight at both ends; a ramp joins its far end at a
+    steep angle because it is merging rather than passing through. This is a
+    separate signal from curvature — the turning window stops after WINDOW
+    metres and never reaches the far end of a long edge — and being an angle it
+    is directly comparable across datasets, unlike accumulated turning.
+
+    On TIGER Alameda the median is 1.1 degrees for a primary road and 7.3 for a
+    ramp, with p90 of 4.3 against 45.6.
+    """
+    table = {}
+    for ei, e in enumerate(edges):
+        for end in (0, 1):
+            far = 1 - end
+            node = e["u"] if far == 0 else e["v"]
+            best = 180.0
+            for f, fe in incident[node]:
+                if f == ei:
+                    continue
+                d = T.deflection_deg(bearing[(ei, far)], bearing[(f, fe)])
+                if d < best:
+                    best = d
+            table[(ei, end)] = min(best, EXIT_CAP)
+    return table
+
+
+def build_strokes(edges, num_nodes, mx, my, alpha=6.0, beta=1.0,
+                  gate=T.MAX_DEFLECTION):
     """Chain edges by deflection angle, penalized by how much each branch curves.
 
-    `alpha` is in units of the dataset's own median turning, so the same value
-    applies to a road network and a river network. The useful range is roughly
-    4 to 8 on both datasets tested; the response is flat across it and degrades
-    above about 12, where the penalty starts overriding the angle that actually
-    distinguishes a through-route from a side branch.
+    Two penalties apply, and they catch different things. `alpha` weights the
+    turning over the next WINDOW metres, in units of the dataset's own median so
+    one value serves roads and rivers; its useful range is 4 to 8, flat across
+    it, degrading above 12. `beta` weights the angle at which the branch meets
+    its neighbours at the *far* end, which the turning window cannot see on a
+    long edge; it is already in degrees so it needs no normalizing.
     """
     incident = defaultdict(list)
     for ei, e in enumerate(edges):
@@ -100,6 +131,7 @@ def build_strokes(edges, num_nodes, mx, my, alpha=6.0, gate=T.MAX_DEFLECTION):
     ta = turn_ahead_table(edges, incident, bearing, mx, my)
     vals = sorted(ta.values())
     median = vals[len(vals) // 2] or 1.0
+    ex = exit_angle_table(edges, incident, bearing)
 
     cands = []
     for _node, ends in incident.items():
@@ -113,7 +145,8 @@ def build_strokes(edges, num_nodes, mx, my, alpha=6.0, gate=T.MAX_DEFLECTION):
                 d = T.deflection_deg(bearing[a], bearing[b])
                 if d > gate:
                     continue
-                penalty = alpha * (ta[a] + ta[b]) / median
+                penalty = (alpha * (ta[a] + ta[b]) / median
+                           + beta * (ex[a] + ex[b]))
                 cands.append((d + penalty, a, b))
     cands.sort(key=lambda c: c[0])
 

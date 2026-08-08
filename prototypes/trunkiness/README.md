@@ -500,6 +500,43 @@ not enough to overcome the 9.3 degree deflection gap. Above alpha 2.5 the ramp
 is no longer chained into I-238 — but I-238's largest chain stays at 48% either
 way, so that particular ramp was not what was limiting it.
 
+### A branch's far-end angle is a second, independent signal
+
+A trunk continues straight at *both* ends. A ramp meets its far end at a steep
+angle, because it is merging rather than passing through. The turning window
+cannot see this — it stops after 300 m, and the ramp edge in question is 421 m,
+so its far end was never reached. Measured as the straightest continuation
+available at a branch's far end:
+
+    MTFCC              median   p90
+    S1100 primary         1.1    4.3
+    S1200 secondary       0.8    5.5
+    S1630 ramp            7.3   45.6
+    S1400 local           3.8   88.8
+
+Being an angle, it needs no normalizing across datasets. On the reported case,
+entering the ramp from the I-238 junction gives a far-end exit angle of 14.6
+degrees against about 1 for the mainline — a 13 degree differential, comfortably
+more than the 9.3 degree deflection gap that defeated the curvature penalty on
+its own.
+
+Adding it as `beta` (in degrees, so beta near 1 is natural) improves the chains
+further on roads: with alpha 6, longest goes 64.3 to 69.1 km, length-weighted
+mean 4.69 to 4.98, and I-580 from 28% to 40% of its length in one chain.
+
+On hydrography it looks like a regression by one measure and an improvement by
+another: the length-weighted mean rises from 7.69 to 7.78 km, while named trunks
+fall (Conococheague 46 to 34%, Antietam 49 to 27%). The output settles it — at
+z11 with growth admission the largest connected component goes 56.8% to 59.6%.
+Named-trunk coherence is only a proxy, and here the aggregate chain measure
+predicted the result and the proxy did not.
+
+Downstream, alpha 6 with beta 1 is best or tied everywhere tried:
+
+    Alameda z12   98.3 -> 98.2 -> 98.1% largest, but gaps 141/17 -> 128/12
+    NHD     z11   46.6 -> 56.8 -> 59.6% largest
+    prisec  z8    97.8 -> 97.7 -> 99.2% largest
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
