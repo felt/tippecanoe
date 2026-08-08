@@ -288,6 +288,45 @@ used. Widening the bearing window (25 m to 500 m) does not help either: it
 degrades hydrography badly, since rivers meander and a long window mismeasures
 the local through-direction.
 
+## Ranking chains by what depends on them
+
+A chain's own length says nothing about what hangs off it. `chainrank.py` scores
+each chain by how much of the network is cut off from the main body when the
+whole chain is removed. That is a chain-level question and not the same as the
+edge-level criticality above: an edge in the middle of a main stem may orphan
+little, while removing the entire stem detaches every tributary on it. Since a
+removal can only disconnect along bridges, the work happens on the bridge tree.
+
+Ranking alone is only half of it. Admitting chains best-first, by any ranking,
+still treats each chain independently, so the result is a set of individually
+good chains that need not touch each other. `grow.py` admits them Prim-style
+instead: a chain that attaches to what is already in is preferred over a
+higher-scoring one that floats free, with a `bridgehead` floor so separate river
+systems still get seeded rather than everything having to hang off the first
+thing admitted.
+
+The two are complementary. NHD HU8 02070004, z11, 1500 vertices/tile, untagged:
+
+    rank by                admit     kept km  within#   cross#     cov  largest
+    chain length           filter       1762        0        0   51.8%    26.2%
+    chain length           grow         1717        0        0   48.4%    40.8%
+    network cut            filter       1649        0        0   47.3%    38.0%
+    network cut            grow         1573        0        0   44.0%    52.3%
+    sqrt(cut * length)     grow         1600        0        0   43.9%    52.5%
+
+Better ranking buys 26 to 38%, better admission 26 to 41%, and together 26 to
+52% — a doubling of continuity for about 9% less retained length and 8 points of
+coverage, with no gaps of either kind at any point.
+
+Two cautions about the cut score itself. It is dominated by short chokepoints: a
+2.8 km piece of Back Creek scores 1072 km because it is the mouth the whole
+sub-basin attaches through, so ranking on it alone promotes stubs over the
+trunks they connect. And parallel features cancel each other — the Chesapeake
+and Ohio Canal runs beside the Potomac, so each is the other's alternate path
+and both score exactly 0 despite being the two longest chains in the subbasin.
+Combining cut with length (`sqrt(cut * length)`) blunts the first problem; the
+second is inherent to any measure based on what removal disconnects.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
