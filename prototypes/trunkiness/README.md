@@ -318,6 +318,32 @@ Better ranking buys 26 to 38%, better admission 26 to 41%, and together 26 to
 52% — a doubling of continuity for about 9% less retained length and 8 points of
 coverage, with no gaps of either kind at any point.
 
+TIGER Alameda County roads at z12 invert the ranking result completely:
+
+    rank by                admit     kept km  within#   cross#     cov  largest
+    chain length           filter       1460       87       18   63.2%    68.0%
+    chain length           grow         1423       80       19   59.0%    82.4%
+    network cut            filter       1127       95        6   68.6%     5.8%
+    network cut            grow         1235       61       14   46.2%    16.3%
+    sqrt(cut * length)     grow         1334       71       16   47.8%    11.8%
+
+**The cut score is catastrophic on a road network** — 5.8% largest component
+against 68% for plain chain length. Only 15% of road edges are bridges, so
+almost every chain has a cut of exactly zero, including every freeway, because
+they sit in the 2-edge-connected core and removing one disconnects nothing. What
+does score highly is rural dead-ends and cul-de-sac trees. This is the same
+blind spot as the edge-level criticality term, confirmed at chain level: a
+removal-based measure only carries signal where the network is tree-like.
+
+**Growth-based admission, by contrast, helps both** — 26 to 41% on hydrography
+and 68 to 82% on roads, in each case for a few percent less retained length. It
+makes no assumption about network structure, only that the output should be
+connected.
+
+So the two halves have very different standing. Prefer connectivity-aware
+admission everywhere; treat the cut score as a hydrography-shaped heuristic that
+must not be applied blind to meshed networks.
+
 Two cautions about the cut score itself. It is dominated by short chokepoints: a
 2.8 km piece of Back Creek scores 1072 km because it is the mouth the whole
 sub-basin attaches through, so ranking on it alone promotes stubs over the
