@@ -230,32 +230,63 @@ corresponding to real linear features the metric stops meaning much, and
 largest-connected-component is the number that still tells the truth — the same
 lesson as the coverage-gaming episode above.
 
-### Ranking candidate joins globally is a no-op
+### Joining by shallowest angle alone is already optimal
 
-Ranking every edge-edge join in the network together and making one pass in that
-order, rather than matching greedily within each node, produces *identical*
-strokes on both datasets. The reason is structural: each edge-end belongs to
-exactly one node, so two nodes can never contend for the same end. The matching
-decomposes per node, and a global sort can only change which cycles get broken.
+Chains built untagged, joining purely by shallowest deflection with a 60 deg
+gate, no length term:
 
-Adding sum-of-distances to the ranking is not neutral, and its sign flips by
-dataset:
+    dataset          chains   over      longest   top10   p50     p90     p99
+    Alameda roads    19355    9996 km   37.0 km   312 km  0.20    1.04    5.59 km
+    NHD 02070004      4684    7914 km  117.6 km   471 km  1.09    3.41    9.26 km
+
+The median is not the interesting number, since most chains are genuinely short
+local streets and headwater twigs. Length-weighted, a random kilometre of road
+sits in a chain averaging **3.9 km** and a random kilometre of river in one
+averaging **7.4 km**.
+
+Three things about this matching are worth recording, all verified rather than
+assumed:
+
+**Edge reversal is already handled** and is not the bottleneck. Each edge
+registers both of its ends, so a join can pair either end of one edge with
+either end of another. Roads use start-start or end-end for 3% of joins. NHD
+splits 50/48 between the two start-end orderings because flowlines are digitized
+downstream, so two tributaries both *end* at a confluence.
+
+**Ranking the joins globally rather than per node changes nothing.** Each
+edge-end belongs to exactly one node, so two nodes can never contend for the
+same end; the matching decomposes per node and a global sort can only change
+which cycles get broken. Sorting all 78528 candidate pairs by angle and by
+accumulated chain length produced *byte-identical* join sets — 70535 joins, zero
+differing.
+
+**And the greedy is already choosing the longest chain.** At the trunk breaks,
+the pair that consumed the contested end leads into a chain that is longer in 25
+cases, equal in 11, and shorter in 0 — on hydrography 14 / 7 / 0. Angle and
+chain length never disagree, which is why iterative refinement on chain length
+is a fixed point from the first iteration.
+
+So a "% of I-580 in its largest chain" figure of 16% is not the algorithm
+failing. It is measuring name agreement, and at an interchange the geometry
+genuinely continues straighter into an adjoining chain that is itself 22-34 km
+long. Given that attributes are off the table, name agreement is the wrong
+yardstick; chain length is the right one, and by that measure the chains are
+long.
+
+Including sum-of-distances in the ranking *does* change the result, and its sign
+flips by dataset:
 
     median edge length      network   trunk features
     Alameda roads              74 m   33 m  (I-580, I-880)
     NHD 02070004              382 m   453-651 m  (Potomac, Opequon)
 
 Trunk roads are noded at every ramp and cross street, so their edges are
-*shorter* than average and "longest pairs first" selects against them — I-880
-falls from 32% to 2% in its largest stroke. Trunk rivers have long reaches
-between confluences, so the same term helps slightly there. Same rule, opposite
-effect, which makes it unsafe as a generic heuristic. An agglomerative variant
-that ranks by accumulated chain length rather than edge length behaves
-identically.
-
-Widening the bearing window (25 m to 500 m) to smooth out ramp divergence does
-not help either: it degrades hydrography badly, since rivers meander and a long
-window mismeasures the local through-direction.
+*shorter* than average and longest-pairs-first selects against them. Trunk
+rivers have long reaches between confluences, so the same term helps slightly.
+Same rule, opposite effect, so it is unsafe as a generic heuristic and is not
+used. Widening the bearing window (25 m to 500 m) does not help either: it
+degrades hydrography badly, since rivers meander and a long window mismeasures
+the local through-direction.
 
 ## What this does not fix
 
