@@ -537,6 +537,50 @@ Downstream, alpha 6 with beta 1 is best or tied everywhere tried:
     NHD     z11   46.6 -> 56.8 -> 59.6% largest
     prisec  z8    97.8 -> 97.7 -> 99.2% largest
 
+## OSM San Francisco: the shape penalties do not transfer
+
+69603 features and 379795 vertices over the city, giving 142465 edges, 98921
+nodes and 5109 km — the densest input tried, and only 8% of edges are bridges.
+The longest chains recovered untagged are recognisable: James Lick and Bayshore
+Freeway, 19th Avenue, Park Presidio, Junipero Serra, Market Street, the Golden
+Gate Bridge approach.
+
+**Growth admission is the biggest win here of any dataset:**
+
+    z13, 1500 vtx/tile     kept km  within#   cross#     cov  largest
+    drop-smallest (today)     1333     1883      337   97.0%     3.9%
+    chains + grow             1003      141       16   85.9%    93.7%
+
+    z14                       2810     4711      608   99.5%     7.6%
+    chains + grow             2379      634       66   96.1%    97.8%
+
+**The curvature and far-end-angle penalties do not transfer.** Every setting
+tried lands between 93.5% and 94.0% at z13 — inside the noise — and the reason
+is that the turning signal *inverts* on OSM:
+
+    fclass            turn/300m   exit angle
+    motorway              15.1        1.3
+    motorway_link         56.9        6.2
+    residential            3.2        0.3
+    service                3.0       19.7
+
+Residential streets are *straighter* than motorways here. San Francisco is a
+rigid grid and OSM splits ways at every intersection, so a residential edge is a
+short straight block, while a motorway is one long gently-curving way. On TIGER
+the same measure read 9.3 for a primary road against 29.6 for a local street —
+the opposite ordering. The penalty is therefore neutral on OSM by luck, not
+because it is working, and the tuning of alpha derived from TIGER should be
+treated as data-specific rather than general.
+
+Two parts of the signal do survive: ramps (`motorway_link`) still read high on
+both measures, and `service` roads are caught by the exit angle at 19.7 degrees
+despite being straight. It is the trunk-versus-local contrast that reverses.
+
+The lesson for the tiler is that the durable part of this work is the chain
+decomposition plus growth admission, which improved every dataset tried by a
+large margin. The shape penalties are a refinement whose sign depends on how the
+source happens to split its ways.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,

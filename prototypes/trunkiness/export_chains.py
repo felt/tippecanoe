@@ -22,6 +22,10 @@ import simplify as S
 import trunkiness as T
 
 BUDGET = 1500
+# 7 decimals is about 1 cm. Six is about 9 cm per vertex, which is a large
+# relative error on the sub-10 m service stubs that dense OSM extracts are full
+# of, and shows up as spurious length mismatches when validating the output.
+PRECISION = 7
 
 
 def main():
@@ -87,7 +91,7 @@ def main():
         for i, (p, c) in enumerate(rows):
             f.write(json.dumps({"type": "Feature", "properties": p,
                                 "geometry": {"type": "LineString",
-                                             "coordinates": [[round(x, 6), round(y, 6)]
+                                             "coordinates": [[round(x, 7), round(y, 7)]
                                                              for x, y in c]}}))
             f.write(",\n" if i + 1 < len(rows) else "\n")
         f.write("]}\n")

@@ -30,6 +30,9 @@ def world_xy(lon, lat):
 
 
 def load(base, name_field):
+    """Read a shapefile base name, or a .geojson/.json path."""
+    if base.endswith(".geojson") or base.endswith(".json"):
+        return load_geojson(base, name_field)
     feats = []
     for parts, attrs in shpread.read_shapefile(base):
         for coords in parts:
@@ -38,6 +41,29 @@ def load(base, name_field):
             feats.append({
                 "coords": coords,
                 "name": (attrs.get(name_field) or "").strip(),
+                "attrs": attrs,
+            })
+    return feats
+
+
+def load_geojson(path, name_field):
+    with open(path) as f:
+        doc = json.load(f)
+    raw = doc["features"] if isinstance(doc, dict) else doc
+    feats = []
+    for feat in raw:
+        g = feat.get("geometry")
+        if not g:
+            continue
+        parts = ([g["coordinates"]] if g["type"] == "LineString"
+                 else g["coordinates"] if g["type"] == "MultiLineString" else [])
+        attrs = feat.get("properties") or {}
+        for coords in parts:
+            if len(coords) < 2:
+                continue
+            feats.append({
+                "coords": [(c[0], c[1]) for c in coords],
+                "name": str(attrs.get(name_field) or "").strip(),
                 "attrs": attrs,
             })
     return feats
