@@ -23,6 +23,7 @@ import sys
 from collections import defaultdict
 
 EARTH_R = 6378137.0
+DEG_M = EARTH_R * math.pi / 180.0  # metres per degree of latitude
 
 # A stroke may continue through a junction if the two edges deflect by less than
 # this. Named continuations are allowed a looser limit, since a matching street
@@ -39,14 +40,25 @@ BEARING_DIST = 25.0
 
 def local_scale(lat):
     """Meters per degree of longitude and latitude at this latitude."""
-    return math.cos(math.radians(lat)) * EARTH_R * math.pi / 180.0, EARTH_R * math.pi / 180.0
+    return math.cos(math.radians(lat)) * DEG_M, DEG_M
+
+
+def scale_at(lat):
+    return math.cos(math.radians(lat)) * DEG_M, DEG_M
 
 
 def chain_length(coords, mx, my):
+    """Length in metres. Pass mx=None to scale each segment by its own latitude,
+    which is required once the input spans more than a degree or two: across
+    California cos(latitude) varies by 13%."""
     total = 0.0
     for i in range(1, len(coords)):
-        dx = (coords[i][0] - coords[i - 1][0]) * mx
-        dy = (coords[i][1] - coords[i - 1][1]) * my
+        if mx is None:
+            sx, sy = scale_at((coords[i][1] + coords[i - 1][1]) * 0.5)
+        else:
+            sx, sy = mx, my
+        dx = (coords[i][0] - coords[i - 1][0]) * sx
+        dy = (coords[i][1] - coords[i - 1][1]) * sy
         total += math.hypot(dx, dy)
     return total
 
@@ -56,14 +68,16 @@ def departure_bearing(coords, mx, my):
     x0, y0 = coords[0]
     acc = 0.0
     for i in range(1, len(coords)):
-        dx = (coords[i][0] - x0) * mx
-        dy = (coords[i][1] - y0) * my
+        sx, sy = scale_at((coords[i][1] + y0) * 0.5) if mx is None else (mx, my)
+        dx = (coords[i][0] - x0) * sx
+        dy = (coords[i][1] - y0) * sy
         acc = math.hypot(dx, dy)
         if acc >= BEARING_DIST:
             return math.atan2(dy, dx)
     # Whole edge is shorter than BEARING_DIST: use its far end.
-    dx = (coords[-1][0] - x0) * mx
-    dy = (coords[-1][1] - y0) * my
+    sx, sy = scale_at((coords[-1][1] + y0) * 0.5) if mx is None else (mx, my)
+    dx = (coords[-1][0] - x0) * sx
+    dy = (coords[-1][1] - y0) * sy
     if dx == 0 and dy == 0:
         return 0.0
     return math.atan2(dy, dx)
