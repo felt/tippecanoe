@@ -385,6 +385,43 @@ Two consequences for a real implementation:
   metres. So a C++ pass can take deflection angles straight from projected
   coordinates and only needs latitude correction where it compares lengths.
 
+## Statewide primary/secondary roads
+
+TIGER's statewide California primary/secondary layer is the case this method
+suits best. It is sparse, so chains are long: 7335 features become 449557 edges
+and 1735 chains over 37692 km, with a longest chain of 929 km and a
+length-weighted mean of 162 km, against 3.9 km for the full Alameda road
+network. The longest chains recovered, with no attributes used, are I-5
+(929 km, 92% I-5), State Route 99 (665 km), US 101 (639 km), I-15 and I-40.
+
+    z8, 1500 vertices/tile   kept km  within#   cross#     cov  largest
+    drop-smallest (today)      23027      255       70   87.3%    26.4%
+    chain length + filter      22850       85       16   81.5%    93.0%
+    chain length + grow        22276       73       13   77.9%    97.8%
+
+Across zooms, `largest` for drop-smallest against chain length + grow:
+
+    z6   20.9% -> 91.6%       z9    87.2% -> 98.4%
+    z7   23.8% -> 94.0%       z10   96.8% -> 97.8%
+    z8   26.4% -> 97.8%
+
+The gain is largest where the budget bites hardest and closes as the constraint
+relaxes, which is what should happen. Gaps fall in the same direction: at z8,
+255 within-tile and 70 cross-tile breaks become 73 and 13.
+
+### Vertex cost has to be measured after simplification
+
+These numbers depend on a correction that only matters at low zoom. Tippecanoe
+simplifies geometry to the tile's resolution before a tile is measured, so a
+long chain does not cost a tile its raw vertices: statewide, only 3.8% of
+vertices survive at z6 and 7.9% at z8. Costing raw overstates a long chain by
+more than an order of magnitude, and whole-chain admission then rejects I-5
+outright — precisely the feature the method exists to keep. Before this was
+fixed the same run reported a largest component of 12.4% at z7, worse than
+drop-smallest; after, it is 94.0%. `simplify.py` does Douglas-Peucker in tile
+units, and admission is costed against the simplified geometry while length and
+continuity are still measured on the full geometry.
+
 ## What this does not fix
 
 On roads the top of the ranking is right after the collapse — MacArthur Fwy,
