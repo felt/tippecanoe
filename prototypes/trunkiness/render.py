@@ -12,6 +12,64 @@ def merc(lon, lat):
     return x, y
 
 
+def render_layers(features, layers, path, width=760, height=760, pad=16, title=""):
+    """layers: list of (color, stroke_width, label, [coordinate chains]).
+
+    Drawn in the order given, so put the faint classes first and the ones that
+    should read on top last.
+    """
+    pts = [merc(c[0], c[1]) for f in features for c in f["coords"]]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
+    spanx, spany = maxx - minx or 1e-9, maxy - miny or 1e-9
+    legend_h = 20 * len(layers) + 16
+    scale = min((width - 2 * pad) / spanx, (height - 2 * pad) / spany)
+
+    def path_of(coords):
+        pp = []
+        for c in coords:
+            x, y = merc(c[0], c[1])
+            p = ((x - minx) * scale + pad, (y - miny) * scale + pad)
+            if not pp or abs(p[0] - pp[-1][0]) + abs(p[1] - pp[-1][1]) > 0.8:
+                pp.append(p)
+        if len(pp) < 2:
+            if len(coords) < 2:
+                return ""
+            a = merc(coords[0][0], coords[0][1])
+            b = merc(coords[-1][0], coords[-1][1])
+            pp = [((a[0] - minx) * scale + pad, (a[1] - miny) * scale + pad),
+                  ((b[0] - minx) * scale + pad, (b[1] - miny) * scale + pad)]
+        return "M" + "L".join("%.1f %.1f" % p for p in pp)
+
+    out = ['<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" '
+           'viewBox="0 0 %d %d">' % (width, height + 26 + legend_h,
+                                     width, height + 26 + legend_h),
+           '<rect width="%d" height="%d" fill="#ffffff"/>'
+           % (width, height + 26 + legend_h)]
+    if title:
+        out.append('<text x="10" y="17" font-family="sans-serif" font-size="13" '
+                   'fill="#111">%s</text>' % title)
+    out.append('<g transform="translate(0,24)">')
+    for color, w, _label, chains in layers:
+        d = "".join(path_of(c) for c in chains)
+        if d:
+            out.append('<path fill="none" stroke="%s" stroke-width="%s" '
+                       'stroke-linecap="round" d="%s"/>' % (color, w, d))
+    out.append('</g>')
+    y = height + 42
+    for color, w, label, _chains in layers:
+        out.append('<line x1="12" y1="%d" x2="44" y2="%d" stroke="%s" '
+                   'stroke-width="%s"/>' % (y - 4, y - 4, color, max(2.0, float(w))))
+        out.append('<text x="54" y="%d" font-family="sans-serif" font-size="11" '
+                   'fill="#333">%s</text>' % (y, label))
+        y += 20
+    out.append('</svg>')
+    with open(path, "w") as f:
+        f.write("\n".join(out))
+    return path
+
+
 def render_chains(features, panels, path, width=560, height=560, pad=14, title=""):
     """panels: list of (label, list of coordinate chains that survive).
 
