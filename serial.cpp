@@ -186,7 +186,7 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 
 	long long layer = 0;
 	layer |= sf->layer << FLAG_LAYER;
-	layer |= (sf->label_point != 0) << FLAG_LABEL_POINT;
+	layer |= (sf->has_label_point) << FLAG_LABEL_POINT;
 	layer |= (sf->index != 0) << FLAG_INDEX;
 	layer |= (sf->extent != 0) << FLAG_EXTENT;
 	layer |= sf->has_id << FLAG_ID;
@@ -213,8 +213,9 @@ std::string serialize_feature(serial_feature *sf, long long wx, long long wy) {
 		serialize_ulong_long(s, sf->index);
 		serialize_ulong_long(s, sf->gap);
 	}
-	if (sf->label_point != 0) {
-		serialize_ulong_long(s, sf->label_point);
+	if (sf->has_label_point) {
+		serialize_long_long(s, sf->label_point_x);
+		serialize_long_long(s, sf->label_point_y);
 	}
 	if (sf->extent != 0) {
 		serialize_long_long(s, sf->extent);
@@ -261,7 +262,9 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 
 	sf.index = 0;
 	sf.gap = 0;
-	sf.label_point = 0;
+	sf.label_point_x = 0;
+	sf.label_point_y = 0;
+	sf.has_label_point = false;
 	sf.extent = 0;
 
 	sf.geometry = decode_geometry(&cp, z, tx, ty, sf.bbox, initial_x[sf.segment], initial_y[sf.segment]);
@@ -271,7 +274,9 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 		deserialize_ulong_long(&cp, &sf.gap);
 	}
 	if (sf.layer & (1 << FLAG_LABEL_POINT)) {
-		deserialize_ulong_long(&cp, &sf.label_point);
+		sf.has_label_point = true;
+		deserialize_long_long(&cp, &sf.label_point_x);
+		deserialize_long_long(&cp, &sf.label_point_y);
 	}
 	if (sf.layer & (1 << FLAG_EXTENT)) {
 		deserialize_long_long(&cp, &sf.extent);
@@ -734,9 +739,9 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 	if (sf.t == VT_POLYGON && additional[A_GENERATE_POLYGON_LABEL_POINTS]) {
 		drawvec dv = polygon_to_anchor(scaled_geometry);
 		if (dv.size() > 0) {
-			dv[0].x = SHIFT_LEFT(dv[0].x) & ((1LL << 32) - 1);
-			dv[0].y = SHIFT_LEFT(dv[0].y) & ((1LL << 32) - 1);
-			sf.label_point = encode_index(dv[0].x, dv[0].y);
+			sf.label_point_x = SHIFT_LEFT(dv[0].x);
+			sf.label_point_y = SHIFT_LEFT(dv[0].y);
+			sf.has_label_point = true;
 		}
 	}
 

@@ -944,23 +944,33 @@ drawvec polygon_to_anchor(const drawvec &geom) {
 	return drawvec();
 }
 
-drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, unsigned long long label_point) {
+drawvec checkerboard_anchors(drawvec const &geom, int tx, int ty, int z, long long wx, long long wy, int buffer) {
 	drawvec out;
-
-	// anchor point in world coordinates
-	unsigned wx, wy;
-	decode_index(label_point, &wx, &wy);
 
 	// upper left of tile in world coordinates
 	long long tx1 = 0, ty1 = 0;
 	// lower right of tile in world coordinates;
-	long long tx2 = 1LL << 32;  // , ty2 = 1LL << 32;
+	long long tx2 = 1LL << 32, ty2 = 1LL << 32;
 	if (z != 0) {
 		tx1 = (long long) tx << (32 - z);
 		ty1 = (long long) ty << (32 - z);
 
 		tx2 = (long long) (tx + 1) << (32 - z);
-		// ty2 = (long long) (ty + 1) << (32 - z);
+		ty2 = (long long) (ty + 1) << (32 - z);
+	}
+
+	long long tx1_buffer = tx1 - (1LL << (32 - z)) * buffer / 256;
+	long long ty1_buffer = ty1 - (1LL << (32 - z)) * buffer / 256;
+	long long tx2_buffer = tx2 + (1LL << (32 - z)) * buffer / 256;
+	long long ty2_buffer = ty2 + (1LL << (32 - z)) * buffer / 256;
+
+	// if the central label point is within this tile, always prefer that.
+	// none of the label repetition code below matters much any more,
+	// now that we truncate the tile pyramid once we have all the features
+	if (wx >= tx1_buffer && wx <= tx2_buffer && wy >= ty1_buffer && wy <= ty2_buffer) {
+		// offset to tile origin
+		out.push_back(draw(VT_MOVETO, wx - tx1, wy - ty1));
+		return out;
 	}
 
 	// upper left of feature in world coordinates
