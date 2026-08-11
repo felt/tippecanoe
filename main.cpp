@@ -3165,7 +3165,7 @@ void usage(char **argv, int status) {
 	exit(status);
 }
 
-int main(int argc, char **argv) {
+int inner_main(int argc, char **argv) {
 #ifdef MTRACE
 	mtrace();
 #endif
@@ -3868,6 +3868,18 @@ int main(int argc, char **argv) {
 	}
 
 	return ret;
+}
+
+int main(int argc, char **argv) {
+	try {
+		return inner_main(argc, argv);
+	} catch (tippecanoe_error &e) {
+		fprintf(stderr, "%s\n", e.what());
+		return e.exit_code;
+	} catch (std::exception &e) {
+		fprintf(stderr, "Error: %s\n", e.what());
+		return EXIT_FAILURE;
+	}
 }
 
 int mkstemp_cloexec(char *name) {

@@ -6,6 +6,7 @@
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
+#include "raii.hpp"
 #include "milo/dtoa_milo.h"
 #include "text.hpp"
 
@@ -48,8 +49,7 @@ int compare(mvt_value const &one, json_object *two, bool &fail) {
 			break;
 		case mvt_no_such_key:
 		default:
-			fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
-			exit(EXIT_IMPOSSIBLE);
+			throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: bad mvt type %d", one.type);
 		}
 
 		if (v < two->value.number.number) {
@@ -84,8 +84,7 @@ int compare(mvt_value const &one, json_object *two, bool &fail) {
 		break;
 	}
 
-	fprintf(stderr, "Internal error: bad mvt type %d\n", one.type);
-	exit(EXIT_IMPOSSIBLE);
+	throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: bad mvt type %d", one.type);
 }
 
 // 0: false
@@ -119,39 +118,33 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	}
 
 	if (f == NULL || f->type != JSON_ARRAY) {
-		fprintf(stderr, "Filter is not an array: %s\n", json_stringify(f));
-		exit(EXIT_FILTER);
+		throw_tippecanoe_error(EXIT_FILTER, "Filter is not an array: %s", json_stringify(f));
 	}
 
 	if (f->value.array.length < 1) {
-		fprintf(stderr, "Array too small in filter: %s\n", json_stringify(f));
-		exit(EXIT_FILTER);
+		throw_tippecanoe_error(EXIT_FILTER, "Array too small in filter: %s", json_stringify(f));
 	}
 
 	if (f->value.array.array[0]->type != JSON_STRING) {
-		fprintf(stderr, "Filter operation is not a string: %s\n", json_stringify(f));
-		exit(EXIT_FILTER);
+		throw_tippecanoe_error(EXIT_FILTER, "Filter operation is not a string: %s", json_stringify(f));
 	}
 
 	if (strcmp(f->value.array.array[0]->value.string.string, "has") == 0 ||
 	    strcmp(f->value.array.array[0]->value.string.string, "!has") == 0) {
 		if (f->value.array.length != 2) {
-			fprintf(stderr, "Wrong number of array elements in filter: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "Wrong number of array elements in filter: %s", json_stringify(f));
 		}
 
 		if (strcmp(f->value.array.array[0]->value.string.string, "has") == 0) {
 			if (f->value.array.array[1]->type != JSON_STRING) {
-				fprintf(stderr, "\"has\" key is not a string: %s\n", json_stringify(f));
-				exit(EXIT_FILTER);
+				throw_tippecanoe_error(EXIT_FILTER, "\"has\" key is not a string: %s", json_stringify(f));
 			}
 			return feature(std::string(f->value.array.array[1]->value.string.string)).type != mvt_no_such_key;
 		}
 
 		if (strcmp(f->value.array.array[0]->value.string.string, "!has") == 0) {
 			if (f->value.array.array[1]->type != JSON_STRING) {
-				fprintf(stderr, "\"!has\" key is not a string: %s\n", json_stringify(f));
-				exit(EXIT_FILTER);
+				throw_tippecanoe_error(EXIT_FILTER, "\"!has\" key is not a string: %s", json_stringify(f));
 			}
 			return feature(std::string(f->value.array.array[1]->value.string.string)).type == mvt_no_such_key;
 		}
@@ -164,12 +157,10 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	    strcmp(f->value.array.array[0]->value.string.string, "<") == 0 ||
 	    strcmp(f->value.array.array[0]->value.string.string, "<=") == 0) {
 		if (f->value.array.length != 3) {
-			fprintf(stderr, "Wrong number of array elements in filter: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "Wrong number of array elements in filter: %s", json_stringify(f));
 		}
 		if (f->value.array.array[1]->type != JSON_STRING) {
-			fprintf(stderr, "comparison key is not a string: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "comparison key is not a string: %s", json_stringify(f));
 		}
 
 		mvt_value ff = feature(std::string(f->value.array.array[1]->value.string.string));
@@ -223,8 +214,7 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 			return cmp <= 0;
 		}
 
-		fprintf(stderr, "Internal error: can't happen: %s\n", json_stringify(f));
-		exit(EXIT_IMPOSSIBLE);
+		throw_tippecanoe_error(EXIT_IMPOSSIBLE, "Internal error: can't happen: %s", json_stringify(f));
 	}
 
 	if (strcmp(f->value.array.array[0]->value.string.string, "all") == 0 ||
@@ -266,13 +256,11 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 	if (strcmp(f->value.array.array[0]->value.string.string, "in") == 0 ||
 	    strcmp(f->value.array.array[0]->value.string.string, "!in") == 0) {
 		if (f->value.array.length < 2) {
-			fprintf(stderr, "Array too small in filter: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "Array too small in filter: %s", json_stringify(f));
 		}
 
 		if (f->value.array.array[1]->type != JSON_STRING) {
-			fprintf(stderr, "\"!in\" key is not a string: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "\"!in\" key is not a string: %s", json_stringify(f));
 		}
 
 		mvt_value ff = feature(std::string(f->value.array.array[1]->value.string.string));
@@ -321,13 +309,11 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 
 	if (strcmp(f->value.array.array[0]->value.string.string, "attribute-filter") == 0) {
 		if (f->value.array.length != 3) {
-			fprintf(stderr, "Wrong number of array elements in filter: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "Wrong number of array elements in filter: %s", json_stringify(f));
 		}
 
 		if (f->value.array.array[1]->type != JSON_STRING) {
-			fprintf(stderr, "\"attribute-filter\" key is not a string: %s\n", json_stringify(f));
-			exit(EXIT_FILTER);
+			throw_tippecanoe_error(EXIT_FILTER, "\"attribute-filter\" key is not a string: %s", json_stringify(f));
 		}
 
 		bool ok = eval(feature, f->value.array.array[2], exclude_attributes, unidecode_data) > 0;
@@ -338,14 +324,12 @@ static int eval(std::function<mvt_value(std::string const &)> feature, json_obje
 		return true;
 	}
 
-	fprintf(stderr, "Unknown filter %s\n", json_stringify(f));
-	exit(EXIT_FILTER);
+	throw_tippecanoe_error(EXIT_FILTER, "Unknown filter %s", json_stringify(f));
 }
 
 bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string const &layer, json_object *filter, std::set<std::string> &exclude_attributes, std::vector<std::string> const &unidecode_data) {
 	if (filter == NULL || filter->type != JSON_HASH) {
-		fprintf(stderr, "Error: filter is not a hash: %s\n", json_stringify(filter));
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "Error: filter is not a hash: %s", json_stringify(filter));
 	}
 
 	bool ok = true;
@@ -365,34 +349,27 @@ bool evaluate(std::function<mvt_value(std::string const &)> feature, std::string
 }
 
 json_object *read_filter(const char *fname) {
-	FILE *fp = fopen(fname, "r");
-	if (fp == NULL) {
-		perror(fname);
-		exit(EXIT_OPEN);
+	unique_file fp(fopen(fname, "r"));
+	if (fp.get() == NULL) {
+		throw_perror(EXIT_OPEN, fname);
 	}
 
-	json_pull *jp = json_begin_file(fp);
-	json_object *filter = json_read_tree(jp);
+	unique_json_pull jp(json_begin_file(fp.get()));
+	json_object *filter = json_read_tree(jp.get());
 	if (filter == NULL) {
-		fprintf(stderr, "%s: %s\n", fname, jp->error);
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "%s: %s", fname, jp.get()->error);
 	}
 	json_disconnect(filter);
-	json_end(jp);
-	fclose(fp);
 	return filter;
 }
 
 json_object *parse_filter(const char *s) {
-	json_pull *jp = json_begin_string(s);
-	json_object *filter = json_read_tree(jp);
+	unique_json_pull jp(json_begin_string(s));
+	json_object *filter = json_read_tree(jp.get());
 	if (filter == NULL) {
-		fprintf(stderr, "Could not parse filter %s\n", s);
-		fprintf(stderr, "%s\n", jp->error);
-		exit(EXIT_JSON);
+		throw_tippecanoe_error(EXIT_JSON, "Could not parse filter %s\n%s", s, jp.get()->error);
 	}
 	json_disconnect(filter);
-	json_end(jp);
 	return filter;
 }
 
