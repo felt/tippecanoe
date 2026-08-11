@@ -1,0 +1,9 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","id":1,"properties":{"name":"point","kind":"point","count":100,"ratio":1.5,"active":true,"nested":{"a":1,"b":"two"}},"geometry":{"type":"Point","coordinates":[-122.4,37.8]}},
+{"type":"Feature","id":2,"properties":{"name":"multipoint","kind":"point","count":-200,"ratio":-0.25,"active":false},"geometry":{"type":"MultiPoint","coordinates":[[-122.5,37.9],[-122.45,37.85],[-122.55,37.95]]}},
+{"type":"Feature","id":3,"properties":{"name":"line","kind":"line","count":300,"ratio":2},"geometry":{"type":"LineString","coordinates":[[-122.6,37.7],[-122.5,37.75],[-122.4,37.7]]}},
+{"type":"Feature","id":4,"properties":{"name":"multiline","kind":"line","count":4000000000,"ratio":0.125},"geometry":{"type":"MultiLineString","coordinates":[[[-122.7,37.6],[-122.6,37.65]],[[-122.5,37.6],[-122.4,37.65]]]}},
+{"type":"Feature","id":5,"properties":{"name":"polygon with hole","kind":"polygon","count":500,"ratio":3.25,"active":true},"geometry":{"type":"Polygon","coordinates":[[[-122.8,37.4],[-122.4,37.4],[-122.4,37.55],[-122.8,37.55],[-122.8,37.4]],[[-122.7,37.45],[-122.7,37.5],[-122.5,37.5],[-122.5,37.45],[-122.7,37.45]]]}},
+{"type":"Feature","id":6,"properties":{"name":"multipolygon","kind":"polygon","count":600},"geometry":{"type":"MultiPolygon","coordinates":[[[[-122.9,37.2],[-122.7,37.2],[-122.7,37.3],[-122.9,37.3],[-122.9,37.2]]],[[[-122.6,37.2],[-122.4,37.2],[-122.4,37.3],[-122.6,37.3],[-122.6,37.2]],[[-122.55,37.22],[-122.55,37.28],[-122.45,37.28],[-122.45,37.22],[-122.55,37.22]]]]}},
+{"type":"Feature","properties":{"name":"no id","kind":"point","unicode":"påíñtß 堤防"},"geometry":{"type":"Point","coordinates":[-122.35,37.75]}}
+]}

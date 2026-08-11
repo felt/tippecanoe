@@ -50,6 +50,7 @@
 #include "projection.hpp"
 #include "memfile.hpp"
 #include "main.hpp"
+#include "mlt.hpp"
 #include "geojson.hpp"
 #include "geobuf.hpp"
 #include "flatgeobuf.hpp"
@@ -2835,7 +2836,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		ai->second.maxzoom = maxzoom;
 	}
 
-	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, true, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
+	const char *tile_format = tile_format_name(output_format);
+	metadata m = make_metadata(fname, minzoom, maxzoom, minlat, minlon, maxlat, maxlon, minlat2, minlon2, maxlat2, maxlon2, midlat, midlon, attribution, merged_lm, tile_format, description, !prevent[P_TILE_STATS], attribute_descriptions, "tippecanoe", commandline, strategies, basezoom, droprate, retain_points_multiplier);
 	if (outdb != NULL) {
 		mbtiles_write_metadata(outdb, m, forcetable);
 	} else {
@@ -3118,6 +3120,9 @@ static const struct option long_options_orig[] = {
 	{"no-feature-limit", no_argument, &prevent[P_FEATURE_LIMIT], 1},
 	{"no-tile-size-limit", no_argument, &prevent[P_KILOBYTE_LIMIT], 1},
 	{"no-tile-compression", no_argument, &prevent[P_TILE_COMPRESSION], 1},
+	{"output-format", required_argument, 0, '~'},
+	{"pretessellate", no_argument, 0, '~'},
+	{"no-mlt-feature-sort", no_argument, 0, '~'},
 	{"no-tile-stats", no_argument, &prevent[P_TILE_STATS], 1},
 	{"tile-stats-attributes-limit", required_argument, 0, '~'},
 	{"tile-stats-sample-values-limit", required_argument, 0, '~'},
@@ -3346,6 +3351,12 @@ int main(int argc, char **argv) {
 				unidecode_data = read_unidecode(optarg);
 			} else if (strcmp(opt, "maximum-string-attribute-length") == 0) {
 				maximum_string_attribute_length = atoll_require(optarg, "Maximum string attribute length");
+			} else if (strcmp(opt, "output-format") == 0) {
+				set_output_format(argv, optarg);
+			} else if (strcmp(opt, "pretessellate") == 0) {
+				mlt_pretessellate = true;
+			} else if (strcmp(opt, "no-mlt-feature-sort") == 0) {
+				mlt_sort_features = false;
 			} else {
 				fprintf(stderr, "%s: Unrecognized option --%s\n", argv[0], opt);
 				exit(EXIT_ARGS);
