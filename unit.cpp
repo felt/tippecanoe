@@ -247,6 +247,62 @@ TEST_CASE("json_free releases a top-level value held by the parser", "[jsonpull]
 	REQUIRE(jp->root == nullptr);
 }
 
+// json_disconnect() is the documented way to splice a subtree out of the
+// parser's tree and take ownership of it so that it can outlive the
+// json_pull it came from. Nothing in tippecanoe calls it today -- the
+// filter loaders get the same guarantee from json_read_tree, which clears
+// back-pointers on the way out -- so cover it here rather than leave a
+// documented ownership primitive untested.
+TEST_CASE("json_disconnect hands a subtree to the caller", "[jsonpull][ownership]") {
+	json_object_ptr taken;
+	json_object *outer = nullptr;
+
+	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4]]");
+
+	int arrays_seen = 0;
+	json_object *j;
+	while ((j = json_read(jp)) != nullptr) {
+		if (j->type != JSON_ARRAY) {
+			continue;
+		}
+		arrays_seen++;
+		if (arrays_seen == 2) {
+			// This is [3, 4]; take it away from the enclosing array.
+			taken = json_disconnect(j);
+			REQUIRE(taken != nullptr);
+			REQUIRE(taken.get() == j);
+		} else if (j->parent == nullptr) {
+			outer = j;
+			break;
+		}
+	}
+
+	// The outer array is left holding only the element we didn't take,
+	// and the parser is still the owner of it.
+	REQUIRE(outer != nullptr);
+	REQUIRE(jp->root.get() == outer);
+	REQUIRE(outer->array().size() == 1);
+	REQUIRE(outer->array()[0]->array().size() == 2);
+	REQUIRE(outer->array()[0]->array()[0]->number() == 1);
+	REQUIRE(outer->array()[0]->array()[1]->number() == 2);
+
+	// The detached subtree holds no back-pointers into the parser...
+	REQUIRE(taken->parent == nullptr);
+	REQUIRE(taken->parser == nullptr);
+	REQUIRE(taken->array()[0]->parser == nullptr);
+	REQUIRE(taken->array()[1]->parser == nullptr);
+
+	// ...so it stays valid once the parser, and the tree the parser still
+	// owns, are destroyed.
+	jp.reset();
+	// outer is dangling now; do not dereference.
+
+	REQUIRE(taken->type == JSON_ARRAY);
+	REQUIRE(taken->array().size() == 2);
+	REQUIRE(taken->array()[0]->number() == 3);
+	REQUIRE(taken->array()[1]->number() == 4);
+}
+
 TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {
 	// Two mutually reversed self-intersecting rings whose union leaves a hole
 	// that wagyu's topology correction cannot assign to any surviving parent
