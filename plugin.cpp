@@ -151,9 +151,11 @@ serial_feature parse_feature(json_pull_ptr &jp, int z, unsigned x, unsigned y, s
 		// intermediate (still incomplete) container nodes. We must NOT free
 		// these intermediates here: they belong to the larger feature hash
 		// still being assembled, and freeing them would splice them out of
-		// the parent and corrupt the in-progress tree. We only free `j`
-		// after we have successfully processed a complete Feature hash
-		// (just before returning), or `jp->root` when the stream ends.
+		// the parent and corrupt the in-progress tree. So the `continue`
+		// paths below all leave `j` alone; `j` is only freed once it is a
+		// complete Feature hash -- either just before returning it, or at
+		// the bottom of the loop if its geometry turned out to be empty --
+		// or as `jp->root` when the stream ends.
 		json_object *j = json_read(jp);
 		if (j == nullptr) {
 			if (jp->error != nullptr) {

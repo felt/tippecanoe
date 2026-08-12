@@ -111,7 +111,7 @@ struct json_object {
 	inline const std::string &string() const;
 
 	// Numbers are stored in a discriminated union (double / unsigned /
-	// signed) so a json_number is only 40 bytes instead of 48. The
+	// signed) so a json_number is only 32 bytes instead of 48. The
 	// large_*() accessors return 0 when the number is not currently
 	// stored in that representation, matching the prior convention
 	// where "0" meant "not set, fall through to the next slot".
