@@ -11,6 +11,8 @@
 * Fix decoding of a `\u` escape sequence in which a high surrogate is followed
   by a non-surrogate BMP code point, which combined the two into a single
   wrong code point. (#388)
+* Fix a `\uFFFF` escape being decoded to the overlong, invalid four-byte
+  UTF-8 sequence `F0 8F BF BF` instead of `EF BF BF`. (#388)
 * Fix tile-join reading a non-string field type out of a tileset's tilejson.
   (#388)
 * Fix `tippecanoe-decode` and tile-join crashing on a directory tileset whose

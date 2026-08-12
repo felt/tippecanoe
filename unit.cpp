@@ -286,14 +286,20 @@ TEST_CASE("json_disconnect hands a subtree to the caller", "[jsonpull][ownership
 	REQUIRE(outer->array()[0]->array()[0]->number() == 1);
 	REQUIRE(outer->array()[0]->array()[1]->number() == 2);
 
-	// The detached subtree holds no back-pointers into the parser...
-	REQUIRE(taken->parent == nullptr);
+	// The detached subtree holds no pointers into the parser...
 	REQUIRE(taken->parser == nullptr);
 	REQUIRE(taken->array()[0]->parser == nullptr);
 	REQUIRE(taken->array()[1]->parser == nullptr);
 
-	// ...so it stays valid once the parser, and the tree the parser still
-	// owns, are destroyed.
+	// ...and its root no longer points out at the array it was spliced
+	// from, but the parent links *within* it are left intact so the tree
+	// stays navigable upwards.
+	REQUIRE(taken->parent == nullptr);
+	REQUIRE(taken->array()[0]->parent == taken.get());
+	REQUIRE(taken->array()[1]->parent == taken.get());
+
+	// So the subtree stays valid once the parser, and the tree the parser
+	// still owns, are destroyed.
 	jp.reset();
 	// outer is dangling now; do not dereference.
 
@@ -301,6 +307,97 @@ TEST_CASE("json_disconnect hands a subtree to the caller", "[jsonpull][ownership
 	REQUIRE(taken->array().size() == 2);
 	REQUIRE(taken->array()[0]->number() == 3);
 	REQUIRE(taken->array()[1]->number() == 4);
+}
+
+// Preserving the parent links inside a detached tree is what lets
+// json_free() keep working on its interior nodes: json_free() finds a
+// node's owner through o->parent, so a detached tree whose parent links
+// had been cleared would silently ignore the request and leave the node
+// in place.
+TEST_CASE("json_free prunes an interior node of a detached tree", "[jsonpull][ownership]") {
+	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
+	json_object_ptr tree = json_read_tree(jp);
+
+	REQUIRE(tree != nullptr);
+	REQUIRE(tree->type == JSON_ARRAY);
+	REQUIRE(tree->array().size() == 3);
+
+	// Destroy the parser first, so this is unambiguously operating on a
+	// tree that no longer has one.
+	jp.reset();
+	REQUIRE(tree->parser == nullptr);
+
+	json_object *drop = tree->array()[1].get();
+	REQUIRE(drop->array()[0]->number() == 3);
+	REQUIRE(drop->parent == tree.get());
+
+	json_free(drop);
+	// drop is dangling now; do not dereference.
+
+	// Had the parent links been cleared on detach, json_free would not
+	// have found an owner to splice the node out of, and the array would
+	// still have three elements.
+	REQUIRE(tree->array().size() == 2);
+	REQUIRE(tree->array()[0]->array()[0]->number() == 1);
+	REQUIRE(tree->array()[1]->array()[0]->number() == 5);
+}
+
+// The hash case is not a removal: json_free() of a hash value leaves the
+// key in place with a JSON_NULL stand-in, so that detaching one half of a
+// pair cannot disturb the key/value pairing of the entries around it. The
+// entry is only erased once both halves are gone.
+TEST_CASE("json_free of a hash value leaves a null placeholder", "[jsonpull][ownership]") {
+	json_pull_ptr jp = json_begin_string(R"({"keep": 1, "drop": [2, 3]})");
+	json_object_ptr tree = json_read_tree(jp);
+
+	REQUIRE(tree != nullptr);
+	REQUIRE(tree->entries().size() == 2);
+
+	json_object *drop = json_hash_get(tree, "drop");
+	REQUIRE(drop != nullptr);
+	REQUIRE(drop->type == JSON_ARRAY);
+
+	json_free(drop);
+	// drop is dangling now; do not dereference.
+
+	// The key survives, now paired with a null rather than the array.
+	REQUIRE(tree->entries().size() == 2);
+	json_object *after = json_hash_get(tree, "drop");
+	REQUIRE(after != nullptr);
+	REQUIRE(after->type == JSON_NULL);
+
+	// The neighbouring pair is untouched.
+	REQUIRE(json_hash_get(tree, "keep") != nullptr);
+	REQUIRE(json_hash_get(tree, "keep")->number() == 1);
+}
+
+// A \uXXXX escape can only name a code point up to U+FFFF, and U+FFFF
+// itself used to fall through the `< 0xFFFF` test into the four-byte
+// branch, which emitted the overlong sequence F0 8F BF BF. check_utf8()
+// only validates continuation-byte structure, so that invalid UTF-8 was
+// copied into tiles unnoticed.
+TEST_CASE("jsonpull encodes U+FFFF as three bytes", "[jsonpull][utf8]") {
+	json_pull_ptr jp = json_begin_string("\"a\\uFFFFb\"");
+	json_object_ptr o = json_read_tree(jp);
+
+	REQUIRE(jp->error == nullptr);
+	REQUIRE(o != nullptr);
+	REQUIRE(o->type == JSON_STRING);
+
+	REQUIRE(o->string() == "a\xEF\xBF\xBF" "b");
+	REQUIRE(o->string() != "a\xF0\x8F\xBF\xBF" "b");
+
+	// The boundary below it, and a genuine supplementary code point built
+	// from a surrogate pair, both keep their existing encodings.
+	json_pull_ptr jp2 = json_begin_string("\"\\uFFFE\"");
+	json_object_ptr o2 = json_read_tree(jp2);
+	REQUIRE(o2 != nullptr);
+	REQUIRE(o2->string() == "\xEF\xBF\xBE");
+
+	json_pull_ptr jp3 = json_begin_string("\"\\uD83D\\uDC00\"");
+	json_object_ptr o3 = json_read_tree(jp3);
+	REQUIRE(o3 != nullptr);
+	REQUIRE(o3->string() == "\xF0\x9F\x90\x80");
 }
 
 TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {
