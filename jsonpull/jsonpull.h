@@ -78,10 +78,14 @@ struct json_entry {
 //
 // Children are owned by their parent (via std::vector<json_object_ptr>
 // inside json_array / json_hash); the raw `parent` and `parser`
-// back-pointers stay valid as long as the node is attached to the tree.
-// json_disconnect() splices a node out of its parent and walks the
-// detached subtree clearing those back-pointers so the subtree can
-// outlive the original parser.
+// back-pointers own nothing. json_disconnect() splices a node out of its
+// parent and walks the detached subtree clearing every `parser` pointer,
+// so the subtree can outlive the original parser. The `parent` pointers
+// within the subtree survive -- they refer to nodes the caller now owns
+// as one unit -- so a detached tree can still be walked upwards, and
+// json_free() / json_disconnect() still work on its interior nodes. Only
+// the detached root's `parent`, which pointed out of the subtree, is
+// cleared.
 //
 // json_object intentionally has no virtual functions and no virtual
 // destructor; the json_object_ptr deleter (see below in this header)
@@ -364,10 +368,11 @@ json_object *json_read_separators(json_pull_ptr &j, json_separator_callback cb, 
 
 // json_read_tree drains the next top-level value out of the parser
 // and hands ownership to the caller. After it returns, jp->root is
-// empty, the parent/parser back-pointers throughout the subtree have
-// been cleared, and the caller's json_object_ptr is the only thing
-// keeping the tree alive. The returned tree can outlive the
-// json_pull it was parsed from.
+// empty, every `parser` back-pointer in the subtree has been cleared
+// (as has the root's `parent`), and the caller's json_object_ptr is the
+// only thing keeping the tree alive. The returned tree can outlive the
+// json_pull it was parsed from, and stays internally navigable: the
+// `parent` pointers between its nodes are left intact.
 json_object_ptr json_read_tree(json_pull_ptr &j);
 
 // json_free splices `o` out of its parent (if any), or clears the
@@ -377,11 +382,14 @@ json_object_ptr json_read_tree(json_pull_ptr &j);
 void json_free(json_object *o);
 
 // Splice `o` out of its parent's array/object (or out of the parser's
-// root), walk the detached subtree clearing parent/parser back-pointers,
-// and return ownership of the subtree to the caller as a
-// json_object_ptr. After this returns, the parser no longer references
-// any node in the subtree, and the subtree can outlive the original
-// parser.
+// root), walk the detached subtree clearing every `parser` back-pointer
+// (and the root's `parent`, which pointed out of the subtree), and return
+// ownership of the subtree to the caller as a json_object_ptr. After this
+// returns, the parser no longer references any node in the subtree, and
+// the subtree can outlive the original parser. The `parent` pointers
+// among the subtree's own nodes are preserved, so the detached tree can
+// still be walked upwards and json_free() / json_disconnect() still work
+// on its interior nodes.
 json_object_ptr json_disconnect(json_object *o);
 
 // Look up `s` in the hash `o`. Returns a borrowed pointer; ownership
