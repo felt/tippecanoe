@@ -93,11 +93,20 @@ struct mvt_value {
 		long long sint_value;
 		bool bool_value;
 		int null_value;
+		// Initializing string_value initializes the union's full width, which
+		// the static_assert below checks. Setting only a narrower member (a
+		// double, say) would leave the remaining bytes indeterminate, and the
+		// implicit copy constructor copies the union as a whole, so those
+		// bytes get read even when they aren't the member in use.
 		struct {
 			size_t off;
 			size_t len;
-		} string_value;
+		} string_value = {0, 0};
 	} numeric_value;
+
+	static_assert(sizeof(numeric_value) == sizeof(numeric_value.string_value),
+		      "string_value must span the whole union, since its default member "
+		      "initializer is what initializes the union");
 
 	std::string get_string_value() const {
 		if (type == mvt_string) {

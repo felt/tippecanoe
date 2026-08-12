@@ -11,7 +11,7 @@ CXX := $(CXX)
 CFLAGS := $(CFLAGS) -fPIE -DBUILD_INFO=$(BUILD_INFO)
 CXXFLAGS := $(CXXFLAGS) -std=c++17 -fPIE -DBUILD_INFO=$(BUILD_INFO)
 LDFLAGS := $(LDFLAGS)
-WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow
+WARNING_FLAGS := -Wall -Wshadow -Wsign-compare -Wextra -Wunreachable-code -Wuninitialized -Wshadow -Wvla
 RELEASE_FLAGS := -O3 -DNDEBUG
 DEBUG_FLAGS := -O0 -DDEBUG -fno-inline-functions -fno-omit-frame-pointer
 
@@ -48,8 +48,44 @@ install: tippecanoe tippecanoe-enumerate tippecanoe-decode tile-join tippecanoe-
 uninstall:
 	rm $(PREFIX)/bin/tippecanoe $(PREFIX)/bin/tippecanoe-enumerate $(PREFIX)/bin/tippecanoe-decode $(PREFIX)/bin/tile-join $(MANDIR)/tippecanoe.1 $(PREFIX)/bin/tippecanoe-json-tool
 
+# The man page is generated from README.md by go-md2man, which is packaged for
+# most systems (`brew install go-md2man`, `apt-get install go-md2man`) or can be
+# built with `go install github.com/cpuguy83/go-md2man/v2@v2.0.7`. CI checks that
+# the committed man page matches the README, so you don't have to regenerate it
+# yourself if you don't have go-md2man installed.
+#
+# README.md has no .TH or NAME section of its own, since neither would make sense
+# on GitHub, so prepend them here. go-md2man reads the leading "%" line as the
+# man page's title, section, date, and source. The version deliberately doesn't
+# appear there: it would make this page a build product of version.hpp, so every
+# release would have to regenerate it just to rewrite that one line, and the docs
+# CI job would fail on any version bump that forgot to.
+#
+# Two fixups on the way out:
+#
+#   - README.md's own title heading becomes the second .SH, right below the NAME
+#     section added above, which reads as a stray "tippecanoe" section. Rename it
+#     to DESCRIPTION, where the text under it belongs anyway.
+#   - go-md2man separates paragraphs with a blank line in addition to the .PP
+#     macro, and a blank line is itself a break in roff, so the two together
+#     double-space the whole page. Drop them, except within .EX and .TS blocks,
+#     where a blank line is part of the example or table rather than spacing.
 man/tippecanoe.1: README.md
-	md2man-roff README.md > man/tippecanoe.1
+	{ \
+		echo '% TIPPECANOE 1 "" "tippecanoe"'; \
+		echo; \
+		echo '# NAME'; \
+		echo; \
+		echo 'tippecanoe - build vector tilesets from GeoJSON, FlatGeobuf, or CSV features'; \
+		echo; \
+		cat README.md; \
+	} | go-md2man \
+	  | awk ' \
+		/^\.SH / && ++sh == 2 { print ".SH DESCRIPTION"; next } \
+		/^\.(EX|TS)$$/ { lit = 1 } \
+		/^\.(EE|TE)$$/ { lit = 0 } \
+		lit || !/^$$/ \
+	    ' > $@.tmp && mv $@.tmp $@
 
 PG=
 
@@ -59,25 +95,25 @@ C = $(wildcard *.c) $(wildcard *.cpp)
 INCLUDES = -I/usr/local/include -I. -Iclipper2/include
 LIBS = -L/usr/local/lib
 
-tippecanoe: geojson.o jsonpull/jsonpull.o tile.o pool.o mbtiles.o geometry.o projection.o memfile.o mvt.o serial.o main.o platform.o text.o dirtiles.o pmtiles_file.o plugin.o read_json.o write_json.o geobuf.o flatgeobuf.o evaluator.o geocsv.o csv.o geojson-loop.o json_logger.o visvalingam.o compression.o clip.o sort.o attribute.o thread.o shared_borders.o clipper2/src/clipper.engine.o
+tippecanoe: geojson.o jsonpull/jsonpull.o tile.o pool.o mbtiles.o geometry.o projection.o memfile.o mvt.o serial.o main.o platform.o text.o dirtiles.o pmtiles_file.o plugin.o read_json.o write_json.o geobuf.o flatgeobuf.o evaluator.o geocsv.o csv.o geojson-loop.o json_logger.o visvalingam.o compression.o clip.o sort.o attribute.o thread.o shared_borders.o usage.o clipper2/src/clipper.engine.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-tippecanoe-enumerate: enumerate.o
+tippecanoe-enumerate: enumerate.o usage.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lsqlite3
 
-tippecanoe-decode: decode.o projection.o mvt.o write_json.o text.o jsonpull/jsonpull.o dirtiles.o pmtiles_file.o
+tippecanoe-decode: decode.o projection.o mvt.o write_json.o text.o jsonpull/jsonpull.o dirtiles.o pmtiles_file.o usage.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3
 
-tile-join: tile-join.o platform.o projection.o mbtiles.o mvt.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o attribute.o thread.o read_json.o clipper2/src/clipper.engine.o
+tile-join: tile-join.o platform.o projection.o mbtiles.o mvt.o memfile.o dirtiles.o jsonpull/jsonpull.o text.o evaluator.o csv.o write_json.o pmtiles_file.o clip.o attribute.o thread.o read_json.o usage.o clipper2/src/clipper.engine.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o
+tippecanoe-json-tool: jsontool.o jsonpull/jsonpull.o csv.o text.o geojson-loop.o usage.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 unit: unit.o text.o sort.o mvt.o projection.o clip.o attribute.o jsonpull/jsonpull.o evaluator.o read_json.o clipper2/src/clipper.engine.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
-tippecanoe-overzoom: overzoom.o mvt.o clip.o evaluator.o jsonpull/jsonpull.o text.o attribute.o read_json.o projection.o read_json.o clipper2/src/clipper.engine.o
+tippecanoe-overzoom: overzoom.o mvt.o clip.o evaluator.o jsonpull/jsonpull.o text.o attribute.o read_json.o projection.o read_json.o usage.o clipper2/src/clipper.engine.o
 	$(CXX) $(PG) $(LIBS) $(FINAL_FLAGS) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) -lm -lz -lsqlite3 -lpthread
 
 -include $(wildcard *.d)
@@ -97,7 +133,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
 	./unit
 
 suffixes = json json.gz
@@ -108,6 +144,7 @@ suffixes = json json.gz
 # %22 for quoted quote
 # %2f for /
 # %3a for :
+# %3d for =
 # %5f for _
 # %7b for {
 
@@ -115,10 +152,11 @@ testargs = \
     $(subst %20,' ',\
         $(subst %22,'"',\
             $(subst %3a,:,\
-                $(subst %2f,/,\
-                    $(subst %7b,'{',\
-                        $(subst %5f,'_',\
-                            $(subst _, ,$(1))))))))
+                $(subst %3d,=,\
+                    $(subst %2f,/,\
+                        $(subst %7b,'{',\
+                            $(subst %5f,'_',\
+                                $(subst _, ,$(1)))))))))
 
 %.json.check:
 	./tippecanoe -q -a@ -f -o $@.mbtiles $(call testargs,$(patsubst %.json.check,%,$(word 4,$(subst /, ,$@)))) $(foreach suffix,$(suffixes),$(sort $(wildcard $(subst $(SPACE),/,$(wordlist 1,2,$(subst /, ,$@)))/*.$(suffix)))) < /dev/null
@@ -132,7 +170,7 @@ nogeobuf = tests/overflow/out/-z0.json $(wildcard tests/stringid/out/*.json)
 geobuf-test: tippecanoe-json-tool $(addsuffix .checkbuf,$(filter-out $(nogeobuf),$(TESTS)))
 
 # For quicker address sanitizer build, hope that regular JSON parsing is tested enough by parallel and join tests
-fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test pbf-test join-test enumerate-test decode-test join-filter-test unit
+fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit
 
 # XXX Use proper makefile rules instead of a for loop
 %.json.checkbuf:
@@ -142,6 +180,42 @@ fewer-tests: tippecanoe tippecanoe-decode geobuf-test raw-tiles-test parallel-te
 	./tippecanoe-decode -x generator $@.mbtiles | sed 's/checkbuf/check/g' | sed 's/\.geobuf//g' > $@.out
 	cmp $@.out $(patsubst %.checkbuf,%,$@)
 	rm $@.out $@.mbtiles
+
+# The result of the sort must not depend on how the sort was performed, so instead of
+# checking the sorted output against an expected copy of it, check that sorting by radix
+# produces the same tiles as sorting in memory. --prefer-radix-sort lowers the memory
+# limit to 8K, which radix() then halves again, so the radix subdivision has to recurse
+# until each bucket is under 4K. How deeply that recurses depends on how many files the
+# machine will let us open at once, but the sorted result is the same either way, so
+# this comparison doesn't depend on that.
+#
+# What sends the sort down its rarely-taken paths is the shape of the input rather than
+# the size of it: a feature whose geometry alone is bigger than the memory limit is
+# sorted as a bucket of its own, and features that share a long run of leading index
+# bits have to be subdivided until there are no bits left. The first two inputs are
+# each one of those on purpose -- several separated features too big to sort in memory,
+# and many features at one location -- and the rest are for breadth.
+radix-sort-test: tippecanoe tippecanoe-decode
+	mkdir -p tests/radix-sort
+	perl -e 'for ($$f = 0; $$f < 8; $$f++) { print "{ \"type\": \"Feature\", \"properties\": { \"f\": $$f }, \"geometry\": { \"type\": \"LineString\", \"coordinates\": ["; for ($$i = 0; $$i < 2000; $$i++) { print "," unless $$i == 0; printf "[%f,%f]", $$f * 40 - 175 + $$i * 0.001, $$i % 2 * 0.5 - 20; } print "] } }\n"; }' > tests/radix-sort/bigfeatures.json
+	perl -e 'for ($$i = 0; $$i < 500; $$i++) { print "{ \"type\": \"Feature\", \"properties\": { \"i\": $$i }, \"geometry\": { \"type\": \"Point\", \"coordinates\": [ 17, 42 ] } }\n"; }' > tests/radix-sort/onelocation.json
+	$(MAKE) radix-sort-compare RADIXIN="tests/radix-sort/bigfeatures.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/radix-sort/onelocation.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/feature-filter/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/ne_110m_ocean/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/border/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/loop/in.json" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/tl_2022_11_tract/in.json.gz" RADIXARGS="-z4"
+	$(MAKE) radix-sort-compare RADIXIN="tests/epsg-3857/in.json" RADIXARGS="-z4 -sEPSG:3857"
+	rm -r tests/radix-sort
+
+radix-sort-compare:
+	./tippecanoe -q -f $(RADIXARGS) -o tests/radix-sort/memory.mbtiles $(RADIXIN)
+	./tippecanoe -q -f $(RADIXARGS) -aR -o tests/radix-sort/radix.mbtiles $(RADIXIN)
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/radix-sort/memory.mbtiles > tests/radix-sort/memory.json
+	./tippecanoe-decode -x generator -x generator_options -x name -x description tests/radix-sort/radix.mbtiles > tests/radix-sort/radix.json
+	cmp tests/radix-sort/memory.json tests/radix-sort/radix.json
+	rm tests/radix-sort/memory.mbtiles tests/radix-sort/radix.mbtiles tests/radix-sort/memory.json tests/radix-sort/radix.json
 
 parallel-test: $(eval SHELL:=$(ADVSHELL))
 	mkdir -p tests/parallel
@@ -366,7 +440,7 @@ overzoom-test: tippecanoe-overzoom
 	./tippecanoe-overzoom -b0 --deduplicate-by-id -o tests/pbf/merged-dedup.pbf -t 1/1/0 tests/pbf/1.json.dir/0/0/0.pbf 0/0/0 tests/pbf/2.json.dir/0/0/0.pbf 0/0/0
 	./tippecanoe-decode tests/pbf/merged-dedup.pbf 1 1 0 > tests/pbf/merged-dedup.pbf.json.check
 	cmp tests/pbf/merged-dedup.pbf.json.check tests/pbf/merged-dedup.pbf.json
-	rm -r tests/pbf/1.json.dir tests/pbf/2.json.dir tests/pbf/merged-nodedup.pbf tests/pbf/merged-nodedup.pbf.json.check tests/pbf/merged-dedup.pbf.json.check
+	rm -r tests/pbf/1.json.dir tests/pbf/2.json.dir tests/pbf/merged-nodedup.pbf tests/pbf/merged-nodedup.pbf.json.check tests/pbf/merged-dedup.pbf tests/pbf/merged-dedup.pbf.json.check
 
 join-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -z12 -o tests/join-population/tabblock_06001420.mbtiles -YALAND10:'Land area' -L'{"file": "tests/join-population/tabblock_06001420.json", "description": "population"}'
@@ -571,6 +645,12 @@ csv-test: tippecanoe tippecanoe-decode
 	./tippecanoe-decode -x generator -x generator_options tests/csv/out.mbtiles > tests/csv/out.mbtiles.json.check
 	cmp tests/csv/out.mbtiles.json.check tests/csv/out.mbtiles.json
 	rm -f tests/csv/out.mbtiles.json.check tests/csv/out.mbtiles
+
+flatgeobuf-test: tippecanoe tippecanoe-decode
+	./tippecanoe -q -f -z0 -l numeric-properties -o tests/flatgeobuf/numeric-properties.mbtiles tests/flatgeobuf/numeric-properties.fgb
+	./tippecanoe-decode tests/flatgeobuf/numeric-properties.mbtiles 0 0 0 > tests/flatgeobuf/numeric-properties.json.check
+	cmp tests/flatgeobuf/numeric-properties.json.check tests/flatgeobuf/numeric-properties.json
+	rm -f tests/flatgeobuf/numeric-properties.mbtiles tests/flatgeobuf/numeric-properties.json.check
 
 layer-json-test: tippecanoe tippecanoe-decode
 	# GeoJSON with description and named layer

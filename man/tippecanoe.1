@@ -1,26 +1,39 @@
-.TH tippecanoe
+'\" t
+.nh
+.TH TIPPECANOE 1 "" "tippecanoe"
+.SH NAME
+tippecanoe \- build vector tilesets from GeoJSON, FlatGeobuf, or CSV features
+.SH DESCRIPTION
+Builds vector tilesets
+\[la]https://github.com/mapbox/vector\-tile\-spec/\[ra] from large (or small) collections of GeoJSON
+\[la]http://geojson.org/\[ra], FlatGeobuf
+\[la]https://github.com/flatgeobuf/flatgeobuf\[ra], or CSV
+\[la]https://en.wikipedia.org/wiki/Comma\-separated_values\[ra] features,
+like these
+\[la]MADE_WITH.md\[ra]\&.
 .PP
-Builds vector tilesets \[la]https://github.com/mapbox/vector-tile-spec/\[ra] from large (or small) collections of GeoJSON \[la]http://geojson.org/\[ra], FlatGeobuf \[la]https://github.com/flatgeobuf/flatgeobuf\[ra], or CSV \[la]https://en.wikipedia.org/wiki/Comma-separated_values\[ra] features,
-like these \[la]MADE_WITH.md\[ra]\&.
+This is the official home of Tippecanoe, developed and actively maintained by Erica Fischer
+\[la]https://github.com/e\-n\-f\[ra] at Felt
+\[la]https://felt.com\[ra]\&.
 .PP
-This is the official home of Tippecanoe, developed and actively maintained by Erica Fischer \[la]https://github.com/e-n-f\[ra] at Felt \[la]https://felt.com\[ra]\&. 
+For a self-hosted, API driven version of Tippecanoe, contact a technical sales engineer at sales@felt.com. Felt produces highly performant, automatically projected versions of your data, and utilizes a rendering engine, built on top of MapLibre GL JS
+\[la]https://github.com/maplibre/maplibre\-gl\-js\[ra], to style vector and raster data.
 .PP
-For a self\-hosted, API driven version of Tippecanoe, contact a technical sales engineer at \[la]sales@felt.com\[ra]\&. Felt produces highly performant, automatically projected versions of your data, and utilizes a rendering engine, built on top of MapLibre GL JS \[la]https://github.com/maplibre/maplibre-gl-js\[ra], to style vector and raster data.
-.PP
-Version 2.0.0 is equivalent to 1.36.0 \[la]https://github.com/mapbox/tippecanoe/tree/1.36.0\[ra] in the original repository. Thank you Mapbox for the many years of early support.
+Version 2.0.0 is equivalent to 1.36.0
+\[la]https://github.com/mapbox/tippecanoe/tree/1.36.0\[ra] in the original repository. Thank you Mapbox for the many years of early support.
 .SH Intent
-.PP
-The goal of Tippecanoe is to enable making a scale\-independent view of your data,
+The goal of Tippecanoe is to enable making a scale-independent view of your data,
 so that at any level from the entire world to a single building, you can see
 the density and texture of the data rather than a simplification from dropping
 supposedly unimportant features or clustering or aggregating them.
 .PP
 If you give it all of OpenStreetMap and zoom out, it should give you back
-something that looks like "All Streets \[la]http://benfry.com/allstreets/map5.html\[ra]"
+something that looks like "All Streets
+\[la]https://benfry.com/allstreets/\[ra]"
 rather than something that looks like an Interstate road atlas.
 .PP
 If you give it all the building footprints in Los Angeles and zoom out
-far enough that most individual buildings are no longer discernable, you
+far enough that most individual buildings are no longer discernible, you
 should still be able to see the extent and variety of development in every neighborhood,
 not just the largest downtown buildings.
 .PP
@@ -28,854 +41,706 @@ If you give it a collection of years of tweet locations, you should be able to
 see the shape and relative popularity of every point of interest and every
 significant travel corridor.
 .SH Installation
-.PP
-The easiest way to install tippecanoe on OSX is with Homebrew \[la]http://brew.sh/\[ra]:
-.PP
-.RS
-.nf
+The easiest way to install tippecanoe on OSX is with Homebrew
+\[la]http://brew.sh/\[ra]:
+.EX
 $ brew install tippecanoe
-.fi
-.RE
+.EE
 .PP
 On Ubuntu it will usually be easiest to build from the source repository:
-.PP
-.RS
-.nf
+.EX
 $ git clone https://github.com/felt/tippecanoe.git
 $ cd tippecanoe
-$ make \-j
+$ make -j
 $ make install
-.fi
-.RE
+.EE
 .PP
-See Development \[la]#development\[ra] below for how to upgrade your
+See Development
+\[la]#development\[ra] below for how to upgrade your
 C++ compiler or install prerequisite packages if you get
 compiler errors.
 .SH Usage
-.PP
-.RS
-.nf
-$ tippecanoe \-o file.mbtiles [options] [file.json file.json.gz file.fgb ...]
-.fi
-.RE
+.EX
+$ tippecanoe -o file.mbtiles [options] [file.json file.json.gz file.fgb file.csv ...]
+.EE
 .PP
 If no files are specified, it reads GeoJSON from the standard input.
-If multiple files are specified, each is placed in its own layer \[la]#input-files-and-layer-names\[ra]\&.
+If multiple files are specified, each is placed in its own layer
+\[la]#input\-files\-and\-layer\-names\[ra]\&.
 .PP
 The GeoJSON features need not be wrapped in a FeatureCollection.
 You can concatenate multiple GeoJSON features or files together,
 and it will parse out the features and ignore whatever other objects
 it encounters.
 .SH Try this first
-.PP
 If you aren't sure what options to use, try this:
+.EX
+$ tippecanoe -zg -o out.mbtiles --drop-densest-as-needed in.geojson
+.EE
 .PP
-.RS
-.nf
-$ tippecanoe \-zg \-o out.mbtiles \-\-drop\-densest\-as\-needed in.geojson
-.fi
-.RE
-.PP
-The \fB\fC\-zg\fR option will make Tippecanoe choose a maximum zoom level that should be
+The \fB-zg\fR option will make Tippecanoe choose a maximum zoom level that should be
 high enough to reflect the precision of the original data. (If it turns out still
-not to be as detailed as you want, use \fB\fC\-z\fR manually with a higher number.)
+not to be as detailed as you want, use \fB-z\fR manually with a higher number.)
 .PP
-If the tiles come out too big, the \fB\fC\-\-drop\-densest\-as\-needed\fR option will make
+If the tiles come out too big, the \fB--drop-densest-as-needed\fR option will make
 Tippecanoe try dropping what should be the least visible features at each zoom level.
-(If it drops too many features, use \fB\fC\-x\fR to leave out some feature attributes that
+(If it drops too many features, use \fB-x\fR to leave out some feature attributes that
 you didn't really need.)
 .SH Examples
-.PP
 Create a tileset of TIGER roads for Alameda County, to zoom level 13, with a custom layer name and description:
-.PP
-.RS
-.nf
-$ tippecanoe \-o alameda.mbtiles \-l alameda \-n "Alameda County from TIGER" \-z13 tl_2014_06001_roads.json
-.fi
-.RE
+.EX
+$ tippecanoe -o alameda.mbtiles -l alameda -n "Alameda County from TIGER" -z13 tl_2014_06001_roads.json
+.EE
 .PP
 Create a tileset of all TIGER roads, at only zoom level 12, but with higher detail than normal,
-with a custom layer name and description, and leaving out the \fB\fCLINEARID\fR and \fB\fCRTTYP\fR attributes:
-.PP
-.RS
-.nf
-$ cat tiger/tl_2014_*_roads.json | tippecanoe \-o tiger.mbtiles \-l roads \-n "All TIGER roads, one zoom" \-z12 \-Z12 \-d14 \-x LINEARID \-x RTTYP
-.fi
-.RE
+with a custom layer name and description, and leaving out the \fBLINEARID\fR and \fBRTTYP\fR attributes:
+.EX
+$ cat tiger/tl_2014_*_roads.json | tippecanoe -o tiger.mbtiles -l roads -n "All TIGER roads, one zoom" -z12 -Z12 -d14 -x LINEARID -x RTTYP
+.EE
 .SH Cookbook
 .SS Linear features (world railroads), visible at all zoom levels
-.PP
-.RS
-.nf
-curl \-L \-O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_railroads.zip
+.EX
+curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_railroads.zip
 unzip ne_10m_railroads.zip
-ogr2ogr \-f GeoJSON ne_10m_railroads.geojson ne_10m_railroads.shp
+ogr2ogr -f GeoJSON ne_10m_railroads.geojson ne_10m_railroads.shp
 
-tippecanoe \-zg \-o ne_10m_railroads.mbtiles \-\-drop\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping ne_10m_railroads.geojson
-.fi
-.RE
-.RS
+tippecanoe -zg -o ne_10m_railroads.mbtiles --drop-densest-as-needed --extend-zooms-if-still-dropping ne_10m_railroads.geojson
+.EE
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-\-drop\-densest\-as\-needed\fR: If the tiles are too big at low zoom levels, drop the least\-visible features to allow tiles to be created with those features that remain
+\fB--drop-densest-as-needed\fR: If the tiles are too big at low zoom levels, drop the least-visible features to allow tiles to be created with those features that remain
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
-.RE
+\fB--extend-zooms-if-still-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
 .SS Discontinuous polygon features (buildings of Rhode Island), visible at all zoom levels
-.PP
-.RS
-.nf
-curl \-L \-O https://usbuildingdata.blob.core.windows.net/usbuildings\-v1\-1/RhodeIsland.zip
+.EX
+curl -L -O https://usbuildingdata.blob.core.windows.net/usbuildings-v1-1/RhodeIsland.zip
 unzip RhodeIsland.zip
 
-tippecanoe \-zg \-o RhodeIsland.mbtiles \-\-drop\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping RhodeIsland.geojson
-.fi
-.RE
-.RS
+tippecanoe -zg -o RhodeIsland.mbtiles --drop-densest-as-needed --extend-zooms-if-still-dropping RhodeIsland.geojson
+.EE
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-\-drop\-densest\-as\-needed\fR: If the tiles are too big at low or medium zoom levels, drop the least\-visible features to allow tiles to be created with those features that remain
+\fB--drop-densest-as-needed\fR: If the tiles are too big at low or medium zoom levels, drop the least-visible features to allow tiles to be created with those features that remain
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
-.RE
+\fB--extend-zooms-if-still-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
 .SS Continuous polygon features (states and provinces), visible at all zoom levels
-.PP
-.RS
-.nf
-curl \-L \-O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_1_states_provinces.zip
-unzip \-o ne_10m_admin_1_states_provinces.zip
-ogr2ogr \-f GeoJSON ne_10m_admin_1_states_provinces.geojson ne_10m_admin_1_states_provinces.shp
+.EX
+curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_1_states_provinces.zip
+unzip -o ne_10m_admin_1_states_provinces.zip
+ogr2ogr -f GeoJSON ne_10m_admin_1_states_provinces.geojson ne_10m_admin_1_states_provinces.shp
 
-tippecanoe \-zg \-o ne_10m_admin_1_states_provinces.mbtiles \-\-coalesce\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping ne_10m_admin_1_states_provinces.geojson
-.fi
-.RE
-.RS
+tippecanoe -zg -o ne_10m_admin_1_states_provinces.mbtiles --coalesce-densest-as-needed --extend-zooms-if-still-dropping ne_10m_admin_1_states_provinces.geojson
+.EE
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-\-coalesce\-densest\-as\-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
+\fB--coalesce-densest-as-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
-.RE
+\fB--extend-zooms-if-still-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
 .SS Large point dataset (GPS bus locations), for visualization at all zoom levels
-.PP
-.RS
-.nf
-curl \-L \-O ftp://avl\-data.sfmta.com/avl_data/avl_raw/sfmtaAVLRawData01012013.csv
+.EX
+curl -L -O ftp://avl-data.sfmta.com/avl_data/avl_raw/sfmtaAVLRawData01012013.csv
 sed 's/PREDICTABLE.*/PREDICTABLE/' sfmtaAVLRawData01012013.csv > sfmta.csv
-tippecanoe \-zg \-o sfmta.mbtiles \-\-drop\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping sfmta.csv
-.fi
-.RE
+tippecanoe -zg -o sfmta.mbtiles --drop-densest-as-needed --extend-zooms-if-still-dropping sfmta.csv
+.EE
 .PP
-(The \fB\fCsed\fR line is to clean the corrupt CSV header, which contains the wrong number of fields.)
-.RS
+(The \fBsed\fR line is to clean the corrupt CSV header, which contains the wrong number of fields.)
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-\-drop\-densest\-as\-needed\fR: If the tiles are too big at low or medium zoom levels, drop the least\-visible features to allow tiles to be created with those features that remain
+\fB--drop-densest-as-needed\fR: If the tiles are too big at low or medium zoom levels, drop the least-visible features to allow tiles to be created with those features that remain
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
-.RE
+\fB--extend-zooms-if-still-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
 .SS Clustered points (world cities), summing the clustered population, visible at all zoom levels
-.PP
-.RS
-.nf
-curl \-L \-O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_populated_places.zip
-unzip \-o ne_10m_populated_places.zip
-ogr2ogr \-f GeoJSON ne_10m_populated_places.geojson ne_10m_populated_places.shp
+.EX
+curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_populated_places.zip
+unzip -o ne_10m_populated_places.zip
+ogr2ogr -f GeoJSON ne_10m_populated_places.geojson ne_10m_populated_places.shp
 
-tippecanoe \-zg \-o ne_10m_populated_places.mbtiles \-r1 \-\-cluster\-distance=10 \-\-accumulate\-attribute=POP_MAX:sum ne_10m_populated_places.geojson
-.fi
-.RE
-.RS
+tippecanoe -zg -o ne_10m_populated_places.mbtiles -r1 --cluster-distance=10 --accumulate-attribute=POP_MAX:sum ne_10m_populated_places.geojson
+.EE
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-r1\fR: Do not automatically drop a fraction of points at low zoom levels, since clustering will be used instead
+\fB-r1\fR: Do not automatically drop a fraction of points at low zoom levels, since clustering will be used instead
 .IP \(bu 2
-\fB\fC\-\-cluster\-distance=10\fR: Cluster together features that are closer than about 10 pixels from each other
+\fB--cluster-distance=10\fR: Cluster together features that are closer than about 10 pixels from each other
 .IP \(bu 2
-\fB\fC\-\-accumulate\-attribute=POP_MAX:sum\fR: Sum the \fB\fCPOP_MAX\fR (population) attribute in features that are clustered together. Other attributes will be arbitrarily taken from the first feature in the cluster.
-.RE
+\fB--accumulate-attribute=POP_MAX:sum\fR: Sum the \fBPOP_MAX\fR (population) attribute in features that are clustered together. Other attributes will be arbitrarily taken from the first feature in the cluster.
 .SS Show countries at low zoom levels but states at higher zoom levels
-.PP
-.RS
-.nf
-curl \-L \-O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip
+.EX
+curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip
 unzip ne_10m_admin_0_countries.zip
-ogr2ogr \-f GeoJSON ne_10m_admin_0_countries.geojson ne_10m_admin_0_countries.shp
+ogr2ogr -f GeoJSON ne_10m_admin_0_countries.geojson ne_10m_admin_0_countries.shp
 
-curl \-L \-O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_1_states_provinces.zip
-unzip \-o ne_10m_admin_1_states_provinces.zip
-ogr2ogr \-f GeoJSON ne_10m_admin_1_states_provinces.geojson ne_10m_admin_1_states_provinces.shp
+curl -L -O https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_1_states_provinces.zip
+unzip -o ne_10m_admin_1_states_provinces.zip
+ogr2ogr -f GeoJSON ne_10m_admin_1_states_provinces.geojson ne_10m_admin_1_states_provinces.shp
 
-tippecanoe \-z3 \-o countries\-z3.mbtiles \-\-coalesce\-densest\-as\-needed ne_10m_admin_0_countries.geojson
-tippecanoe \-zg \-Z4 \-o states\-Z4.mbtiles \-\-coalesce\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping ne_10m_admin_1_states_provinces.geojson
-tile\-join \-o states\-countries.mbtiles countries\-z3.mbtiles states\-Z4.mbtiles
-.fi
-.RE
+tippecanoe -z3 -o countries-z3.mbtiles --coalesce-densest-as-needed ne_10m_admin_0_countries.geojson
+tippecanoe -zg -Z4 -o states-Z4.mbtiles --coalesce-densest-as-needed --extend-zooms-if-still-dropping ne_10m_admin_1_states_provinces.geojson
+tile-join -o states-countries.mbtiles countries-z3.mbtiles states-Z4.mbtiles
+.EE
 .PP
 Countries:
-.RS
 .IP \(bu 2
-\fB\fC\-z3\fR: Only generate zoom levels 0 through 3
+\fB-z3\fR: Only generate zoom levels 0 through 3
 .IP \(bu 2
-\fB\fC\-\-coalesce\-densest\-as\-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
-.RE
+\fB--coalesce-densest-as-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
 .PP
 States and Provinces:
-.RS
 .IP \(bu 2
-\fB\fC\-Z4\fR: Only generate zoom levels 4 and beyond
+\fB-Z4\fR: Only generate zoom levels 4 and beyond
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-\-coalesce\-densest\-as\-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
+\fB--coalesce-densest-as-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
-.RE
+\fB--extend-zooms-if-still-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
 .SS Represent multiple sources (Illinois and Indiana counties) as separate layers
-.PP
-.RS
-.nf
-curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_17_county10.zip
+.EX
+curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_17_county10.zip
 unzip tl_2010_17_county10.zip
-ogr2ogr \-f GeoJSON tl_2010_17_county10.geojson tl_2010_17_county10.shp
+ogr2ogr -f GeoJSON tl_2010_17_county10.geojson tl_2010_17_county10.shp
 
-curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_18_county10.zip
+curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_18_county10.zip
 unzip tl_2010_18_county10.zip
-ogr2ogr \-f GeoJSON tl_2010_18_county10.geojson tl_2010_18_county10.shp
+ogr2ogr -f GeoJSON tl_2010_18_county10.geojson tl_2010_18_county10.shp
 
-tippecanoe \-zg \-o counties\-separate.mbtiles \-\-coalesce\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping tl_2010_17_county10.geojson tl_2010_18_county10.geojson
-.fi
-.RE
-.RS
+tippecanoe -zg -o counties-separate.mbtiles --coalesce-densest-as-needed --extend-zooms-if-still-dropping tl_2010_17_county10.geojson tl_2010_18_county10.geojson
+.EE
 .IP \(bu 2
-\fB\fC\-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
+\fB-zg\fR: Automatically choose a maxzoom that should be sufficient to clearly distinguish the features and the detail within each feature
 .IP \(bu 2
-\fB\fC\-\-coalesce\-densest\-as\-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
+\fB--coalesce-densest-as-needed\fR: If the tiles are too big at low or medium zoom levels, merge as many features together as are necessary to allow tiles to be created with those features that are still distinguished
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
-.RE
+\fB--extend-zooms-if-still-dropping\fR: If even the tiles at high zoom levels are too big, keep adding zoom levels until one is reached that can represent all the features
 .SS Merge multiple sources (Illinois and Indiana counties) into the same layer
-.PP
-.RS
-.nf
-curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_17_county10.zip
+.EX
+curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_17_county10.zip
 unzip tl_2010_17_county10.zip
-ogr2ogr \-f GeoJSON tl_2010_17_county10.geojson tl_2010_17_county10.shp
+ogr2ogr -f GeoJSON tl_2010_17_county10.geojson tl_2010_17_county10.shp
 
-curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_18_county10.zip
+curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_18_county10.zip
 unzip tl_2010_18_county10.zip
-ogr2ogr \-f GeoJSON tl_2010_18_county10.geojson tl_2010_18_county10.shp
+ogr2ogr -f GeoJSON tl_2010_18_county10.geojson tl_2010_18_county10.shp
 
-tippecanoe \-zg \-o counties\-merged.mbtiles \-l counties \-\-coalesce\-densest\-as\-needed \-\-extend\-zooms\-if\-still\-dropping tl_2010_17_county10.geojson tl_2010_18_county10.geojson
-.fi
-.RE
+tippecanoe -zg -o counties-merged.mbtiles -l counties --coalesce-densest-as-needed --extend-zooms-if-still-dropping tl_2010_17_county10.geojson tl_2010_18_county10.geojson
+.EE
 .PP
 As above, but
-.RS
 .IP \(bu 2
-\fB\fC\-l counties\fR: Specify the layer name instead of letting it be derived from the source file names
-.RE
+\fB-l counties\fR: Specify the layer name instead of letting it be derived from the source file names
 .SS Selectively remove and replace features (Census tracts) to update a tileset
-.PP
-.RS
-.nf
+.EX
 # Retrieve and tile California 2000 Census tracts
-curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/TRACT/2000/tl_2010_06_tract00.zip
+curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/TRACT/2000/tl_2010_06_tract00.zip
 unzip tl_2010_06_tract00.zip
-ogr2ogr \-f GeoJSON tl_2010_06_tract00.shp.json tl_2010_06_tract00.shp
-tippecanoe \-z11 \-o tracts.mbtiles \-l tracts tl_2010_06_tract00.shp.json
+ogr2ogr -f GeoJSON tl_2010_06_tract00.shp.json tl_2010_06_tract00.shp
+tippecanoe -z11 -o tracts.mbtiles -l tracts tl_2010_06_tract00.shp.json
 
 # Create a copy of the tileset, minus Alameda County (FIPS code 001)
-tile\-join \-j '{"*":["none",["==","COUNTYFP00","001"]]}' \-f \-o tracts\-filtered.mbtiles tracts.mbtiles
+tile-join -j '{"*":["none",["==","COUNTYFP00","001"]]}' -f -o tracts-filtered.mbtiles tracts.mbtiles
 
 # Retrieve and tile Alameda County Census tracts for 2010
-curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/TRACT/2010/tl_2010_06001_tract10.zip
+curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/TRACT/2010/tl_2010_06001_tract10.zip
 unzip tl_2010_06001_tract10.zip
-ogr2ogr \-f GeoJSON tl_2010_06001_tract10.shp.json tl_2010_06001_tract10.shp
-tippecanoe \-z11 \-o tracts\-added.mbtiles \-l tracts tl_2010_06001_tract10.shp.json
+ogr2ogr -f GeoJSON tl_2010_06001_tract10.shp.json tl_2010_06001_tract10.shp
+tippecanoe -z11 -o tracts-added.mbtiles -l tracts tl_2010_06001_tract10.shp.json
 
 # Merge the filtered tileset and the tileset of new tracts into a final tileset
-tile\-join \-o tracts\-final.mbtiles tracts\-filtered.mbtiles tracts\-added.mbtiles
-.fi
-.RE
+tile-join -o tracts-final.mbtiles tracts-filtered.mbtiles tracts-added.mbtiles
+.EE
 .PP
-The \fB\fC\-z11\fR option explicitly specifies the maxzoom, to make sure both the old and new tilesets have the same zoom range.
+The \fB-z11\fR option explicitly specifies the maxzoom, to make sure both the old and new tilesets have the same zoom range.
 .PP
-The \fB\fC\-j\fR option to \fB\fCtile\-join\fR specifies a filter, so that only the desired features will be copied to the new tileset.
-This filter excludes (using \fB\fCnone\fR) any features whose FIPS code (\fB\fCCOUNTYFP00\fR) is the code for Alameda County (\fB\fC001\fR).
+The \fB-j\fR option to \fBtile-join\fR specifies a filter, so that only the desired features will be copied to the new tileset.
+This filter excludes (using \fBnone\fR) any features whose FIPS code (\fBCOUNTYFP00\fR) is the code for Alameda County (\fB001\fR).
 .SH Options
-.PP
 There are a lot of options. A lot of the time you won't want to use any of them
-other than \fB\fC\-o\fR \fIoutput\fP\fB\fC\&.mbtiles\fR to name the output file, and probably \fB\fC\-f\fR to
+other than \fB-o\fR \fIoutput\fP\fB\&.mbtiles\fR to name the output file, and probably \fB-f\fR to
 delete the file that already exists with that name.
 .PP
-If you aren't sure what the right maxzoom is for your data, \fB\fC\-zg\fR will guess one for you
+If you aren't sure what the right maxzoom is for your data, \fB-zg\fR will guess one for you
 based on the density of features.
 .PP
 Tippecanoe will normally drop a fraction of point features at zooms below the maxzoom,
-to keep the low\-zoom tiles from getting too big. If you have a smaller data set where
-all the points would fit without dropping any of them, use \fB\fC\-r1\fR to keep them all.
-If you do want point dropping, but you still want the tiles to be denser than \fB\fC\-zg\fR
-thinks they should be, use \fB\fC\-B\fR to set a basezoom lower than the maxzoom.
+to keep the low-zoom tiles from getting too big. If you have a smaller data set where
+all the points would fit without dropping any of them, use \fB-r1\fR to keep them all.
+If you do want point dropping, but you still want the tiles to be denser than \fB-zg\fR
+thinks they should be, use \fB-B\fR to set a basezoom lower than the maxzoom.
 .PP
 If some of your tiles are coming out too big in spite of the settings above, you will
-often want to use \fB\fC\-\-drop\-densest\-as\-needed\fR to drop whatever fraction of the features
+often want to use \fB--drop-densest-as-needed\fR to drop whatever fraction of the features
 is necessary at each zoom level to make that zoom level's tiles work.
 .PP
-If your features have a lot of attributes, use \fB\fC\-y\fR to keep only the ones you really need.
+If your features have a lot of attributes, use \fB-y\fR to keep only the ones you really need.
 .PP
-If your input is formatted as newline\-delimited GeoJSON, use \fB\fC\-P\fR to make input parsing a lot faster.
+If your input is formatted as newline-delimited GeoJSON, use \fB-P\fR to make input parsing a lot faster.
+.PP
+Many of the options below have a short form beginning with \fB-a\fR or \fB-p\fR\&. These are the
+\fB-a\fR\fIletters\fP (\fB--additional=\fR\fIletters\fP) and \fB-p\fR\fIletters\fP (\fB--prevent=\fR\fIletters\fP) options, and each
+accepts several letters at once, so for example \fB-ansd\fR is the same as \fB-an -as -ad\fR
+and \fB-pkC\fR is the same as \fB-pk -pC\fR\&.
 .SS Output tileset
-.RS
 .IP \(bu 2
-\fB\fC\-o\fR \fIfile\fP\fB\fC\&.mbtiles\fR, \fIfile\fP\fB\fC\&.pmtiles\fR or \fB\fC\-\-output=\fR\fIfile\fP\fB\fC\&.mbtiles\fR: Name the output file.
+\fB-o\fR \fIfile\fP\fB\&.mbtiles\fR, \fIfile\fP\fB\&.pmtiles\fR or \fB--output=\fR\fIfile\fP\fB\&.mbtiles\fR: Name the output file.
 .IP \(bu 2
-\fB\fC\-e\fR \fIdirectory\fP or \fB\fC\-\-output\-to\-directory\fR=\fIdirectory\fP: Write tiles to the specified \fIdirectory\fP instead of to an mbtiles file.
+\fB-e\fR \fIdirectory\fP or \fB--output-to-directory\fR=\fIdirectory\fP: Write tiles to the specified \fIdirectory\fP instead of to an mbtiles file.
 .IP \(bu 2
-\fB\fC\-f\fR or \fB\fC\-\-force\fR: Delete the mbtiles file if it already exists instead of giving an error
+\fB-f\fR or \fB--force\fR: Delete the mbtiles file if it already exists instead of giving an error
 .IP \(bu 2
-\fB\fC\-F\fR or \fB\fC\-\-allow\-existing\fR: Proceed (without deleting existing data) if the metadata or tiles table already exists
+\fB-F\fR or \fB--allow-existing\fR: Proceed (without deleting existing data) if the metadata or tiles table already exists
 or if metadata fields can't be set. You probably don't want to use this.
-.RE
 .SS Tileset description and attribution
-.RS
 .IP \(bu 2
-\fB\fC\-n\fR \fIname\fP or \fB\fC\-\-name=\fR\fIname\fP: Human\-readable name for the tileset (default file.json)
+\fB-n\fR \fIname\fP or \fB--name=\fR\fIname\fP: Human-readable name for the tileset (default: the name of the output file or directory)
 .IP \(bu 2
-\fB\fC\-A\fR \fItext\fP or \fB\fC\-\-attribution=\fR\fItext\fP: Attribution (HTML) to be shown with maps that use data from this tileset.
+\fB-A\fR \fItext\fP or \fB--attribution=\fR\fItext\fP: Attribution (HTML) to be shown with maps that use data from this tileset.
 .IP \(bu 2
-\fB\fC\-N\fR \fIdescription\fP or \fB\fC\-\-description=\fR\fIdescription\fP: Description for the tileset (default file.mbtiles)
-.RE
+\fB-N\fR \fIdescription\fP or \fB--description=\fR\fIdescription\fP: Description for the tileset (default: the name of the output file or directory)
 .SS Input files and layer names
-.RS
 .IP \(bu 2
-\fIname\fP\fB\fC\&.json\fR or \fIname\fP\fB\fC\&.geojson\fR: Read the named GeoJSON input file into a layer called \fIname\fP\&.
+\fIname\fP\fB\&.json\fR or \fIname\fP\fB\&.geojson\fR: Read the named GeoJSON input file into a layer called \fIname\fP\&.
 .IP \(bu 2
-\fIname\fP\fB\fC\&.json.gz\fR or \fIname\fP\fB\fC\&.geojson.gz\fR: Read the named gzipped GeoJSON input file into a layer called \fIname\fP\&.
+\fIname\fP\fB\&.json.gz\fR or \fIname\fP\fB\&.geojson.gz\fR: Read the named gzipped GeoJSON input file into a layer called \fIname\fP\&.
 .IP \(bu 2
-\fIname\fP\fB\fC\&.fgb\fR: Read the named FlatGeobuf input file into a layer called \fIname\fP\&.
+\fIname\fP\fB\&.fgb\fR: Read the named FlatGeobuf input file into a layer called \fIname\fP\&.
 .IP \(bu 2
-\fIname\fP\fB\fC\&.csv\fR: Read the named CSV input file into a layer called \fIname\fP\&.
+\fIname\fP\fB\&.csv\fR: Read the named CSV input file into a layer called \fIname\fP\&.
 .IP \(bu 2
-\fB\fC\-l\fR \fIname\fP or \fB\fC\-\-layer=\fR\fIname\fP: Use the specified layer name instead of deriving a name from the input filename or output tileset. If there are multiple input files
-specified, the files are all merged into the single named layer, even if they try to specify individual names with \fB\fC\-L\fR\&.
+\fB-l\fR \fIname\fP or \fB--layer=\fR\fIname\fP: Use the specified layer name instead of deriving a name from the input filename or output tileset. If there are multiple input files
+specified, the files are all merged into the single named layer, even if they try to specify individual names with \fB-L\fR\&.
 .IP \(bu 2
-\fB\fC\-L\fR \fIname\fP\fB\fC:\fR\fIfile.json\fP or \fB\fC\-\-named\-layer=\fR\fIname\fP\fB\fC:\fR\fIfile.json\fP: Specify layer names for individual files. If your shell supports it, you can use a subshell redirect like \fB\fC\-L\fR \fIname\fP\fB\fC:<(cat dir/*.json)\fR to specify a layer name for the output of streamed input.
+\fB-L\fR \fIname\fP\fB:\fR\fIfile.json\fP or \fB--named-layer=\fR\fIname\fP\fB:\fR\fIfile.json\fP: Specify layer names for individual files. If your shell supports it, you can use a subshell redirect like \fB-L\fR \fIname\fP\fB:<(cat dir/*.json)\fR to specify a layer name for the output of streamed input.
 .IP \(bu 2
-\fB\fC\-L{\fR\fIlayer\-json\fP\fB\fC}\fR or \fB\fC\-\-named\-layer={\fR\fIlayer\-json\fP\fB\fC}\fR: Specify an input file and layer options by a JSON object. The JSON object must contain a \fB\fC"file"\fR key to specify the filename to read from. (If the \fB\fC"file"\fR key is an empty string, it means to read from the standard input stream.) It may also contain a \fB\fC"layer"\fR field to specify the name of the layer, and/or a \fB\fC"description"\fR field to specify the layer's description in the tileset metadata, and/or a \fB\fC"format"\fR field to specify \fB\fCcsv\fR or \fB\fCfgb\fR file format if it is not obvious from the \fB\fCname\fR\&. Example:
-.RE
+\fB-L{\fR\fIlayer-json\fP\fB}\fR or \fB--named-layer={\fR\fIlayer-json\fP\fB}\fR: Specify an input file and layer options by a JSON object. The JSON object must contain a \fB"file"\fR key to specify the filename to read from. (If the \fB"file"\fR key is an empty string, it means to read from the standard input stream.) It may also contain a \fB"layer"\fR field to specify the name of the layer, and/or a \fB"description"\fR field to specify the layer's description in the tileset metadata, and/or a \fB"format"\fR field to specify \fBcsv\fR or \fBfgb\fR file format if it is not obvious from the \fBname\fR\&. Example:
+.EX
+tippecanoe -z5 -o world.mbtiles -L'{"file":"ne_10m_admin_0_countries.json", "layer":"countries", "description":"Natural Earth countries"}'
+.EE
 .PP
-.RS
-.nf
-tippecanoe \-z5 \-o world.mbtiles \-L'{"file":"ne_10m_admin_0_countries.json", "layer":"countries", "description":"Natural Earth countries"}'
-.fi
-.RE
-.PP
-CSV input files currently support only Point geometries, from columns named \fB\fClatitude\fR, \fB\fClongitude\fR, \fB\fClat\fR, \fB\fClon\fR, \fB\fClong\fR, \fB\fClng\fR, \fB\fCx\fR, or \fB\fCy\fR\&.
+CSV input files currently support only Point geometries, from columns named \fBlat\fR, \fBlon\fR, \fBlong\fR, \fBlng\fR, \fBx\fR, or \fBy\fR, or from any column whose name contains \fBlatitude\fR or \fBlongitude\fR\&. Column names are matched without regard to case.
 .SS Parallel processing of input
-.RS
 .IP \(bu 2
-\fB\fC\-P\fR or \fB\fC\-\-read\-parallel\fR: Use multiple threads to read different parts of each GeoJSON input file at once.
-This will only work if the input is line\-delimited JSON with each Feature on its
-own line, because it knows nothing of the top\-level structure around the Features. Spurious "EOF" error
+\fB-P\fR or \fB--read-parallel\fR: Use multiple threads to read different parts of each GeoJSON input file at once.
+This will only work if the input is line-delimited JSON with each Feature on its
+own line, because it knows nothing of the top-level structure around the Features. Spurious "EOF" error
 messages may result otherwise.
 Performance will be better if the input is a named file that can be mapped into memory
 rather than a stream that can only be read sequentially.
-.RE
 .PP
-If the input file begins with the RFC 8142 \[la]https://tools.ietf.org/html/rfc8142\[ra] record separator,
+If the input file begins with the RFC 8142
+\[la]https://tools.ietf.org/html/rfc8142\[ra] record separator,
 parallel processing of input will be invoked automatically, splitting at record separators rather
 than at all newlines.
 .PP
 Parallel processing will also be automatic if the input file is in FlatGeobuf format.
 .SS Projection of input
-.RS
 .IP \(bu 2
-\fB\fC\-s\fR \fIprojection\fP or \fB\fC\-\-projection=\fR\fIprojection\fP: Specify the projection of the input data. Currently supported are \fB\fCEPSG:4326\fR (WGS84, the default) and \fB\fCEPSG:3857\fR (Web Mercator). In general you should use WGS84 for your input files if at all possible.
-.RE
+\fB-s\fR \fIprojection\fP or \fB--projection=\fR\fIprojection\fP: Specify the projection of the input data. Currently supported are \fBEPSG:4326\fR (WGS84, the default) and \fBEPSG:3857\fR (Web Mercator). In general you should use WGS84 for your input files if at all possible.
 .SS Zoom levels
-.RS
 .IP \(bu 2
-\fB\fC\-z\fR \fIzoom\fP or \fB\fC\-\-maximum\-zoom=\fR\fIzoom\fP: Maxzoom: the highest zoom level for which tiles are generated (default 14)
+\fB-z\fR \fIzoom\fP or \fB--maximum-zoom=\fR\fIzoom\fP: Maxzoom: the highest zoom level for which tiles are generated (default 14)
 .IP \(bu 2
-\fB\fC\-zg\fR or \fB\fC\-\-maximum\-zoom=g\fR: Guess what is probably a reasonable maxzoom based on the spacing of features.
+\fB-zg\fR or \fB--maximum-zoom=g\fR: Guess what is probably a reasonable maxzoom based on the spacing of features.
 .IP \(bu 2
-\fB\fC\-\-smallest\-maximum\-zoom\-guess=\fR\fIzoom\fP: Guess what is probably a reasonable maxzoom based on the spacing of features, but using the specified \fIzoom\fP if a lower maxzoom is guessed. If \fB\fC\-Bg\fR is also set, the base zoom will be set to the guessed maxzoom, with all the points carried forward into additional zooms through the one specified.
+\fB--smallest-maximum-zoom-guess=\fR\fIzoom\fP: Guess what is probably a reasonable maxzoom based on the spacing of features, but using the specified \fIzoom\fP if a lower maxzoom is guessed. If \fB-Bg\fR is also set, the base zoom will be set to the guessed maxzoom, with all the points carried forward into additional zooms through the one specified.
 .IP \(bu 2
-\fB\fC\-Z\fR \fIzoom\fP or \fB\fC\-\-minimum\-zoom=\fR\fIzoom\fP: Minzoom: the lowest zoom level for which tiles are generated (default 0)
+\fB-Z\fR \fIzoom\fP or \fB--minimum-zoom=\fR\fIzoom\fP: Minzoom: the lowest zoom level for which tiles are generated (default 0)
 .IP \(bu 2
-\fB\fC\-ae\fR or \fB\fC\-\-extend\-zooms\-if\-still\-dropping\fR: Increase the maxzoom if features are still being dropped at that zoom level.
+\fB-ae\fR or \fB--extend-zooms-if-still-dropping\fR: Increase the maxzoom if features are still being dropped at that zoom level.
 The detail and simplification options that ordinarily apply only to the maximum zoom level will apply both to the originally
 specified maximum zoom and to any levels added beyond that.
 .IP \(bu 2
-\fB\fC\-\-extend\-zooms\-if\-still\-dropping\-maximum=\fR\fIcount\fP: Increase the maxzoom if features are still being dropped at that zoom level
+\fB--extend-zooms-if-still-dropping-maximum=\fR\fIcount\fP: Increase the maxzoom if features are still being dropped at that zoom level
 by up to \fIcount\fP zoom levels.
 .IP \(bu 2
-\fB\fC\-at\fR or \fB\fC\-\-generate\-variable\-depth\-tile\-pyramid\fR: Don't produce child tiles for any tile that should be sufficient to be overzoomed to any higher zoom level. Such tiles will be produced with maximum detail and no simplification or polygon cleaning. Tiles with point features below the basezoom or where any features have to be dropped dynamically, or which contain too many features or bytes with full detail, will be written out with normal detail and split into child tiles. Tilesets generated with this option are suitable for use only with tile servers that will find the appropriate tile to overzoom from and will simplify and clean the geometries appropriately before serving the tile.
+\fB-at\fR or \fB--generate-variable-depth-tile-pyramid\fR: Don't produce child tiles for any tile that should be sufficient to be overzoomed to any higher zoom level. Such tiles will be produced with maximum detail, retaining every vertex that is not collinear with its neighbors, but their polygons are still cleaned so that overlapping areas are merged rather than left stacked. Tiles with point features below the basezoom, or which contain too many features or bytes with full detail, will be written out with normal detail and split into child tiles. If any features have to be dropped dynamically at a zoom level, no tile in that zoom level is truncated, so that the whole zoom level is reduced consistently; any tile that was already being skipped because an ancestor had been truncated is written out after all. Tilesets generated with this option are suitable for use only with tile servers that will find the appropriate tile to overzoom from and will simplify the geometries appropriately before serving the tile.
 .IP \(bu 2
-\fB\fC\-R\fR \fIzoom\fP\fB\fC/\fR\fIx\fP\fB\fC/\fR\fIy\fP or \fB\fC\-\-one\-tile=\fR\fIzoom\fP\fB\fC/\fR\fIx\fP\fB\fC/\fR\fIy\fP: Set the minzoom and maxzoom to \fIzoom\fP and produce only
+\fB-R\fR \fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP or \fB--one-tile=\fR\fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP: Set the minzoom and maxzoom to \fIzoom\fP and produce only
 the single specified tile at that zoom level.
-.RE
 .PP
 If you know the precision to which you want your data to be represented,
 or the map scale of a corresponding printed map,
 this table shows the approximate precision and scale corresponding to various
-\fB\fC\-z\fR options if you use the default \fB\fC\-d\fR detail of 12:
+\fB-z\fR options if you use the default \fB-d\fR detail of 12:
 .TS
 allbox;
-cb cb cb cb
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-l l l l
-.
-zoom level	precision (ft)	precision (m)	map scale
-\fB\fC\-z0\fR	32000 ft	10000 m	1:320,000,000
-\fB\fC\-z1\fR	16000 ft	5000 m	1:160,000,000
-\fB\fC\-z2\fR	8000 ft	2500 m	1:80,000,000
-\fB\fC\-z3\fR	4000 ft	1250 m	1:40,000,000
-\fB\fC\-z4\fR	2000 ft	600 m	1:20,000,000
-\fB\fC\-z5\fR	1000 ft	300 m	1:10,000,000
-\fB\fC\-z6\fR	500 ft	150 m	1:5,000,000
-\fB\fC\-z7\fR	250 ft	80 m	1:2,500,000
-\fB\fC\-z8\fR	125 ft	40 m	1:1,250,000
-\fB\fC\-z9\fR	64 ft	20 m	1:640,000
-\fB\fC\-z10\fR	32 ft	10 m	1:320,000
-\fB\fC\-z11\fR	16 ft	5 m	1:160,000
-\fB\fC\-z12\fR	8 ft	2 m	1:80,000
-\fB\fC\-z13\fR	4 ft	1 m	1:40,000
-\fB\fC\-z14\fR	2 ft	0.5 m	1:20,000
-\fB\fC\-z15\fR	1 ft	0.25 m	1:10,000
-\fB\fC\-z16\fR	6 in	15 cm	1:5000
-\fB\fC\-z17\fR	3 in	8 cm	1:2500
-\fB\fC\-z18\fR	1.5 in	4 cm	1:1250
-\fB\fC\-z19\fR	0.8 in	2 cm	1:600
-\fB\fC\-z20\fR	0.4 in	1 cm	1:300
-\fB\fC\-z21\fR	0.4 in	1 cm	1:300
-\fB\fC\-z22\fR	0.4 in	1 cm	1:300
+l l l l 
+l l l l .
+\fBzoom level\fP	\fBprecision (ft)\fP	\fBprecision (m)\fP	\fBmap scale\fP
+\fB-z0\fR	32000 ft	10000 m	1:320,000,000
+\fB-z1\fR	16000 ft	5000 m	1:160,000,000
+\fB-z2\fR	8000 ft	2500 m	1:80,000,000
+\fB-z3\fR	4000 ft	1250 m	1:40,000,000
+\fB-z4\fR	2000 ft	600 m	1:20,000,000
+\fB-z5\fR	1000 ft	300 m	1:10,000,000
+\fB-z6\fR	500 ft	150 m	1:5,000,000
+\fB-z7\fR	250 ft	80 m	1:2,500,000
+\fB-z8\fR	125 ft	40 m	1:1,250,000
+\fB-z9\fR	64 ft	20 m	1:640,000
+\fB-z10\fR	32 ft	10 m	1:320,000
+\fB-z11\fR	16 ft	5 m	1:160,000
+\fB-z12\fR	8 ft	2 m	1:80,000
+\fB-z13\fR	4 ft	1 m	1:40,000
+\fB-z14\fR	2 ft	0.5 m	1:20,000
+\fB-z15\fR	1 ft	0.25 m	1:10,000
+\fB-z16\fR	6 in	15 cm	1:5000
+\fB-z17\fR	3 in	8 cm	1:2500
+\fB-z18\fR	1.5 in	4 cm	1:1250
+\fB-z19\fR	0.8 in	2 cm	1:600
+\fB-z20\fR	0.4 in	1 cm	1:300
+\fB-z21\fR	0.4 in	1 cm	1:300
+\fB-z22\fR	0.4 in	1 cm	1:300
 .TE
 .SS Tile resolution
-.RS
 .IP \(bu 2
-\fB\fC\-d\fR \fIdetail\fP or \fB\fC\-\-full\-detail=\fR\fIdetail\fP: Detail at max zoom level (default 12, for tile resolution of 2
+\fB-d\fR \fIdetail\fP or \fB--full-detail=\fR\fIdetail\fP: Detail at max zoom level (default 12, for tile resolution of 2^12=4096)
 .IP \(bu 2
-\fB\fC\-D\fR \fIdetail\fP or \fB\fC\-\-low\-detail=\fR\fIdetail\fP: Detail at lower zoom levels (default 12, for tile resolution of 2
+\fB-D\fR \fIdetail\fP or \fB--low-detail=\fR\fIdetail\fP: Detail at lower zoom levels (default 12, for tile resolution of 2^12=4096)
 .IP \(bu 2
-\fB\fC\-m\fR \fIdetail\fP or \fB\fC\-\-minimum\-detail=\fR\fIdetail\fP: Minimum detail that it will try if tiles are too big at regular detail (default 7)
+\fB-m\fR \fIdetail\fP or \fB--minimum-detail=\fR\fIdetail\fP: Minimum detail that it will try if tiles are too big at regular detail (default 7)
 .IP \(bu 2
-\fB\fC\-\-extra\-detail=\fR\fIdetail\fP: Generate tiles with even more detail than the "full" detail at the max zoom level, to maximize location precision. These tiles may not work with some rendering software that internally limits detail to 12 or 13. The extra detail does not affect the choice of maxzoom guessing, the amount of simplification, or the "tiny polygon" threshold as \fB\fC\-\-full\-detail\fR does. The tiles should look the same as they did without it, except that they will be more precise when overzoomed.
-.RE
+\fB--extra-detail=\fR\fIdetail\fP: Generate tiles with even more detail than the "full" detail at the max zoom level, to maximize location precision. These tiles may not work with some rendering software that internally limits detail to 12 or 13. The extra detail does not affect the choice of maxzoom guessing, the amount of simplification, or the "tiny polygon" threshold as \fB--full-detail\fR does. The tiles should look the same as they did without it, except that they will be more precise when overzoomed.
 .PP
-All internal math is done in terms of a 32\-bit tile coordinate system, so 1/(2 of the size of Earth,
+All internal math is done in terms of a 32-bit tile coordinate system, so 1/(2^32) of the size of Earth,
 or about 1cm, is the smallest distinguishable distance. If \fImaxzoom\fP + \fIdetail\fP > 32, no additional
 resolution is obtained than by using a smaller \fImaxzoom\fP or \fIdetail\fP, and the \fIdetail\fP of tiles will
 be reduced to the maximum that can be used with the specified \fImaxzoom\fP\&.
 .SS Filtering feature attributes
-.RS
 .IP \(bu 2
-\fB\fC\-x\fR \fIname\fP or \fB\fC\-\-exclude=\fR\fIname\fP: Exclude the named attributes from all features. You can specify multiple \fB\fC\-x\fR options to exclude several attributes. (Don't comma\-separate names within a single \fB\fC\-x\fR\&.)
+\fB-x\fR \fIname\fP or \fB--exclude=\fR\fIname\fP: Exclude the named attributes from all features. You can specify multiple \fB-x\fR options to exclude several attributes. (Don't comma-separate names within a single \fB-x\fR\&.)
 .IP \(bu 2
-\fB\fC\-y\fR \fIname\fP or \fB\fC\-\-include=\fR\fIname\fP: Include the named attributes in all features, excluding all those not explicitly named. You can specify multiple \fB\fC\-y\fR options to explicitly include several attributes. (Don't comma\-separate names within a single \fB\fC\-y\fR\&.)
+\fB-y\fR \fIname\fP or \fB--include=\fR\fIname\fP: Include the named attributes in all features, excluding all those not explicitly named. You can specify multiple \fB-y\fR options to explicitly include several attributes. (Don't comma-separate names within a single \fB-y\fR\&.)
 .IP \(bu 2
-\fB\fC\-X\fR or \fB\fC\-\-exclude\-all\fR: Exclude all attributes and encode only geometries
-.RE
+\fB-X\fR or \fB--exclude-all\fR: Exclude all attributes and encode only geometries
 .SS Modifying feature attributes
-.RS
 .IP \(bu 2
-\fB\fC\-T\fR\fIattribute\fP\fB\fC:\fR\fItype\fP or \fB\fC\-\-attribute\-type=\fR\fIattribute\fP\fB\fC:\fR\fItype\fP: Coerce the named feature \fIattribute\fP to be of the specified \fItype\fP\&.
-The \fItype\fP may be \fB\fCstring\fR, \fB\fCfloat\fR, \fB\fCint\fR, or \fB\fCbool\fR\&.
-If the type is \fB\fCbool\fR, then original attributes of \fB\fC0\fR (or, if numeric, \fB\fC0.0\fR, etc.), \fB\fCfalse\fR, \fB\fCnull\fR, or the empty string become \fB\fCfalse\fR, and otherwise become \fB\fCtrue\fR\&.
-If the type is \fB\fCfloat\fR or \fB\fCint\fR and the original attribute was non\-numeric, it becomes \fB\fC0\fR\&.
-If the type is \fB\fCint\fR and the original attribute was floating\-point, it is rounded to the nearest integer.
+\fB-T\fR\fIattribute\fP\fB:\fR\fItype\fP or \fB--attribute-type=\fR\fIattribute\fP\fB:\fR\fItype\fP: Coerce the named feature \fIattribute\fP to be of the specified \fItype\fP\&.
+The \fItype\fP may be \fBstring\fR, \fBfloat\fR, \fBint\fR, or \fBbool\fR\&.
+If the type is \fBbool\fR, then original attributes of \fB0\fR (or, if numeric, \fB0.0\fR, etc.), \fBfalse\fR, \fBnull\fR, or the empty string become \fBfalse\fR, and otherwise become \fBtrue\fR\&.
+If the type is \fBfloat\fR or \fBint\fR and the original attribute was non-numeric, it becomes \fB0\fR\&.
+If the type is \fBint\fR and the original attribute was floating-point, it is rounded to the nearest integer.
 .IP \(bu 2
-\fB\fC\-Y\fR\fIattribute\fP\fB\fC:\fR\fIdescription\fP or \fB\fC\-\-attribute\-description=\fR\fIattribute\fP\fB\fC:\fR\fIdescription\fP: Set the \fB\fCdescription\fR for the specified attribute in the tileset metadata to \fIdescription\fP instead of the usual \fB\fCString\fR, \fB\fCNumber\fR, or \fB\fCBoolean\fR\&.
+\fB-Y\fR\fIattribute\fP\fB:\fR\fIdescription\fP or \fB--attribute-description=\fR\fIattribute\fP\fB:\fR\fIdescription\fP: Set the \fBdescription\fR for the specified attribute in the tileset metadata to \fIdescription\fP instead of the usual \fBString\fR, \fBNumber\fR, or \fBBoolean\fR\&.
 .IP \(bu 2
-\fB\fC\-E\fR\fIattribute\fP\fB\fC:\fR\fIoperation\fP or \fB\fC\-\-accumulate\-attribute=\fR\fIattribute\fP\fB\fC:\fR\fIoperation\fP: Preserve the named \fIattribute\fP from features
-that are dropped, coalesced\-as\-needed, or clustered. The \fIoperation\fP may be
-\fB\fCsum\fR, \fB\fCproduct\fR, \fB\fCmean\fR, \fB\fCmax\fR, \fB\fCmin\fR, \fB\fCconcat\fR, or \fB\fCcomma\fR
+\fB-E\fR\fIattribute\fP\fB:\fR\fIoperation\fP or \fB--accumulate-attribute=\fR\fIattribute\fP\fB:\fR\fIoperation\fP: Preserve the named \fIattribute\fP from features
+that are dropped, coalesced-as-needed, or clustered. The \fIoperation\fP may be
+\fBsum\fR, \fBproduct\fR, \fBmean\fR, \fBmax\fR, \fBmin\fR, \fBconcat\fR, \fBcomma\fR, or \fBcount\fR
 to specify how the named \fIattribute\fP is accumulated onto the attribute of the same name in a feature that does survive.
-The attributes and operations may also be specified as JSON keys and values: \fB\fC\-\-accumulate\-attribute='{"attr": "operation", "attr2", "operation2"}'\fR\&.
+(The \fBcount\fR operation replaces the attribute with the number of features, including the survivor, that carried it.)
+The attributes and operations may also be specified as JSON keys and values: \fB--accumulate-attribute='{"attr": "operation", "attr2": "operation2"}'\fR\&.
 .IP \(bu 2
-\fB\fC\-\-set\-attribute\fR \fIattribute\fP\fB\fC:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB\fC\-\-accumulate\-attribute\fR\&.
-The attributes and values may also be specified as JSON keys and values: \fB\fC\-\-set\-attribute='{"attr": value, "attr2", value}'\fR\&.
+\fB--set-attribute\fR \fIattribute\fP\fB:\fR\fIvalue\fP: Set the value of the specified \fIattribute\fP in each feature to the specified \fIvalue\fP\&. This is mostly useful to give an attribute in each feature an initial value for \fB--accumulate-attribute\fR\&.
+The attributes and values may also be specified as JSON keys and values: \fB--set-attribute='{"attr": value, "attr2": value}'\fR\&.
 .IP \(bu 2
-\fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
+\fB-pe\fR or \fB--empty-csv-columns-are-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .IP \(bu 2
-\fB\fC\-aI\fR or \fB\fC\-\-convert\-stringified\-ids\-to\-numbers\fR: If a feature ID is the string representation of a number, convert it to a plain number to use as the feature ID.
+\fB-aI\fR or \fB--convert-stringified-ids-to-numbers\fR: If a feature ID is the string representation of a number, convert it to a plain number to use as the feature ID.
 .IP \(bu 2
-\fB\fC\-\-use\-attribute\-for\-id=\fR\fIname\fP: Use the attribute with the specified \fIname\fP as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use \fB\fC\-aI\fR to convert it to a number.)
+\fB--use-attribute-for-id=\fR\fIname\fP: Use the attribute with the specified \fIname\fP as if it were specified as the feature ID. (If this attribute is a stringified number, you must also use \fB-aI\fR to convert it to a number.)
 .IP \(bu 2
-\fB\fC\-pN\fR or \fB\fC\-\-single\-precision\fR: Write double\-precision numeric attribute values to tiles as single\-precision to reduce tile size.
+\fB-pN\fR or \fB--single-precision\fR: Write double-precision numeric attribute values to tiles as single-precision to reduce tile size.
 .IP \(bu 2
-\fB\fC\-\-maximum\-string\-attribute\-length\fR=\fIlength\fP: Truncate string attributes that exceed the specified length in bytes.
-.RE
+\fB--maximum-string-attribute-length\fR=\fIlength\fP: Truncate string attributes that exceed the specified length in bytes.
 .SS Filtering features by attributes
-.RS
 .IP \(bu 2
-\fB\fC\-j\fR \fIfilter\fP or \fB\fC\-\-feature\-filter\fR=\fIfilter\fP: Check features against a per\-layer filter (as defined in the Mapbox GL Style Specification \[la]https://docs.mapbox.com/mapbox-gl-js/style-spec/#other-filter\[ra] or in a Felt filter specification still to be finalized) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB\fC"*"\fR apply to all layers. The special variable \fB\fC$zoom\fR refers to the current zoom level.
+\fB-j\fR \fIfilter\fP or \fB--feature-filter\fR=\fIfilter\fP: Check features against a per-layer filter (as defined in the Mapbox GL Style Specification
+\[la]https://docs.mapbox.com/mapbox\-gl\-js/style\-spec/#other\-filter\[ra] or in a Felt filter specification still to be finalized) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB"*"\fR apply to all layers. The special variable \fB$zoom\fR refers to the current zoom level.
 .IP \(bu 2
-\fB\fC\-J\fR \fIfilter\-file\fP or \fB\fC\-\-feature\-filter\-file\fR=\fIfilter\-file\fP: Like \fB\fC\-j\fR, but read the filter from a file.
-.RE
+\fB-J\fR \fIfilter-file\fP or \fB--feature-filter-file\fR=\fIfilter-file\fP: Like \fB-j\fR, but read the filter from a file.
 .PP
-Example: to find the Natural Earth countries with low \fB\fCscalerank\fR but high \fB\fCLABELRANK\fR:
-.PP
-.RS
-.nf
-tippecanoe \-z5 \-o filtered.mbtiles \-j '{ "ne_10m_admin_0_countries": [ "all", [ "<", "scalerank", 3 ], [ ">", "LABELRANK", 5 ] ] }' ne_10m_admin_0_countries.geojson
-.fi
-.RE
+Example: to find the Natural Earth countries with low \fBscalerank\fR but high \fBLABELRANK\fR:
+.EX
+tippecanoe -z5 -o filtered.mbtiles -j '{ "ne_10m_admin_0_countries": [ "all", [ "<", "scalerank", 3 ], [ ">", "LABELRANK", 5 ] ] }' ne_10m_admin_0_countries.geojson
+.EE
 .PP
 Example: to retain only major TIGER roads at low zoom levels:
+.EX
+tippecanoe -o roads.mbtiles -j '{ "*": [ "any", [ ">=", "$zoom", 11 ], [ "in", "MTFCC", "S1100", "S1200" ] ] }' tl_2015_06001_roads.json
+.EE
 .PP
-.RS
-.nf
-tippecanoe \-o roads.mbtiles \-j '{ "*": [ "any", [ ">=", "$zoom", 11 ], [ "in", "MTFCC", "S1100", "S1200" ] ] }' tl_2015_06001_roads.json
-.fi
-.RE
-.PP
-Tippecanoe also accepts expressions of the form \fB\fC[ "attribute\-filter", name, expression ]\fR, to filter individual feature attributes
+Tippecanoe also accepts expressions of the form \fB[ "attribute-filter", name, expression ]\fR, to filter individual feature attributes
 instead of entire features. For example, you can exclude the road names at low zoom levels by doing
+.EX
+tippecanoe -o roads.mbtiles -j '{ "*": [ "attribute-filter", "FULLNAME", [ ">=", "$zoom", 9 ] ] }' tl_2015_06001_roads.json
+.EE
 .PP
-.RS
-.nf
-tippecanoe \-o roads.mbtiles \-j '{ "*": [ "attribute\-filter", "FULLNAME", [ ">=", "$zoom", 9 ] ] }' tl_2015_06001_roads.json
-.fi
-.RE
-.PP
-An \fB\fCattribute\-filter\fR expression itself is always considered to evaluate to \fB\fCtrue\fR (in other words, to retain the feature instead
-of dropping it). If you want to use multiple \fB\fCattribute\-filter\fR expressions, or to use other expressions to remove features from
-the same layer, enclose them in an \fB\fCall\fR expression so they will all be evaluated.
+An \fBattribute-filter\fR expression itself is always considered to evaluate to \fBtrue\fR (in other words, to retain the feature instead
+of dropping it). If you want to use multiple \fBattribute-filter\fR expressions, or to use other expressions to remove features from
+the same layer, enclose them in an \fBall\fR expression so they will all be evaluated.
 .SS Dropping a fixed fraction of features by zoom level
-.RS
 .IP \(bu 2
-\fB\fC\-r\fR \fIrate\fP or \fB\fC\-\-drop\-rate=\fR\fIrate\fP: Rate at which dots are dropped at zoom levels below basezoom (default 2.5).
-If you use \fB\fC\-rg\fR, it will guess a drop rate that will keep at most 50,000 features in the densest tile.
-You can also specify a marker\-width with \fB\fC\-rg\fR\fIwidth\fP to allow fewer features in the densest tile to
-compensate for the larger marker, or \fB\fC\-rf\fR\fInumber\fP to allow at most \fInumber\fP features in the densest tile.
-If you use \fB\fC\-rp\fR with \fB\fC\-zg\fR or \fB\fC\-\-smallest\-maximum\-zoom\-guess\fR it will choose a drop rate from the same
-distance\-between\-features metrics as are used to choose the maxzoom.
+\fB-r\fR \fIrate\fP or \fB--drop-rate=\fR\fIrate\fP: Rate at which dots are dropped at zoom levels below basezoom (default 2.5).
+If you use \fB-rg\fR, it will guess a drop rate that will keep at most 50,000 features in the densest tile.
+You can also specify a marker-width with \fB-rg\fR\fIwidth\fP to allow fewer features in the densest tile to
+compensate for the larger marker, or \fB-rf\fR\fInumber\fP to allow at most \fInumber\fP features in the densest tile.
+If you use \fB-rp\fR with \fB-zg\fR or \fB--smallest-maximum-zoom-guess\fR it will choose a drop rate from the same
+distance-between-features metrics as are used to choose the maxzoom.
 .IP \(bu 2
-\fB\fC\-B\fR \fIzoom\fP or \fB\fC\-\-base\-zoom=\fR\fIzoom\fP: Base zoom, the level at and above which all points are included in the tiles (default maxzoom).
-If you use \fB\fC\-Bg\fR, it will guess a zoom level that will keep at most 50,000 features in the densest tile.
-You can also specify a marker\-width with \fB\fC\-Bg\fR\fIwidth\fP to allow fewer features in the densest tile to
-compensate for the larger marker, or \fB\fC\-Bf\fR\fInumber\fP to allow at most \fInumber\fP features in the densest tile.
+\fB-B\fR \fIzoom\fP or \fB--base-zoom=\fR\fIzoom\fP: Base zoom, the level at and above which all points are included in the tiles (default maxzoom).
+If you use \fB-Bg\fR, it will guess a zoom level that will keep at most 50,000 features in the densest tile.
+You can also specify a marker-width with \fB-Bg\fR\fIwidth\fP to allow fewer features in the densest tile to
+compensate for the larger marker, or \fB-Bf\fR\fInumber\fP to allow at most \fInumber\fP features in the densest tile.
 .IP \(bu 2
-\fB\fC\-\-retain\-points\-multiplier=\fR\fImultiple\fP: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the \fB\fC\-m\fR option to \fB\fCtippecanoe\-overzoom\fR\&. The start of each cluster is marked in the feature sequence by the \fB\fCtippecanoe:retain_points_multiplier_first\fR attribute. The \fB\fC\-\-tile\-size\-limit\fR will also be extended at low zoom levels to allow for the multiplied features.
+\fB--retain-points-multiplier=\fR\fImultiple\fP: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the \fB-m\fR option to \fBtippecanoe-overzoom\fR\&. The start of each cluster is marked in the feature sequence by the \fBtippecanoe:retain_points_multiplier_first\fR attribute. The maximum tile size (\fB--maximum-tile-bytes\fR) will also be extended at low zoom levels to allow for the multiplied features.
 .IP \(bu 2
-\fB\fC\-\-drop\-denser=\fR\fIpercentage\fP: When dropping dots at zoom levels below the base zoom, give the specified \fIpercentage\fP
+\fB--drop-denser=\fR\fIpercentage\fP: When dropping dots at zoom levels below the base zoom, give the specified \fIpercentage\fP
 preference to retaining points in sparse areas and dropping points in dense areas.
 .IP \(bu 2
-\fB\fC\-\-limit\-base\-zoom\-to\-maximum\-zoom\fR or \fB\fC\-Pb\fR: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
+\fB--limit-base-zoom-to-maximum-zoom\fR or \fB-pb\fR: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
 .IP \(bu 2
-\fB\fC\-al\fR or \fB\fC\-\-drop\-lines\fR: Let "dot" dropping at lower zooms apply to lines too
+\fB-al\fR or \fB--drop-lines\fR: Let "dot" dropping at lower zooms apply to lines too
 .IP \(bu 2
-\fB\fC\-ap\fR or \fB\fC\-\-drop\-polygons\fR: Let "dot" dropping at lower zooms apply to polygons too
+\fB-ap\fR or \fB--drop-polygons\fR: Let "dot" dropping at lower zooms apply to polygons too
 .IP \(bu 2
-\fB\fC\-K\fR \fIdistance\fP or \fB\fC\-\-cluster\-distance=\fR\fIdistance\fP: Cluster points (as with \fB\fC\-\-cluster\-densest\-as\-needed\fR, but without the experimental discovery process) that are approximately within \fIdistance\fP of each other. The units are tile coordinates within a nominally 256\-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See \fB\fC\-\-cluster\-densest\-as\-needed\fR below for behavior.
+\fB-K\fR \fIdistance\fP or \fB--cluster-distance=\fR\fIdistance\fP: Cluster points (as with \fB--cluster-densest-as-needed\fR, but without the experimental discovery process) that are approximately within \fIdistance\fP of each other. The units are tile coordinates within a nominally 256-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See \fB--cluster-densest-as-needed\fR below for behavior.
 .IP \(bu 2
-\fB\fC\-k\fR \fIzoom\fP or \fB\fC\-\-cluster\-maxzoom=\fR\fIzoom\fP: Max zoom on which to cluster points if clustering is enabled.
+\fB-k\fR \fIzoom\fP or \fB--cluster-maxzoom=\fR\fIzoom\fP: Max zoom on which to cluster points if clustering is enabled.
 .IP \(bu 2
-\fB\fC\-kg\fR or \fB\fC\-\-cluster\-maxzoom=g\fR: Set \fB\fC\-\-cluster\-maxzoom=\fR to \fB\fCmaxzoom \- 1\fR so that all features are visible at the maximum zoom level.
+\fB-kg\fR or \fB--cluster-maxzoom=g\fR: Set \fB--cluster-maxzoom=\fR to \fBmaxzoom - 1\fR so that all features are visible at the maximum zoom level.
 .IP \(bu 2
-\fB\fC\-\-preserve\-point\-density\-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specfied drop rate would normally call for it, so that low\-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
-.RE
+\fB--preserve-point-density-threshold=\fR\fIlevel\fP: At the low zoom levels, do not reduce point density below the specified \fIlevel\fP, even if the specified drop rate would normally call for it, so that low-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
+.IP \(bu 2
+\fB--preserve-multiplier-density-threshold=\fR\fIlevel\fP: As with \fB--preserve-point-density-threshold\fR, but for the additional features retained by \fB--retain-points-multiplier\fR: features that would otherwise be dropped are instead added to the multiplier cluster if they are farther than the specified \fIlevel\fP from the previous retained feature, so that sparse areas still have features available to be thinned to. The unit is the same as for \fB--preserve-point-density-threshold\fR\&.
 .SS Dropping a fraction of features to keep under tile size limits
-.RS
 .IP \(bu 2
-\fB\fC\-as\fR or \fB\fC\-\-drop\-densest\-as\-needed\fR: If a tile is too large, try to reduce it to under 500K by increasing the minimum spacing between features. The discovered spacing applies to the entire zoom level.
+\fB-as\fR or \fB--drop-densest-as-needed\fR: If a tile is too large, try to reduce it to under 500K by increasing the minimum spacing between features. The discovered spacing applies to the entire zoom level.
 .IP \(bu 2
-\fB\fC\-ad\fR or \fB\fC\-\-drop\-fraction\-as\-needed\fR: Dynamically drop some fraction of features from each zoom level to keep large tiles under the 500K size limit. (This is like \fB\fC\-pd\fR but applies to the entire zoom level, not to each tile.)
+\fB-ad\fR or \fB--drop-fraction-as-needed\fR: Dynamically drop some fraction of features from each zoom level to keep large tiles under the 500K size limit. (This is like \fB-pd\fR but applies to the entire zoom level, not to each tile.)
 .IP \(bu 2
-\fB\fC\-an\fR or \fB\fC\-\-drop\-smallest\-as\-needed\fR: Dynamically drop the smallest features (physically smallest: the shortest lines or the smallest polygons) from each zoom level to keep large tiles under the 500K size limit.
+\fB-an\fR or \fB--drop-smallest-as-needed\fR: Dynamically drop the smallest features (physically smallest: the shortest lines or the smallest polygons) from each zoom level to keep large tiles under the 500K size limit.
 .IP \(bu 2
-\fB\fC\-aN\fR or \fB\fC\-\-coalesce\-smallest\-as\-needed\fR: Dynamically combine the smallest features (physically smallest: the shortest lines or the smallest polygons or the densest points) from each zoom level into other nearby features to keep large tiles under the 500K size limit. This option will probably not help very much with LineStrings. It is mostly intended for polygons, to maintain the full original area covered by polygons while still reducing the feature count somehow. The attributes of the small polygons are \fInot\fP preserved into the combined features (except through \fB\fC\-\-accumulate\-attribute\fR), only their geometry. Furthermore, the polygons to which nested polygons are coalesced may not necessarily be the immediately enclosing features.
+\fB--drop-by-attribute-as-needed=\fR\fIattribute\fP: Dynamically drop features with the lowest values of the specified numeric \fIattribute\fP from each zoom level to keep large tiles under the 500K size limit. Use \fB--drop-by-attribute-order=desc\fR to instead drop features with the highest values.
 .IP \(bu 2
-\fB\fC\-aD\fR or \fB\fC\-\-coalesce\-densest\-as\-needed\fR: Dynamically combine the densest features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
+\fB-aN\fR or \fB--coalesce-smallest-as-needed\fR: Dynamically combine the smallest features (physically smallest: the shortest lines or the smallest polygons or the densest points) from each zoom level into other nearby features to keep large tiles under the 500K size limit. This option will probably not help very much with LineStrings. It is mostly intended for polygons, to maintain the full original area covered by polygons while still reducing the feature count somehow. The attributes of the small polygons are \fInot\fP preserved into the combined features (except through \fB--accumulate-attribute\fR), only their geometry. Furthermore, the polygons to which nested polygons are coalesced may not necessarily be the immediately enclosing features.
 .IP \(bu 2
-\fB\fC\-aS\fR or \fB\fC\-\-coalesce\-fraction\-as\-needed\fR: Dynamically combine a fraction of features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
+\fB-aS\fR or \fB--coalesce-densest-as-needed\fR: Dynamically combine the densest features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
 .IP \(bu 2
-\fB\fC\-pd\fR or \fB\fC\-\-force\-feature\-limit\fR: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like \fB\fC\-ad\fR but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
+\fB-aD\fR or \fB--coalesce-fraction-as-needed\fR: Dynamically combine a fraction of features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
 .IP \(bu 2
-\fB\fC\-aC\fR or \fB\fC\-\-cluster\-densest\-as\-needed\fR: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a \fB\fC"clustered": true\fR attribute to indicate that it represents a cluster, a \fB\fC"point_count"\fR attribute to indicate the number of features that were clustered into it, and a \fB\fC"sqrt_point_count"\fR attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations; otherwise, one of the original features will be left as the representative.
-.RE
+\fB-pd\fR or \fB--force-feature-limit\fR: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like \fB-ad\fR but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
+.IP \(bu 2
+\fB-aC\fR or \fB--cluster-densest-as-needed\fR: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a \fB"clustered": true\fR attribute to indicate that it represents a cluster, a \fB"point_count"\fR attribute to indicate the number of features that were clustered into it, a \fB"point_count_abbreviated"\fR attribute containing that count abbreviated for display (for example \fB1.2k\fR or \fB15k\fR), and a \fB"sqrt_point_count"\fR attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations (unless you use \fB--keep-point-cluster-position\fR); otherwise, one of the original features will be left as the representative.
+.IP \(bu 2
+\fB-aa\fR or \fB--keep-point-cluster-position\fR: When clustering points, leave the representative feature at the location of the first point of the cluster instead of moving it to the average of the clustered points' locations.
 .SS Dropping tightly overlapping features
-.RS
 .IP \(bu 2
-\fB\fC\-g\fR \fIgamma\fP or \fB\fC\-\-gamma=_gamma\fR_: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.
+\fB-g\fR \fIgamma\fP or \fB--gamma=\fR\fIgamma\fP: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.
 .IP \(bu 2
-\fB\fC\-aG\fR or \fB\fC\-\-increase\-gamma\-as\-needed\fR: If a tile is too large, try to reduce it to under 500K by increasing the \fB\fC\-g\fR gamma. The discovered gamma applies to the entire zoom level. You probably want to use \fB\fC\-\-drop\-densest\-as\-needed\fR instead.
-.RE
+\fB-aG\fR or \fB--increase-gamma-as-needed\fR: If a tile is too large, try to reduce it to under 500K by increasing the \fB-g\fR gamma. The discovered gamma applies to the entire zoom level. You probably want to use \fB--drop-densest-as-needed\fR instead.
 .SS Line and polygon simplification
-.RS
 .IP \(bu 2
-\fB\fC\-S\fR \fIscale\fP or \fB\fC\-\-simplification=\fR\fIscale\fP: Multiply the tolerance for line and polygon simplification by \fIscale\fP\&. The standard tolerance tries to keep
+\fB-S\fR \fIscale\fP or \fB--simplification=\fR\fIscale\fP: Multiply the tolerance for line and polygon simplification by \fIscale\fP\&. The standard tolerance tries to keep
 the line or polygon within one tile unit of its proper location. You can probably go up to about 10 without too much visible difference.
 .IP \(bu 2
-\fB\fC\-ps\fR or \fB\fC\-\-no\-line\-simplification\fR: Don't simplify lines and polygons
+\fB-ps\fR or \fB--no-line-simplification\fR: Don't simplify lines and polygons
 .IP \(bu 2
-\fB\fC\-pS\fR or \fB\fC\-\-simplify\-only\-low\-zooms\fR: Don't simplify lines and polygons at maxzoom (but do simplify at lower zooms)
+\fB-pS\fR or \fB--simplify-only-low-zooms\fR: Don't simplify lines and polygons at maxzoom (but do simplify at lower zooms)
 .IP \(bu 2
-\fB\fC\-\-simplification\-at\-maximum\-zoom=\fR\fIscale\fP: Use the specified \fIscale\fP at maxzoom instead of the standard simplification scale (which still applies at lower zooms)
+\fB--simplification-at-maximum-zoom=\fR\fIscale\fP: Use the specified \fIscale\fP at maxzoom instead of the standard simplification scale (which still applies at lower zooms)
 .IP \(bu 2
-\fB\fC\-pn\fR or \fB\fC\-\-no\-simplification\-of\-shared\-nodes\fR: Don't simplify away nodes at which LineStrings or Polygon rings converge, diverge, or cross. (This will not be effective if you also use \fB\fC\-\-coalesce\fR\&.) In between intersection nodes, LineString segments or polygon edges will be simplified identically in each feature if possible. Use this instead of \fB\fC\-\-detect\-shared\-borders\fR\&.
+\fB-pn\fR or \fB--no-simplification-of-shared-nodes\fR: Don't simplify away nodes at which LineStrings or Polygon rings converge, diverge, or cross. (This will not be effective if you also use \fB--coalesce\fR\&.) In between intersection nodes, LineString segments or polygon edges will be simplified identically in each feature if possible. Use this instead of \fB--detect-shared-borders\fR\&.
 .IP \(bu 2
-\fB\fC\-pt\fR or \fB\fC\-\-no\-tiny\-polygon\-reduction\fR: Don't combine the area of very small polygons into small squares that represent their combined area.
+\fB-pt\fR or \fB--no-tiny-polygon-reduction\fR: Don't combine the area of very small polygons into small squares that represent their combined area.
 .IP \(bu 2
-\fB\fC\-pT\fR or \fB\fC\-\-no\-tiny\-polygon\-reduction\-at\-maximum\-zoom\fR: Combine the area of very small polygons into small squares that represent their combined area only at zoom levels below the maximum.
+\fB-pT\fR or \fB--no-tiny-polygon-reduction-at-maximum-zoom\fR: Combine the area of very small polygons into small squares that represent their combined area only at zoom levels below the maximum.
 .IP \(bu 2
-\fB\fC\-\-tiny\-polygon\-size=\fR\fIsize\fP: Use the specified \fIsize\fP for tiny polygons instead of the default 2. Anything above 6 or so will lead to visible artifacts with the default tile detail.
+\fB--tiny-polygon-size=\fR\fIsize\fP: Use the specified \fIsize\fP for tiny polygons instead of the default 2. Anything above 6 or so will lead to visible artifacts with the default tile detail.
 .IP \(bu 2
-\fB\fC\-av\fR or \fB\fC\-\-visvalingam\fR: Use Visvalingam's simplification algorithm rather than Douglas\-Peucker's.
-.RE
+\fB-av\fR or \fB--visvalingam\fR: Use Visvalingam's simplification algorithm rather than Douglas-Peucker's.
 .SS Attempts to improve shared polygon boundaries
-.RS
 .IP \(bu 2
-\fB\fC\-ab\fR or \fB\fC\-\-detect\-shared\-borders\fR: DEPRECATED. In the manner of TopoJSON \[la]https://github.com/mbostock/topojson/wiki/Introduction\[ra], detect borders that are shared between multiple polygons and simplify them identically in each polygon. This takes more time and memory than considering each polygon individually. Use \fB\fCno\-simplification\-of\-shared\-nodes\fR instead, which is faster and more correct.
+\fB-ab\fR or \fB--detect-shared-borders\fR: DEPRECATED. In the manner of TopoJSON
+\[la]https://github.com/mbostock/topojson/wiki/Introduction\[ra], detect borders that are shared between multiple polygons and simplify them identically in each polygon. This takes more time and memory than considering each polygon individually. Use \fB--no-simplification-of-shared-nodes\fR instead, which is faster and more correct.
 .IP \(bu 2
-\fB\fC\-aL\fR or \fB\fC\-\-grid\-low\-zooms\fR: At all zoom levels below \fImaxzoom\fP, snap all lines and polygons to a stairstep grid instead of allowing diagonals. You will also want to specify a tile resolution, probably \fB\fC\-D8\fR\&. This option provides a way to display continuous parcel, gridded, or binned data at low zooms without overwhelming the tiles with tiny polygons, since features will either get stretched out to the grid unit or lost entirely, depending on how they happened to be aligned in the original data. You probably don't want to use this.
-.RE
+\fB-aL\fR or \fB--grid-low-zooms\fR: At all zoom levels below \fImaxzoom\fP, snap all lines and polygons to a stairstep grid instead of allowing diagonals. You will also want to specify a tile resolution, probably \fB-D8\fR\&. This option provides a way to display continuous parcel, gridded, or binned data at low zooms without overwhelming the tiles with tiny polygons, since features will either get stretched out to the grid unit or lost entirely, depending on how they happened to be aligned in the original data. You probably don't want to use this.
 .SS Controlling clipping to tile boundaries
-.RS
 .IP \(bu 2
-\fB\fC\-b\fR \fIpixels\fP or \fB\fC\-\-buffer=\fR\fIpixels\fP: Buffer size where features are duplicated from adjacent tiles. Units are "screen pixels"—1/256th of the tile width or height. (default 5)
+\fB-b\fR \fIpixels\fP or \fB--buffer=\fR\fIpixels\fP: Buffer size where features are duplicated from adjacent tiles. Units are "screen pixels"—1/256th of the tile width or height. (default 5)
 .IP \(bu 2
-\fB\fC\-pc\fR or \fB\fC\-\-no\-clipping\fR: Don't clip features to the size of the tile. If a feature overlaps the tile's bounds or buffer at all, it is included completely. Be careful: this can produce very large tilesets, especially with large polygons.
+\fB-pc\fR or \fB--no-clipping\fR: Don't clip features to the size of the tile. If a feature overlaps the tile's bounds or buffer at all, it is included completely. Be careful: this can produce very large tilesets, especially with large polygons.
 .IP \(bu 2
-\fB\fC\-pD\fR or \fB\fC\-\-no\-duplication\fR: As with \fB\fC\-\-no\-clipping\fR, each feature is included intact instead of cut to tile boundaries. In addition, it is included only in a single tile per zoom level rather than potentially in multiple copies. Clients of the tileset must check adjacent tiles (possibly some distance away) to ensure they have all features.
-.RE
+\fB-pD\fR or \fB--no-duplication\fR: As with \fB--no-clipping\fR, each feature is included intact instead of cut to tile boundaries. In addition, it is included only in a single tile per zoom level rather than potentially in multiple copies. Clients of the tileset must check adjacent tiles (possibly some distance away) to ensure they have all features.
 .SS Reordering features within each tile
-.RS
 .IP \(bu 2
-\fB\fC\-pi\fR or \fB\fC\-\-preserve\-input\-order\fR: Preserve the original input order of features as the drawing order instead of ordering geographically. (This is implemented as a restoration of the original order at the end, so that dot\-dropping is still geographic, which means it also undoes \fB\fC\-ao\fR).
+\fB-pi\fR or \fB--preserve-input-order\fR: Preserve the original input order of features as the drawing order instead of ordering geographically. (This is implemented as a restoration of the original order at the end, so that dot-dropping is still geographic, which means it also undoes \fB-ao\fR).
 .IP \(bu 2
-\fB\fC\-ac\fR or \fB\fC\-\-coalesce\fR: Coalesce consecutive features that have the same attributes. This can be useful if you have lots of small polygons with identical attributes and you would like to merge them together.
+\fB-ac\fR or \fB--coalesce\fR: Coalesce consecutive features that have the same attributes. This can be useful if you have lots of small polygons with identical attributes and you would like to merge them together.
 .IP \(bu 2
-\fB\fC\-ao\fR or \fB\fC\-\-reorder\fR: Reorder features to put ones with the same attributes in sequence (instead of ones that are approximately spatially adjacent), to try to get them to coalesce. You probably want to use this if you use \fB\fC\-\-coalesce\fR\&.
+\fB-ao\fR or \fB--reorder\fR: Reorder features to put ones with the same attributes in sequence (instead of ones that are approximately spatially adjacent), to try to get them to coalesce. You probably want to use this if you use \fB--coalesce\fR\&.
 .IP \(bu 2
-\fB\fC\-ar\fR or \fB\fC\-\-reverse\fR: Try reversing the directions of lines to make them coalesce and compress better. You probably don't want to use this.
+\fB-ar\fR or \fB--reverse\fR: Try reversing the directions of lines to make them coalesce and compress better. You probably don't want to use this.
 .IP \(bu 2
-\fB\fC\-ah\fR or \fB\fC\-\-hilbert\fR: Put features in Hilbert Curve order instead of the usual Z\-Order. This improves the odds that spatially adjacent features will be sequentially adjacent, and should improve density calculations and spatial coalescing. It should be the default eventually.
+\fB-ah\fR or \fB--hilbert\fR: Put features in Hilbert Curve order instead of the usual Z-Order. This improves the odds that spatially adjacent features will be sequentially adjacent, and should improve density calculations and spatial coalescing. It should be the default eventually.
 .IP \(bu 2
-\fB\fC\-\-order\-by=\fR\fIattribute\fP: Order features by the specified \fIattribute\fP, in alphabetical or numerical order. Multiple \fB\fC\-\-order\-by\fR and \fB\fC\-\-order\-descending\-by\fR options may be specified, the first being the primary sort key.
+\fB--order-by=\fR\fIattribute\fP: Order features by the specified \fIattribute\fP, in alphabetical or numerical order. Multiple \fB--order-by\fR and \fB--order-descending-by\fR options may be specified, the first being the primary sort key.
 .IP \(bu 2
-\fB\fC\-\-order\-descending\-by=\fR\fIattribute\fP: Order features by the specified \fIattribute\fP, in reverse alphabetical or numerical order. Multiple \fB\fC\-\-order\-by\fR and \fB\fC\-\-order\-descending\-by\fR options may be specified, the first being the primary sort key.
+\fB--order-descending-by=\fR\fIattribute\fP: Order features by the specified \fIattribute\fP, in reverse alphabetical or numerical order. Multiple \fB--order-by\fR and \fB--order-descending-by\fR options may be specified, the first being the primary sort key.
 .IP \(bu 2
-\fB\fC\-\-order\-smallest\-first\fR: Order features so the smallest geometry comes first in each tile. Multiple \fB\fC\-\-order\-by\fR and \fB\fC\-\-order\-descending\-by\fR options may be specified, the first being the primary sort key.
+\fB--order-smallest-first\fR: Order features so the smallest geometry comes first in each tile. Multiple \fB--order-by\fR and \fB--order-descending-by\fR options may be specified, the first being the primary sort key.
 .IP \(bu 2
-\fB\fC\-\-order\-largest\-first\fR: Order features so the largest geometry comes first in each tile. Multiple \fB\fC\-\-order\-by\fR and \fB\fC\-\-order\-descending\-by\fR options may be specified, the first being the primary sort key.
-.RE
+\fB--order-largest-first\fR: Order features so the largest geometry comes first in each tile. Multiple \fB--order-by\fR and \fB--order-descending-by\fR options may be specified, the first being the primary sort key.
 .SS Adding calculated attributes
-.RS
 .IP \(bu 2
-\fB\fC\-ag\fR or \fB\fC\-\-calculate\-feature\-density\fR: Add a new attribute, \fB\fCtippecanoe_feature_density\fR, to each feature, to record how densely features are spaced in that area of the tile. You can use this attribute in the style to produce a glowing effect where points are densely packed. It can range from 0 in the sparsest areas to 255 in the densest.
+\fB-ag\fR or \fB--calculate-feature-density\fR: Add a new attribute, \fBtippecanoe_feature_density\fR, to each feature, to record how densely features are spaced in that area of the tile. You can use this attribute in the style to produce a glowing effect where points are densely packed. It can range from 0 in the sparsest areas to 255 in the densest.
 .IP \(bu 2
-\fB\fC\-ai\fR or \fB\fC\-\-generate\-ids\fR: Add an \fB\fCid\fR (a feature ID, not an attribute named \fB\fCid\fR) to each feature that does not already have one. There is currently no guarantee that the \fB\fCid\fR added will be stable between runs or that it will not conflict with manually\-assigned feature IDs. Future versions of Tippecanoe may change the mechanism for allocating IDs.
+\fB-ai\fR or \fB--generate-ids\fR: Add an \fBid\fR (a feature ID, not an attribute named \fBid\fR) to each feature that does not already have one. There is currently no guarantee that the \fBid\fR added will be stable between runs or that it will not conflict with manually-assigned feature IDs. Future versions of Tippecanoe may change the mechanism for allocating IDs.
 .IP \(bu 2
-\fB\fC\-aX\fR or \fB\fC\-\-calculate\-feature\-index\fR: Add a \fB\fCtippecanoe:index\fR field to each feature, giving its index in the quadkey or hilbert sequence.
-.RE
+\fB-aX\fR or \fB--calculate-feature-index\fR: Add a \fBtippecanoe:index\fR field to each feature, giving its index in the quadkey or hilbert sequence.
 .SS Trying to correct bad source geometry
-.RS
 .IP \(bu 2
-\fB\fC\-aw\fR or \fB\fC\-\-detect\-longitude\-wraparound\fR: Detect when consecutive points within a feature jump to the other side of the world, and try to fix the geometry.
+\fB-aw\fR or \fB--detect-longitude-wraparound\fR: Detect when consecutive points within a feature jump to the other side of the world, and try to fix the geometry.
 .IP \(bu 2
-\fB\fC\-pw\fR or \fB\fC\-\-use\-source\-polygon\-winding\fR: Instead of respecting GeoJSON polygon ring order, use the original polygon winding in the source data to distinguish inner (clockwise) and outer (counterclockwise) polygon rings.
+\fB-pw\fR or \fB--use-source-polygon-winding\fR: Instead of respecting GeoJSON polygon ring order, use the original polygon winding in the source data to distinguish inner (clockwise) and outer (counterclockwise) polygon rings.
 .IP \(bu 2
-\fB\fC\-pW\fR or \fB\fC\-\-reverse\-source\-polygon\-winding\fR: Instead of respecting GeoJSON polygon ring order, use the opposite of the original polygon winding in the source data to distinguish inner (counterclockwise) and outer (clockwise) polygon rings.
+\fB-pW\fR or \fB--reverse-source-polygon-winding\fR: Instead of respecting GeoJSON polygon ring order, use the opposite of the original polygon winding in the source data to distinguish inner (counterclockwise) and outer (clockwise) polygon rings.
 .IP \(bu 2
-\fB\fC\-\-clip\-bounding\-box=\fR\fIminlon\fP\fB\fC,\fR\fIminlat\fP\fB\fC,\fR\fImaxlon\fP\fB\fC,\fR\fImaxlat\fP: Clip all features to the specified bounding box.
+\fB--clip-bounding-box=\fR\fIminlon\fP\fB,\fR\fIminlat\fP\fB,\fR\fImaxlon\fP\fB,\fR\fImaxlat\fP: Clip all features to the specified bounding box.
 .IP \(bu 2
-\fB\fC\-aP\fR or \fB\fC\-\-convert\-polygons\-to\-label\-points\fR: Replace polygon geometries with a label point or points for the polygon in each tile it intersects.
-.RE
+\fB-aP\fR or \fB--convert-polygons-to-label-points\fR: Replace polygon geometries with a label point or points for the polygon in each tile it intersects.
 .SS Setting or disabling tile size limits
-.RS
 .IP \(bu 2
-\fB\fC\-M\fR \fIbytes\fP or \fB\fC\-\-maximum\-tile\-bytes=\fR\fIbytes\fP: Use the specified number of \fIbytes\fP as the maximum compressed tile size instead of 500K.
+\fB-M\fR \fIbytes\fP or \fB--maximum-tile-bytes=\fR\fIbytes\fP: Use the specified number of \fIbytes\fP as the maximum compressed tile size instead of 500K.
 .IP \(bu 2
-\fB\fC\-O\fR \fIfeatures\fP or \fB\fC\-\-maximum\-tile\-features=\fR\fIfeatures\fP: Use the specified number of \fIfeatures\fP as the maximum in a tile instead of 200,000.
+\fB-O\fR \fIfeatures\fP or \fB--maximum-tile-features=\fR\fIfeatures\fP: Use the specified number of \fIfeatures\fP as the maximum in a tile instead of 200,000.
 .IP \(bu 2
-\fB\fC\-\-limit\-tile\-feature\-count=\fR\fIfeatures\fP: Abruptly limit each tile to the specified number of \fIfeatures\fP, after ordering them if specified.
+\fB--limit-tile-feature-count=\fR\fIfeatures\fP: Abruptly limit each tile to the specified number of \fIfeatures\fP, after ordering them if specified.
 .IP \(bu 2
-\fB\fC\-\-limit\-tile\-feature\-count\-at\-maximum\-zoom=\fR\fIfeatures\fP: Abruptly limit each tile at the maximum zoom level to the specified number of \fIfeatures\fP, after ordering them if specified.
+\fB--limit-tile-feature-count-at-maximum-zoom=\fR\fIfeatures\fP: Abruptly limit each tile at the maximum zoom level to the specified number of \fIfeatures\fP, after ordering them if specified.
 .IP \(bu 2
-\fB\fC\-pf\fR or \fB\fC\-\-no\-feature\-limit\fR: Don't limit tiles to 200,000 features
+\fB-pf\fR or \fB--no-feature-limit\fR: Don't limit tiles to 200,000 features
 .IP \(bu 2
-\fB\fC\-pk\fR or \fB\fC\-\-no\-tile\-size\-limit\fR: Don't limit tiles to 500K bytes
+\fB-pk\fR or \fB--no-tile-size-limit\fR: Don't limit tiles to 500K bytes
 .IP \(bu 2
-\fB\fC\-pC\fR or \fB\fC\-\-no\-tile\-compression\fR: Don't compress the PBF vector tile data. If you are getting "Unimplemented type 3" error messages from a renderer, it is probably because it expects uncompressed tiles using this option rather than the normal gzip\-compressed tiles.
+\fB-pC\fR or \fB--no-tile-compression\fR: Don't compress the PBF vector tile data. If you are getting "Unimplemented type 3" error messages from a renderer, it is probably because it expects uncompressed tiles using this option rather than the normal gzip-compressed tiles.
 .IP \(bu 2
-\fB\fC\-pg\fR or \fB\fC\-\-no\-tile\-stats\fR: Don't generate the \fB\fCtilestats\fR row in the tileset metadata. Uploads without tilestats \[la]https://github.com/mapbox/mapbox-geostats\[ra] will take longer to process.
+\fB-pg\fR or \fB--no-tile-stats\fR: Don't generate the \fBtilestats\fR row in the tileset metadata. Uploads without tilestats
+\[la]https://github.com/mapbox/mapbox\-geostats\[ra] will take longer to process.
 .IP \(bu 2
-\fB\fC\-\-tile\-stats\-attributes\-limit=\fR\fIcount\fP: Include \fB\fCtilestats\fR information about at most \fIcount\fP attributes instead of the default 1000.
+\fB--tile-stats-attributes-limit=\fR\fIcount\fP: Include \fBtilestats\fR information about at most \fIcount\fP attributes instead of the default 1000.
 .IP \(bu 2
-\fB\fC\-\-tile\-stats\-sample\-values\-limit=\fR\fIcount\fP: Calculate \fB\fCtilestats\fR attribute statistics based on \fIcount\fP values instead of the default 1000.
+\fB--tile-stats-sample-values-limit=\fR\fIcount\fP: Calculate \fBtilestats\fR attribute statistics based on \fIcount\fP values instead of the default 1000.
 .IP \(bu 2
-\fB\fC\-\-tile\-stats\-values\-limit=\fR\fIcount\fP: Report \fIcount\fP unique attribute values in \fB\fCtilestats\fR instead of the default 100.
-.RE
+\fB--tile-stats-values-limit=\fR\fIcount\fP: Report \fIcount\fP unique attribute values in \fBtilestats\fR instead of the default 100.
 .SS Temporary storage
-.RS
 .IP \(bu 2
-\fB\fC\-t\fR \fIdirectory\fP or \fB\fC\-\-temporary\-directory=\fR\fIdirectory\fP: Put the temporary files in \fIdirectory\fP\&.
-If you don't specify, it will use \fB\fC/tmp\fR\&.
-.RE
+\fB-t\fR \fIdirectory\fP or \fB--temporary-directory=\fR\fIdirectory\fP: Put the temporary files in \fIdirectory\fP\&.
+If you don't specify, it will use \fB/tmp\fR\&.
 .SS Progress indicator
-.RS
 .IP \(bu 2
-\fB\fC\-q\fR or \fB\fC\-\-quiet\fR: Work quietly instead of reporting progress or warning messages
+\fB-q\fR or \fB--quiet\fR: Work quietly instead of reporting progress or warning messages
 .IP \(bu 2
-\fB\fC\-Q\fR or \fB\fC\-\-no\-progress\-indicator\fR: Don't report progress, but still give warnings
+\fB-Q\fR or \fB--no-progress-indicator\fR: Don't report progress, but still give warnings
 .IP \(bu 2
-\fB\fC\-U\fR \fIseconds\fP or \fB\fC\-\-progress\-interval=\fR\fIseconds\fP: Don't report progress more often than the specified number of \fIseconds\fP\&.
+\fB-U\fR \fIseconds\fP or \fB--progress-interval=\fR\fIseconds\fP: Don't report progress more often than the specified number of \fIseconds\fP\&.
 .IP \(bu 2
-\fB\fC\-u\fR or \fB\fC\-\-json\-progress\fR: like \fB\fC\-quiet\fR but logs progress as a JSON object. Use in combination with \fB\fC\-U\fR\&.
+\fB-u\fR or \fB--json-progress\fR: like \fB--quiet\fR but logs progress as a JSON object. Use in combination with \fB-U\fR\&.
+.SS Version
 .IP \(bu 2
-\fB\fC\-v\fR or \fB\fC\-\-version\fR: Report Tippecanoe's version number
-.RE
+\fB-v\fR or \fB--version\fR: Report Tippecanoe's version number
+.SS Help
+.IP \(bu 2
+\fB-H\fR or \fB--help\fR: List the available options and exit
 .SS Filters
-.RS
 .IP \(bu 2
-\fB\fC\-C\fR \fIcommand\fP or \fB\fC\-\-prefilter=\fR\fIcommand\fP: Specify a shell filter command to be run at the start of assembling each tile
+\fB-C\fR \fIcommand\fP or \fB--prefilter=\fR\fIcommand\fP: Specify a shell filter command to be run at the start of assembling each tile
 .IP \(bu 2
-\fB\fC\-c\fR \fIcommand\fP or \fB\fC\-\-postfilter=\fR\fIcommand\fP: Specify a shell filter command to be run at the end of assembling each tile
-.RE
+\fB-c\fR \fIcommand\fP or \fB--postfilter=\fR\fIcommand\fP: Specify a shell filter command to be run at the end of assembling each tile
 .PP
-The pre\- and post\-filter commands allow you to do optional filtering or transformation on the features of each tile
-as it is created. They are shell commands, run with the zoom level, X, and Y as the \fB\fC$1\fR, \fB\fC$2\fR, and \fB\fC$3\fR arguments.
+The pre- and post-filter commands allow you to do optional filtering or transformation on the features of each tile
+as it is created. They are shell commands, run with the zoom level, X, and Y as the \fB$1\fR, \fB$2\fR, and \fB$3\fR arguments.
 Future versions of Tippecanoe may add additional arguments for more context.
 .PP
 The features are provided to the filter
-as a series of newline\-delimited GeoJSON objects on the standard input, and \fB\fCtippecanoe\fR expects to read another
+as a series of newline-delimited GeoJSON objects on the standard input, and \fBtippecanoe\fR expects to read another
 set of GeoJSON features from the filter's standard output.
 .PP
 The prefilter receives the features at the highest available resolution, before line simplification,
 polygon topology repair, gamma calculation, dynamic feature dropping, or other internal processing.
 The postfilter receives the features at tile resolution, after simplification, cleaning, and dropping.
 .PP
-The layer name is provided as part of the \fB\fCtippecanoe\fR element of the feature and must be passed through
-to keep the feature in its correct layer. In the case of the prefilter, the \fB\fCtippecanoe\fR element may also
-contain \fB\fCindex\fR, \fB\fCsequence\fR, \fB\fCextent\fR, and \fB\fCdropped\fR, elements, which must be passed through for internal operations like
-\fB\fC\-\-drop\-densest\-as\-needed\fR, \fB\fC\-\-drop\-smallest\-as\-needed\fR, and \fB\fC\-\-preserve\-input\-order\fR to work.
+The layer name is provided as part of the \fBtippecanoe\fR element of the feature and must be passed through
+to keep the feature in its correct layer. In the case of the prefilter, the \fBtippecanoe\fR element may also
+contain \fBindex\fR, \fBsequence\fR, \fBextent\fR, and \fBdropped\fR, elements, which must be passed through for internal operations like
+\fB--drop-densest-as-needed\fR, \fB--drop-smallest-as-needed\fR, and \fB--preserve-input-order\fR to work.
 .SS Examples:
-.RS
 .IP \(bu 2
 Make a tileset of the Natural Earth countries to zoom level 5, and also copy the GeoJSON features
-to files in a \fB\fCtiles/z/x/y.geojson\fR directory hierarchy.
-.RE
-.PP
-.RS
-.nf
-tippecanoe \-o countries.mbtiles \-z5 \-C 'mkdir \-p tiles/$1/$2; tee tiles/$1/$2/$3.geojson' ne_10m_admin_0_countries.json
-.fi
-.RE
-.RS
+to files in a \fBtiles/z/x/y.geojson\fR directory hierarchy.
+.EX
+tippecanoe -o countries.mbtiles -z5 -C 'mkdir -p tiles/$1/$2; tee tiles/$1/$2/$3.geojson' ne_10m_admin_0_countries.json
+.EE
 .IP \(bu 2
 Make a tileset of the Natural Earth countries to zoom level 5, but including only those tiles that
-intersect the bounding box of Germany \[la]https://www.flickr.com/places/info/23424829\[ra]\&.
-(The \fB\fClimit\-tiles\-to\-bbox\fR script is in the Tippecanoe source directory \[la]filters/limit-tiles-to-bbox\[ra]\&.)
-.RE
-.PP
-.RS
-.nf
-tippecanoe \-o countries.mbtiles \-z5 \-C './filters/limit\-tiles\-to\-bbox 5.8662 47.2702 15.0421 55.0581 $*' ne_10m_admin_0_countries.json
-.fi
-.RE
-.RS
+intersect the bounding box of Germany
+\[la]https://www.flickr.com/places/info/23424829\[ra]\&.
+(The \fBlimit-tiles-to-bbox\fR script is in the Tippecanoe source directory
+\[la]filters/limit\-tiles\-to\-bbox\[ra]\&.)
+.EX
+tippecanoe -o countries.mbtiles -z5 -C './filters/limit-tiles-to-bbox 5.8662 47.2702 15.0421 55.0581 $*' ne_10m_admin_0_countries.json
+.EE
 .IP \(bu 2
-Make a tileset of TIGER roads in Tippecanoe County, leaving out all but primary and secondary roads (as classified by TIGER \[la]https://www.census.gov/geo/reference/mtfcc.html\[ra]) below zoom level 11.
-.RE
-.PP
-.RS
-.nf
-tippecanoe \-o roads.mbtiles \-c 'if [ $1 \-lt 11 ]; then grep "\\"MTFCC\\": \\"S1[12]00\\""; else cat; fi' tl_2016_18157_roads.json
-.fi
-.RE
+Make a tileset of TIGER roads in Tippecanoe County, leaving out all but primary and secondary roads (as classified by TIGER
+\[la]https://www.census.gov/geo/reference/mtfcc.html\[ra]) below zoom level 11.
+.EX
+tippecanoe -o roads.mbtiles -c 'if [ $1 -lt 11 ]; then grep "\\"MTFCC\\": \\"S1[12]00\\""; else cat; fi' tl_2016_18157_roads.json
+.EE
 .SH Environment
-.PP
 Tippecanoe ordinarily uses as many parallel threads as the operating system claims that CPUs are available.
-You can override this number by setting the \fB\fCTIPPECANOE_MAX_THREADS\fR environmental variable.
+You can override this number by setting the \fBTIPPECANOE_MAX_THREADS\fR environmental variable.
 .SH GeoJSON extension
-.PP
 Tippecanoe defines a GeoJSON extension that you can use to specify the minimum and/or maximum zoom level
 at which an individual feature will be included in the vector tileset being produced.
 If you have a feature like this:
-.PP
-.RS
-.nf
+.EX
 {
     "type" : "Feature",
     "tippecanoe" : { "maxzoom" : 9, "minzoom" : 4 },
     "properties" : { "FULLNAME" : "N Vasco Rd" },
     "geometry" : {
         "type" : "LineString",
-        "coordinates" : [ [ \-121.733350, 37.767671 ], [ \-121.733600, 37.767483 ], [ \-121.733131, 37.766952 ] ]
+        "coordinates" : [ [ -121.733350, 37.767671 ], [ -121.733600, 37.767483 ], [ -121.733131, 37.766952 ] ]
     }
 }
-.fi
-.RE
+.EE
 .PP
-with a \fB\fCtippecanoe\fR object specifiying a \fB\fCmaxzoom\fR of 9 and a \fB\fCminzoom\fR of 4, the feature
-will only appear in the vector tiles for zoom levels 4 through 9. Note that the \fB\fCtippecanoe\fR
-object belongs to the Feature, not to its \fB\fCproperties\fR\&. If you specify a \fB\fCminzoom\fR for a feature,
-it will be preserved down to that zoom level even if dot\-dropping with \fB\fC\-r\fR would otherwise have
+with a \fBtippecanoe\fR object specifying a \fBmaxzoom\fR of 9 and a \fBminzoom\fR of 4, the feature
+will only appear in the vector tiles for zoom levels 4 through 9. Note that the \fBtippecanoe\fR
+object belongs to the Feature, not to its \fBproperties\fR\&. If you specify a \fBminzoom\fR for a feature,
+it will be preserved down to that zoom level even if dot-dropping with \fB-r\fR would otherwise have
 dropped it.
 .PP
-You can also specify a layer name in the \fB\fCtippecanoe\fR object, which will take precedence over
-the filename or name specified using \fB\fC\-\-layer\fR, like this:
-.PP
-.RS
-.nf
+You can also specify a layer name in the \fBtippecanoe\fR object, which will take precedence over
+the filename or name specified using \fB--layer\fR, like this:
+.EX
 {
     "type" : "Feature",
     "tippecanoe" : { "layer" : "streets" },
     "properties" : { "FULLNAME" : "N Vasco Rd" },
     "geometry" : {
         "type" : "LineString",
-        "coordinates" : [ [ \-121.733350, 37.767671 ], [ \-121.733600, 37.767483 ], [ \-121.733131, 37.766952 ] ]
+        "coordinates" : [ [ -121.733350, 37.767671 ], [ -121.733600, 37.767483 ], [ -121.733131, 37.766952 ] ]
     }
 }
-.fi
-.RE
+.EE
 .PP
-If your source GeoJSON only has \fB\fCminzoom\fR, \fB\fCmaxzoom\fR and/or \fB\fClayer\fR within \fB\fCproperties\fR you can use ndjson\-cli \[la]https://github.com/mbostock/ndjson-cli/blob/master/README.md\[ra] to move them into the required \fB\fCtippecanoe\fR object by piping the GeoJSON like this:
-.PP
-.RS
-.nf
-ndjson\-map 'd.tippecanoe = { minzoom: d.properties.minzoom, maxzoom: d.properties.maxzoom, layer: d.properties.layer }, delete d.properties.minzoom, delete d.properties.maxzoom, delete d.properties.layer, d'
-.fi
-.RE
+If your source GeoJSON only has \fBminzoom\fR, \fBmaxzoom\fR and/or \fBlayer\fR within \fBproperties\fR you can use ndjson-cli
+\[la]https://github.com/mbostock/ndjson\-cli/blob/master/README.md\[ra] to move them into the required \fBtippecanoe\fR object by piping the GeoJSON like this:
+.EX
+ndjson-map 'd.tippecanoe = { minzoom: d.properties.minzoom, maxzoom: d.properties.maxzoom, layer: d.properties.layer }, delete d.properties.minzoom, delete d.properties.maxzoom, delete d.properties.layer, d'
+.EE
 .SH Geometric simplifications
-.PP
-At every zoom level, line and polygon features are subjected to Douglas\-Peucker
+At every zoom level, line and polygon features are subjected to Douglas-Peucker
 simplification to the resolution of the tile.
 .PP
-For point features, it drops 1/2.5 of the dots for each zoom level above the
-point base zoom (which is normally the same as the \fB\fC\-z\fR max zoom, but can be
-a different zoom specified with \fB\fC\-B\fR if you have precise but sparse data).
+For point features, it keeps only 1/2.5 of the dots for each zoom level below the
+point base zoom (which is normally the same as the \fB-z\fR max zoom, but can be
+a different zoom specified with \fB-B\fR if you have precise but sparse data).
 I don't know why 2.5 is the appropriate number, but the densities of many different
-data sets fall off at about this same rate. You can use \-r to specify a different rate.
+data sets fall off at about this same rate. You can use \fB-r\fR to specify a different rate.
 .PP
 You can use the gamma option to thin out especially dense clusters of points.
 For any area where dots are closer than one pixel together (at whatever zoom level),
@@ -885,86 +750,75 @@ For line features, it drops any features that are too small to draw at all.
 This still leaves the lower zooms too dark (and too dense for the 500K tile limit,
 in some places), so I need to figure out an equitable way to throw features away.
 .PP
-Unless you specify \fB\fC\-\-no\-tiny\-polygon\-reduction\fR,
+Unless you specify \fB--no-tiny-polygon-reduction\fR,
 any polygons that are smaller than a minimum area (currently 4 square subpixels) will
 have their probability diffused, so that some of them will be drawn as a square of
 this minimum size and others will not be drawn at all, preserving the total area that
 all of them should have had together.
 .PP
 Features in the same tile that share the same type and attributes are coalesced
-together into a single geometry if you use \fB\fC\-\-coalesce\fR\&. You are strongly encouraged to use \fB\fC\-x\fR to exclude
+together into a single geometry if you use \fB--coalesce\fR\&. You are strongly encouraged to use \fB-x\fR to exclude
 any unnecessary attributes to reduce wasted file size.
 .PP
 If a tile is larger than 500K, it will try encoding that tile at progressively
 lower resolutions before failing if it still doesn't fit.
 .SH Development
+Requires sqlite3 and zlib (should already be installed on MacOS).
 .PP
-Requires sqlite3 and zlib (should already be installed on MacOS). Rebuilding the manpage
-uses md2man (\fB\fCgem install md2man\fR).
+The manpage is generated from this README by \fBmake docs\fR, which uses
+go-md2man
+\[la]https://github.com/cpuguy83/go\-md2man\[ra] (\fBbrew install go-md2man\fR or
+\fBapt-get install go-md2man\fR). You don't have to run it yourself: CI regenerates the
+manpage and fails if the committed copy doesn't match, so it will tell you if an
+edit here needs \fBmake docs\fR run against it.
 .PP
 Linux:
-.PP
-.RS
-.nf
-sudo apt\-get install gcc g++ make libsqlite3\-dev zlib1g\-dev
-.fi
-.RE
+.EX
+sudo apt-get install gcc g++ make libsqlite3-dev zlib1g-dev
+.EE
 .PP
 Then build:
-.PP
-.RS
-.nf
+.EX
 make
-.fi
-.RE
+.EE
 .PP
 and perhaps
-.PP
-.RS
-.nf
+.EX
 make install
-.fi
-.RE
+.EE
 .PP
-Tippecanoe now requires features from the 2011 C++ standard. If your compiler is older than
-that, you will need to install a newer one. On MacOS, updating to the lastest XCode should
-get you a new enough version of \fB\fCclang++\fR\&. On Linux, you should be able to upgrade \fB\fCg++\fR with
-.PP
-.RS
-.nf
-sudo add\-apt\-repository \-y ppa:ubuntu\-toolchain\-r/test
-sudo apt\-get update \-y
-sudo apt\-get install \-y g++\-5
-export CXX=g++\-5
-.fi
-.RE
+Tippecanoe requires features from the 2017 C++ standard (it is built with \fB-std=c++17\fR).
+If your compiler is older than that, you will need to install a newer one. On MacOS, updating
+to the latest XCode should get you a new enough version of \fBclang++\fR\&. On Linux, you should be
+able to upgrade \fBg++\fR with
+.EX
+sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+sudo apt-get update -y
+sudo apt-get install -y g++-9
+export CXX=g++-9
+.EE
 .SH Docker Image
-.PP
 A tippecanoe Docker image can be built from source and executed as a task to
 automatically install dependencies and allow tippecanoe to run on any system
 supported by Docker.
-.PP
-.RS
-.nf
-$ docker build \-t tippecanoe:latest .
-$ docker run \-it \-\-rm \\
-  \-v /tiledata:/data \\
+.EX
+$ docker build -t tippecanoe:latest .
+$ docker run -it --rm \\
+  -v /tiledata:/data \\
   tippecanoe:latest \\
-  tippecanoe \-\-output=/data/output.mbtiles /data/example.geojson
-.fi
-.RE
+  tippecanoe --output=/data/output.mbtiles /data/example.geojson
+.EE
 .PP
 The commands above will build a Docker image from the source and compile the
 latest version. The image supports all tippecanoe flags and options.
 .SH Examples
-.PP
-Check out some examples of maps made with tippecanoe \[la]MADE_WITH.md\[ra]
+Check out some examples of maps made with tippecanoe
+\[la]MADE_WITH.md\[ra]
 .SH Name
-.PP
-The name is a joking reference \[la]http://en.wikipedia.org/wiki/Tippecanoe_and_Tyler_Too\[ra] to a "tiler" for making map tiles.
-.SH tile\-join
-.PP
-Tile\-join is a tool for copying and merging vector mbtiles files and for
+The name is a joking reference
+\[la]http://en.wikipedia.org/wiki/Tippecanoe_and_Tyler_Too\[ra] to a "tiler" for making map tiles.
+.SH tile-join
+Tile-join is a tool for copying and merging vector mbtiles files and for
 joining new attributes from a CSV file to existing features in them.
 .PP
 It reads the tiles from an
@@ -978,122 +832,107 @@ or tiles are merged.
 .PP
 The options are:
 .SS Output tileset
-.RS
 .IP \(bu 2
-\fB\fC\-o\fR \fIout.mbtiles\fP, \fIout.pmtiles\fP or \fB\fC\-\-output=\fR\fIout.mbtiles\fP: Write the new tiles to the specified .mbtiles file.
+\fB-o\fR \fIout.mbtiles\fP, \fIout.pmtiles\fP or \fB--output=\fR\fIout.mbtiles\fP: Write the new tiles to the specified .mbtiles file.
 .IP \(bu 2
-\fB\fC\-e\fR \fIdirectory\fP or \fB\fC\-\-output\-to\-directory=\fR\fIdirectory\fP: Write the new tiles to the specified directory instead of to an mbtiles file.
+\fB-e\fR \fIdirectory\fP or \fB--output-to-directory=\fR\fIdirectory\fP: Write the new tiles to the specified directory instead of to an mbtiles file.
 .IP \(bu 2
-\fB\fC\-f\fR or \fB\fC\-\-force\fR: Remove \fIout.mbtiles\fP if it already exists.
+\fB-f\fR or \fB--force\fR: Remove \fIout.mbtiles\fP if it already exists.
+.SS Input tilesets
 .IP \(bu 2
-\fB\fC\-r\fR or \fB\fC\-\-read\-from\fR: list of input mbtiles to read from.
-.RE
+\fB-r\fR \fIfile\fP or \fB--read-from=\fR\fIfile\fP: Read the list of input tilesets from the named \fIfile\fP, one filename per line, instead of naming them all on the command line.
 .SS Overzooming
-.RS
 .IP \(bu 2
-\fB\fC\-\-overzoom\fR: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
+\fB-O\fR or \fB--overzoom\fR: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
 .IP \(bu 2
-\fB\fC\-\-buffer=\fR\fIpixels\fP or \fB\fC\-b\fR \fIpixels\fP: Set the size of the tile buffer in the overzoomed tiles.
-.RE
+\fB--buffer=\fR\fIpixels\fP or \fB-b\fR \fIpixels\fP: Set the size of the tile buffer in the overzoomed tiles.
 .SS Tileset description and attribution
-.RS
 .IP \(bu 2
-\fB\fC\-A\fR \fIattribution\fP or \fB\fC\-\-attribution=\fR\fIattribution\fP: Set the attribution string.
+\fB-A\fR \fIattribution\fP or \fB--attribution=\fR\fIattribution\fP: Set the attribution string.
 .IP \(bu 2
-\fB\fC\-n\fR \fIname\fP or \fB\fC\-\-name=\fR\fIname\fP: Set the tileset name.
+\fB-n\fR \fIname\fP or \fB--name=\fR\fIname\fP: Set the tileset name.
 .IP \(bu 2
-\fB\fC\-N\fR \fIdescription\fP or \fB\fC\-\-description=\fR\fIdescription\fP: Set the tileset description.
-.RE
+\fB-N\fR \fIdescription\fP or \fB--description=\fR\fIdescription\fP: Set the tileset description.
 .SS Layer filtering and naming
-.RS
 .IP \(bu 2
-\fB\fC\-l\fR \fIlayer\fP or \fB\fC\-\-layer=\fR\fIlayer\fP: Include the named layer in the output. You can specify multiple \fB\fC\-l\fR options to keep multiple layers. If you don't specify, they will all be retained.
+\fB-l\fR \fIlayer\fP or \fB--layer=\fR\fIlayer\fP: Include the named layer in the output. You can specify multiple \fB-l\fR options to keep multiple layers. If you don't specify, they will all be retained.
 .IP \(bu 2
-\fB\fC\-L\fR \fIlayer\fP or \fB\fC\-\-exclude\-layer=\fR\fIlayer\fP: Remove the named layer from the output. You can specify multiple \fB\fC\-L\fR options to remove multiple layers.
+\fB-L\fR \fIlayer\fP or \fB--exclude-layer=\fR\fIlayer\fP: Remove the named layer from the output. You can specify multiple \fB-L\fR options to remove multiple layers.
 .IP \(bu 2
-\fB\fC\-R\fR\fIold\fP\fB\fC:\fR\fInew\fP or \fB\fC\-\-rename\-layer=\fR\fIold\fP\fB\fC:\fR\fInew\fP: Rename the layer named \fIold\fP to be named \fInew\fP instead. You can specify multiple \fB\fC\-R\fR options to rename multiple layers. Renaming happens before filtering.
-.RE
+\fB-R\fR\fIold\fP\fB:\fR\fInew\fP or \fB--rename-layer=\fR\fIold\fP\fB:\fR\fInew\fP: Rename the layer named \fIold\fP to be named \fInew\fP instead. You can specify multiple \fB-R\fR options to rename multiple layers. Renaming happens before filtering.
 .SS Zoom levels
-.RS
 .IP \(bu 2
-\fB\fC\-z\fR \fIzoom\fP or \fB\fC\-\-maximum\-zoom=\fR\fIzoom\fP: Don't copy tiles from higher zoom levels than the specified zoom
+\fB-z\fR \fIzoom\fP or \fB--maximum-zoom=\fR\fIzoom\fP: Don't copy tiles from higher zoom levels than the specified zoom
 .IP \(bu 2
-\fB\fC\-Z\fR \fIzoom\fP or \fB\fC\-\-minimum\-zoom=\fR\fIzoom\fP: Don't copy tiles from lower zoom levels than the specified zoom
-.RE
+\fB-Z\fR \fIzoom\fP or \fB--minimum-zoom=\fR\fIzoom\fP: Don't copy tiles from lower zoom levels than the specified zoom
 .SS Merging attributes from a CSV file
-.RS
 .IP \(bu 2
-\fB\fC\-c\fR \fImatch\fP\fB\fC\&.csv\fR or \fB\fC\-\-csv=\fR\fImatch\fP\fB\fC\&.csv\fR: Use \fImatch\fP\fB\fC\&.csv\fR as the source for new attributes to join to the features. The first line of the file should be the key names; the other lines are values. The first column is the one to match against the existing features; the other columns are the new data to add.
-.RE
+\fB-c\fR \fImatch\fP\fB\&.csv\fR or \fB--csv=\fR\fImatch\fP\fB\&.csv\fR: Use \fImatch\fP\fB\&.csv\fR as the source for new attributes to join to the features. The first line of the file should be the key names; the other lines are values. The first column is the one to match against the existing features; the other columns are the new data to add.
 .SS Filtering features and feature attributes
-.RS
 .IP \(bu 2
-\fB\fC\-x\fR \fIkey\fP or \fB\fC\-\-exclude=\fR\fIkey\fP: Remove attributes named \fIkey\fP from the output. You can use this to remove the field you are matching against if you no longer need it after joining, or to remove any other attributes you don't want. You can use multiple \fB\fC\-x\fR options to remove multiple attributes.
+\fB-x\fR \fIkey\fP or \fB--exclude=\fR\fIkey\fP: Remove attributes named \fIkey\fP from the output. You can use this to remove the field you are matching against if you no longer need it after joining, or to remove any other attributes you don't want. You can use multiple \fB-x\fR options to remove multiple attributes.
 .IP \(bu 2
-\fB\fC\-X\fR or \fB\fC\-\-exclude\-all\fR: Remove all attributes from the output.
+\fB-X\fR or \fB--exclude-all\fR: Remove all attributes from the output.
 .IP \(bu 2
-\fB\fC\-y\fR \fIkey\fP or \fB\fC\-\-include=\fR\fIkey\fP: Remove all attributes except for those named \fIkey\fP from the output. You can use multiple \fB\fC\-y\fR options to retain multiple attributes.
+\fB-y\fR \fIkey\fP or \fB--include=\fR\fIkey\fP: Remove all attributes except for those named \fIkey\fP from the output. You can use multiple \fB-y\fR options to retain multiple attributes.
 .IP \(bu 2
-\fB\fC\-i\fR or \fB\fC\-\-if\-matched\fR: Only include features that matched the CSV.
+\fB--exclude-all-tile-attributes\fR: Remove the attributes that were already present in the source tiles, keeping only any that are joined from a CSV with \fB-c\fR\&.
 .IP \(bu 2
-\fB\fC\-j\fR \fIfilter\fP or \fB\fC\-\-feature\-filter\fR=\fIfilter\fP: Check features against a per\-layer filter (as defined in the Mapbox GL Style Specification \[la]https://docs.mapbox.com/mapbox-gl-js/style-spec/#other-filter\[ra]) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB\fC"*"\fR apply to all layers.
+\fB--exclude-all-tile-geometries\fR: Copy the features' attributes but not their geometries, so the output tiles describe the features without locating them.
 .IP \(bu 2
-\fB\fC\-J\fR \fIfilter\-file\fP or \fB\fC\-\-feature\-filter\-file\fR=\fIfilter\-file\fP: Like \fB\fC\-j\fR, but read the filter from a file.
+\fB-i\fR or \fB--if-matched\fR: Only include features that matched the CSV.
 .IP \(bu 2
-\fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
-.RE
+\fB-j\fR \fIfilter\fP or \fB--feature-filter\fR=\fIfilter\fP: Check features against a per-layer filter (as defined in the Mapbox GL Style Specification
+\[la]https://docs.mapbox.com/mapbox\-gl\-js/style\-spec/#other\-filter\[ra]) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer \fB"*"\fR apply to all layers.
+.IP \(bu 2
+\fB-J\fR \fIfilter-file\fP or \fB--feature-filter-file\fR=\fIfilter-file\fP: Like \fB-j\fR, but read the filter from a file.
+.IP \(bu 2
+\fB-pe\fR or \fB--empty-csv-columns-are-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .SS Setting or disabling tile size limits
-.RS
 .IP \(bu 2
-\fB\fC\-pk\fR or \fB\fC\-\-no\-tile\-size\-limit\fR: Don't skip tiles larger than 500K.
+\fB-pk\fR or \fB--no-tile-size-limit\fR: Don't skip tiles larger than 500K.
 .IP \(bu 2
-\fB\fC\-pC\fR or \fB\fC\-\-no\-tile\-compression\fR: Don't compress the PBF vector tile data.
+\fB-pC\fR or \fB--no-tile-compression\fR: Don't compress the PBF vector tile data.
 .IP \(bu 2
-\fB\fC\-pg\fR or \fB\fC\-\-no\-tile\-stats\fR: Don't generate the \fB\fCtilestats\fR row in the tileset metadata. Uploads without tilestats \[la]https://github.com/mapbox/mapbox-geostats\[ra] will take longer to process.
+\fB-pg\fR or \fB--no-tile-stats\fR: Don't generate the \fBtilestats\fR row in the tileset metadata. Uploads without tilestats
+\[la]https://github.com/mapbox/mapbox\-geostats\[ra] will take longer to process.
 .IP \(bu 2
-\fB\fC\-\-tile\-stats\-attributes\-limit=\fR\fIcount\fP: Include \fB\fCtilestats\fR information about at most \fIcount\fP attributes instead of the default 1000.
+\fB--tile-stats-attributes-limit=\fR\fIcount\fP: Include \fBtilestats\fR information about at most \fIcount\fP attributes instead of the default 1000.
 .IP \(bu 2
-\fB\fC\-\-tile\-stats\-sample\-values\-limit=\fR\fIcount\fP: Calculate \fB\fCtilestats\fR attribute statistics based on \fIcount\fP values instead of the default 1000.
+\fB--tile-stats-sample-values-limit=\fR\fIcount\fP: Calculate \fBtilestats\fR attribute statistics based on \fIcount\fP values instead of the default 1000.
 .IP \(bu 2
-\fB\fC\-\-tile\-stats\-values\-limit=\fR\fIcount\fP: Report \fIcount\fP unique attribute values in \fB\fCtilestats\fR instead of the default 100.
-.RE
+\fB--tile-stats-values-limit=\fR\fIcount\fP: Report \fIcount\fP unique attribute values in \fBtilestats\fR instead of the default 100.
+.SS Progress indicator
+.IP \(bu 2
+\fB-q\fR or \fB--quiet\fR: Work quietly instead of reporting progress
 .PP
-Because tile\-join just copies the geometries to the new .mbtiles without processing them
+Because tile-join just copies the geometries to the new .mbtiles without processing them
 (except to rescale the extents if necessary),
 it doesn't have any of tippecanoe's recourses if the new tiles are bigger than the 500K tile limit.
-If a tile is too big and you haven't specified \fB\fC\-pk\fR, it is just left out of the new tileset.
+If a tile is too big and you haven't specified \fB-pk\fR, it is just left out of the new tileset.
 .SH Example
-.PP
 Imagine you have a tileset of census blocks:
-.PP
-.RS
-.nf
-curl \-L \-O http://www2.census.gov/geo/tiger/TIGER2010/TABBLOCK/2010/tl_2010_06001_tabblock10.zip
+.EX
+curl -L -O http://www2.census.gov/geo/tiger/TIGER2010/TABBLOCK/2010/tl_2010_06001_tabblock10.zip
 unzip tl_2010_06001_tabblock10.zip
-ogr2ogr \-f GeoJSON tl_2010_06001_tabblock10.json tl_2010_06001_tabblock10.shp
-\&./tippecanoe \-o tl_2010_06001_tabblock10.mbtiles tl_2010_06001_tabblock10.json
-.fi
-.RE
+ogr2ogr -f GeoJSON tl_2010_06001_tabblock10.json tl_2010_06001_tabblock10.shp
+\&./tippecanoe -o tl_2010_06001_tabblock10.mbtiles tl_2010_06001_tabblock10.json
+.EE
 .PP
 and a CSV of their populations:
-.PP
-.RS
-.nf
-curl \-L \-O http://www2.census.gov/census_2010/01\-Redistricting_File\-\-PL_94\-171/California/ca2010.pl.zip
-unzip \-p ca2010.pl.zip cageo2010.pl |
+.EX
+curl -L -O http://www2.census.gov/census_2010/01-Redistricting_File--PL_94-171/California/ca2010.pl.zip
+unzip -p ca2010.pl.zip cageo2010.pl |
 awk 'BEGIN {
     print "GEOID10,population"
 }
 (substr($0, 9, 3) == "750") {
     print "\\"" substr($0, 28, 2) substr($0, 30, 3) substr($0, 55, 6) substr($0, 62, 4) "\\"," (0 + substr($0, 328, 9))
 }' > population.csv
-.fi
-.RE
+.EE
 .PP
 which looks like this:
-.PP
-.RS
-.nf
+.EX
 GEOID10,population
 "060014277003018",0
 "060014283014046",0
@@ -1104,191 +943,169 @@ GEOID10,population
 "060014507501003",193
 "060014507501004",85
 \&...
-.fi
-.RE
+.EE
 .PP
-Then you can join those populations to the geometries and discard the no\-longer\-needed ID field:
-.PP
-.RS
-.nf
-\&./tile\-join \-o population.mbtiles \-x GEOID10 \-c population.csv tl_2010_06001_tabblock10.mbtiles
-.fi
-.RE
-.SH tippecanoe\-enumerate
-.PP
-The \fB\fCtippecanoe\-enumerate\fR utility lists the tiles that an \fB\fCmbtiles\fR file defines.
-Each line of the output lists the name of the \fB\fCmbtiles\fR file and the zoom, x, and y
+Then you can join those populations to the geometries and discard the no-longer-needed ID field:
+.EX
+\&./tile-join -o population.mbtiles -x GEOID10 -c population.csv tl_2010_06001_tabblock10.mbtiles
+.EE
+.SH tippecanoe-enumerate
+The \fBtippecanoe-enumerate\fR utility lists the tiles that an \fBmbtiles\fR file defines.
+Each line of the output lists the name of the \fBmbtiles\fR file and the zoom, x, and y
 coordinates of one of the tiles. It does basically the same thing as
-.PP
-.RS
-.nf
-select zoom_level, tile_column, (1 << zoom_level) \- 1 \- tile_row from tiles;
-.fi
-.RE
+.EX
+select zoom_level, tile_column, (1 << zoom_level) - 1 - tile_row from tiles;
+.EE
 .PP
 on the file in sqlite3.
-.SH tippecanoe\-decode
-.PP
-The \fB\fCtippecanoe\-decode\fR utility turns vector mbtiles back to GeoJSON. You can use it either
+.SH tippecanoe-decode
+The \fBtippecanoe-decode\fR utility turns vector mbtiles back to GeoJSON. You can use it either
 on an entire file:
-.PP
-.RS
-.nf
-tippecanoe\-decode file.mbtiles
-tippecanoe\-decode file.pmtiles
-.fi
-.RE
+.EX
+tippecanoe-decode file.mbtiles
+tippecanoe-decode file.pmtiles
+.EE
 .PP
 or on an individual tile:
+.EX
+tippecanoe-decode file.mbtiles zoom x y
+tippecanoe-decode file.vector.pbf zoom x y
+.EE
 .PP
-.RS
-.nf
-tippecanoe\-decode file.mbtiles zoom x y
-tippecanoe\-decode file.vector.pbf zoom x y
-.fi
-.RE
-.PP
-Unless you use \fB\fC\-c\fR, the output is a set of nested FeatureCollections identifying each
+Unless you use \fB-c\fR, the output is a set of nested FeatureCollections identifying each
 tile and layer separately. Note that the same features generally appear at all zooms,
 so the output for the file will have many copies of the same features at different
 resolutions.
 .SS Options
-.RS
 .IP \(bu 2
-\fB\fC\-s\fR \fIprojection\fP or \fB\fC\-\-projection=\fR\fIprojection\fP: Specify the projection of the output data. Currently supported are EPSG:4326 (WGS84, the default) and EPSG:3857 (Web Mercator).
+\fB-s\fR \fIprojection\fP or \fB--projection=\fR\fIprojection\fP: Specify the projection of the output data. Currently supported are EPSG:4326 (WGS84, the default) and EPSG:3857 (Web Mercator).
 .IP \(bu 2
-\fB\fC\-z\fR \fImaxzoom\fP or \fB\fC\-\-maximum\-zoom=\fR\fImaxzoom\fP: Specify the highest zoom level to decode from the tileset
+\fB-z\fR \fImaxzoom\fP or \fB--maximum-zoom=\fR\fImaxzoom\fP: Specify the highest zoom level to decode from the tileset
 .IP \(bu 2
-\fB\fC\-Z\fR \fIminzoom\fP or \fB\fC\-\-minimum\-zoom=\fR\fIminzoom\fP: Specify the lowest zoom level to decode from the tileset
+\fB-Z\fR \fIminzoom\fP or \fB--minimum-zoom=\fR\fIminzoom\fP: Specify the lowest zoom level to decode from the tileset
 .IP \(bu 2
-\fB\fC\-l\fR \fIlayer\fP or \fB\fC\-\-layer=\fR\fIlayer\fP: Decode only layers with the specified names. (Multiple \fB\fC\-l\fR options can be specified.)
+\fB-l\fR \fIlayer\fP or \fB--layer=\fR\fIlayer\fP: Decode only layers with the specified names. (Multiple \fB-l\fR options can be specified.)
 .IP \(bu 2
-\fB\fC\-c\fR or \fB\fC\-\-tag\-layer\-and\-zoom\fR: Include each feature's layer and zoom level as part of its \fB\fCtippecanoe\fR object rather than as a FeatureCollection wrapper
+\fB-c\fR or \fB--tag-layer-and-zoom\fR: Include each feature's layer and zoom level as part of its \fBtippecanoe\fR object rather than as a FeatureCollection wrapper
 .IP \(bu 2
-\fB\fC\-S\fR or \fB\fC\-\-stats\fR: Just report statistics about each tile's size and the number of features in it, as a JSON structure.
+\fB-S\fR or \fB--stats\fR: Just report statistics about each tile's size and the number of features in it, as a JSON structure.
 .IP \(bu 2
-\fB\fC\-f\fR or \fB\fC\-\-force\fR: Decode tiles even if polygon ring order or closure problems are detected
+\fB-f\fR or \fB--force\fR: Decode tiles even if polygon ring order or closure problems are detected
 .IP \(bu 2
-\fB\fC\-I\fR or \fB\fC\-\-integer\fR: Report coordinates in integer tile coordinates
+\fB-I\fR or \fB--integer-coordinates\fR: Report coordinates in integer tile coordinates
 .IP \(bu 2
-\fB\fC\-F\fR or \fB\fC\-\-fraction\fR: Report coordinates as a fraction of the tile extent
-.RE
-.SH tippecanoe\-json\-tool
-.PP
-Extracts GeoJSON features or standalone geometries as line\-delimited JSON objects from a larger JSON file,
+\fB-F\fR or \fB--fractional-coordinates\fR: Report coordinates as a fraction of the tile extent
+.IP \(bu 2
+\fB-y\fR \fIattribute\fP or \fB--include=\fR\fIattribute\fP: Include only the named attributes in the decoded features, excluding all those not explicitly named. (Multiple \fB-y\fR options can be specified.)
+.IP \(bu 2
+\fB-x\fR \fIname\fP or \fB--exclude-metadata-row=\fR\fIname\fP: Omit the named row from the tileset metadata in the output. (Multiple \fB-x\fR options can be specified.)
+.SH tippecanoe-json-tool
+Extracts GeoJSON features or standalone geometries as line-delimited JSON objects from a larger JSON file,
 following the same extraction rules that Tippecanoe uses when parsing JSON.
-.PP
-.RS
-.nf
-tippecanoe\-json\-tool file.json [... file.json]
-.fi
-.RE
+.EX
+tippecanoe-json-tool file.json [... file.json]
+.EE
 .PP
 Optionally also wraps them in a FeatureCollection or GeometryCollection as appropriate.
 .PP
-Optionally extracts an attribute from the GeoJSON \fB\fCproperties\fR for sorting.
+Optionally extracts an attribute from the GeoJSON \fBproperties\fR for sorting.
 .PP
 Optionally joins a sorted CSV of new attributes to a sorted GeoJSON file.
 .PP
 The reason for requiring sorting is so that it is possible to work on CSV and GeoJSON files that are larger
 than can comfortably fit in memory by streaming through them in parallel, in the same way that the Unix
-\fB\fCjoin\fR command does. The Unix \fB\fCsort\fR command can be used to sort large files to prepare them for joining.
+\fBjoin\fR command does. The Unix \fBsort\fR command can be used to sort large files to prepare them for joining.
 .PP
-The sorting interface is weird, and future version of \fB\fCtippecanoe\-json\-tool\fR will replace it with
+The sorting interface is weird, and future version of \fBtippecanoe-json-tool\fR will replace it with
 something better.
 .SS Options
-.RS
 .IP \(bu 2
-\fB\fC\-w\fR or \fB\fC\-\-wrap\fR: Add the FeatureCollection or GeometryCollection wrapper.
+\fB-w\fR or \fB--wrap\fR: Add the FeatureCollection or GeometryCollection wrapper.
 .IP \(bu 2
-\fB\fC\-e\fR \fIattribute\fP or \fB\fC\-\-extract=\fR\fIattribute\fP: Extract the named attribute as a prefix to each feature.
-The formatting makes excessive use of \fB\fC\\u\fR quoting so that it follows JSON string rules but will still
+\fB-e\fR \fIattribute\fP or \fB--extract=\fR\fIattribute\fP: Extract the named attribute as a prefix to each feature.
+The formatting makes excessive use of \fB\\u\fR quoting so that it follows JSON string rules but will still
 be sorted correctly by tools that just do ASCII comparisons.
 .IP \(bu 2
-\fB\fC\-c\fR \fIfile.csv\fP or \fB\fC\-\-csv=\fR\fIfile.csv\fP: Join attributes from the named sorted CSV file, using its first column as the join key. Geometries will be passed through even if they do not match the CSV; CSV lines that do not match a geometry will be discarded.
+\fB-c\fR \fIfile.csv\fP or \fB--csv=\fR\fIfile.csv\fP: Join attributes from the named sorted CSV file, using its first column as the join key. Geometries will be passed through even if they do not match the CSV; CSV lines that do not match a geometry will be discarded.
 .IP \(bu 2
-\fB\fC\-pe\fR or \fB\fC\-\-empty\-csv\-columns\-are\-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
-.RE
+\fB-pe\fR or \fB--empty-csv-columns-are-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
 .SS Example
-.PP
-Join Census LEHD (Longitudinal Employer\-Household Dynamics \[la]https://lehd.ces.census.gov/\[ra]) employment data to a file of Census block geography
+Join Census LEHD (Longitudinal Employer-Household Dynamics
+\[la]https://lehd.ces.census.gov/\[ra]) employment data to a file of Census block geography
 for Tippecanoe County, Indiana.
 .PP
 Download Census block geometry, and convert to GeoJSON:
-.PP
-.RS
-.nf
-$ curl \-L \-O https://www2.census.gov/geo/tiger/TIGER2010/TABBLOCK/2010/tl_2010_18157_tabblock10.zip
+.EX
+$ curl -L -O https://www2.census.gov/geo/tiger/TIGER2010/TABBLOCK/2010/tl_2010_18157_tabblock10.zip
 $ unzip tl_2010_18157_tabblock10.zip
-$ ogr2ogr \-f GeoJSON tl_2010_18157_tabblock10.json tl_2010_18157_tabblock10.shp
-.fi
-.RE
+$ ogr2ogr -f GeoJSON tl_2010_18157_tabblock10.json tl_2010_18157_tabblock10.shp
+.EE
 .PP
 Download Indiana employment data, and fix name of join key in header
-.PP
-.RS
-.nf
-$ curl \-L \-O https://lehd.ces.census.gov/data/lodes/LODES7/in/wac/in_wac_S000_JT00_2015.csv.gz
-$ gzip \-dc in_wac_S000_JT00_2015.csv.gz | sed '1s/w_geocode/GEOID10/' > in_wac_S000_JT00_2015.csv
-.fi
-.RE
+.EX
+$ curl -L -O https://lehd.ces.census.gov/data/lodes/LODES7/in/wac/in_wac_S000_JT00_2015.csv.gz
+$ gzip -dc in_wac_S000_JT00_2015.csv.gz | sed '1s/w_geocode/GEOID10/' > in_wac_S000_JT00_2015.csv
+.EE
 .PP
 Sort GeoJSON block geometry so it is ordered by block ID. If you don't do this, you will get a
 "GeoJSON file is out of sort" error.
-.PP
-.RS
-.nf
-$ tippecanoe\-json\-tool \-e GEOID10 tl_2010_18157_tabblock10.json | LC_ALL=C sort > tl_2010_18157_tabblock10.sort.json
-.fi
-.RE
+.EX
+$ tippecanoe-json-tool -e GEOID10 tl_2010_18157_tabblock10.json | LC_ALL=C sort > tl_2010_18157_tabblock10.sort.json
+.EE
 .PP
 Join block geometries to employment attributes:
-.PP
-.RS
-.nf
-$ tippecanoe\-json\-tool \-c in_wac_S000_JT00_2015.csv tl_2010_18157_tabblock10.sort.json > blocks\-wac.json
-.fi
-.RE
-.SH tippecanoe\-overzoom
-.PP
-The \fB\fCtippecanoe\-overzoom\fR utility creates a vector tile from one of its parent tiles,
+.EX
+$ tippecanoe-json-tool -c in_wac_S000_JT00_2015.csv tl_2010_18157_tabblock10.sort.json > blocks-wac.json
+.EE
+.SH tippecanoe-overzoom
+The \fBtippecanoe-overzoom\fR utility creates a vector tile from one of its parent tiles,
 clipping and scaling the geometry from the parent tile and excluding features that
 are clipped away. The idea is that if you create very high resolution tiles
-(using \fB\fC\-\-extra\-detail\fR) at a moderate zoom level, you can use \fB\fCtippecanoe\-overzoom\fR
+(using \fB--extra-detail\fR) at a moderate zoom level, you can use \fBtippecanoe-overzoom\fR
 to turn those into moderate detail tiles at high zoom levels, for the benefit of
-renderers that cannot internally overzoom high\-resolution tiles without losing
+renderers that cannot internally overzoom high-resolution tiles without losing
 some of the precision. Running:
+.EX
+tippecanoe-overzoom -o out.mvt.gz in.mvt.gz inz/inx/iny outz/outx/outy
+.EE
 .PP
-.RS
-.nf
-tippecanoe\-overzoom \-o out.mvt.gz in.mvt.gz inz/inx/iny outz/outx/outy
-.fi
-.RE
+reads tile \fBinz/inx/iny\fR of \fBin.mvt.gz\fR and produces tile \fBoutz/outx/outy\fR of \fBout.mvt.gz\fR\&.
+.EX
+tippecanoe-overzoom -o out.mvt.gz -t outz/outx/outy in.mvt.gz inz/inx/iny in2.mvt.gz in2z/in2x/in2y in3.mvt.gz in3z/in3x/in3y
+.EE
 .PP
-reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR and produces tile \fB\fCoutz/outx/outy\fR of \fB\fCout.mvt.gz\fR\&.
-.PP
-.RS
-.nf
-tippecanoe\-overzoom \-o out.mvt.gz \-t outz/outx/outy in.mvt.gz inz/inx/iny in2.mvt.gz in2z/in2x/in2y in3.mvt.gz in3z/in3x/in3y
-.fi
-.RE
-.PP
-reads tile \fB\fCinz/inx/iny\fR of \fB\fCin.mvt.gz\fR, tile \fB\fCin2z/in2x/in2y\fR of \fB\fCin2.mvt.gz\fR, and tile \fB\fCin3z/in3x/in3y\fR of \fB\fCin3.mvt.gz\fR,
-and produces tile \fB\fCoutz/outx/outy\fR of \fB\fCout.mvt.gz\fR from them.
+reads tile \fBinz/inx/iny\fR of \fBin.mvt.gz\fR, tile \fBin2z/in2x/in2y\fR of \fBin2.mvt.gz\fR, and tile \fBin3z/in3x/in3y\fR of \fBin3.mvt.gz\fR,
+and produces tile \fBoutz/outx/outy\fR of \fBout.mvt.gz\fR from them.
 .SS Options
-.RS
 .IP \(bu 2
-\fB\fC\-b\fR \fIbuffer\fP: Set the tile buffer in the output tile (default 5)
+\fB-o\fR \fIfile\fP or \fB--output=\fR\fIfile\fP: Write the output tile to the named \fIfile\fP\&.
 .IP \(bu 2
-\fB\fC\-d\fR \fIdetail\fP: Set the detail of the output tile (default 12)
+\fB-t\fR \fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP or \fB--source-tile=\fR\fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP: Specify the coordinates of the tile to produce, so that several input tiles, each followed by its own \fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP, can be combined into it, as in the second example above.
 .IP \(bu 2
-\fB\fC\-y\fR \fIattribute\fP: Retain the specified \fIattribute\fP in the output features. All attributes that are not named in a \fB\fC\-y\fR option will be removed.
+\fB-b\fR \fIbuffer\fP or \fB--buffer=\fR\fIbuffer\fP: Set the tile buffer in the output tile (default 5)
 .IP \(bu 2
-\fB\fC\-j\fR \fIfilter\fP: Filter features using the same expression syntax as in tippecanoe.
+\fB-d\fR \fIdetail\fP or \fB--full-detail=\fR\fIdetail\fP: Set the detail of the output tile (default 12)
 .IP \(bu 2
-\fB\fC\-m\fR: If a tile was created with the \fB\fC\-\-retain\-points\-multiplier\fR option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless \fB\fC\-j\fR is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
+\fB-y\fR \fIattribute\fP or \fB--include=\fR\fIattribute\fP: Retain the specified \fIattribute\fP in the output features. All attributes that are not named in a \fB-y\fR option will be removed.
 .IP \(bu 2
-\fB\fC\-\-preserve\-input\-order\fR: Restore a set of filtered features to its original input order
+\fB-x\fR \fIattribute\fP or \fB--exclude=\fR\fIattribute\fP: Remove the specified \fIattribute\fP from the output features.
 .IP \(bu 2
-\fB\fC\-\-accumulate\-attribute\fR: Behaves as in \fB\fCtippecanoe\fR to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with \fB\fC\-j\fR are \fInot\fP accumulated onto the output feature.
-.RE
+\fB--exclude-prefix=\fR\fIprefix\fP: Remove any attribute whose name begins with the specified \fIprefix\fP from the output features.
+.IP \(bu 2
+\fB-j\fR \fIfilter\fP or \fB--feature-filter=\fR\fIfilter\fP: Filter features using the same expression syntax as in tippecanoe.
+.IP \(bu 2
+\fB-J\fR \fIfilter-file\fP or \fB--feature-filter-file=\fR\fIfilter-file\fP: Like \fB-j\fR, but read the filter from a file.
+.IP \(bu 2
+\fB-m\fR or \fB--filter-points-multiplier\fR: If a tile was created with the \fB--retain-points-multiplier\fR option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless \fB-j\fR is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
+.IP \(bu 2
+\fB-S\fR \fIscale\fP or \fB--line-simplification=\fR\fIscale\fP: Simplify lines and polygons in the output tile, multiplying the standard tolerance by \fIscale\fP\&. The default of 0 means not to simplify at all.
+.IP \(bu 2
+\fB--tiny-polygon-size=\fR\fIsize\fP: Combine the area of very small polygons into small squares of the specified \fIsize\fP that represent their combined area, as \fBtippecanoe\fR does. The default of 0 means not to do tiny polygon reduction at all.
+.IP \(bu 2
+\fB--deduplicate-by-id\fR: When several input tiles are combined, include only the first feature with any given feature ID within each layer, so that features that appear in more than one input tile are not duplicated in the output.
+.IP \(bu 2
+\fB--preserve-input-order\fR: Restore a set of filtered features to its original input order
+.IP \(bu 2
+\fB-E\fR \fIattribute\fP\fB:\fR\fIoperation\fP or \fB--accumulate-attribute=\fR\fIattribute\fP\fB:\fR\fIoperation\fP: Behaves as in \fBtippecanoe\fR to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with \fB-j\fR are \fInot\fP accumulated onto the output feature.
+.IP \(bu 2
+\fB--no-tile-compression\fR: Don't compress the PBF vector tile data in the output tile.

@@ -20,11 +20,11 @@ the density and texture of the data rather than a simplification from dropping
 supposedly unimportant features or clustering or aggregating them.
 
 If you give it all of OpenStreetMap and zoom out, it should give you back
-something that looks like "[All Streets](http://benfry.com/allstreets/map5.html)"
+something that looks like "[All Streets](https://benfry.com/allstreets/)"
 rather than something that looks like an Interstate road atlas.
 
 If you give it all the building footprints in Los Angeles and zoom out
-far enough that most individual buildings are no longer discernable, you
+far enough that most individual buildings are no longer discernible, you
 should still be able to see the extent and variety of development in every neighborhood,
 not just the largest downtown buildings.
 
@@ -58,7 +58,7 @@ Usage
 -----
 
 ```
-$ tippecanoe -o file.mbtiles [options] [file.json file.json.gz file.fgb ...]
+$ tippecanoe -o file.mbtiles [options] [file.json file.json.gz file.fgb file.csv ...]
 ```
 
 If no files are specified, it reads GeoJSON from the standard input.
@@ -291,6 +291,11 @@ If your features have a lot of attributes, use `-y` to keep only the ones you re
 
 If your input is formatted as newline-delimited GeoJSON, use `-P` to make input parsing a lot faster.
 
+Many of the options below have a short form beginning with `-a` or `-p`. These are the
+`-a`_letters_ (`--additional=`_letters_) and `-p`_letters_ (`--prevent=`_letters_) options, and each
+accepts several letters at once, so for example `-ansd` is the same as `-an -as -ad`
+and `-pkC` is the same as `-pk -pC`.
+
 ### Output tileset
 
  * `-o` _file_`.mbtiles`, _file_`.pmtiles` or `--output=`_file_`.mbtiles`: Name the output file.
@@ -301,9 +306,9 @@ If your input is formatted as newline-delimited GeoJSON, use `-P` to make input 
 
 ### Tileset description and attribution
 
- * `-n` _name_ or `--name=`_name_: Human-readable name for the tileset (default file.json)
+ * `-n` _name_ or `--name=`_name_: Human-readable name for the tileset (default: the name of the output file or directory)
  * `-A` _text_ or `--attribution=`_text_: Attribution (HTML) to be shown with maps that use data from this tileset.
- * `-N` _description_ or `--description=`_description_: Description for the tileset (default file.mbtiles)
+ * `-N` _description_ or `--description=`_description_: Description for the tileset (default: the name of the output file or directory)
 
 ### Input files and layer names
 
@@ -320,7 +325,7 @@ If your input is formatted as newline-delimited GeoJSON, use `-P` to make input 
 tippecanoe -z5 -o world.mbtiles -L'{"file":"ne_10m_admin_0_countries.json", "layer":"countries", "description":"Natural Earth countries"}'
 ```
 
-CSV input files currently support only Point geometries, from columns named `latitude`, `longitude`, `lat`, `lon`, `long`, `lng`, `x`, or `y`.
+CSV input files currently support only Point geometries, from columns named `lat`, `lon`, `long`, `lng`, `x`, or `y`, or from any column whose name contains `latitude` or `longitude`. Column names are matched without regard to case.
 
 ### Parallel processing of input
 
@@ -352,7 +357,7 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
    specified maximum zoom and to any levels added beyond that.
  * `--extend-zooms-if-still-dropping-maximum=`_count_: Increase the maxzoom if features are still being dropped at that zoom level
    by up to _count_ zoom levels.
- * `-at` or `--generate-variable-depth-tile-pyramid`: Don't produce child tiles for any tile that should be sufficient to be overzoomed to any higher zoom level. Such tiles will be produced with maximum detail and no simplification or polygon cleaning. Tiles with point features below the basezoom or where any features have to be dropped dynamically, or which contain too many features or bytes with full detail, will be written out with normal detail and split into child tiles. Tilesets generated with this option are suitable for use only with tile servers that will find the appropriate tile to overzoom from and will simplify and clean the geometries appropriately before serving the tile.
+ * `-at` or `--generate-variable-depth-tile-pyramid`: Don't produce child tiles for any tile that should be sufficient to be overzoomed to any higher zoom level. Such tiles will be produced with maximum detail, retaining every vertex that is not collinear with its neighbors, but their polygons are still cleaned so that overlapping areas are merged rather than left stacked. Tiles with point features below the basezoom, or which contain too many features or bytes with full detail, will be written out with normal detail and split into child tiles. If any features have to be dropped dynamically at a zoom level, no tile in that zoom level is truncated, so that the whole zoom level is reduced consistently; any tile that was already being skipped because an ancestor had been truncated is written out after all. Tilesets generated with this option are suitable for use only with tile servers that will find the appropriate tile to overzoom from and will simplify the geometries appropriately before serving the tile.
  * `-R` _zoom_`/`_x_`/`_y_ or `--one-tile=`_zoom_`/`_x_`/`_y_: Set the minzoom and maxzoom to _zoom_ and produce only
    the single specified tile at that zoom level.
 
@@ -415,8 +420,9 @@ be reduced to the maximum that can be used with the specified _maxzoom_.
  * `-Y`_attribute_`:`_description_ or `--attribute-description=`_attribute_`:`_description_: Set the `description` for the specified attribute in the tileset metadata to _description_ instead of the usual `String`, `Number`, or `Boolean`.
  * `-E`_attribute_`:`_operation_ or `--accumulate-attribute=`_attribute_`:`_operation_: Preserve the named _attribute_ from features
    that are dropped, coalesced-as-needed, or clustered. The _operation_ may be
-   `sum`, `product`, `mean`, `max`, `min`, `concat`, or `comma`
+   `sum`, `product`, `mean`, `max`, `min`, `concat`, `comma`, or `count`
    to specify how the named _attribute_ is accumulated onto the attribute of the same name in a feature that does survive.
+   (The `count` operation replaces the attribute with the number of features, including the survivor, that carried it.)
    The attributes and operations may also be specified as JSON keys and values: `--accumulate-attribute='{"attr": "operation", "attr2": "operation2"}'`.
  * `--set-attribute` _attribute_`:`_value_: Set the value of the specified _attribute_ in each feature to the specified _value_. This is mostly useful to give an attribute in each feature an initial value for `--accumulate-attribute`.
    The attributes and values may also be specified as JSON keys and values: `--set-attribute='{"attr": value, "attr2": value}'`.
@@ -466,16 +472,17 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
    If you use `-Bg`, it will guess a zoom level that will keep at most 50,000 features in the densest tile.
    You can also specify a marker-width with `-Bg`*width* to allow fewer features in the densest tile to
    compensate for the larger marker, or `-Bf`*number* to allow at most *number* features in the densest tile.
- * `--retain-points-multiplier=`_multiple_: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the `-m` option to `tippecanoe-overzoom`. The start of each cluster is marked in the feature sequence by the `tippecanoe:retain_points_multiplier_first` attribute. The `--tile-size-limit` will also be extended at low zoom levels to allow for the multiplied features.
+ * `--retain-points-multiplier=`_multiple_: Retain the specified multiple of points instead of just the number of points that would ordinarily be retained by the drop rate. These can be thinned out later with the `-m` option to `tippecanoe-overzoom`. The start of each cluster is marked in the feature sequence by the `tippecanoe:retain_points_multiplier_first` attribute. The maximum tile size (`--maximum-tile-bytes`) will also be extended at low zoom levels to allow for the multiplied features.
  * `--drop-denser=`_percentage_: When dropping dots at zoom levels below the base zoom, give the specified _percentage_
    preference to retaining points in sparse areas and dropping points in dense areas.
- * `--limit-base-zoom-to-maximum-zoom` or `-Pb`: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
+ * `--limit-base-zoom-to-maximum-zoom` or `-pb`: Limit the guessed base zoom not to exceed the maxzoom, even if this would put more than the requested number of features in a base zoom tile.
  * `-al` or `--drop-lines`: Let "dot" dropping at lower zooms apply to lines too
  * `-ap` or `--drop-polygons`: Let "dot" dropping at lower zooms apply to polygons too
  * `-K` _distance_ or `--cluster-distance=`_distance_: Cluster points (as with `--cluster-densest-as-needed`, but without the experimental discovery process) that are approximately within _distance_ of each other. The units are tile coordinates within a nominally 256-pixel tile, so the maximum value of 255 allows only one feature per tile. Values around 10 are probably appropriate for typical marker sizes. See `--cluster-densest-as-needed` below for behavior.
  * `-k` _zoom_ or `--cluster-maxzoom=`_zoom_: Max zoom on which to cluster points if clustering is enabled.
  * `-kg` or `--cluster-maxzoom=g`: Set `--cluster-maxzoom=` to `maxzoom - 1` so that all features are visible at the maximum zoom level.
  * `--preserve-point-density-threshold=`_level_: At the low zoom levels, do not reduce point density below the specified _level_, even if the specified drop rate would normally call for it, so that low-density areas of the map do not appear blank. The unit is the distance between preserved points, as a fraction of the size of a tile. Values of 32 or 64 are probably appropriate for typical marker sizes.
+ * `--preserve-multiplier-density-threshold=`_level_: As with `--preserve-point-density-threshold`, but for the additional features retained by `--retain-points-multiplier`: features that would otherwise be dropped are instead added to the multiplier cluster if they are farther than the specified _level_ from the previous retained feature, so that sparse areas still have features available to be thinned to. The unit is the same as for `--preserve-point-density-threshold`.
 
 ### Dropping a fraction of features to keep under tile size limits
 
@@ -484,10 +491,11 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-an` or `--drop-smallest-as-needed`: Dynamically drop the smallest features (physically smallest: the shortest lines or the smallest polygons) from each zoom level to keep large tiles under the 500K size limit.
  * `--drop-by-attribute-as-needed=`_attribute_: Dynamically drop features with the lowest values of the specified numeric _attribute_ from each zoom level to keep large tiles under the 500K size limit. Use `--drop-by-attribute-order=desc` to instead drop features with the highest values.
  * `-aN` or `--coalesce-smallest-as-needed`: Dynamically combine the smallest features (physically smallest: the shortest lines or the smallest polygons or the densest points) from each zoom level into other nearby features to keep large tiles under the 500K size limit. This option will probably not help very much with LineStrings. It is mostly intended for polygons, to maintain the full original area covered by polygons while still reducing the feature count somehow. The attributes of the small polygons are *not* preserved into the combined features (except through `--accumulate-attribute`), only their geometry. Furthermore, the polygons to which nested polygons are coalesced may not necessarily be the immediately enclosing features.
- * `-aD` or `--coalesce-densest-as-needed`: Dynamically combine the densest features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
- * `-aS` or `--coalesce-fraction-as-needed`: Dynamically combine a fraction of features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
+ * `-aS` or `--coalesce-densest-as-needed`: Dynamically combine the densest features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
+ * `-aD` or `--coalesce-fraction-as-needed`: Dynamically combine a fraction of features from each zoom level into other nearby features to keep large tiles under the 500K size limit. (Again, mostly useful for polygons.)
  * `-pd` or `--force-feature-limit`: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like `-ad` but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
- * `-aC` or `--cluster-densest-as-needed`: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a `"clustered": true` attribute to indicate that it represents a cluster, a `"point_count"` attribute to indicate the number of features that were clustered into it, and a `"sqrt_point_count"` attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations; otherwise, one of the original features will be left as the representative.
+ * `-aC` or `--cluster-densest-as-needed`: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a `"clustered": true` attribute to indicate that it represents a cluster, a `"point_count"` attribute to indicate the number of features that were clustered into it, a `"point_count_abbreviated"` attribute containing that count abbreviated for display (for example `1.2k` or `15k`), and a `"sqrt_point_count"` attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations (unless you use `--keep-point-cluster-position`); otherwise, one of the original features will be left as the representative.
+ * `-aa` or `--keep-point-cluster-position`: When clustering points, leave the representative feature at the location of the first point of the cluster instead of moving it to the average of the clustered points' locations.
 
 ### Dropping tightly overlapping features
 
@@ -509,7 +517,7 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
 
 ### Attempts to improve shared polygon boundaries
 
- * `-ab` or `--detect-shared-borders`: DEPRECATED. In the manner of [TopoJSON](https://github.com/mbostock/topojson/wiki/Introduction), detect borders that are shared between multiple polygons and simplify them identically in each polygon. This takes more time and memory than considering each polygon individually. Use `no-simplification-of-shared-nodes` instead, which is faster and more correct.
+ * `-ab` or `--detect-shared-borders`: DEPRECATED. In the manner of [TopoJSON](https://github.com/mbostock/topojson/wiki/Introduction), detect borders that are shared between multiple polygons and simplify them identically in each polygon. This takes more time and memory than considering each polygon individually. Use `--no-simplification-of-shared-nodes` instead, which is faster and more correct.
  * `-aL` or `--grid-low-zooms`: At all zoom levels below _maxzoom_, snap all lines and polygons to a stairstep grid instead of allowing diagonals. You will also want to specify a tile resolution, probably `-D8`. This option provides a way to display continuous parcel, gridded, or binned data at low zooms without overwhelming the tiles with tiny polygons, since features will either get stretched out to the grid unit or lost entirely, depending on how they happened to be aligned in the original data. You probably don't want to use this.
 
 ### Controlling clipping to tile boundaries
@@ -568,8 +576,15 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-q` or `--quiet`: Work quietly instead of reporting progress or warning messages
  * `-Q` or `--no-progress-indicator`: Don't report progress, but still give warnings
  * `-U` _seconds_ or `--progress-interval=`_seconds_: Don't report progress more often than the specified number of _seconds_.
- * `-u` or `--json-progress`: like `-quiet` but logs progress as a JSON object. Use in combination with `-U`.
+ * `-u` or `--json-progress`: like `--quiet` but logs progress as a JSON object. Use in combination with `-U`.
+
+### Version
+
  * `-v` or `--version`: Report Tippecanoe's version number
+
+### Help
+
+ * `-H` or `--help`: List the available options and exit
 
 ### Filters
 
@@ -641,7 +656,7 @@ If you have a feature like this:
 }
 ```
 
-with a `tippecanoe` object specifiying a `maxzoom` of 9 and a `minzoom` of 4, the feature
+with a `tippecanoe` object specifying a `maxzoom` of 9 and a `minzoom` of 4, the feature
 will only appear in the vector tiles for zoom levels 4 through 9. Note that the `tippecanoe`
 object belongs to the Feature, not to its `properties`. If you specify a `minzoom` for a feature,
 it will be preserved down to that zoom level even if dot-dropping with `-r` would otherwise have
@@ -674,11 +689,11 @@ Geometric simplifications
 At every zoom level, line and polygon features are subjected to Douglas-Peucker
 simplification to the resolution of the tile.
 
-For point features, it drops 1/2.5 of the dots for each zoom level above the
+For point features, it keeps only 1/2.5 of the dots for each zoom level below the
 point base zoom (which is normally the same as the `-z` max zoom, but can be
 a different zoom specified with `-B` if you have precise but sparse data).
 I don't know why 2.5 is the appropriate number, but the densities of many different
-data sets fall off at about this same rate. You can use -r to specify a different rate.
+data sets fall off at about this same rate. You can use `-r` to specify a different rate.
 
 You can use the gamma option to thin out especially dense clusters of points.
 For any area where dots are closer than one pixel together (at whatever zoom level),
@@ -704,8 +719,13 @@ lower resolutions before failing if it still doesn't fit.
 Development
 -----------
 
-Requires sqlite3 and zlib (should already be installed on MacOS). Rebuilding the manpage
-uses md2man (`gem install md2man`).
+Requires sqlite3 and zlib (should already be installed on MacOS).
+
+The manpage is generated from this README by `make docs`, which uses
+[go-md2man](https://github.com/cpuguy83/go-md2man) (`brew install go-md2man` or
+`apt-get install go-md2man`). You don't have to run it yourself: CI regenerates the
+manpage and fails if the committed copy doesn't match, so it will tell you if an
+edit here needs `make docs` run against it.
 
 Linux:
 
@@ -719,15 +739,16 @@ and perhaps
 
     make install
 
-Tippecanoe now requires features from the 2011 C++ standard. If your compiler is older than
-that, you will need to install a newer one. On MacOS, updating to the latest XCode should
-get you a new enough version of `clang++`. On Linux, you should be able to upgrade `g++` with
+Tippecanoe requires features from the 2017 C++ standard (it is built with `-std=c++17`).
+If your compiler is older than that, you will need to install a newer one. On MacOS, updating
+to the latest XCode should get you a new enough version of `clang++`. On Linux, you should be
+able to upgrade `g++` with
 
 ```sh
 sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 sudo apt-get update -y
-sudo apt-get install -y g++-5
-export CXX=g++-5
+sudo apt-get install -y g++-9
+export CXX=g++-9
 ```
 
 Docker Image
@@ -780,11 +801,14 @@ The options are:
  * `-o` *out.mbtiles*, *out.pmtiles* or `--output=`*out.mbtiles*: Write the new tiles to the specified .mbtiles file.
  * `-e` *directory* or `--output-to-directory=`*directory*: Write the new tiles to the specified directory instead of to an mbtiles file.
  * `-f` or `--force`: Remove *out.mbtiles* if it already exists.
- * `-r` or `--read-from`: list of input mbtiles to read from.
+
+### Input tilesets
+
+ * `-r` *file* or `--read-from=`*file*: Read the list of input tilesets from the named *file*, one filename per line, instead of naming them all on the command line.
 
 ### Overzooming
 
- * `--overzoom`: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
+ * `-O` or `--overzoom`: If one of the source tilesets has a larger maxzoom than the others, scale up tiles from the tilesets with the lower maxzooms so they will all have the same maxzoom in the output tileset.
  * `--buffer=`_pixels_ or `-b` _pixels_: Set the size of the tile buffer in the overzoomed tiles.
 
 ### Tileset description and attribution
@@ -813,6 +837,8 @@ The options are:
  * `-x` *key* or `--exclude=`*key*: Remove attributes named *key* from the output. You can use this to remove the field you are matching against if you no longer need it after joining, or to remove any other attributes you don't want. You can use multiple `-x` options to remove multiple attributes.
  * `-X` or `--exclude-all`: Remove all attributes from the output.
  * `-y` *key* or `--include=`*key*: Remove all attributes except for those named *key* from the output. You can use multiple `-y` options to retain multiple attributes.
+ * `--exclude-all-tile-attributes`: Remove the attributes that were already present in the source tiles, keeping only any that are joined from a CSV with `-c`.
+ * `--exclude-all-tile-geometries`: Copy the features' attributes but not their geometries, so the output tiles describe the features without locating them.
  * `-i` or `--if-matched`: Only include features that matched the CSV.
  * `-j` *filter* or `--feature-filter`=*filter*: Check features against a per-layer filter (as defined in the [Mapbox GL Style Specification](https://docs.mapbox.com/mapbox-gl-js/style-spec/#other-filter)) and only include those that match. Any features in layers that have no filter specified will be passed through. Filters for the layer `"*"` apply to all layers.
  * `-J` *filter-file* or `--feature-filter-file`=*filter-file*: Like `-j`, but read the filter from a file.
@@ -826,6 +852,10 @@ The options are:
  * `--tile-stats-attributes-limit=`*count*: Include `tilestats` information about at most *count* attributes instead of the default 1000.
  * `--tile-stats-sample-values-limit=`*count*: Calculate `tilestats` attribute statistics based on *count* values instead of the default 1000.
  * `--tile-stats-values-limit=`*count*: Report *count* unique attribute values in `tilestats` instead of the default 100.
+
+### Progress indicator
+
+ * `-q` or `--quiet`: Work quietly instead of reporting progress
 
 Because tile-join just copies the geometries to the new .mbtiles without processing them
 (except to rescale the extents if necessary),
@@ -917,8 +947,10 @@ resolutions.
  * `-c` or `--tag-layer-and-zoom`: Include each feature's layer and zoom level as part of its `tippecanoe` object rather than as a FeatureCollection wrapper
  * `-S` or `--stats`: Just report statistics about each tile's size and the number of features in it, as a JSON structure.
  * `-f` or `--force`: Decode tiles even if polygon ring order or closure problems are detected
- * `-I` or `--integer`: Report coordinates in integer tile coordinates
- * `-F` or `--fraction`: Report coordinates as a fraction of the tile extent
+ * `-I` or `--integer-coordinates`: Report coordinates in integer tile coordinates
+ * `-F` or `--fractional-coordinates`: Report coordinates as a fraction of the tile extent
+ * `-y` _attribute_ or `--include=`*attribute*: Include only the named attributes in the decoded features, excluding all those not explicitly named. (Multiple `-y` options can be specified.)
+ * `-x` _name_ or `--exclude-metadata-row=`*name*: Omit the named row from the tileset metadata in the output. (Multiple `-x` options can be specified.)
 
 tippecanoe-json-tool
 ====================
@@ -1005,10 +1037,19 @@ and produces tile `outz/outx/outy` of `out.mvt.gz` from them.
 
 ### Options
 
- * `-b` *buffer*: Set the tile buffer in the output tile (default 5)
- * `-d` *detail*: Set the detail of the output tile (default 12)
- * `-y` *attribute*: Retain the specified *attribute* in the output features. All attributes that are not named in a `-y` option will be removed.
- * `-j` *filter*: Filter features using the same expression syntax as in tippecanoe.
- * `-m`: If a tile was created with the `--retain-points-multiplier` option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless `-j` is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
+ * `-o` *file* or `--output=`*file*: Write the output tile to the named *file*.
+ * `-t` _zoom_`/`_x_`/`_y_ or `--source-tile=`_zoom_`/`_x_`/`_y_: Specify the coordinates of the tile to produce, so that several input tiles, each followed by its own _zoom_`/`_x_`/`_y_, can be combined into it, as in the second example above.
+ * `-b` *buffer* or `--buffer=`*buffer*: Set the tile buffer in the output tile (default 5)
+ * `-d` *detail* or `--full-detail=`*detail*: Set the detail of the output tile (default 12)
+ * `-y` *attribute* or `--include=`*attribute*: Retain the specified *attribute* in the output features. All attributes that are not named in a `-y` option will be removed.
+ * `-x` *attribute* or `--exclude=`*attribute*: Remove the specified *attribute* from the output features.
+ * `--exclude-prefix=`*prefix*: Remove any attribute whose name begins with the specified *prefix* from the output features.
+ * `-j` *filter* or `--feature-filter=`*filter*: Filter features using the same expression syntax as in tippecanoe.
+ * `-J` *filter-file* or `--feature-filter-file=`*filter-file*: Like `-j`, but read the filter from a file.
+ * `-m` or `--filter-points-multiplier`: If a tile was created with the `--retain-points-multiplier` option, thin the tile back down to its normal feature count during overzooming. The first feature from each cluster will be retained, unless `-j` is used to specify a filter, in which case the first matching filter from each cluster will be retained instead.
+ * `-S` *scale* or `--line-simplification=`*scale*: Simplify lines and polygons in the output tile, multiplying the standard tolerance by *scale*. The default of 0 means not to simplify at all.
+ * `--tiny-polygon-size=`*size*: Combine the area of very small polygons into small squares of the specified *size* that represent their combined area, as `tippecanoe` does. The default of 0 means not to do tiny polygon reduction at all.
+ * `--deduplicate-by-id`: When several input tiles are combined, include only the first feature with any given feature ID within each layer, so that features that appear in more than one input tile are not duplicated in the output.
  * `--preserve-input-order`: Restore a set of filtered features to its original input order
- * `--accumulate-attribute`: Behaves as in `tippecanoe` to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with `-j` are *not* accumulated onto the output feature.
+ * `-E` *attribute*`:`*operation* or `--accumulate-attribute=`*attribute*`:`*operation*: Behaves as in `tippecanoe` to sum attributes from the features of a multiplier cluster that are not included in the final output. The attributes from features that are filtered away with `-j` are *not* accumulated onto the output feature.
+ * `--no-tile-compression`: Don't compress the PBF vector tile data in the output tile.

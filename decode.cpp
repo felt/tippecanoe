@@ -24,6 +24,7 @@
 #include "dirtiles.hpp"
 #include "pmtiles_file.hpp"
 #include "errors.hpp"
+#include "usage.hpp"
 
 int minzoom = 0;
 int maxzoom = 32;
@@ -549,8 +550,42 @@ void decode(char *fname, int z, unsigned x, unsigned y, std::set<std::string> co
 	}
 }
 
+static const struct option long_options[] = {
+	{"Tiles to decode", 0, 0, 0},
+	{"minimum-zoom", required_argument, 0, 'Z'},
+	{"maximum-zoom", required_argument, 0, 'z'},
+	{"layer", required_argument, 0, 'l'},
+
+	{"Output format", 0, 0, 0},
+	{"projection", required_argument, 0, 's'},
+	{"fractional-coordinates", no_argument, 0, 'F'},
+	{"integer-coordinates", no_argument, 0, 'I'},
+	{"tag-layer-and-zoom", no_argument, 0, 'c'},
+	{"stats", no_argument, 0, 'S'},
+
+	{"Filtering the output", 0, 0, 0},
+	{"include", required_argument, 0, 'y'},
+	{"exclude-metadata-row", required_argument, 0, 'x'},
+
+	{"Ignoring errors in the input", 0, 0, 0},
+	{"force", no_argument, 0, 'f'},
+
+	{0, 0, 0, 0},
+};
+
+// the options above, with the usage message headings removed
+static struct option real_long_options[sizeof(long_options) / sizeof(long_options[0])];
+
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s [-s projection] [-Z minzoom] [-z maxzoom] [-l layer ...] file.mbtiles [zoom x y]\n", argv[0]);
+	static const char *const forms[] = {
+		"[options] tileset",
+		"[options] tileset zoom x y",
+		NULL,
+	};
+
+	print_usage(stderr, argv[0], forms, long_options, NULL);
+	fprintf(stderr, "\nThe tileset can be an .mbtiles or .pmtiles file or a directory of tiles,\n");
+	fprintf(stderr, "or, if zoom/x/y is specified, a single .pbf tile.\n");
 	exit(EXIT_ARGS);
 }
 
@@ -564,33 +599,10 @@ int main(int argc, char **argv) {
 	std::set<std::string> exclude_meta;
 	int coordinate_mode = 0;
 
-	struct option long_options[] = {
-		{"projection", required_argument, 0, 's'},
-		{"fractional-coordinates", no_argument, 0, 'F'},
-		{"integer-coordinates", no_argument, 0, 'I'},
-		{"maximum-zoom", required_argument, 0, 'z'},
-		{"minimum-zoom", required_argument, 0, 'Z'},
-		{"layer", required_argument, 0, 'l'},
-		{"tag-layer-and-zoom", no_argument, 0, 'c'},
-		{"stats", no_argument, 0, 'S'},
-		{"force", no_argument, 0, 'f'},
-		{"exclude-metadata-row", required_argument, 0, 'x'},
-		{"include", required_argument, 0, 'y'},
-		{0, 0, 0, 0},
-	};
+	strip_usage_headings(long_options, real_long_options);
+	std::string getopt_str = getopt_string(real_long_options);
 
-	std::string getopt_str;
-	for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
-		if (long_options[lo].val > ' ') {
-			getopt_str.push_back(long_options[lo].val);
-
-			if (long_options[lo].has_arg == required_argument) {
-				getopt_str.push_back(':');
-			}
-		}
-	}
-
-	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, NULL)) != -1) {
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), real_long_options, NULL)) != -1) {
 		switch (i) {
 		case 0:
 			break;

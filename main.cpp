@@ -57,6 +57,7 @@
 #include "geometry.hpp"
 #include "serial.hpp"
 #include "options.hpp"
+#include "usage.hpp"
 #include "mvt.hpp"
 #include "dirtiles.hpp"
 #include "evaluator.hpp"
@@ -214,7 +215,7 @@ void init_cpus() {
 	// MacOS can run out of system file descriptors
 	// even if we stay under the rlimit, so try to
 	// find out the real limit.
-	long long fds[MAX_FILES];
+	std::vector<long long> fds(MAX_FILES);
 	long long i;
 	for (i = 0; i < MAX_FILES; i++) {
 		fds[i] = open(get_null_device(), O_RDONLY | O_CLOEXEC);
@@ -448,7 +449,7 @@ void *run_sort(void *v) {
 }
 
 void do_read_parallel(char *map, long long len, long long initial_offset, const char *reading, std::vector<struct reader> *readers, std::atomic<long long> *progress_seq, std::set<std::string> *exclude, std::set<std::string> *include, int exclude_all, int basezoom, int source, std::vector<std::map<std::string, layermap_entry> > *layermaps, int *initialized, unsigned *initial_x, unsigned *initial_y, int maxzoom, std::string layername, bool uses_gamma, std::unordered_map<std::string, int> const *attribute_types, int separator, double *dist_sum, size_t *dist_count, double *area_sum, bool want_dist, bool filters) {
-	long long segs[CPUS + 1];
+	std::vector<long long> segs(CPUS + 1);
 	segs[0] = 0;
 	segs[CPUS] = len;
 
@@ -460,11 +461,11 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 		}
 	}
 
-	double dist_sums[CPUS];
-	size_t dist_counts[CPUS];
-	double area_sums[CPUS];
+	std::vector<double> dist_sums(CPUS);
+	std::vector<size_t> dist_counts(CPUS);
+	std::vector<double> area_sums(CPUS);
 
-	std::atomic<long long> layer_seq[CPUS];
+	std::vector<std::atomic<long long> > layer_seq(CPUS);
 	for (size_t i = 0; i < CPUS; i++) {
 		// To preserve feature ordering, unique id for each segment
 		// begins with that segment's offset into the input
@@ -478,7 +479,7 @@ void do_read_parallel(char *map, long long len, long long initial_offset, const 
 	std::vector<serialization_state> sst;
 	sst.resize(CPUS);
 
-	pthread_t pthreads[CPUS];
+	std::vector<pthread_t> pthreads(CPUS);
 	std::vector<std::set<serial_val> > file_subkeys;
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -742,51 +743,61 @@ void start_parsing(int fd, STREAM *fp, long long offset, long long len, std::ato
 }
 
 void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int splits, long long mem, const char *tmpdir, long long *availfiles, FILE *geomfile, FILE *indexfile, std::atomic<long long> *geompos_out, long long *progress, long long *progress_max, long long *progress_reported, int maxzoom, int basezoom, double droprate, double gamma, struct drop_state *ds) {
-	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge
-	int splitbits = log(splits) / log(2);
+	// Arranged as bits to facilitate subdividing again if a subdivided file is still huge.
+	//
+	// There must be at least two buckets. With only one, each subdivision would
+	// consume no bits of the index, so it would never reach the maximum prefix
+	// that stops the recursion, and the shift that chooses a feature's bucket
+	// below would be by the full width of the index. That shift is undefined,
+	// and what it does in practice is to mask the shift count down to zero, so
+	// the bucket number comes out as the whole shifted index instead of as 0
+	// and the writes are made through whatever is found beyond the end of the
+	// arrays of buckets.
+	int splitbits = 1;
+	if (splits > 1) {
+		splitbits = log(splits) / log(2);
+	}
 	splits = 1 << splitbits;
 
-	FILE *geomfiles[splits];
-	FILE *indexfiles[splits];
-	int geomfds[splits];
-	int indexfds[splits];
-	std::atomic<long long> sub_geompos[splits];
+	std::vector<FILE *> geomfiles(splits);
+	std::vector<FILE *> indexfiles(splits);
+	std::vector<int> geomfds(splits);
+	std::vector<int> indexfds(splits);
+	std::vector<std::atomic<long long> > sub_geompos(splits);
 
 	int i;
 	for (i = 0; i < splits; i++) {
 		sub_geompos[i] = 0;
 
-		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
-		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+		std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
+		std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
 
-		geomfds[i] = mkstemp_cloexec(geomname);
+		geomfds[i] = mkstemp_cloexec(&geomname[0]);
 		if (geomfds[i] < 0) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		indexfds[i] = mkstemp_cloexec(indexname);
+		indexfds[i] = mkstemp_cloexec(&indexname[0]);
 		if (indexfds[i] < 0) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
 
-		geomfiles[i] = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+		geomfiles[i] = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (geomfiles[i] == NULL) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		indexfiles[i] = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+		indexfiles[i] = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (indexfiles[i] == NULL) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
 
 		*availfiles -= 4;
 
-		unlink(geomname);
-		unlink(indexname);
+		unlink(geomname.c_str());
+		unlink(indexname.c_str());
 	}
 
 	for (i = 0; i < inputs; i++) {
@@ -890,7 +901,14 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 		}
 
 		if (indexst.st_size > 0) {
-			if (indexst.st_size + geomst.st_size < mem) {
+			// Subdividing again would only make progress if the next level could
+			// split into at least two buckets, which it can't if there are no longer
+			// enough files left to do it with. In that case, sort in memory instead,
+			// even though this is more memory than we wanted to use at once, since
+			// it is the only way left to get this bucket sorted.
+			bool can_subdivide = *availfiles / 4 > 1;
+
+			if (indexst.st_size + geomst.st_size < mem || !can_subdivide) {
 				std::atomic<long long> indexpos(indexst.st_size);
 				int bytes = sizeof(struct index);
 
@@ -908,13 +926,13 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				}
 
 				size_t nmerges = (indexpos + unit - 1) / unit;
-				struct mergelist merges[nmerges];
+				std::vector<struct mergelist> merges(nmerges);
 
 				for (size_t a = 0; a < nmerges; a++) {
 					merges[a].start = merges[a].end = 0;
 				}
 
-				pthread_t pthreads[CPUS];
+				std::vector<pthread_t> pthreads(CPUS);
 				std::vector<sort_arg> args;
 
 				for (size_t a = 0; a < CPUS; a++) {
@@ -922,7 +940,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 						a,
 						CPUS,
 						indexpos,
-						merges,
+						merges.data(),
 						indexfds[i],
 						nmerges,
 						unit,
@@ -960,7 +978,7 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 				madvise(geommap, geomst.st_size, MADV_RANDOM);
 				madvise(geommap, geomst.st_size, MADV_WILLNEED);
 
-				merge(merges, nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
+				merge(merges.data(), nmerges, (unsigned char *) indexmap, indexfile, bytes, geommap, geomfile, geompos_out, progress, progress_max, progress_reported, maxzoom, gamma, ds);
 
 				madvise(indexmap, indexst.st_size, MADV_DONTNEED);
 				if (munmap(indexmap, indexst.st_size) < 0) {
@@ -993,7 +1011,11 @@ void radix1(int *geomfds_in, int *indexfds_in, int inputs, int prefix, int split
 					struct index ix = indexmap[a];
 					long long pos = *geompos_out;
 
-					fwrite_check(geommap + ix.start, ix.end - ix.start, 1, geomfile, geompos_out, "geom");
+					// MAGIC: This knows that the feature minzoom is the last byte of the serialized feature
+					// and is writing one byte less and then adding the byte for the minzoom,
+					// the same as merge() does.
+
+					fwrite_check(geommap + ix.start, 1, ix.end - ix.start - 1, geomfile, geompos_out, "geom");
 					int feature_minzoom = calc_feature_minzoom(&ix, ds, maxzoom, gamma);
 					serialize_byte(geomfile, feature_minzoom, geompos_out, "merge geometry");
 
@@ -1095,8 +1117,8 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 	mem /= 2;
 
 	long long geom_total = 0;
-	int geomfds[nreaders];
-	int indexfds[nreaders];
+	std::vector<int> geomfds(nreaders);
+	std::vector<int> indexfds(nreaders);
 	for (int i = 0; i < nreaders; i++) {
 		geomfds[i] = readers[i].geomfd;
 		indexfds[i] = readers[i].indexfd;
@@ -1109,12 +1131,12 @@ void radix(std::vector<struct reader> &readers, int nreaders, FILE *geomfile, FI
 		geom_total += geomst.st_size;
 	}
 
-	struct drop_state ds[maxzoom + 1];
-	prep_drop_states(ds, maxzoom, basezoom, droprate);
+	std::vector<struct drop_state> ds(maxzoom + 1);
+	prep_drop_states(ds.data(), maxzoom, basezoom, droprate);
 
 	long long progress = 0, progress_max = geom_total, progress_reported = -1;
 	long long availfiles_before = availfiles;
-	radix1(geomfds, indexfds, nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds);
+	radix1(geomfds.data(), indexfds.data(), nreaders, 0, splits, mem, tmpdir, &availfiles, geomfile, indexfile, geompos, &progress, &progress_max, &progress_reported, maxzoom, basezoom, droprate, gamma, ds.data());
 
 	if (availfiles - 2 * nreaders != availfiles_before) {
 		fprintf(stderr, "Internal error: miscounted available file descriptors: %lld vs %lld\n", availfiles - 2 * nreaders, availfiles);
@@ -1223,79 +1245,72 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	for (size_t i = 0; i < CPUS; i++) {
 		struct reader *r = &readers[i];
 
-		char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-		char treename[strlen(tmpdir) + strlen("/tree.XXXXXXXX") + 1];
-		char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-		char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-		char vertexname[strlen(tmpdir) + strlen("/vertex.XXXXXXXX") + 1];
-		char nodename[strlen(tmpdir) + strlen("/node.XXXXXXXX") + 1];
+		std::string poolname = std::string(tmpdir) + "/pool.XXXXXXXX";
+		std::string treename = std::string(tmpdir) + "/tree.XXXXXXXX";
+		std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
+		std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
+		std::string vertexname = std::string(tmpdir) + "/vertex.XXXXXXXX";
+		std::string nodename = std::string(tmpdir) + "/node.XXXXXXXX";
 
-		snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
-		snprintf(treename, sizeof(treename), "%s%s", tmpdir, "/tree.XXXXXXXX");
-		snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
-		snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
-		snprintf(vertexname, sizeof(vertexname), "%s%s", tmpdir, "/vertex.XXXXXXXX");
-		snprintf(nodename, sizeof(nodename), "%s%s", tmpdir, "/node.XXXXXXXX");
-
-		r->poolfd = mkstemp_cloexec(poolname);
+		r->poolfd = mkstemp_cloexec(&poolname[0]);
 		if (r->poolfd < 0) {
-			perror(poolname);
+			perror(poolname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->treefd = mkstemp_cloexec(treename);
+		r->treefd = mkstemp_cloexec(&treename[0]);
 		if (r->treefd < 0) {
-			perror(treename);
+			perror(treename.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->geomfd = mkstemp_cloexec(geomname);
+		r->geomfd = mkstemp_cloexec(&geomname[0]);
 		if (r->geomfd < 0) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->indexfd = mkstemp_cloexec(indexname);
+		r->indexfd = mkstemp_cloexec(&indexname[0]);
 		if (r->indexfd < 0) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->vertexfd = mkstemp_cloexec(vertexname);
+		r->vertexfd = mkstemp_cloexec(&vertexname[0]);
 		if (r->vertexfd < 0) {
-			perror(vertexname);
+			perror(vertexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefd = mkstemp_cloexec(nodename);
+		r->nodefd = mkstemp_cloexec(&nodename[0]);
 		if (r->nodefd < 0) {
-			perror(nodename);
+			perror(nodename.c_str());
 			exit(EXIT_OPEN);
 		}
 
 		r->poolfile = memfile_open(r->poolfd);
 		if (r->poolfile == NULL) {
-			perror(poolname);
+			perror(poolname.c_str());
 			exit(EXIT_OPEN);
 		}
 		r->treefile = memfile_open(r->treefd);
 		if (r->treefile == NULL) {
-			perror(treename);
+			perror(treename.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->geomfile = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+		r->geomfile = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (r->geomfile == NULL) {
-			perror(geomname);
+			perror(geomname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->indexfile = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+		r->indexfile = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 		if (r->indexfile == NULL) {
-			perror(indexname);
+			perror(indexname.c_str());
 			exit(EXIT_OPEN);
 		}
-		r->vertexfile = fopen_oflag(vertexname, "w+b", O_RDWR | O_CLOEXEC);
+		r->vertexfile = fopen_oflag(vertexname.c_str(), "w+b", O_RDWR | O_CLOEXEC);
 		if (r->vertexfile == NULL) {
-			perror(("open vertexfile " + std::string(vertexname)).c_str());
+			perror(("open vertexfile " + vertexname).c_str());
 			exit(EXIT_OPEN);
 		}
-		r->nodefile = fopen_oflag(nodename, "w+b", O_RDWR | O_CLOEXEC);
+		r->nodefile = fopen_oflag(nodename.c_str(), "w+b", O_RDWR | O_CLOEXEC);
 		if (r->nodefile == NULL) {
-			perror(nodename);
+			perror(nodename.c_str());
 			exit(EXIT_OPEN);
 		}
 		r->geompos = 0;
@@ -1303,12 +1318,12 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		r->vertexpos = 0;
 		r->nodepos = 0;
 
-		unlink(poolname);
-		unlink(treename);
-		unlink(geomname);
-		unlink(indexname);
-		unlink(vertexname);
-		unlink(nodename);
+		unlink(poolname.c_str());
+		unlink(treename.c_str());
+		unlink(geomname.c_str());
+		unlink(indexname.c_str());
+		unlink(vertexname.c_str());
+		unlink(nodename.c_str());
 
 		// To distinguish a null value
 		{
@@ -1333,8 +1348,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<long long> progress_seq(0);
 
 	// 2 * CPUS: One per reader thread, one per tiling thread
-	int initialized[2 * CPUS];
-	unsigned initial_x[2 * CPUS], initial_y[2 * CPUS];
+	std::vector<int> initialized(2 * CPUS);
+	std::vector<unsigned> initial_x(2 * CPUS), initial_y(2 * CPUS);
 	for (size_t i = 0; i < 2 * CPUS; i++) {
 		initialized[i] = initial_x[i] = initial_y[i] = 0;
 	}
@@ -1465,10 +1480,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				exit(EXIT_MEMORY);
 			}
 
-			std::atomic<long long> layer_seq[CPUS];
-			double dist_sums[CPUS];
-			size_t dist_counts[CPUS];
-			double area_sums[CPUS];
+			std::vector<std::atomic<long long> > layer_seq(CPUS);
+			std::vector<double> dist_sums(CPUS);
+			std::vector<size_t> dist_counts(CPUS);
+			std::vector<double> area_sums(CPUS);
 			std::vector<struct serialization_state> sst;
 			sst.resize(CPUS);
 
@@ -1538,10 +1553,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				exit(EXIT_MEMORY);
 			}
 
-			std::atomic<long long> layer_seq[CPUS];
-			double dist_sums[CPUS];
-			size_t dist_counts[CPUS];
-			double area_sums[CPUS];
+			std::vector<std::atomic<long long> > layer_seq(CPUS);
+			std::vector<double> dist_sums(CPUS);
+			std::vector<size_t> dist_counts(CPUS);
+			std::vector<double> area_sums(CPUS);
 			std::vector<struct serialization_state> sst;
 			sst.resize(CPUS);
 
@@ -1598,10 +1613,10 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 
 		if (sources[source].format == "csv" || (sources[source].file.size() > 4 && sources[source].file.substr(sources[source].file.size() - 4) == std::string(".csv"))) {
-			std::atomic<long long> layer_seq[CPUS];
-			double dist_sums[CPUS];
-			size_t dist_counts[CPUS];
-			double area_sums[CPUS];
+			std::vector<std::atomic<long long> > layer_seq(CPUS);
+			std::vector<double> dist_sums(CPUS);
+			std::vector<size_t> dist_counts(CPUS);
+			std::vector<double> area_sums(CPUS);
 
 			std::vector<struct serialization_state> sst;
 			sst.resize(CPUS);
@@ -1686,7 +1701,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 
 		if (map != NULL && map != MAP_FAILED && read_parallel_this) {
-			do_read_parallel(map, st.st_size - off, overall_offset, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, &layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, uses_gamma, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+			do_read_parallel(map, st.st_size - off, overall_offset, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, &layermaps, initialized.data(), initial_x.data(), initial_y.data(), maxzoom, sources[layer].layer, uses_gamma, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 			overall_offset += st.st_size - off;
 			checkdisk(&readers);
 
@@ -1718,19 +1733,18 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (read_parallel_this) {
 				// Serial reading of chunks that are then parsed in parallel
 
-				char readname[strlen(tmpdir) + strlen("/read.XXXXXXXX") + 1];
-				snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
-				int readfd = mkstemp_cloexec(readname);
+				std::string readname = std::string(tmpdir) + "/read.XXXXXXXX";
+				int readfd = mkstemp_cloexec(&readname[0]);
 				if (readfd < 0) {
-					perror(readname);
+					perror(readname.c_str());
 					exit(EXIT_OPEN);
 				}
 				FILE *readfp = fdopen(readfd, "w");
 				if (readfp == NULL) {
-					perror(readname);
+					perror(readname.c_str());
 					exit(EXIT_OPEN);
 				}
-				unlink(readname);
+				unlink(readname.c_str());
 
 				std::atomic<int> is_parsing(0);
 				long long ahead = 0;
@@ -1765,25 +1779,25 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 							}
 
 							fflush(readfp);
-							start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+							start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized.data(), initial_x.data(), initial_y.data(), maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 
 							initial_offset += ahead;
 							overall_offset += ahead;
 							checkdisk(&readers);
 							ahead = 0;
 
-							snprintf(readname, sizeof(readname), "%s%s", tmpdir, "/read.XXXXXXXX");
-							readfd = mkstemp_cloexec(readname);
+							readname = std::string(tmpdir) + "/read.XXXXXXXX";
+							readfd = mkstemp_cloexec(&readname[0]);
 							if (readfd < 0) {
-								perror(readname);
+								perror(readname.c_str());
 								exit(EXIT_OPEN);
 							}
 							readfp = fdopen(readfd, "w");
 							if (readfp == NULL) {
-								perror(readname);
+								perror(readname.c_str());
 								exit(EXIT_OPEN);
 							}
-							unlink(readname);
+							unlink(readname.c_str());
 						}
 					}
 				}
@@ -1802,7 +1816,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				fflush(readfp);
 
 				if (ahead > 0) {
-					start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized, initial_x, initial_y, maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
+					start_parsing(readfd, streamfpopen(readfp), initial_offset, ahead, &is_parsing, &parallel_parser, parser_created, reading.c_str(), &readers, &progress_seq, exclude, include, exclude_all, basezoom, layer, layermaps, initialized.data(), initial_x.data(), initial_y.data(), maxzoom, sources[layer].layer, gamma != 0, attribute_types, read_parallel_this, &dist_sum, &dist_count, &area_sum, guess_maxzoom, prefilter != NULL || postfilter != NULL);
 
 					if (parser_created) {
 						if (pthread_join(parallel_parser, NULL) != 0) {
@@ -1910,27 +1924,26 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	// segment+offset to find the data.
 
 	// 2 * CPUS: One per input thread, one per tiling thread
-	long long pool_off[2 * CPUS];
+	std::vector<long long> pool_off(2 * CPUS);
 	for (size_t i = 0; i < 2 * CPUS; i++) {
 		pool_off[i] = 0;
 	}
 
-	char poolname[strlen(tmpdir) + strlen("/pool.XXXXXXXX") + 1];
-	snprintf(poolname, sizeof(poolname), "%s%s", tmpdir, "/pool.XXXXXXXX");
+	std::string poolname = std::string(tmpdir) + "/pool.XXXXXXXX";
 
-	int poolfd = mkstemp_cloexec(poolname);
+	int poolfd = mkstemp_cloexec(&poolname[0]);
 	if (poolfd < 0) {
-		perror(poolname);
+		perror(poolname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	FILE *poolfile = fopen_oflag(poolname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *poolfile = fopen_oflag(poolname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (poolfile == NULL) {
-		perror(poolname);
+		perror(poolname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	unlink(poolname);
+	unlink(poolname.c_str());
 	std::atomic<long long> poolpos(0);
 
 	for (size_t i = 0; i < CPUS; i++) {
@@ -2158,36 +2171,34 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fprintf(stderr, "Merging index                 \r");
 	}
 
-	char indexname[strlen(tmpdir) + strlen("/index.XXXXXXXX") + 1];
-	snprintf(indexname, sizeof(indexname), "%s%s", tmpdir, "/index.XXXXXXXX");
+	std::string indexname = std::string(tmpdir) + "/index.XXXXXXXX";
 
-	int indexfd = mkstemp_cloexec(indexname);
+	int indexfd = mkstemp_cloexec(&indexname[0]);
 	if (indexfd < 0) {
-		perror(indexname);
+		perror(indexname.c_str());
 		exit(EXIT_OPEN);
 	}
-	FILE *indexfile = fopen_oflag(indexname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *indexfile = fopen_oflag(indexname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (indexfile == NULL) {
-		perror(indexname);
+		perror(indexname.c_str());
 		exit(EXIT_OPEN);
 	}
 
-	unlink(indexname);
+	unlink(indexname.c_str());
 
-	char geomname[strlen(tmpdir) + strlen("/geom.XXXXXXXX") + 1];
-	snprintf(geomname, sizeof(geomname), "%s%s", tmpdir, "/geom.XXXXXXXX");
+	std::string geomname = std::string(tmpdir) + "/geom.XXXXXXXX";
 
-	int geomfd = mkstemp_cloexec(geomname);
+	int geomfd = mkstemp_cloexec(&geomname[0]);
 	if (geomfd < 0) {
-		perror(geomname);
+		perror(geomname.c_str());
 		exit(EXIT_CLOSE);
 	}
-	FILE *geomfile = fopen_oflag(geomname, "wb", O_WRONLY | O_CLOEXEC);
+	FILE *geomfile = fopen_oflag(geomname.c_str(), "wb", O_WRONLY | O_CLOEXEC);
 	if (geomfile == NULL) {
-		perror(geomname);
+		perror(geomname.c_str());
 		exit(EXIT_OPEN);
 	}
-	unlink(geomname);
+	unlink(geomname.c_str());
 
 	unsigned iz = 0, ix = 0, iy = 0;
 	choose_first_zoom(file_bbox, file_bbox1, file_bbox2, readers, &iz, &ix, &iy, minzoom, buffer);
@@ -2674,8 +2685,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		madvise(geom, indexpos, MADV_SEQUENTIAL);
 		madvise(geom, indexpos, MADV_WILLNEED);
 
-		struct drop_state ds[maxzoom + 1];
-		prep_drop_states(ds, maxzoom, basezoom, droprate);
+		std::vector<struct drop_state> ds(maxzoom + 1);
+		prep_drop_states(ds.data(), maxzoom, basezoom, droprate);
 
 		if (drop_denser > 0) {
 			std::vector<drop_densest> ddv;
@@ -2693,7 +2704,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 
 						previndex = map[ip].ix;
 					} else {
-						int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+						int feature_minzoom = calc_feature_minzoom(&map[ip], ds.data(), maxzoom, gamma);
 						geom[map[ip].end - 1] = feature_minzoom;
 					}
 				}
@@ -2718,7 +2729,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				if (ip > 0 && map[ip].start != map[ip - 1].end) {
 					fprintf(stderr, "Mismatched index at %lld: %lld vs %lld\n", ip, map[ip].start, map[ip].end);
 				}
-				int feature_minzoom = calc_feature_minzoom(&map[ip], ds, maxzoom, gamma);
+				int feature_minzoom = calc_feature_minzoom(&map[ip], ds.data(), maxzoom, gamma);
 				geom[map[ip].end - 1] = feature_minzoom;
 			}
 		}
@@ -2741,8 +2752,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		exit(EXIT_STAT);
 	}
 
-	int fd[TEMP_FILES];
-	off_t size[TEMP_FILES];
+	std::vector<int> fd(TEMP_FILES);
+	std::vector<off_t> size(TEMP_FILES);
 
 	fd[0] = geomfd;
 	size[0] = geomst.st_size;
@@ -2755,7 +2766,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
 	std::vector<strategy> strategies;
-	int written = traverse_zooms(fd, size, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off, initial_x, initial_y, simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data, &drop_by_attribute_as_needed_attribute, drop_by_attribute_descending);
+	int written = traverse_zooms(fd.data(), size.data(), stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, pool_off.data(), initial_x.data(), initial_y.data(), simplification, maxzoom_simplification, layermaps, prefilter, postfilter, attribute_accum, filter, strategies, iz, shared_nodes_map, nodepos, shared_nodes_bloom, basezoom, droprate, unidecode_data, &drop_by_attribute_as_needed_attribute, drop_by_attribute_descending);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
@@ -2958,10 +2969,205 @@ void parse_json_source(const char *arg, struct source &src) {
 	}
 }
 
+static const struct option long_options_orig[] = {
+	{"Output tileset", 0, 0, 0},
+	{"output", required_argument, 0, 'o'},
+	{"output-to-directory", required_argument, 0, 'e'},
+	{"force", no_argument, 0, 'f'},
+	{"allow-existing", no_argument, 0, 'F'},
+
+	{"Tileset description and attribution", 0, 0, 0},
+	{"name", required_argument, 0, 'n'},
+	{"attribution", required_argument, 0, 'A'},
+	{"description", required_argument, 0, 'N'},
+
+	{"Input files and layer names", 0, 0, 0},
+	{"layer", required_argument, 0, 'l'},
+	{"named-layer", required_argument, 0, 'L'},
+
+	{"Parallel processing of input", 0, 0, 0},
+	{"read-parallel", no_argument, 0, 'P'},
+
+	{"Projection of input", 0, 0, 0},
+	{"projection", required_argument, 0, 's'},
+
+	{"Zoom levels", 0, 0, 0},
+	{"maximum-zoom", required_argument, 0, 'z'},
+	{"minimum-zoom", required_argument, 0, 'Z'},
+	{"smallest-maximum-zoom-guess", required_argument, 0, '~'},
+	{"extend-zooms-if-still-dropping", no_argument, &additional[A_EXTEND_ZOOMS], 1},
+	{"extend-zooms-if-still-dropping-maximum", required_argument, 0, '~'},
+	{"generate-variable-depth-tile-pyramid", no_argument, &additional[A_VARIABLE_DEPTH_PYRAMID], 1},
+	{"one-tile", required_argument, 0, 'R'},
+
+	{"Tile resolution", 0, 0, 0},
+	{"full-detail", required_argument, 0, 'd'},
+	{"low-detail", required_argument, 0, 'D'},
+	{"minimum-detail", required_argument, 0, 'm'},
+	{"extra-detail", required_argument, 0, '~'},
+
+	{"Filtering feature attributes", 0, 0, 0},
+	{"exclude", required_argument, 0, 'x'},
+	{"include", required_argument, 0, 'y'},
+	{"exclude-all", no_argument, 0, 'X'},
+
+	{"Modifying feature attributes", 0, 0, 0},
+	{"attribute-type", required_argument, 0, 'T'},
+	{"attribute-description", required_argument, 0, 'Y'},
+	{"accumulate-attribute", required_argument, 0, 'E'},
+	{"empty-csv-columns-are-null", no_argument, &prevent[P_EMPTY_CSV_COLUMNS], 1},
+	{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
+	{"use-attribute-for-id", required_argument, 0, '~'},
+	{"single-precision", no_argument, &prevent[P_SINGLE_PRECISION], 1},
+	{"set-attribute", required_argument, 0, '~'},
+	{"maximum-string-attribute-length", required_argument, 0, '~'},
+
+	{"Filtering features by attributes", 0, 0, 0},
+	{"feature-filter-file", required_argument, 0, 'J'},
+	{"feature-filter", required_argument, 0, 'j'},
+
+	{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
+	{"drop-rate", required_argument, 0, 'r'},
+	{"retain-points-multiplier", required_argument, 0, '~'},
+	{"base-zoom", required_argument, 0, 'B'},
+	{"drop-denser", required_argument, 0, '~'},
+	{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
+	{"drop-lines", no_argument, &additional[A_LINE_DROP], 1},
+	{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
+	{"cluster-distance", required_argument, 0, 'K'},
+	{"cluster-maxzoom", required_argument, 0, 'k'},
+	{"preserve-point-density-threshold", required_argument, 0, '~'},
+	{"preserve-multiplier-density-threshold", required_argument, 0, '~'},
+
+	{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
+	{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
+	{"drop-fraction-as-needed", no_argument, &additional[A_DROP_FRACTION_AS_NEEDED], 1},
+	{"drop-smallest-as-needed", no_argument, &additional[A_DROP_SMALLEST_AS_NEEDED], 1},
+	{"drop-by-attribute-as-needed", required_argument, 0, '~'},
+	{"drop-by-attribute-order", required_argument, 0, '~'},
+	{"coalesce-densest-as-needed", no_argument, &additional[A_COALESCE_DENSEST_AS_NEEDED], 1},
+	{"coalesce-fraction-as-needed", no_argument, &additional[A_COALESCE_FRACTION_AS_NEEDED], 1},
+	{"coalesce-smallest-as-needed", no_argument, &additional[A_COALESCE_SMALLEST_AS_NEEDED], 1},
+	{"force-feature-limit", no_argument, &prevent[P_DYNAMIC_DROP], 1},
+	{"cluster-densest-as-needed", no_argument, &additional[A_CLUSTER_DENSEST_AS_NEEDED], 1},
+	{"keep-point-cluster-position", no_argument, &additional[A_KEEP_POINT_CLUSTER_POSITION], 1},
+
+	{"Dropping tightly overlapping features", 0, 0, 0},
+	{"gamma", required_argument, 0, 'g'},
+	{"increase-gamma-as-needed", no_argument, &additional[A_INCREASE_GAMMA_AS_NEEDED], 1},
+
+	{"Line and polygon simplification", 0, 0, 0},
+	{"simplification", required_argument, 0, 'S'},
+	{"no-line-simplification", no_argument, &prevent[P_SIMPLIFY], 1},
+	{"simplify-only-low-zooms", no_argument, &prevent[P_SIMPLIFY_LOW], 1},
+	{"simplification-at-maximum-zoom", required_argument, 0, '~'},
+	{"no-tiny-polygon-reduction", no_argument, &prevent[P_TINY_POLYGON_REDUCTION], 1},
+	{"no-tiny-polygon-reduction-at-maximum-zoom", no_argument, &prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM], 1},
+	{"tiny-polygon-size", required_argument, 0, '~'},
+	{"no-simplification-of-shared-nodes", no_argument, &prevent[P_SIMPLIFY_SHARED_NODES], 1},
+	{"visvalingam", no_argument, &additional[A_VISVALINGAM], 1},
+
+	{"Attempts to improve shared polygon boundaries", 0, 0, 0},
+	{"detect-shared-borders", no_argument, &additional[A_DETECT_SHARED_BORDERS], 1},
+	{"grid-low-zooms", no_argument, &additional[A_GRID_LOW_ZOOMS], 1},
+
+	{"Controlling clipping to tile boundaries", 0, 0, 0},
+	{"buffer", required_argument, 0, 'b'},
+	{"no-clipping", no_argument, &prevent[P_CLIPPING], 1},
+	{"no-duplication", no_argument, &prevent[P_DUPLICATION], 1},
+
+	{"Reordering features within each tile", 0, 0, 0},
+	{"preserve-input-order", no_argument, &prevent[P_INPUT_ORDER], 1},
+	{"reorder", no_argument, &additional[A_REORDER], 1},
+	{"coalesce", no_argument, &additional[A_COALESCE], 1},
+	{"reverse", no_argument, &additional[A_REVERSE], 1},
+	{"hilbert", no_argument, &additional[A_HILBERT], 1},
+	{"order-by", required_argument, 0, '~'},
+	{"order-descending-by", required_argument, 0, '~'},
+	{"order-smallest-first", no_argument, 0, '~'},
+	{"order-largest-first", no_argument, 0, '~'},
+
+	{"Adding calculated attributes", 0, 0, 0},
+	{"calculate-feature-density", no_argument, &additional[A_CALCULATE_FEATURE_DENSITY], 1},
+	{"generate-ids", no_argument, &additional[A_GENERATE_IDS], 1},
+	{"calculate-feature-index", no_argument, &additional[A_CALCULATE_INDEX], 1},
+
+	{"Trying to correct bad source geometry", 0, 0, 0},
+	{"detect-longitude-wraparound", no_argument, &additional[A_DETECT_WRAPAROUND], 1},
+	{"use-source-polygon-winding", no_argument, &prevent[P_USE_SOURCE_POLYGON_WINDING], 1},
+	{"reverse-source-polygon-winding", no_argument, &prevent[P_REVERSE_SOURCE_POLYGON_WINDING], 1},
+	{"clip-bounding-box", required_argument, 0, '~'},
+	{"convert-polygons-to-label-points", no_argument, &additional[A_GENERATE_POLYGON_LABEL_POINTS], 1},
+
+	{"Filtering tile contents", 0, 0, 0},
+	{"prefilter", required_argument, 0, 'C'},
+	{"postfilter", required_argument, 0, 'c'},
+
+	{"Setting or disabling tile size limits", 0, 0, 0},
+	{"maximum-tile-bytes", required_argument, 0, 'M'},
+	{"maximum-tile-features", required_argument, 0, 'O'},
+	{"limit-tile-feature-count", required_argument, 0, '~'},
+	{"limit-tile-feature-count-at-maximum-zoom", required_argument, 0, '~'},
+	{"no-feature-limit", no_argument, &prevent[P_FEATURE_LIMIT], 1},
+	{"no-tile-size-limit", no_argument, &prevent[P_KILOBYTE_LIMIT], 1},
+	{"no-tile-compression", no_argument, &prevent[P_TILE_COMPRESSION], 1},
+	{"no-tile-stats", no_argument, &prevent[P_TILE_STATS], 1},
+	{"tile-stats-attributes-limit", required_argument, 0, '~'},
+	{"tile-stats-sample-values-limit", required_argument, 0, '~'},
+	{"tile-stats-values-limit", required_argument, 0, '~'},
+
+	{"Temporary storage", 0, 0, 0},
+	{"temporary-directory", required_argument, 0, 't'},
+
+	{"Progress indicator", 0, 0, 0},
+	{"quiet", no_argument, 0, 'q'},
+	{"no-progress-indicator", no_argument, 0, 'Q'},
+	{"progress-interval", required_argument, 0, 'U'},
+	{"json-progress", no_argument, 0, 'u'},
+
+	{"Version", 0, 0, 0},
+	{"version", no_argument, 0, 'v'},
+
+	{"", 0, 0, 0},
+	{"prevent", required_argument, 0, 'p'},
+	{"additional", required_argument, 0, 'a'},
+	{"check-polygons", no_argument, &additional[A_DEBUG_POLYGON], 1},
+	{"no-polygon-splitting", no_argument, &prevent[P_POLYGON_SPLIT], 1},
+	{"prefer-radix-sort", no_argument, &additional[A_PREFER_RADIX_SORT], 1},
+	{"unidecode-data", required_argument, 0, '~'},
+	{"help", no_argument, 0, 'H'},
+
+	{0, 0, 0, 0},
+};
+
+// the options above, with the usage message headings removed
+static struct option long_options[sizeof(long_options_orig) / sizeof(long_options_orig[0])];
+
+void usage(char **argv, int status) {
+	static const char *const forms[] = {
+		"[options] [file.json ...]",
+		NULL,
+	};
+	static const struct usage_required_option required[] = {
+		{"output", "output.mbtiles", 1},
+		{"output-to-directory", "directory", 1},
+		{NULL, NULL, 0},
+	};
+
+	print_usage(stderr, argv[0], forms, long_options_orig, required);
+	exit(status);
+}
+
 int main(int argc, char **argv) {
 #ifdef MTRACE
 	mtrace();
 #endif
+
+	if (argc == 1) {
+		// with no arguments at all, there is nothing to complain about
+		// specifically, so say in general what the arguments should be
+		usage(argv, EXIT_ARGS);
+	}
 
 	av = argv;
 	init_cpus();
@@ -3010,197 +3216,9 @@ int main(int argc, char **argv) {
 		additional[i] = 0;
 	}
 
-	static struct option long_options_orig[] = {
-		{"Output tileset", 0, 0, 0},
-		{"output", required_argument, 0, 'o'},
-		{"output-to-directory", required_argument, 0, 'e'},
-		{"force", no_argument, 0, 'f'},
-		{"allow-existing", no_argument, 0, 'F'},
-
-		{"Tileset description and attribution", 0, 0, 0},
-		{"name", required_argument, 0, 'n'},
-		{"attribution", required_argument, 0, 'A'},
-		{"description", required_argument, 0, 'N'},
-
-		{"Input files and layer names", 0, 0, 0},
-		{"layer", required_argument, 0, 'l'},
-		{"named-layer", required_argument, 0, 'L'},
-
-		{"Parallel processing of input", 0, 0, 0},
-		{"read-parallel", no_argument, 0, 'P'},
-
-		{"Projection of input", 0, 0, 0},
-		{"projection", required_argument, 0, 's'},
-
-		{"Zoom levels", 0, 0, 0},
-		{"maximum-zoom", required_argument, 0, 'z'},
-		{"minimum-zoom", required_argument, 0, 'Z'},
-		{"smallest-maximum-zoom-guess", required_argument, 0, '~'},
-		{"extend-zooms-if-still-dropping", no_argument, &additional[A_EXTEND_ZOOMS], 1},
-		{"extend-zooms-if-still-dropping-maximum", required_argument, 0, '~'},
-		{"generate-variable-depth-tile-pyramid", no_argument, &additional[A_VARIABLE_DEPTH_PYRAMID], 1},
-		{"one-tile", required_argument, 0, 'R'},
-
-		{"Tile resolution", 0, 0, 0},
-		{"full-detail", required_argument, 0, 'd'},
-		{"low-detail", required_argument, 0, 'D'},
-		{"minimum-detail", required_argument, 0, 'm'},
-		{"extra-detail", required_argument, 0, '~'},
-
-		{"Filtering feature attributes", 0, 0, 0},
-		{"exclude", required_argument, 0, 'x'},
-		{"include", required_argument, 0, 'y'},
-		{"exclude-all", no_argument, 0, 'X'},
-
-		{"Modifying feature attributes", 0, 0, 0},
-		{"attribute-type", required_argument, 0, 'T'},
-		{"attribute-description", required_argument, 0, 'Y'},
-		{"accumulate-attribute", required_argument, 0, 'E'},
-		{"empty-csv-columns-are-null", no_argument, &prevent[P_EMPTY_CSV_COLUMNS], 1},
-		{"convert-stringified-ids-to-numbers", no_argument, &additional[A_CONVERT_NUMERIC_IDS], 1},
-		{"use-attribute-for-id", required_argument, 0, '~'},
-		{"single-precision", no_argument, &prevent[P_SINGLE_PRECISION], 1},
-		{"set-attribute", required_argument, 0, '~'},
-		{"maximum-string-attribute-length", required_argument, 0, '~'},
-
-		{"Filtering features by attributes", 0, 0, 0},
-		{"feature-filter-file", required_argument, 0, 'J'},
-		{"feature-filter", required_argument, 0, 'j'},
-		{"unidecode-data", required_argument, 0, '~'},
-
-		{"Dropping a fixed fraction of features by zoom level", 0, 0, 0},
-		{"drop-rate", required_argument, 0, 'r'},
-		{"retain-points-multiplier", required_argument, 0, '~'},
-		{"base-zoom", required_argument, 0, 'B'},
-		{"drop-denser", required_argument, 0, '~'},
-		{"limit-base-zoom-to-maximum-zoom", no_argument, &prevent[P_BASEZOOM_ABOVE_MAXZOOM], 1},
-		{"drop-lines", no_argument, &additional[A_LINE_DROP], 1},
-		{"drop-polygons", no_argument, &additional[A_POLYGON_DROP], 1},
-		{"cluster-distance", required_argument, 0, 'K'},
-		{"cluster-maxzoom", required_argument, 0, 'k'},
-		{"preserve-point-density-threshold", required_argument, 0, '~'},
-		{"preserve-multiplier-density-threshold", required_argument, 0, '~'},
-
-		{"Dropping or merging a fraction of features to keep under tile size limits", 0, 0, 0},
-		{"drop-densest-as-needed", no_argument, &additional[A_DROP_DENSEST_AS_NEEDED], 1},
-		{"drop-fraction-as-needed", no_argument, &additional[A_DROP_FRACTION_AS_NEEDED], 1},
-		{"drop-smallest-as-needed", no_argument, &additional[A_DROP_SMALLEST_AS_NEEDED], 1},
-		{"drop-by-attribute-as-needed", required_argument, 0, '~'},
-		{"drop-by-attribute-order", required_argument, 0, '~'},
-		{"coalesce-densest-as-needed", no_argument, &additional[A_COALESCE_DENSEST_AS_NEEDED], 1},
-		{"coalesce-fraction-as-needed", no_argument, &additional[A_COALESCE_FRACTION_AS_NEEDED], 1},
-		{"coalesce-smallest-as-needed", no_argument, &additional[A_COALESCE_SMALLEST_AS_NEEDED], 1},
-		{"force-feature-limit", no_argument, &prevent[P_DYNAMIC_DROP], 1},
-		{"cluster-densest-as-needed", no_argument, &additional[A_CLUSTER_DENSEST_AS_NEEDED], 1},
-		{"keep-point-cluster-position", no_argument, &additional[A_KEEP_POINT_CLUSTER_POSITION], 1},
-
-		{"Dropping tightly overlapping features", 0, 0, 0},
-		{"gamma", required_argument, 0, 'g'},
-		{"increase-gamma-as-needed", no_argument, &additional[A_INCREASE_GAMMA_AS_NEEDED], 1},
-
-		{"Line and polygon simplification", 0, 0, 0},
-		{"simplification", required_argument, 0, 'S'},
-		{"no-line-simplification", no_argument, &prevent[P_SIMPLIFY], 1},
-		{"simplify-only-low-zooms", no_argument, &prevent[P_SIMPLIFY_LOW], 1},
-		{"simplification-at-maximum-zoom", required_argument, 0, '~'},
-		{"no-tiny-polygon-reduction", no_argument, &prevent[P_TINY_POLYGON_REDUCTION], 1},
-		{"no-tiny-polygon-reduction-at-maximum-zoom", no_argument, &prevent[P_TINY_POLYGON_REDUCTION_AT_MAXZOOM], 1},
-		{"tiny-polygon-size", required_argument, 0, '~'},
-		{"no-simplification-of-shared-nodes", no_argument, &prevent[P_SIMPLIFY_SHARED_NODES], 1},
-		{"visvalingam", no_argument, &additional[A_VISVALINGAM], 1},
-
-		{"Attempts to improve shared polygon boundaries", 0, 0, 0},
-		{"detect-shared-borders", no_argument, &additional[A_DETECT_SHARED_BORDERS], 1},
-		{"grid-low-zooms", no_argument, &additional[A_GRID_LOW_ZOOMS], 1},
-
-		{"Controlling clipping to tile boundaries", 0, 0, 0},
-		{"buffer", required_argument, 0, 'b'},
-		{"no-clipping", no_argument, &prevent[P_CLIPPING], 1},
-		{"no-duplication", no_argument, &prevent[P_DUPLICATION], 1},
-
-		{"Reordering features within each tile", 0, 0, 0},
-		{"preserve-input-order", no_argument, &prevent[P_INPUT_ORDER], 1},
-		{"reorder", no_argument, &additional[A_REORDER], 1},
-		{"coalesce", no_argument, &additional[A_COALESCE], 1},
-		{"reverse", no_argument, &additional[A_REVERSE], 1},
-		{"hilbert", no_argument, &additional[A_HILBERT], 1},
-		{"order-by", required_argument, 0, '~'},
-		{"order-descending-by", required_argument, 0, '~'},
-		{"order-smallest-first", no_argument, 0, '~'},
-		{"order-largest-first", no_argument, 0, '~'},
-
-		{"Adding calculated attributes", 0, 0, 0},
-		{"calculate-feature-density", no_argument, &additional[A_CALCULATE_FEATURE_DENSITY], 1},
-		{"generate-ids", no_argument, &additional[A_GENERATE_IDS], 1},
-		{"calculate-feature-index", no_argument, &additional[A_CALCULATE_INDEX], 1},
-
-		{"Trying to correct bad source geometry", 0, 0, 0},
-		{"detect-longitude-wraparound", no_argument, &additional[A_DETECT_WRAPAROUND], 1},
-		{"use-source-polygon-winding", no_argument, &prevent[P_USE_SOURCE_POLYGON_WINDING], 1},
-		{"reverse-source-polygon-winding", no_argument, &prevent[P_REVERSE_SOURCE_POLYGON_WINDING], 1},
-		{"clip-bounding-box", required_argument, 0, '~'},
-		{"convert-polygons-to-label-points", no_argument, &additional[A_GENERATE_POLYGON_LABEL_POINTS], 1},
-
-		{"Filtering tile contents", 0, 0, 0},
-		{"prefilter", required_argument, 0, 'C'},
-		{"postfilter", required_argument, 0, 'c'},
-
-		{"Setting or disabling tile size limits", 0, 0, 0},
-		{"maximum-tile-bytes", required_argument, 0, 'M'},
-		{"maximum-tile-features", required_argument, 0, 'O'},
-		{"limit-tile-feature-count", required_argument, 0, '~'},
-		{"limit-tile-feature-count-at-maximum-zoom", required_argument, 0, '~'},
-		{"no-feature-limit", no_argument, &prevent[P_FEATURE_LIMIT], 1},
-		{"no-tile-size-limit", no_argument, &prevent[P_KILOBYTE_LIMIT], 1},
-		{"no-tile-compression", no_argument, &prevent[P_TILE_COMPRESSION], 1},
-		{"no-tile-stats", no_argument, &prevent[P_TILE_STATS], 1},
-		{"tile-stats-attributes-limit", required_argument, 0, '~'},
-		{"tile-stats-sample-values-limit", required_argument, 0, '~'},
-		{"tile-stats-values-limit", required_argument, 0, '~'},
-
-		{"Temporary storage", 0, 0, 0},
-		{"temporary-directory", required_argument, 0, 't'},
-
-		{"Progress indicator", 0, 0, 0},
-		{"quiet", no_argument, 0, 'q'},
-		{"no-progress-indicator", no_argument, 0, 'Q'},
-		{"progress-interval", required_argument, 0, 'U'},
-		{"json-progress", no_argument, 0, 'u'},
-		{"version", no_argument, 0, 'v'},
-
-		{"", 0, 0, 0},
-		{"prevent", required_argument, 0, 'p'},
-		{"additional", required_argument, 0, 'a'},
-		{"check-polygons", no_argument, &additional[A_DEBUG_POLYGON], 1},
-		{"no-polygon-splitting", no_argument, &prevent[P_POLYGON_SPLIT], 1},
-		{"prefer-radix-sort", no_argument, &additional[A_PREFER_RADIX_SORT], 1},
-		{"help", no_argument, 0, 'H'},
-
-		{0, 0, 0, 0},
-	};
-
-	static struct option long_options[sizeof(long_options_orig) / sizeof(long_options_orig[0])];
-	static char getopt_str[sizeof(long_options_orig) / sizeof(long_options_orig[0]) * 2 + 1];
+	strip_usage_headings(long_options_orig, long_options);
 
 	{
-		size_t out = 0;
-		size_t cout = 0;
-		for (size_t lo = 0; long_options_orig[lo].name != NULL; lo++) {
-			if (long_options_orig[lo].val != 0) {
-				long_options[out++] = long_options_orig[lo];
-
-				if (long_options_orig[lo].val > ' ') {
-					getopt_str[cout++] = long_options_orig[lo].val;
-
-					if (long_options_orig[lo].has_arg == required_argument) {
-						getopt_str[cout++] = ':';
-					}
-				}
-			}
-		}
-		long_options[out] = {0, 0, 0, 0};
-		getopt_str[cout] = '\0';
-
 		for (size_t lo = 0; long_options[lo].name != NULL; lo++) {
 			if (long_options[lo].flag != NULL) {
 				if (*long_options[lo].flag != 0) {
@@ -3219,9 +3237,10 @@ int main(int argc, char **argv) {
 	}
 
 	std::string commandline = format_commandline(argc, argv);
+	std::string getopt_str = getopt_string(long_options);
 
 	int option_index = 0;
-	while ((i = getopt_long(argc, argv, getopt_str, long_options, &option_index)) != -1) {
+	while ((i = getopt_long(argc, argv, getopt_str.c_str(), long_options, &option_index)) != -1) {
 		switch (i) {
 		case 0:
 			break;
@@ -3645,43 +3664,11 @@ int main(int argc, char **argv) {
 			set_attribute_accum(attribute_accum, optarg, argv);
 			break;
 
-		default: {
+		default:
 			if (i != 'H' && i != '?') {
 				fprintf(stderr, "Unknown option -%c\n", i);
 			}
-			int width = 7 + strlen(argv[0]);
-			fprintf(stderr, "Usage: %s [options] [file.json ...]", argv[0]);
-			for (size_t lo = 0; long_options_orig[lo].name != NULL && strlen(long_options_orig[lo].name) > 0; lo++) {
-				if (long_options_orig[lo].val == 0) {
-					fprintf(stderr, "\n  %s\n        ", long_options_orig[lo].name);
-					width = 8;
-					continue;
-				}
-				if (width + strlen(long_options_orig[lo].name) + 9 >= 80) {
-					fprintf(stderr, "\n        ");
-					width = 8;
-				}
-				width += strlen(long_options_orig[lo].name) + 9;
-				if (strcmp(long_options_orig[lo].name, "output") == 0) {
-					fprintf(stderr, " --%s=output.mbtiles", long_options_orig[lo].name);
-					width += 9;
-				} else if (long_options_orig[lo].has_arg) {
-					fprintf(stderr, " [--%s=...]", long_options_orig[lo].name);
-				} else {
-					fprintf(stderr, " [--%s]", long_options_orig[lo].name);
-				}
-			}
-			if (width + 16 >= 80) {
-				fprintf(stderr, "\n        ");
-				width = 8;
-			}
-			fprintf(stderr, "\n");
-			if (i == 'H') {
-				exit(EXIT_SUCCESS);
-			} else {
-				exit(EXIT_ARGS);
-			}
-		}
+			usage(argv, i == 'H' ? EXIT_SUCCESS : EXIT_ARGS);
 		}
 	}
 

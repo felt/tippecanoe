@@ -19,3 +19,20 @@ jobs:
         run: brew install sqlite3
       - run: uname -a; BUILDTYPE=${{ matrix.version }} make
       - run: make test
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # Pinned, because different go-md2man versions produce different roff
+      # for the same input, which would make this check fail spuriously.
+      - name: Install go-md2man
+        run: go install github.com/cpuguy83/go-md2man/v2@v2.0.7
+      - name: Regenerate the man page
+        run: PATH="$PATH:$(go env GOPATH)/bin" make -B docs
+      - name: Check that the man page is up to date with README.md
+        run: |
+          git diff --exit-code man/tippecanoe.1 || {
+            echo "::error::man/tippecanoe.1 is out of date. Run 'make docs' and commit the result."
+            exit 1
+          }
