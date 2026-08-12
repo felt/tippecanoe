@@ -261,8 +261,15 @@ sqlite3 *dirmeta2tmp(const char *fname) {
 		}
 
 		for (const auto &e : o->entries()) {
+			// Skip, rather than just warn about, anything that isn't a
+			// string/string pair: reading a non-string through string()
+			// would assert in a debug build and misinterpret the node's
+			// storage in a release build. (A metadata.json written by
+			// something other than tippecanoe may well have numeric
+			// minzoom/maxzoom or a nested "json" object.)
 			if (e.key->type != JSON_STRING || e.value->type != JSON_STRING) {
 				fprintf(stderr, "%s: non-string in metadata\n", name.c_str());
+				continue;
 			}
 
 			char *sql = sqlite3_mprintf("INSERT INTO metadata (name, value) VALUES (%Q, %Q);", e.key->string().c_str(), e.value->string().c_str());

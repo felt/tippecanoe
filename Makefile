@@ -261,6 +261,14 @@ raw-tiles-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe-decode -x generator tests/raw-tiles/nothing > tests/raw-tiles/nothing.json.check
 	cmp tests/raw-tiles/nothing.json.check tests/raw-tiles/nothing.json
 	rm -r tests/raw-tiles/nothing tests/raw-tiles/nothing.json.check
+	# Test that a non-string value in metadata.json is reported and skipped
+	# instead of being read as a string (which used to crash)
+	./tippecanoe -q -f -e tests/raw-tiles/nonstring tests/raw-tiles/hackspots.geojson
+	sed -i.bak 's/"minzoom": "0"/"minzoom": 0/' tests/raw-tiles/nonstring/metadata.json
+	rm tests/raw-tiles/nonstring/metadata.json.bak
+	grep -q '"minzoom": 0' tests/raw-tiles/nonstring/metadata.json
+	./tippecanoe-decode -x generator tests/raw-tiles/nonstring > /dev/null
+	rm -r tests/raw-tiles/nonstring
 
 pmtiles-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -o tests/pmtiles/hackspots.pmtiles -r1 -pC tests/raw-tiles/hackspots.geojson
