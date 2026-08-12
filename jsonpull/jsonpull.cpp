@@ -585,11 +585,14 @@ again:
 					} else if (ch <= 0x7FF) {
 						val.push_back(0xC0 | (ch >> 6));
 						val.push_back(0x80 | (ch & 0x3F));
-					} else if (ch < 0xFFFF) {
+					} else if (ch <= 0xFFFF) {
 						val.push_back(0xE0 | (ch >> 12));
 						val.push_back(0x80 | ((ch >> 6) & 0x3F));
 						val.push_back(0x80 | (ch & 0x3F));
 					} else {
+						// Only reachable for a code point assembled from a
+						// surrogate pair above, since `ch` on its own comes
+						// from four hex digits and so cannot exceed 0xFFFF.
 						val.push_back(0xF0 | (ch >> 18));
 						val.push_back(0x80 | ((ch >> 12) & 0x3F));
 						val.push_back(0x80 | ((ch >> 6) & 0x3F));
@@ -664,11 +667,11 @@ json_object *json_read(json_pull_ptr &j) {
 	return json_read_separators(j, nullptr, nullptr);
 }
 
-// Forward declaration so json_read_tree can clear back-pointers on
-// the tree it hands out -- this lets callers (like the filter loaders)
-// keep the returned tree past the parser's lifetime without having to
-// follow up with a separate json_disconnect call.
-static void clear_back_pointers(json_object *o);
+// Forward declaration so json_read_tree can sever the tree it hands out
+// from the parser -- this lets callers (like the filter loaders) keep the
+// returned tree past the parser's lifetime without having to follow up
+// with a separate json_disconnect call.
+static void detach_subtree(json_object *o);
 
 json_object_ptr json_read_tree(json_pull_ptr &p) {
 	json_object *j;
@@ -680,7 +683,7 @@ json_object_ptr json_read_tree(json_pull_ptr &p) {
 			// the subtree from the parser so the caller can
 			// outlive the json_pull.
 			json_object_ptr tree = std::move(p->root);
-			clear_back_pointers(tree.get());
+			detach_subtree(tree.get());
 			return tree;
 		}
 	}
@@ -771,33 +774,57 @@ void json_free(json_object *o) {
 	(void) take_from_owner(o);
 }
 
-// Walk the subtree clearing parent/parser back-pointers so the detached
-// subtree can outlive the original parser.
-static void clear_back_pointers(json_object *o) {
+// Walk the subtree clearing the parser back-pointers, so the detached
+// subtree can outlive the json_pull it was parsed from. Every `parser`
+// pointer has to go: the json_pull may be destroyed while the subtree
+// lives on, and a stale one would dangle.
+//
+// The `parent` pointers *inside* the subtree are deliberately left alone.
+// They are non-owning raw pointers, so keeping them cannot create a
+// reference cycle or hold anything alive, and they point at nodes the
+// caller now owns as one unit -- they stay valid for exactly as long as
+// the subtree does. Keeping them also means the tree stays navigable
+// upwards, and that json_free() / json_disconnect() keep working on
+// interior nodes of a detached tree, both of which need o->parent to
+// find the node's owner.
+static void clear_parser_pointers(json_object *o) {
 	if (o == nullptr) {
 		return;
 	}
 
 	if (o->type == JSON_HASH) {
 		for (const auto &e : o->entries()) {
-			clear_back_pointers(e.key.get());
-			clear_back_pointers(e.value.get());
+			clear_parser_pointers(e.key.get());
+			clear_parser_pointers(e.value.get());
 		}
 	} else if (o->type == JSON_ARRAY) {
 		const auto &arr = o->array();
 		for (size_t i = 0; i < arr.size(); i++) {
-			clear_back_pointers(arr[i].get());
+			clear_parser_pointers(arr[i].get());
 		}
 	}
 
-	o->parent = nullptr;
 	o->parser = nullptr;
+}
+
+// Sever a subtree that take_from_owner() has just moved out of the tree it
+// belonged to. The root's own `parent` is the one back-pointer that must be
+// cleared: it pointed *out* of the subtree, at a node the parser still owns
+// and may destroy, and leaving it set would make a later json_free() on this
+// root hunt for itself in a container that no longer holds it.
+static void detach_subtree(json_object *o) {
+	if (o == nullptr) {
+		return;
+	}
+
+	clear_parser_pointers(o);
+	o->parent = nullptr;
 }
 
 json_object_ptr json_disconnect(json_object *o) {
 	json_object_ptr taken = take_from_owner(o);
 	if (taken != nullptr) {
-		clear_back_pointers(taken.get());
+		detach_subtree(taken.get());
 	}
 	return taken;
 }
