@@ -1296,7 +1296,10 @@ void correct_tree(ring_manager<T>& manager) {
         }
         if (!found) {
             if ((*itr)->is_hole()) {
-                throw std::runtime_error("Could not properly place hole to a parent.");
+                // No remaining ring contains this hole (degenerate input, e.g. stacked
+                // duplicate rings from coalesced tiny-polygon placeholders); drop it
+                // rather than fail the entire tiling run.
+                remove_ring_and_points(*itr, manager, false);
             } else {
                 // Assign to base of tree by passing nullptr
                 reassign_as_child(*itr, static_cast<ring_ptr<T>>(nullptr), manager);

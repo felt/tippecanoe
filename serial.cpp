@@ -665,10 +665,18 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		// VT_POINT extent will be calculated in write_tile from the distance between adjacent features.
 	}
 
-	if (extent <= LLONG_MAX) {
+	// Clamp before converting, since converting a double that is out of range
+	// for a long long is undefined. The bounds are asymmetric: LLONG_MAX is not
+	// representable as a double and rounds up to 2^63, so the upper bound has to
+	// be exclusive, while LLONG_MIN is exactly -2^63 and so can be included.
+	// Areas are signed, so holes that outweigh their rings can make this
+	// negative.
+	if (extent >= (double) LLONG_MIN && extent < (double) LLONG_MAX) {
 		sf.extent = (long long) extent;
+	} else if (extent < 0) {
+		sf.extent = LLONG_MIN;
 	} else {
-		sf.extent = LLONG_MAX;
+		sf.extent = LLONG_MAX;  // also the NaN case
 	}
 
 	if (sst->want_dist && sf.t == VT_POLYGON) {

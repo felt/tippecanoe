@@ -1,0 +1,2 @@
+{"type":"Feature","id":1,"tippecanoe":{"minzoom":10},"properties":{"depth":10},"geometry":{"type":"Point","coordinates":[0.05,0.05]}}
+{"type":"Feature","id":2,"tippecanoe":{"minzoom":11},"properties":{"depth":11},"geometry":{"type":"Point","coordinates":[0.06,0.06]}}

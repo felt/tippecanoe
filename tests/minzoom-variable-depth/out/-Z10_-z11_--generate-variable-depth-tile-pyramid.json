@@ -1,0 +1,28 @@
+{ "type": "FeatureCollection", "properties": {
+"antimeridian_adjusted_bounds": "0.050000,0.050000,0.060000,0.060000",
+"bounds": "0.050000,0.050000,0.060000,0.060000",
+"center": "0.060000,0.060000,11",
+"description": "tests/minzoom-variable-depth/out/-Z10_-z11_--generate-variable-depth-tile-pyramid.json.check.mbtiles",
+"format": "pbf",
+"generator_options": "./tippecanoe -q -a@ -f -o tests/minzoom-variable-depth/out/-Z10_-z11_--generate-variable-depth-tile-pyramid.json.check.mbtiles -Z10 -z11 --generate-variable-depth-tile-pyramid tests/minzoom-variable-depth/in.json",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":10,\"maxzoom\":11,\"fields\":{\"depth\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":2,\"geometry\":\"Point\",\"attributeCount\":1,\"attributes\":[{\"attribute\":\"depth\",\"count\":2,\"type\":\"number\",\"values\":[10,11],\"min\":10,\"max\":11}]}]}}",
+"maxzoom": "11",
+"minzoom": "10",
+"name": "tests/minzoom-variable-depth/out/-Z10_-z11_--generate-variable-depth-tile-pyramid.json.check.mbtiles",
+"type": "overlay",
+"version": "2"
+}, "features": [
+{ "type": "FeatureCollection", "properties": { "zoom": 10, "x": 512, "y": 511 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 1, "properties": { "depth": 10 }, "geometry": { "type": "Point", "coordinates": [ 0.050039, 0.049953 ] } }
+] }
+] }
+,
+{ "type": "FeatureCollection", "properties": { "zoom": 11, "x": 1024, "y": 1023 }, "features": [
+{ "type": "FeatureCollection", "properties": { "layer": "in", "version": 2, "extent": 4096 }, "features": [
+{ "type": "Feature", "id": 1, "properties": { "depth": 10 }, "geometry": { "type": "Point", "coordinates": [ 0.049996, 0.049996 ] } }
+,
+{ "type": "Feature", "id": 2, "properties": { "depth": 11 }, "geometry": { "type": "Point", "coordinates": [ 0.059996, 0.059996 ] } }
+] }
+] }
+] }
