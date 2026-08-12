@@ -1,3 +1,22 @@
+# 2.82.0
+
+* Rewrite `jsonpull` in C++ with `unique_ptr` ownership, `std::vector` for
+  arrays and hash entries, and `std::string` for string values, replacing the
+  hand-rolled `malloc`/`realloc`/`free` memory management. Value payloads now
+  live in type-tagged subclasses reached through asserting accessors, so
+  reading a hash as a string fails immediately instead of silently returning
+  garbage. (#388)
+* Fix `tippecanoe-json-tool --extract` crashing on a numeric attribute, which
+  read the number's storage as a string pointer. (#388)
+* Fix decoding of a `\u` escape sequence in which a high surrogate is followed
+  by a non-surrogate BMP code point, which combined the two into a single
+  wrong code point. (#388)
+* Fix tile-join reading a non-string field type out of a tileset's tilejson.
+  (#388)
+* Fix `tippecanoe-decode` and tile-join crashing on a directory tileset whose
+  `metadata.json` holds a non-string value, such as a numeric `minzoom` or a
+  nested object. Those entries are now reported and skipped. (#388)
+
 # 2.81.0
 
 * Add `--drop-by-attribute-as-needed=`*attribute* to drop the features with
