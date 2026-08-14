@@ -55,8 +55,9 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 			exit(EXIT_JSON);
 		}
 
-		size_t i = 0;
-		for (const auto &e : o->entries()) {
+		for (size_t i = 0; i < o->entries().size(); i++) {
+			const auto &e = o->entries()[i];
+
 			if (e.key->type != JSON_STRING) {
 				fprintf(stderr, "%s: -E%s: key %zu not a string\n", *argv, arg, i);
 				exit(EXIT_JSON);
@@ -66,8 +67,7 @@ void set_attribute_accum(std::unordered_map<std::string, attribute_op> &attribut
 				exit(EXIT_JSON);
 			}
 
-			set_attribute_accum(attribute_accum, e.key->string().c_str(), e.value->string().c_str());
-			i++;
+			set_attribute_accum(attribute_accum, e.key->string(), e.value->string());
 		}
 
 		return;

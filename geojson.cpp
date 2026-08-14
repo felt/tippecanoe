@@ -188,7 +188,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 			if (e.key->type == JSON_STRING) {
 				serial_val sv = stringify_value(e.value.get(), sst->fname, sst->line, feature);
 
-				full_keys.emplace_back(key_pool.pool(e.key->string().c_str()));
+				full_keys.emplace_back(key_pool.pool(e.key->string()));
 				values.push_back(std::move(sv));
 			}
 		}
@@ -238,6 +238,10 @@ struct json_serialize_action : json_feature_action {
 	std::string layername;
 
 	int add_feature(json_object *geometry, bool geometrycollection, json_object *properties, json_object *id, json_object *tippecanoe, json_object *feature) {
+		// This only ever receives json_read results from geojson-loop, whose
+		// parser is still attached. json_read_tree / json_disconnect clear
+		// every parser pointer, so a detached tree would null-deref here.
+		assert(geometry->parser != nullptr);
 		sst->line = geometry->parser->line;
 		if (geometrycollection) {
 			int ret = 1;

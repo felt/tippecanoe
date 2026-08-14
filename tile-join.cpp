@@ -973,8 +973,9 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 		for (size_t i = 0; i < o->array().size(); i++) {
 			const json_object_ptr &h = o->array()[i];
 			if (h->type == JSON_HASH) {
-				size_t j = 0;
-				for (const auto &kv : h->entries()) {
+				for (size_t j = 0; j < h->entries().size(); j++) {
+					const auto &kv = h->entries()[j];
+
 					if (kv.key->type != JSON_STRING) {
 						fprintf(stderr, "Key %zu of %zu is not a string: %s\n", j, i, s);
 					} else if (kv.value->type != JSON_NUMBER) {
@@ -1005,7 +1006,6 @@ void handle_strategies(const unsigned char *s, std::vector<strategy> *st) {
 							(*st)[i].feature_count += kv.value->number();
 						}
 					}
-					j++;
 				}
 			} else {
 				fprintf(stderr, "Element %zu is not a hash: %s\n", i, s);

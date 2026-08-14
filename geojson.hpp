@@ -17,7 +17,7 @@ struct parse_json_args {
 	struct serialization_state *sst;
 
 	parse_json_args(json_pull_ptr jp1, int layer1, std::string *layername1, struct serialization_state *sst1)
-	    : jp(jp1), layer(layer1), layername(layername1), sst(sst1) {
+	    : jp(std::move(jp1)), layer(layer1), layername(layername1), sst(sst1) {
 	}
 };
 

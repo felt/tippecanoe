@@ -2896,8 +2896,9 @@ void set_attribute_value(const char *arg) {
 			exit(EXIT_JSON);
 		}
 
-		size_t i = 0;
-		for (const auto &e : o->entries()) {
+		for (size_t i = 0; i < o->entries().size(); i++) {
+			const auto &e = o->entries()[i];
+
 			if (e.key->type != JSON_STRING) {
 				fprintf(stderr, "%s: --set-attribute %s: key %zu not a string\n", *av, arg, i);
 				exit(EXIT_JSON);
@@ -2905,7 +2906,6 @@ void set_attribute_value(const char *arg) {
 
 			serial_val val = stringify_value(e.value.get(), "json", 1, o.get());
 			set_attributes.emplace(e.key->string(), val);
-			i++;
 		}
 
 		return;
