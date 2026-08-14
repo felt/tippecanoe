@@ -321,11 +321,7 @@ std::vector<mvt_layer> parse_layers(FILE *fp, int z, unsigned x, unsigned y, int
 			break;
 		}
 
-		// json_read returns each parser token in sequence, including
-		// intermediate (still-incomplete) container nodes. Freeing those
-		// here would splice them out of the feature hash being built
-		// up, so only free `j` once we have processed a complete
-		// Feature (or `jp->root` when the stream ends).
+		// Only complete Features are freed; see plugin.cpp::parse_feature.
 		json_object *type = json_hash_get(j, "type");
 		if (type == nullptr || type->type != JSON_STRING) {
 			continue;

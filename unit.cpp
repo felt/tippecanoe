@@ -138,14 +138,10 @@ TEST_CASE("line_is_too_small") {
 	REQUIRE(line_is_too_small(dv, 0, 10));
 }
 
-// Regression test for the surrogate-decoding bug that compared the leftover
-// outer-loop byte `c` against `0xdfff` instead of the parsed code unit `ch`.
-// For a string like "\uD83D\uE000" (a valid high surrogate followed by a
-// non-surrogate BMP code point) the buggy version would mis-classify
-// U+E000 as a low surrogate and combine the two units into the four-byte
-// UTF-8 sequence F0 9F 90 80 (U+1F400). The fixed version flushes the
-// stale high surrogate as standalone CESU-8 (ED A0 BD) and then encodes
-// U+E000 normally as EE 80 80.
+// A high surrogate followed by a non-surrogate used to be combined into one
+// code point, because the range check tested the outer-loop byte instead of
+// the parsed code unit. The stale surrogate should come out as standalone
+// CESU-8, then U+E000 encoded normally.
 TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
 	json_pull_ptr jp = json_begin_string("\"\\uD83D\\uE000\"");
 	json_object_ptr o = json_read_tree(jp);
@@ -163,22 +159,13 @@ TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
 	REQUIRE(o->string() != buggy);
 }
 
-// geojson-loop.cpp calls json_free(j) after jfa->add_feature has
-// serialized the feature, intending to drop the JSON subtree from the
-// in-progress parse tree so that already-serialized features don't sit
-// in memory while subsequent features are parsed. That intent was
-// never tested; this test pins it down. The pre-fix behavior of
-// json_free was a bare unique_ptr/shared_ptr reset that only dropped
-// the caller's local reference; the parent container kept the subtree
-// alive, so memory grew until the top-level parse completed.
+// What geojson-loop does: free each feature once serialized, so they do not
+// accumulate while the rest of the document is parsed.
 //
-// Note what this shape can and cannot catch. Because json_read hands back
-// each container as it completes, the node freed here is always the most
-// recently added element of its parent, which is the one case the old
-// element-count-vs-byte-count memmove got right (it moved zero bytes).
-// Widening this test to more elements does not change that. The
-// "json_free prunes a non-final element" case below is what pins the
-// array-splicing fix.
+// This shape cannot catch the array-splicing bug, at any size: json_read hands
+// back each container as it completes, so the node freed here is always the
+// last-added element of its parent, which the old memmove got right by moving
+// zero bytes. "json_free prunes a non-final element" below covers that.
 TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
 	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
 
@@ -222,15 +209,9 @@ TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
 	REQUIRE(outer->array()[1]->array()[1]->number() == 6);
 }
 
-// The companion case to the pruning test above: in a line-delimited
-// stream, each feature returned by json_read is a top-level value
-// with no parent, but the parser still owns it via jp->root.
-// json_free must drop that parser reference too, otherwise the
-// just-serialized feature would sit in memory until the next feature
-// started parsing. Under the unique_ptr ownership model, the only
-// owner is jp->root, so verifying that jp->root is empty after the
-// json_free call is also a guarantee that the subtree itself has
-// been destroyed.
+// A top-level value has no parent, so json_free has to drop the parser's
+// reference instead. jp->root being empty afterwards is also proof the subtree
+// was destroyed, since jp->root was its only owner.
 TEST_CASE("json_free releases a top-level value held by the parser", "[jsonpull][memory]") {
 	json_pull_ptr jp = json_begin_string(R"({"a": 1, "b": [2, 3]})");
 
@@ -255,12 +236,9 @@ TEST_CASE("json_free releases a top-level value held by the parser", "[jsonpull]
 	REQUIRE(jp->root == nullptr);
 }
 
-// json_disconnect() is the documented way to splice a subtree out of the
-// parser's tree and take ownership of it so that it can outlive the
-// json_pull it came from. Nothing in tippecanoe calls it today -- the
-// filter loaders get the same guarantee from json_read_tree, which clears
-// back-pointers on the way out -- so cover it here rather than leave a
-// documented ownership primitive untested.
+// Nothing in tippecanoe calls json_disconnect today -- the filter loaders get
+// the same guarantee from json_read_tree -- so cover it here rather than leave
+// a documented ownership primitive untested.
 TEST_CASE("json_disconnect hands a subtree to the caller", "[jsonpull][ownership]") {
 	json_object_ptr taken;
 	json_object *outer = nullptr;
@@ -317,11 +295,8 @@ TEST_CASE("json_disconnect hands a subtree to the caller", "[jsonpull][ownership
 	REQUIRE(taken->array()[1]->number() == 4);
 }
 
-// Preserving the parent links inside a detached tree is what lets
-// json_free() keep working on its interior nodes: json_free() finds a
-// node's owner through o->parent, so a detached tree whose parent links
-// had been cleared would silently ignore the request and leave the node
-// in place.
+// json_free finds a node's owner through o->parent, so clearing the interior
+// parent links on detach would make this a silent no-op.
 TEST_CASE("json_free prunes an interior node of a detached tree", "[jsonpull][ownership]") {
 	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
 	json_object_ptr tree = json_read_tree(jp);
@@ -350,10 +325,8 @@ TEST_CASE("json_free prunes an interior node of a detached tree", "[jsonpull][ow
 	REQUIRE(tree->array()[1]->array()[0]->number() == 5);
 }
 
-// The hash case is not a removal: json_free() of a hash value leaves the
-// key in place with a JSON_NULL stand-in, so that detaching one half of a
-// pair cannot disturb the key/value pairing of the entries around it. The
-// entry is only erased once both halves are gone.
+// Not a removal: the key stays with a JSON_NULL stand-in so the surrounding
+// pairs keep their alignment, and the entry goes only when both halves do.
 TEST_CASE("json_free of a hash value leaves a null placeholder", "[jsonpull][ownership]") {
 	json_pull_ptr jp = json_begin_string(R"({"keep": 1, "drop": [2, 3]})");
 	json_object_ptr tree = json_read_tree(jp);
@@ -379,20 +352,11 @@ TEST_CASE("json_free of a hash value leaves a null placeholder", "[jsonpull][own
 	REQUIRE(json_hash_get(tree, "keep")->number() == 1);
 }
 
-// The array-splicing fix. The old code removed an element with
-//
-//     memmove(arr + i, arr + i + 1, length - i - 1)
-//
-// passing an element count where memmove wants a byte count. Pruning
-// element 0 of an eight-element array therefore copied seven bytes over an
-// eight-byte pointer, which on a little-endian machine whose heap pointers
-// share a zero high byte left arr[0] == arr[1] -- one node owned twice, so
-// a double free at teardown -- and dropped the last element, since the
-// length was decremented without anything having moved into place.
-//
-// Asserting the identity of every survivor is what makes this discriminate;
-// checking only the resulting size would not. Verified to fail against the
-// pre-fix code.
+// The array-splicing fix. The old code passed an element count to memmove
+// where a byte count was wanted, so pruning element 0 of eight left
+// arr[0] == arr[1] -- one node owned twice -- and dropped the last element.
+// Asserting each survivor's identity is what discriminates; checking only the
+// size would not.
 TEST_CASE("json_free prunes a non-final element", "[jsonpull][ownership]") {
 	json_pull_ptr jp = json_begin_string("[[1], [2], [3], [4], [5], [6], [7], [8]]");
 	json_object_ptr tree = json_read_tree(jp);
@@ -417,9 +381,7 @@ TEST_CASE("json_free prunes a non-final element", "[jsonpull][ownership]") {
 	}
 }
 
-// json_free of a hash *key*, the mirror of the value case above. Detaching
-// one half of a pair leaves a JSON_NULL stand-in so the surrounding pairs
-// keep their alignment; the entry only disappears once both halves are gone.
+// The mirror of the value case above.
 TEST_CASE("json_free of a hash key, then of both halves", "[jsonpull][ownership]") {
 	json_pull_ptr jp = json_begin_string(R"({"a": 1, "b": 2, "c": 3})");
 	json_object_ptr tree = json_read_tree(jp);
@@ -449,9 +411,8 @@ TEST_CASE("json_free of a hash key, then of both halves", "[jsonpull][ownership]
 	REQUIRE(json_hash_get(tree, "c")->number() == 3);
 }
 
-// What the filter loaders and the -L / -E arguments do: pull several
-// top-level values off one parser in sequence. Each detached tree has to
-// survive both the next json_read_tree call and the parser's destruction.
+// What the filter loaders and -L / -E do. Each detached tree has to survive
+// the next json_read_tree call and the parser's destruction.
 TEST_CASE("repeated json_read_tree on a line-delimited stream", "[jsonpull][ownership]") {
 	json_pull_ptr jp = json_begin_string("{\"n\": 1}\n{\"n\": 2}\n{\"n\": 3}\n");
 
@@ -475,9 +436,8 @@ TEST_CASE("repeated json_read_tree on a line-delimited stream", "[jsonpull][owne
 	}
 }
 
-// json_stringify on a partially-parsed tree, which is what json_context()
-// prints on the error paths in geojson-loop / read_json / plugin. A hash
-// whose last key has no value yet renders that slot as "...".
+// What json_context() prints on the error paths: a hash whose last key has no
+// value yet renders that slot as "...".
 TEST_CASE("json_stringify of a partially-parsed tree", "[jsonpull][stringify]") {
 	json_pull_ptr jp = json_begin_string("{\"a\": [1, 2], \"b\":");
 
@@ -492,9 +452,8 @@ TEST_CASE("json_stringify of a partially-parsed tree", "[jsonpull][stringify]") 
 	REQUIRE(s == "{\"a\":[1,2],\"b\":...}");
 }
 
-// An embedded NUL is a legal part of a JSON string once values are
-// std::string, so stringify has to walk the whole value rather than stop at
-// the first NUL the way a c_str() loop would.
+// Values are std::string now, so an embedded NUL is legal and stringify has to
+// walk past it rather than stop the way a c_str() loop would.
 TEST_CASE("json_stringify keeps text after an embedded NUL", "[jsonpull][stringify]") {
 	json_pull_ptr jp = json_begin_string("\"a\\u0000b\"");
 	json_object_ptr o = json_read_tree(jp);
@@ -507,11 +466,8 @@ TEST_CASE("json_stringify keeps text after an embedded NUL", "[jsonpull][stringi
 	REQUIRE(s == "\"a\\u0000b\"");
 }
 
-// A \uXXXX escape can only name a code point up to U+FFFF, and U+FFFF
-// itself used to fall through the `< 0xFFFF` test into the four-byte
-// branch, which emitted the overlong sequence F0 8F BF BF. check_utf8()
-// only validates continuation-byte structure, so that invalid UTF-8 was
-// copied into tiles unnoticed.
+// U+FFFF used to fall through the `< 0xFFFF` test into the four-byte branch
+// and come out as the overlong F0 8F BF BF, which check_utf8 does not catch.
 TEST_CASE("jsonpull encodes U+FFFF as three bytes", "[jsonpull][utf8]") {
 	json_pull_ptr jp = json_begin_string("\"a\\uFFFFb\"");
 	json_object_ptr o = json_read_tree(jp);
@@ -520,8 +476,12 @@ TEST_CASE("jsonpull encodes U+FFFF as three bytes", "[jsonpull][utf8]") {
 	REQUIRE(o != nullptr);
 	REQUIRE(o->type == JSON_STRING);
 
-	REQUIRE(o->string() == "a\xEF\xBF\xBF" "b");
-	REQUIRE(o->string() != "a\xF0\x8F\xBF\xBF" "b");
+	REQUIRE(o->string() ==
+		"a\xEF\xBF\xBF"
+		"b");
+	REQUIRE(o->string() !=
+		"a\xF0\x8F\xBF\xBF"
+		"b");
 
 	// The boundary below it, and a genuine supplementary code point built
 	// from a surrogate pair, both keep their existing encodings.
@@ -544,8 +504,8 @@ TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {
 	// through the "Could not properly place hole to a parent." handler in
 	// clean_or_clip_poly instead of returning.
 	static const std::vector<std::vector<std::pair<long long, long long>>> rings = {
-	    {{0, 5}, {5, 4}, {5, 1}, {4, 4}, {4, 2}, {7, 1}, {0, 5}},
-	    {{0, 5}, {7, 1}, {4, 2}, {4, 4}, {5, 1}, {5, 4}, {0, 0}, {0, 5}},
+		{{0, 5}, {5, 4}, {5, 1}, {4, 4}, {4, 2}, {7, 1}, {0, 5}},
+		{{0, 5}, {7, 1}, {4, 2}, {4, 4}, {5, 1}, {5, 4}, {0, 0}, {0, 5}},
 	};
 
 	drawvec geom;

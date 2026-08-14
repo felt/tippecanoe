@@ -88,13 +88,8 @@ static inline int read_wrap(json_pull *j) {
 	return c;
 }
 
-// Construct an instance of the right subclass for the given type.
 // JSON_TRUE / JSON_FALSE / JSON_NULL and the parse-token types are bare
 // json_objects; the value-bearing types each get their own subclass.
-//
-// Returns a json_object_ptr (unique_ptr with a type-dispatching deleter,
-// see jsonpull.h), so the caller doesn't have to remember which subclass
-// was constructed when it eventually deletes.
 static json_object_ptr make_object(json_type type, json_object *parent, json_pull *jp) {
 	switch (type) {
 	case JSON_NUMBER:
@@ -114,11 +109,8 @@ static inline json_pull::parse_frame *current_frame(json_pull *j) {
 	return j->container_stack.empty() ? nullptr : &j->container_stack.back();
 }
 
-// Construct a new node of `type` and install it as a child of the
-// current container (or as the parser's root, if the container stack
-// is empty). Returns a borrowed pointer into the parser-owned tree;
-// the unique_ptr that owns the node lives in whichever vector slot
-// we just pushed it into. Returns nullptr on error after setting
+// Install a new node of `type` in the current container, or as the parser's
+// root if the stack is empty. Returns it borrowed, or nullptr after setting
 // j->error.
 static json_object *add_object(json_pull *j, json_type type) {
 	json_pull::parse_frame *f = current_frame(j);
@@ -137,9 +129,8 @@ static json_object *add_object(json_pull *j, json_type type) {
 			}
 		} else if (c->type == JSON_HASH) {
 			if (f->expect == JSON_VALUE) {
-				// JSON_VALUE is only set by a colon, a colon requires
-				// JSON_COLON, and only pushing a key sets that, so there
-				// is always an entry waiting for its value here.
+				// A colon is the only thing that sets JSON_VALUE, and it
+				// requires a key already pushed.
 				assert(!c->entries().empty());
 				c->entries().back().value = std::move(o);
 				f->expect = JSON_COMMA;
@@ -237,8 +228,6 @@ again:
 		if (o == nullptr) {
 			return nullptr;
 		}
-		// add_object already installed `o` in the parent (or the
-		// parser's root) as a unique_ptr; the frame just borrows.
 		j->container_stack.push_back({o, JSON_ITEM});
 
 		if (cb != nullptr) {
@@ -268,8 +257,6 @@ again:
 			}
 		}
 
-		// Pop the frame; ownership of `cc` stays with whatever
-		// surrounding container (or jp->root) installed it.
 		j->container_stack.pop_back();
 		return cc;
 	}
@@ -520,9 +507,7 @@ again:
 		/////////////////////////// Strings
 
 	case '"': {
-		// Reuse the parser-wide string buffer so we don't construct a
-		// fresh std::string (with its inevitable SSO->heap promotion
-		// and capacity doublings) for every JSON_STRING token.
+		// Reused across tokens; see json_pull::string_buffer.
 		std::string &val = j->string_buffer;
 		val.clear();
 
@@ -648,11 +633,7 @@ again:
 
 		json_object *s = add_object(j, JSON_STRING);
 		if (s != nullptr) {
-			// Copy (don't move) so j->string_buffer retains its
-			// grown capacity for the next token. The copy is a
-			// single right-sized allocation plus one memcpy, which
-			// is cheaper than the multiple capacity doublings the
-			// per-token std::string would otherwise incur.
+			// Copy, not move, so the buffer keeps its capacity.
 			s->string() = val;
 		}
 		return s;
@@ -667,10 +648,6 @@ json_object *json_read(json_pull_ptr &j) {
 	return json_read_separators(j, nullptr, nullptr);
 }
 
-// Forward declaration so json_read_tree can sever the tree it hands out
-// from the parser -- this lets callers (like the filter loaders) keep the
-// returned tree past the parser's lifetime without having to follow up
-// with a separate json_disconnect call.
 static void detach_subtree(json_object *o);
 
 json_object_ptr json_read_tree(json_pull_ptr &p) {
@@ -678,10 +655,6 @@ json_object_ptr json_read_tree(json_pull_ptr &p) {
 
 	while ((j = json_read(p)) != nullptr) {
 		if (j->parent == nullptr) {
-			// The parser owns the top-level value via p->root;
-			// transfer ownership out to the caller and detach
-			// the subtree from the parser so the caller can
-			// outlive the json_pull.
 			json_object_ptr tree = std::move(p->root);
 			detach_subtree(tree.get());
 			return tree;
@@ -691,20 +664,13 @@ json_object_ptr json_read_tree(json_pull_ptr &p) {
 	return nullptr;
 }
 
-// Take ownership of `o` away from its parent (or from the parser's
-// root) by moving the owning json_object_ptr out of whatever vector
-// slot or hash entry holds it. Returns the unique_ptr to the caller,
-// who is now solely responsible for it. Returns an empty
-// json_object_ptr if `o` is not currently owned by a parent or by
-// the parser (e.g. already detached, or only borrowed from somewhere
-// untracked).
+// Move the owning json_object_ptr out of whatever vector slot or hash entry
+// holds `o`. Empty if nothing tracked owns it -- already detached, or borrowed
+// from elsewhere.
 //
-// For a hash, removing a single key or value individually would
-// disturb the surrounding key/value pairing, so we replace the
-// extracted half with a fresh JSON_NULL placeholder and only erase
-// the entry once both halves have been detached. This matches the
-// historical json_disconnect semantics for partially-disconnected
-// pairs.
+// Detaching one half of a hash entry would disturb the surrounding key/value
+// pairing, so the extracted half is replaced by a JSON_NULL placeholder and the
+// entry is erased only once both halves are gone.
 static json_object_ptr take_from_owner(json_object *o) {
 	if (o == nullptr) {
 		return nullptr;
@@ -756,37 +722,13 @@ static json_object_ptr take_from_owner(json_object *o) {
 	return nullptr;
 }
 
-// json_free splices `o` out of its parent (if any), or out of the
-// parser's root (if `o` is the most recently completed top-level
-// value), and destroys the subtree. After this call, `o` is a
-// dangling pointer and must not be used.
-//
-// geojson-loop.cpp relies on this to release each feature after it
-// has been serialized, so that already-serialized features don't sit
-// in memory while subsequent features are parsed.
-//
-// Unlike json_disconnect, this does NOT walk the subtree clearing
-// parent/parser back-pointers, because the subtree is about to be
-// destroyed and those pointers will never be observed again -- the
-// unique_ptr returned by take_from_owner goes out of scope at the end
-// of this function and runs the type-dispatching deleter.
+// Splice `o` out of its owner and destroy it; `o` dangles afterwards. No need
+// to clear back-pointers, since nothing will observe them again.
 void json_free(json_object *o) {
 	(void) take_from_owner(o);
 }
 
-// Walk the subtree clearing the parser back-pointers, so the detached
-// subtree can outlive the json_pull it was parsed from. Every `parser`
-// pointer has to go: the json_pull may be destroyed while the subtree
-// lives on, and a stale one would dangle.
-//
-// The `parent` pointers *inside* the subtree are deliberately left alone.
-// They are non-owning raw pointers, so keeping them cannot create a
-// reference cycle or hold anything alive, and they point at nodes the
-// caller now owns as one unit -- they stay valid for exactly as long as
-// the subtree does. Keeping them also means the tree stays navigable
-// upwards, and that json_free() / json_disconnect() keep working on
-// interior nodes of a detached tree, both of which need o->parent to
-// find the node's owner.
+// See Ownership model in jsonpull.h for why only `parser` is cleared here.
 static void clear_parser_pointers(json_object *o) {
 	if (o == nullptr) {
 		return;
@@ -807,11 +749,9 @@ static void clear_parser_pointers(json_object *o) {
 	o->parser = nullptr;
 }
 
-// Sever a subtree that take_from_owner() has just moved out of the tree it
-// belonged to. The root's own `parent` is the one back-pointer that must be
-// cleared: it pointed *out* of the subtree, at a node the parser still owns
-// and may destroy, and leaving it set would make a later json_free() on this
-// root hunt for itself in a container that no longer holds it.
+// The root's `parent` pointed out of the subtree, at a node the parser still
+// owns; leaving it set would make a later json_free look for this node in a
+// container that no longer holds it.
 static void detach_subtree(json_object *o) {
 	if (o == nullptr) {
 		return;
@@ -835,10 +775,8 @@ static void json_print_one(std::string &val, const json_object *o) {
 	} else if (o->type == JSON_STRING) {
 		val.push_back('\"');
 
-		// Range over the string rather than walking c_str(): the value is a
-		// std::string now and may legitimately contain an embedded NUL, which
-		// the control-character branch below escapes as a \u sequence like any
-		// other control character.
+		// Range, not c_str(): the value may contain an embedded NUL, which the
+		// control-character branch below escapes like any other.
 		for (char c : o->string()) {
 			if (c == '\\' || c == '"') {
 				val.push_back('\\');

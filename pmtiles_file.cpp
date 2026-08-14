@@ -416,11 +416,7 @@ sqlite3 *pmtilesmeta2tmp(const char *fname, const char *pmtiles_map) {
 	state.json_write_hash();
 
 	for (const auto &e : o->entries()) {
-		// Establish that the key really is a string before reading it as
-		// one, rather than after: string() asserts on the type, so the
-		// check has to come first to be the thing that catches a bad key.
-		// (The parser rejects non-string hash keys, so this is belt and
-		// braces, but the ordering is what makes it meaningful.)
+		// Check before reading, since string() asserts on the type.
 		if (e.key->type != JSON_STRING) {
 			fprintf(stderr, "%s: non-string key in metadata\n", fname);
 			continue;

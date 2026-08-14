@@ -238,9 +238,7 @@ struct json_serialize_action : json_feature_action {
 	std::string layername;
 
 	int add_feature(json_object *geometry, bool geometrycollection, json_object *properties, json_object *id, json_object *tippecanoe, json_object *feature) {
-		// This only ever receives json_read results from geojson-loop, whose
-		// parser is still attached. json_read_tree / json_disconnect clear
-		// every parser pointer, so a detached tree would null-deref here.
+		// Only json_read results reach this; a detached tree has no parser.
 		assert(geometry->parser != nullptr);
 		sst->line = geometry->parser->line;
 		if (geometrycollection) {
