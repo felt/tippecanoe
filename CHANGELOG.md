@@ -1,5 +1,12 @@
 # 2.82.0
 
+* Fix corruption of a JSON array when a non-final element was removed from it.
+  The old `json_free` / `json_disconnect` passed an element count to `memmove`
+  where a byte count was required, so pruning element 0 of an 8-element array
+  left the first two slots pointing at the same node -- a double free at
+  teardown -- and silently dropped the last element. Only reachable through a
+  whole-document tree, because removing the most recently added element made
+  the bad `memmove` a zero-length no-op. (#388)
 * Rewrite `jsonpull` in C++ with `unique_ptr` ownership, `std::vector` for
   arrays and hash entries, and `std::string` for string values, replacing the
   hand-rolled `malloc`/`realloc`/`free` memory management. Value payloads now
@@ -18,6 +25,12 @@
 * Fix `tippecanoe-decode` and tile-join crashing on a directory tileset whose
   `metadata.json` holds a non-string value, such as a numeric `minzoom` or a
   nested object. Those entries are now reported and skipped. (#388)
+* Fix an uninitialized read when a prefilter or postfilter emitted a feature
+  with `"properties": null`. Both filter readers accepted a null `properties`
+  and then read its length as though it were a hash, which was never
+  initialized for a non-container node. (#388)
+* Fix the include guard in `evaluator.hpp`, which defined `EVALUATOR HPP`
+  instead of `EVALUATOR_HPP` and so never guarded anything. (#388)
 
 # 2.81.0
 
