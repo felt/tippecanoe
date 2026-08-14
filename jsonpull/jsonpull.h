@@ -394,8 +394,10 @@ json_object_ptr json_disconnect(json_object *o);
 
 // Look up `s` in the hash `o`. Returns a borrowed pointer; ownership
 // stays with the hash. nullptr if `o` is not a hash, or `s` is absent,
-// or the matching value is null. Accepts a json_object_ptr by reference
-// as a convenience so callers don't have to write `.get()`.
+// or the hash is still being parsed and the value slot for `s` is not
+// yet filled. A JSON `null` value is *not* one of those cases: it comes
+// back as a JSON_NULL node. Accepts a json_object_ptr by reference as a
+// convenience so callers don't have to write `.get()`.
 json_object *json_hash_get(const json_object_ptr &o, const char *s);
 json_object *json_hash_get(json_object *o, const char *s);
 

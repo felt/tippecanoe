@@ -110,10 +110,6 @@ static json_object_ptr make_object(json_type type, json_object *parent, json_pul
 	}
 }
 
-static json_object_ptr fabricate_object(json_pull *jp, json_object *parent, json_type type) {
-	return make_object(type, parent, jp);
-}
-
 static inline json_pull::parse_frame *current_frame(json_pull *j) {
 	return j->container_stack.empty() ? nullptr : &j->container_stack.back();
 }
@@ -141,6 +137,10 @@ static json_object *add_object(json_pull *j, json_type type) {
 			}
 		} else if (c->type == JSON_HASH) {
 			if (f->expect == JSON_VALUE) {
+				// JSON_VALUE is only set by a colon, a colon requires
+				// JSON_COLON, and only pushing a key sets that, so there
+				// is always an entry waiting for its value here.
+				assert(!c->entries().empty());
 				c->entries().back().value = std::move(o);
 				f->expect = JSON_COMMA;
 			} else if (f->expect == JSON_KEY) {
@@ -736,7 +736,7 @@ static json_object_ptr take_from_owner(json_object *o) {
 			auto &e = entries[i];
 			if (e.key.get() == o) {
 				json_object_ptr taken = std::move(e.key);
-				e.key = fabricate_object(parent->parser, parent, JSON_NULL);
+				e.key = make_object(JSON_NULL, parent, parent->parser);
 				if (e.value != nullptr && e.value->type == JSON_NULL && e.key->type == JSON_NULL) {
 					entries.erase(entries.begin() + i);
 				}
@@ -744,7 +744,7 @@ static json_object_ptr take_from_owner(json_object *o) {
 			}
 			if (e.value.get() == o) {
 				json_object_ptr taken = std::move(e.value);
-				e.value = fabricate_object(parent->parser, parent, JSON_NULL);
+				e.value = make_object(JSON_NULL, parent, parent->parser);
 				if (e.key != nullptr && e.key->type == JSON_NULL && e.value->type == JSON_NULL) {
 					entries.erase(entries.begin() + i);
 				}
@@ -829,90 +829,84 @@ json_object_ptr json_disconnect(json_object *o) {
 	return taken;
 }
 
-static void string_append_c(std::string &val, char c) {
-	val.push_back(c);
-}
-
-static void string_append(std::string &val, const char *add) {
-	val.append(add);
-}
-
 static void json_print_one(std::string &val, const json_object *o) {
 	if (o == nullptr) {
-		string_append(val, "...");
+		val.append("...");
 	} else if (o->type == JSON_STRING) {
-		string_append_c(val, '\"');
+		val.push_back('\"');
 
-		for (const char *cp = o->string().c_str(); *cp != '\0'; cp++) {
-			if (*cp == '\\' || *cp == '"') {
-				string_append_c(val, '\\');
-				string_append_c(val, *cp);
-			} else if (*cp >= 0 && *cp < ' ') {
+		// Range over the string rather than walking c_str(): the value is a
+		// std::string now and may legitimately contain an embedded NUL, which
+		// the control-character branch below escapes as a \u sequence like any
+		// other control character.
+		for (char c : o->string()) {
+			if (c == '\\' || c == '"') {
+				val.push_back('\\');
+				val.push_back(c);
+			} else if (c >= 0 && c < ' ') {
 				char *s;
-				if (asprintf(&s, "\\u%04x", *cp) >= 0) {
-					string_append(val, s);
+				if (asprintf(&s, "\\u%04x", c) >= 0) {
+					val.append(s);
 					free(s);
 				}
 			} else {
-				string_append_c(val, *cp);
+				val.push_back(c);
 			}
 		}
 
-		string_append_c(val, '\"');
+		val.push_back('\"');
 	} else if (o->type == JSON_NUMBER) {
 		if (o->large_signed() != 0) {
 			char s[65];
 			snprintf(s, sizeof(s), "%lld", o->large_signed());
-			string_append(val, s);
+			val.append(s);
 		} else if (o->large_unsigned() != 0) {
 			char s[65];
 			snprintf(s, sizeof(s), "%llu", o->large_unsigned());
-			string_append(val, s);
+			val.append(s);
 		} else {
 			char *s = dtoa_milo(o->number());
-			string_append(val, s);
+			val.append(s);
 			free(s);
 		}
 	} else if (o->type == JSON_NULL) {
-		string_append(val, "null");
+		val.append("null");
 	} else if (o->type == JSON_TRUE) {
-		string_append(val, "true");
+		val.append("true");
 	} else if (o->type == JSON_FALSE) {
-		string_append(val, "false");
-	} else if (o->type == JSON_HASH) {
-		string_append_c(val, '}');
-	} else if (o->type == JSON_ARRAY) {
-		string_append_c(val, ']');
+		val.append("false");
 	}
+	// JSON_HASH and JSON_ARRAY never reach here: json_print handles both
+	// itself and only delegates to json_print_one for the scalar types.
 }
 
 static void json_print(std::string &val, const json_object *o) {
 	if (o == nullptr) {
 		// Hash value in incompletely read hash
-		string_append(val, "...");
+		val.append("...");
 	} else if (o->type == JSON_HASH) {
-		string_append_c(val, '{');
+		val.push_back('{');
 
 		const auto &entries = o->entries();
 		for (size_t i = 0; i < entries.size(); i++) {
 			json_print(val, entries[i].key.get());
-			string_append_c(val, ':');
+			val.push_back(':');
 			json_print(val, entries[i].value.get());
 			if (i + 1 < entries.size()) {
-				string_append_c(val, ',');
+				val.push_back(',');
 			}
 		}
-		string_append_c(val, '}');
+		val.push_back('}');
 	} else if (o->type == JSON_ARRAY) {
-		string_append_c(val, '[');
+		val.push_back('[');
 		const auto &arr = o->array();
 		for (size_t i = 0; i < arr.size(); i++) {
 			json_print(val, arr[i].get());
 			if (i + 1 < arr.size()) {
-				string_append_c(val, ',');
+				val.push_back(',');
 			}
 		}
-		string_append_c(val, ']');
+		val.push_back(']');
 	} else {
 		json_print_one(val, o);
 	}
