@@ -587,7 +587,7 @@ struct STREAM {
 		}
 	}
 
-	json_pull *json_begin() {
+	json_pull_ptr json_begin() {
 		return ::json_begin(read_stream, this);
 	}
 };
@@ -1832,7 +1832,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				// Plain serial reading
 
 				std::atomic<long long> layer_seq(overall_offset);
-				json_pull *jp = fp->json_begin();
+				json_pull_ptr jp = fp->json_begin();
 				struct serialization_state sst;
 
 				sst.fname = reading.c_str();
@@ -1859,7 +1859,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				sst.attribute_types = attribute_types;
 
 				parse_json(&sst, jp, layer, sources[layer].layer);
-				json_end(jp);
 				overall_offset = layer_seq;
 				checkdisk(&readers);
 			}
@@ -2884,10 +2883,10 @@ void set_attribute_type(std::unordered_map<std::string, int> &attribute_types, c
 
 void set_attribute_value(const char *arg) {
 	if (*arg == '{') {
-		json_pull *jp = json_begin_string(arg);
-		json_object *o = json_read_tree(jp);
+		json_pull_ptr jp = json_begin_string(arg);
+		json_object_ptr o = json_read_tree(jp);
 
-		if (o == NULL) {
+		if (o == nullptr) {
 			fprintf(stderr, "%s: --set-attribute %s: %s\n", *av, arg, jp->error);
 			exit(EXIT_JSON);
 		}
@@ -2897,21 +2896,18 @@ void set_attribute_value(const char *arg) {
 			exit(EXIT_JSON);
 		}
 
-		for (size_t i = 0; i < o->value.object.length; i++) {
-			json_object *k = o->value.object.keys[i];
-			json_object *v = o->value.object.values[i];
+		for (size_t i = 0; i < o->entries().size(); i++) {
+			const auto &e = o->entries()[i];
 
-			if (k->type != JSON_STRING) {
+			if (e.key->type != JSON_STRING) {
 				fprintf(stderr, "%s: --set-attribute %s: key %zu not a string\n", *av, arg, i);
 				exit(EXIT_JSON);
 			}
 
-			serial_val val = stringify_value(v, "json", 1, o);
-			set_attributes.emplace(k->value.string.string, val);
+			serial_val val = stringify_value(e.value.get(), "json", 1, o.get());
+			set_attributes.emplace(e.key->string(), val);
 		}
 
-		json_free(o);
-		json_end(jp);
 		return;
 	}
 
@@ -2936,10 +2932,10 @@ void set_attribute_value(const char *arg) {
 }
 
 void parse_json_source(const char *arg, struct source &src) {
-	json_pull *jp = json_begin_string(arg);
-	json_object *o = json_read_tree(jp);
+	json_pull_ptr jp = json_begin_string(arg);
+	json_object_ptr o = json_read_tree(jp);
 
-	if (o == NULL) {
+	if (o == nullptr) {
 		fprintf(stderr, "%s: -L%s: %s\n", *av, arg, jp->error);
 		exit(EXIT_JSON);
 	}
@@ -2950,30 +2946,27 @@ void parse_json_source(const char *arg, struct source &src) {
 	}
 
 	json_object *fname = json_hash_get(o, "file");
-	if (fname == NULL || fname->type != JSON_STRING) {
+	if (fname == nullptr || fname->type != JSON_STRING) {
 		fprintf(stderr, "%s: -L%s: requires \"file\": filename\n", *av, arg);
 		exit(EXIT_JSON);
 	}
 
-	src.file = std::string(fname->value.string.string);
+	src.file = fname->string();
 
 	json_object *layer = json_hash_get(o, "layer");
-	if (layer != NULL && layer->type == JSON_STRING) {
-		src.layer = std::string(layer->value.string.string);
+	if (layer != nullptr && layer->type == JSON_STRING) {
+		src.layer = layer->string();
 	}
 
 	json_object *description = json_hash_get(o, "description");
-	if (description != NULL && description->type == JSON_STRING) {
-		src.description = std::string(description->value.string.string);
+	if (description != nullptr && description->type == JSON_STRING) {
+		src.description = description->string();
 	}
 
 	json_object *format = json_hash_get(o, "format");
-	if (format != NULL && format->type == JSON_STRING) {
-		src.format = std::string(format->value.string.string);
+	if (format != nullptr && format->type == JSON_STRING) {
+		src.format = format->string();
 	}
-
-	json_free(o);
-	json_end(jp);
 }
 
 static const struct option long_options_orig[] = {
@@ -3214,7 +3207,7 @@ int main(int argc, char **argv) {
 	int exclude_all = 0;
 	int read_parallel = 0;
 	int files_open_at_start;
-	json_object *filter = NULL;
+	json_object_ptr filter;
 
 	memsize = calc_memsize();
 
@@ -3840,7 +3833,7 @@ int main(int argc, char **argv) {
 
 	auto input_ret = read_input(sources, name ? name : out_mbtiles ? out_mbtiles
 								       : out_dir,
-				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter, droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
+				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter.get(), droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
 
 	ret = std::get<0>(input_ret);
 
@@ -3863,9 +3856,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_IMPOSSIBLE);
 	}
 
-	if (filter != NULL) {
-		json_free(filter);
-	}
+	filter.reset();
 
 	return ret;
 }
