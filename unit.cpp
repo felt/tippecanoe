@@ -171,6 +171,14 @@ TEST_CASE("jsonpull surrogate-pair regression", "[jsonpull][surrogate]") {
 // json_free was a bare unique_ptr/shared_ptr reset that only dropped
 // the caller's local reference; the parent container kept the subtree
 // alive, so memory grew until the top-level parse completed.
+//
+// Note what this shape can and cannot catch. Because json_read hands back
+// each container as it completes, the node freed here is always the most
+// recently added element of its parent, which is the one case the old
+// element-count-vs-byte-count memmove got right (it moved zero bytes).
+// Widening this test to more elements does not change that. The
+// "json_free prunes a non-final element" case below is what pins the
+// array-splicing fix.
 TEST_CASE("json_free prunes a subtree from its parent", "[jsonpull][memory]") {
 	json_pull_ptr jp = json_begin_string("[[1, 2], [3, 4], [5, 6]]");
 
@@ -369,6 +377,134 @@ TEST_CASE("json_free of a hash value leaves a null placeholder", "[jsonpull][own
 	// The neighbouring pair is untouched.
 	REQUIRE(json_hash_get(tree, "keep") != nullptr);
 	REQUIRE(json_hash_get(tree, "keep")->number() == 1);
+}
+
+// The array-splicing fix. The old code removed an element with
+//
+//     memmove(arr + i, arr + i + 1, length - i - 1)
+//
+// passing an element count where memmove wants a byte count. Pruning
+// element 0 of an eight-element array therefore copied seven bytes over an
+// eight-byte pointer, which on a little-endian machine whose heap pointers
+// share a zero high byte left arr[0] == arr[1] -- one node owned twice, so
+// a double free at teardown -- and dropped the last element, since the
+// length was decremented without anything having moved into place.
+//
+// Asserting the identity of every survivor is what makes this discriminate;
+// checking only the resulting size would not. Verified to fail against the
+// pre-fix code.
+TEST_CASE("json_free prunes a non-final element", "[jsonpull][ownership]") {
+	json_pull_ptr jp = json_begin_string("[[1], [2], [3], [4], [5], [6], [7], [8]]");
+	json_object_ptr tree = json_read_tree(jp);
+
+	REQUIRE(tree != nullptr);
+	REQUIRE(tree->type == JSON_ARRAY);
+	REQUIRE(tree->array().size() == 8);
+
+	json_free(tree->array()[0].get());
+
+	// Every survivor keeps its identity, in order, and nothing is aliased.
+	REQUIRE(tree->array().size() == 7);
+	for (size_t i = 0; i < tree->array().size(); i++) {
+		json_object *e = tree->array()[i].get();
+		REQUIRE(e->type == JSON_ARRAY);
+		REQUIRE(e->array().size() == 1);
+		REQUIRE(e->array()[0]->number() == (double) (i + 2));
+
+		if (i + 1 < tree->array().size()) {
+			REQUIRE(e != tree->array()[i + 1].get());
+		}
+	}
+}
+
+// json_free of a hash *key*, the mirror of the value case above. Detaching
+// one half of a pair leaves a JSON_NULL stand-in so the surrounding pairs
+// keep their alignment; the entry only disappears once both halves are gone.
+TEST_CASE("json_free of a hash key, then of both halves", "[jsonpull][ownership]") {
+	json_pull_ptr jp = json_begin_string(R"({"a": 1, "b": 2, "c": 3})");
+	json_object_ptr tree = json_read_tree(jp);
+
+	REQUIRE(tree != nullptr);
+	REQUIRE(tree->entries().size() == 3);
+
+	// Free the key of the middle pair. The entry stays, with a null key,
+	// and its value is still reachable positionally.
+	json_free(tree->entries()[1].key.get());
+
+	REQUIRE(tree->entries().size() == 3);
+	REQUIRE(tree->entries()[1].key->type == JSON_NULL);
+	REQUIRE(tree->entries()[1].value->number() == 2);
+
+	// The neighbours are untouched, and the now-keyless pair is no longer
+	// findable by name.
+	REQUIRE(json_hash_get(tree, "b") == nullptr);
+	REQUIRE(json_hash_get(tree, "a")->number() == 1);
+	REQUIRE(json_hash_get(tree, "c")->number() == 3);
+
+	// Freeing the other half too retires the whole entry.
+	json_free(tree->entries()[1].value.get());
+
+	REQUIRE(tree->entries().size() == 2);
+	REQUIRE(json_hash_get(tree, "a")->number() == 1);
+	REQUIRE(json_hash_get(tree, "c")->number() == 3);
+}
+
+// What the filter loaders and the -L / -E arguments do: pull several
+// top-level values off one parser in sequence. Each detached tree has to
+// survive both the next json_read_tree call and the parser's destruction.
+TEST_CASE("repeated json_read_tree on a line-delimited stream", "[jsonpull][ownership]") {
+	json_pull_ptr jp = json_begin_string("{\"n\": 1}\n{\"n\": 2}\n{\"n\": 3}\n");
+
+	std::vector<json_object_ptr> trees;
+	for (int i = 0; i < 3; i++) {
+		json_object_ptr t = json_read_tree(jp);
+		REQUIRE(t != nullptr);
+		REQUIRE(t->type == JSON_HASH);
+		// Reading the next tree must not disturb the ones already taken.
+		REQUIRE(json_hash_get(t, "n")->number() == i + 1);
+		trees.push_back(std::move(t));
+	}
+
+	REQUIRE(json_read_tree(jp) == nullptr);
+
+	// All three outlive the parser they came from.
+	jp.reset();
+	for (int i = 0; i < 3; i++) {
+		REQUIRE(trees[i]->parser == nullptr);
+		REQUIRE(json_hash_get(trees[i], "n")->number() == i + 1);
+	}
+}
+
+// json_stringify on a partially-parsed tree, which is what json_context()
+// prints on the error paths in geojson-loop / read_json / plugin. A hash
+// whose last key has no value yet renders that slot as "...".
+TEST_CASE("json_stringify of a partially-parsed tree", "[jsonpull][stringify]") {
+	json_pull_ptr jp = json_begin_string("{\"a\": [1, 2], \"b\":");
+
+	// Read until the parser runs out of input mid-hash.
+	while (json_read(jp) != nullptr) {
+		;
+	}
+	REQUIRE(jp->error != nullptr);
+	REQUIRE(jp->root != nullptr);
+
+	std::string s = json_stringify(jp->root.get());
+	REQUIRE(s == "{\"a\":[1,2],\"b\":...}");
+}
+
+// An embedded NUL is a legal part of a JSON string once values are
+// std::string, so stringify has to walk the whole value rather than stop at
+// the first NUL the way a c_str() loop would.
+TEST_CASE("json_stringify keeps text after an embedded NUL", "[jsonpull][stringify]") {
+	json_pull_ptr jp = json_begin_string("\"a\\u0000b\"");
+	json_object_ptr o = json_read_tree(jp);
+
+	REQUIRE(o != nullptr);
+	REQUIRE(o->type == JSON_STRING);
+	REQUIRE(o->string().size() == 3);
+
+	std::string s = json_stringify(o.get());
+	REQUIRE(s == "\"a\\u0000b\"");
 }
 
 // A \uXXXX escape can only name a code point up to U+FFFF, and U+FFFF
