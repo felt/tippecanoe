@@ -378,17 +378,6 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 	return geom.size();
 }
 
-static std::string strip_zeroes(std::string s) {
-	// Doesn't do anything special with '-' followed by leading zeros
-	// since integer IDs must be positive
-
-	while (s.size() > 0 && s[0] == '0') {
-		s.erase(s.begin());
-	}
-
-	return s;
-}
-
 int nodecmp(const void *void1, const void *void2) {
 	node *n1 = (node *) void1;
 	node *n2 = (node *) void2;
@@ -811,39 +800,15 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 
 		if (*sf.full_keys[i] == attribute_for_id) {
-			if (sf.full_values[i].type != mvt_double && !additional[A_CONVERT_NUMERIC_IDS]) {
-				static bool warned = false;
+			unsigned long long id;
 
-				if (!warned) {
-					fprintf(stderr, "Warning: Attribute \"%s\"=\"%s\" as feature ID is not a number\n", sf.full_keys[i]->c_str(), sf.full_values[i].s.c_str());
-					warned = true;
-				}
-			} else {
-				char *err;
-				long long id_value = strtoull(sf.full_values[i].s.c_str(), &err, 10);
+			if (attribute_to_feature_id(*sf.full_keys[i], sf.full_values[i], additional[A_CONVERT_NUMERIC_IDS], &id)) {
+				sf.id = id;
+				sf.has_id = true;
 
-				if (err != NULL && *err != '\0') {
-					static bool warned_frac = false;
-
-					if (!warned_frac) {
-						fprintf(stderr, "Warning: Can't represent non-integer feature ID %s\n", sf.full_values[i].s.c_str());
-						warned_frac = true;
-					}
-				} else if (std::to_string(id_value) != strip_zeroes(sf.full_values[i].s)) {
-					static bool warned = false;
-
-					if (!warned) {
-						fprintf(stderr, "Warning: Can't represent too-large feature ID %s\n", sf.full_values[i].s.c_str());
-						warned = true;
-					}
-				} else {
-					sf.id = id_value;
-					sf.has_id = true;
-
-					sf.full_keys.erase(sf.full_keys.begin() + i);
-					sf.full_values.erase(sf.full_values.begin() + i);
-					continue;
-				}
+				sf.full_keys.erase(sf.full_keys.begin() + i);
+				sf.full_values.erase(sf.full_values.begin() + i);
+				continue;
 			}
 		}
 

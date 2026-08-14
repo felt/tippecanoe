@@ -888,6 +888,9 @@ The options are:
 \fB-J\fR \fIfilter-file\fP or \fB--feature-filter-file\fR=\fIfilter-file\fP: Like \fB-j\fR, but read the filter from a file.
 .IP \(bu 2
 \fB-pe\fR or \fB--empty-csv-columns-are-null\fR: Treat empty CSV columns as nulls rather than as empty strings.
+.SS Setting feature IDs
+.IP \(bu 2
+\fB--use-attribute-for-id=\fR\fIname\fP: Use the attribute with the specified \fIname\fP, whether it was already present in the source tiles or was joined from a CSV with \fB-c\fR, as if it were specified as the feature ID. The attribute is not also copied to the output. It is used for the ID even if \fB-x\fR, \fB-y\fR, \fB-X\fR, or \fB--exclude-all-tile-attributes\fR would otherwise remove it, so you can take the ID from an attribute that you don't want to keep. Unlike in tippecanoe, an attribute that is a stringified number is converted without any additional option. If its value can't be represented as a feature ID, a warning is printed and it is kept as an ordinary attribute instead.
 .SS Setting or disabling tile size limits
 .IP \(bu 2
 \fB-pk\fR or \fB--no-tile-size-limit\fR: Don't skip tiles larger than 500K.
