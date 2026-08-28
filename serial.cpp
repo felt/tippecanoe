@@ -302,39 +302,77 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 }
 
 static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom) {
-	long long offset = 0;
-	long long prev = 0;
-	bool has_prev = false;
+	if (additional[A_DETECT_WRAPAROUND]) {
+		drawvec adjusted = geom;
+		std::vector<size_t> jumps;
+
+		long long offset = 0;
+		long long prev = 0;
+		bool has_prev = false;
+
+		for (size_t i = 0; i < geom.size(); i++) {
+			if (geom[i].op == VT_LINETO) {
+				long long x = geom[i].x;
+				x += offset;
+
+				if (has_prev) {
+					// jumps at least 180° in either direction
+
+					if (x - prev > (1LL << 31)) {
+						offset -= 1LL << 32;
+						x -= 1LL << 32;
+						jumps.push_back(i);
+					} else if (prev - x > (1LL << 31)) {
+						offset += 1LL << 32;
+						x += 1LL << 32;
+						jumps.push_back(i);
+					}
+				}
+
+				adjusted[i].x = x;
+				has_prev = true;
+				prev = x;
+			} else {
+				offset = 0;
+				prev = geom[i].x;
+			}
+		}
+
+		// count whether making these adjustments resulted in
+		// more or less self-intersections than in the original
+
+		size_t orig_bad = 0;
+		size_t adjusted_bad = 0;
+
+		for (auto i : jumps) {
+			for (size_t j = 1; j < geom.size(); j++) {
+				if (geom[j].op == VT_LINETO && j != i) {
+					auto before = get_line_intersection(geom[i - 1].x, geom[i - 1].y, geom[i].x, geom[i].y,
+									    geom[j - 1].x, geom[j - 1].y, geom[j].x, geom[j].y);
+					auto after = get_line_intersection(adjusted[i - 1].x, adjusted[i - 1].y, adjusted[i].x, adjusted[i].y,
+									   adjusted[j - 1].x, adjusted[j - 1].y, adjusted[j].x, adjusted[j].y);
+
+					if (before.first > 0 && before.first < 1) {
+						orig_bad++;
+					}
+					if (after.first > 0 && after.first < 1) {
+						adjusted_bad++;
+					}
+				}
+			}
+		}
+
+		if (orig_bad > adjusted_bad) {
+			geom = std::move(adjusted);
+		}
+	}
+
 	double scale = 1.0 / (1 << geometry_scale);
 
 	for (size_t i = 0; i < geom.size(); i++) {
 		if (geom[i].op == VT_MOVETO || geom[i].op == VT_LINETO) {
 			long long x = geom[i].x;
 			long long y = geom[i].y;
-
-			if (additional[A_DETECT_WRAPAROUND]) {
-				if (geom[i].op == VT_LINETO) {
-					x += offset;
-					if (has_prev) {
-						// jumps at least 180° but not exactly 360°,
-						// which in some data sets is an intentional
-						// line across the world
-						if (x - prev > (1LL << 31) && x - prev != (1LL << 32)) {
-							offset -= 1LL << 32;
-							x -= 1LL << 32;
-						} else if (prev - x > (1LL << 31) && prev - x != (1LL << 32)) {
-							offset += 1LL << 32;
-							x += 1LL << 32;
-						}
-					}
-
-					has_prev = true;
-					prev = x;
-				} else {
-					offset = 0;
-					prev = x;
-				}
-			}
 
 			if (x < bbox[0]) {
 				bbox[0] = x;
