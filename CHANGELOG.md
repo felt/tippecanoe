@@ -9,7 +9,9 @@
   final digit (`9.823748927348929e+55` becomes `9.823748927348928e+55`). Every
   such value still parses back to exactly the same double, so this changes only
   the spelling, never the number. `make fpfmt-bench` rebuilds the head-to-head
-  comparison against the old implementation.
+  comparison against the old implementation. `jsonpull`, now that it is C++,
+  calls `fpfmt::dtoa()` directly rather than through the `strdup`ing C shim
+  that `milo/milo.h` used to declare.
 
 # 2.82.0
 

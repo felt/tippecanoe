@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include "jsonpull.h"
-#include "../fpfmt/fpfmt.h"
+#include "../fpfmt/fpfmt.hpp"
 
 #define BUFFER 10000
 
@@ -803,9 +803,7 @@ static void json_print_one(std::string &val, const json_object *o) {
 			snprintf(s, sizeof(s), "%llu", o->large_unsigned());
 			val.append(s);
 		} else {
-			char *s = dtoa_shortest(o->number());
-			val.append(s);
-			free(s);
+			val.append(fpfmt::dtoa(o->number()));
 		}
 	} else if (o->type == JSON_NULL) {
 		val.append("null");
