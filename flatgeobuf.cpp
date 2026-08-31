@@ -4,7 +4,7 @@
 #include "projection.hpp"
 #include "flatgeobuf/feature_generated.h"
 #include "flatgeobuf/header_generated.h"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "main.hpp"
 #include "errors.hpp"
 #include "thread.hpp"
@@ -224,13 +224,13 @@ void readFeature(const FlatGeobuf::Feature *feature, long long feature_sequence_
 			sv.type = mvt_double;
 			float float_val;
 			memcpy(&float_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(float_val));
-			sv.s = milo::dtoa_milo(float_val);
+			sv.s = fpfmt::dtoa(float_val);
 			p_pos += sizeof(uint16_t) + sizeof(float_val);
 		} else if (col_type == FlatGeobuf::ColumnType_Double) {
 			sv.type = mvt_double;
 			double double_val;
 			memcpy(&double_val, feature->properties()->data() + p_pos + sizeof(uint16_t), sizeof(double_val));
-			sv.s = milo::dtoa_milo(double_val);
+			sv.s = fpfmt::dtoa(double_val);
 			p_pos += sizeof(uint16_t) + sizeof(double_val);
 		} else if (col_type == FlatGeobuf::ColumnType_String || col_type == FlatGeobuf::ColumnType_Json || col_type == FlatGeobuf::ColumnType_DateTime) {
 			sv.type = mvt_string;

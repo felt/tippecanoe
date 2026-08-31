@@ -21,7 +21,7 @@
 #include "pool.hpp"
 #include "projection.hpp"
 #include "evaluator.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 #include "text.hpp"
 
@@ -805,7 +805,7 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 			if (sf.full_values[i].type == mvt_double) {
 				// don't coerce integers to floats, since that is counterproductive
 				if (sf.full_values[i].s.find('.') != std::string::npos) {
-					sf.full_values[i].s = milo::dtoa_milo((float) atof(sf.full_values[i].s.c_str()));
+					sf.full_values[i].s = fpfmt::dtoa((float) atof(sf.full_values[i].s.c_str()));
 				}
 			}
 		}
@@ -928,7 +928,7 @@ void coerce_value(std::string const &key, int &vt, std::string &val, std::unorde
 			vt = mvt_string;
 		} else if (a->second == mvt_float) {
 			vt = mvt_double;
-			val = milo::dtoa_milo(atof(val.c_str()));
+			val = fpfmt::dtoa(atof(val.c_str()));
 		} else if (a->second == mvt_int) {
 			vt = mvt_double;
 			if (val.size() == 0) {

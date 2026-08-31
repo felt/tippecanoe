@@ -17,7 +17,7 @@
 #include "mvt.hpp"
 #include "mbtiles.hpp"
 #include "text.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "write_json.hpp"
 #include "version.hpp"
 #include "errors.hpp"
@@ -708,8 +708,8 @@ metadata make_metadata(const char *fname, int minzoom, int maxzoom, double minla
 	}
 	if (basezoom != maxzoom || droprate != 2.5 || retain_points_multiplier != 1) {
 		m.decisions_json = std::string("{") +
-				   "\"basezoom\":" + milo::dtoa_milo(basezoom) + "," +
-				   "\"droprate\":" + milo::dtoa_milo(droprate) + "," +
+				   "\"basezoom\":" + fpfmt::dtoa(basezoom) + "," +
+				   "\"droprate\":" + fpfmt::dtoa(droprate) + "," +
 				   "\"retain_points_multiplier\":" + std::to_string(retain_points_multiplier) +
 				   std::string("}");
 	}

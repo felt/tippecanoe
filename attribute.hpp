@@ -6,7 +6,7 @@
 #include <map>
 #include <memory>
 #include "mvt.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 
 enum attribute_op {
 	op_sum,

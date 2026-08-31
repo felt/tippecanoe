@@ -37,7 +37,7 @@
 #include "read_json.hpp"
 #include "mvt.hpp"
 #include "geojson-loop.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 
 int serialize_geojson_feature(struct serialization_state *sst, json_object *geometry, json_object *properties, json_object *id, int layer, json_object *tippecanoe, json_object *feature, std::string const &layername) {
@@ -85,12 +85,12 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 	if (tippecanoe != nullptr) {
 		json_object *min = json_hash_get(tippecanoe, "minzoom");
 		if (min != nullptr && (min->type == JSON_NUMBER)) {
-			tippecanoe_minzoom = integer_zoom(sst->fname, milo::dtoa_milo(min->number()));
+			tippecanoe_minzoom = integer_zoom(sst->fname, fpfmt::dtoa(min->number()));
 		}
 
 		json_object *max = json_hash_get(tippecanoe, "maxzoom");
 		if (max != nullptr && (max->type == JSON_NUMBER)) {
-			tippecanoe_maxzoom = integer_zoom(sst->fname, milo::dtoa_milo(max->number()));
+			tippecanoe_maxzoom = integer_zoom(sst->fname, fpfmt::dtoa(max->number()));
 		}
 
 		json_object *ln = json_hash_get(tippecanoe, "layer");
@@ -105,7 +105,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 		if (id->type == JSON_NUMBER) {
 			if (id->number() >= 0) {
 				char *err = NULL;
-				std::string id_number = milo::dtoa_milo(id->number());
+				std::string id_number = fpfmt::dtoa(id->number());
 				id_value = strtoull(id_number.c_str(), &err, 10);
 
 				if (id->large_unsigned() != 0) {
@@ -116,14 +116,14 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 					static bool warned_frac = false;
 
 					if (!warned_frac) {
-						fprintf(stderr, "Warning: Can't represent non-integer feature ID %s\n", milo::dtoa_milo(id->number()).c_str());
+						fprintf(stderr, "Warning: Can't represent non-integer feature ID %s\n", fpfmt::dtoa(id->number()).c_str());
 						warned_frac = true;
 					}
-				} else if (id->large_unsigned() == 0 && std::to_string(id_value) != milo::dtoa_milo(id->number())) {
+				} else if (id->large_unsigned() == 0 && std::to_string(id_value) != fpfmt::dtoa(id->number())) {
 					static bool warned = false;
 
 					if (!warned) {
-						fprintf(stderr, "Warning: Can't represent too-large feature ID %s\n", milo::dtoa_milo(id->number()).c_str());
+						fprintf(stderr, "Warning: Can't represent too-large feature ID %s\n", fpfmt::dtoa(id->number()).c_str());
 						warned = true;
 					}
 				} else {
@@ -133,7 +133,7 @@ int serialize_geojson_feature(struct serialization_state *sst, json_object *geom
 				static bool warned_neg = false;
 
 				if (!warned_neg) {
-					fprintf(stderr, "Warning: Can't represent negative feature ID %s\n", milo::dtoa_milo(id->number()).c_str());
+					fprintf(stderr, "Warning: Can't represent negative feature ID %s\n", fpfmt::dtoa(id->number()).c_str());
 					warned_neg = true;
 				}
 			}
