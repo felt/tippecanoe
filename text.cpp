@@ -5,8 +5,8 @@
 #include <ctype.h>
 #include <vector>
 #include "text.hpp"
-#include "milo/dtoa_milo.h"
-#include "milo/milo.h"
+#include "fpfmt/fpfmt.hpp"
+#include "fpfmt/fpfmt.h"
 #include "errors.hpp"
 
 /**
@@ -177,8 +177,8 @@ std::string format_commandline(int argc, char **argv) {
 }
 
 // for jsonpull to call from C
-char *dtoa_milo(double val) {
-	std::string s = milo::dtoa_milo(val);
+char *dtoa_shortest(double val) {
+	std::string s = fpfmt::dtoa(val);
 	char *dup = strdup(s.c_str());
 	if (dup == NULL) {
 		perror("strdup");

@@ -11,7 +11,7 @@
 #include "csv.hpp"
 #include "text.hpp"
 #include "geojson-loop.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 #include "usage.hpp"
 
@@ -251,7 +251,7 @@ void join_csv(json_object *j) {
 	if (key->type == JSON_STRING) {
 		joinkey = key->string();
 	} else if (key->type == JSON_NUMBER) {
-		joinkey = milo::dtoa_milo(key->number());
+		joinkey = fpfmt::dtoa(key->number());
 	} else {
 		joinkey = json_stringify(key);
 	}

@@ -11,7 +11,7 @@
 #include "read_json.hpp"
 #include "text.hpp"
 #include "mvt.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 #include "serial.hpp"
 
@@ -145,7 +145,7 @@ serial_val stringify_value(json_object *value, const char *reading, int line, js
 			} else if (value->large_signed() != 0) {
 				sv.s = std::to_string(value->large_signed());
 			} else {
-				sv.s = milo::dtoa_milo(value->number());
+				sv.s = fpfmt::dtoa(value->number());
 			}
 		} else if (vt == JSON_TRUE) {
 			sv.type = mvt_bool;

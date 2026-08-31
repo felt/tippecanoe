@@ -12,7 +12,7 @@
 #include "protozero/varint.hpp"
 #include "protozero/pbf_reader.hpp"
 #include "protozero/pbf_writer.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 #include "serial.hpp"
 #include "text.hpp"
@@ -590,7 +590,7 @@ std::string mvt_value::toString() const {
 		if (v == (long long) v) {
 			return std::to_string((long long) v);
 		} else {
-			return milo::dtoa_milo(v);
+			return fpfmt::dtoa(v);
 		}
 	}
 	case mvt_float: {
@@ -598,7 +598,7 @@ std::string mvt_value::toString() const {
 		if (v == (long long) v) {
 			return std::to_string((long long) v);
 		} else {
-			return milo::dtoa_milo(v);
+			return fpfmt::dtoa(v);
 		}
 	}
 	case mvt_sint:
@@ -786,11 +786,11 @@ serial_val mvt_value_to_serial_val(mvt_value const &v) {
 		break;
 	case mvt_float:
 		sv.type = mvt_double;
-		sv.s = milo::dtoa_milo(v.numeric_value.float_value);
+		sv.s = fpfmt::dtoa(v.numeric_value.float_value);
 		break;
 	case mvt_double:
 		sv.type = mvt_double;
-		sv.s = milo::dtoa_milo(v.numeric_value.double_value);
+		sv.s = fpfmt::dtoa(v.numeric_value.double_value);
 		break;
 	case mvt_int:
 		sv.type = mvt_double;

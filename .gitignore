@@ -37,6 +37,7 @@ tippecanoe-enumerate
 tippecanoe-json-tool
 tippecanoe-overzoom
 unit
+fpfmt-bench
 
 # Left behind if man page generation fails
 man/tippecanoe.1.tmp

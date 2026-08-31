@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 #include "jsonpull.h"
-#include "../milo/milo.h"
+#include "../fpfmt/fpfmt.h"
 
 #define BUFFER 10000
 
@@ -803,7 +803,7 @@ static void json_print_one(std::string &val, const json_object *o) {
 			snprintf(s, sizeof(s), "%llu", o->large_unsigned());
 			val.append(s);
 		} else {
-			char *s = dtoa_milo(o->number());
+			char *s = dtoa_shortest(o->number());
 			val.append(s);
 			free(s);
 		}
