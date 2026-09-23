@@ -1,3 +1,30 @@
+# 2.83.0
+
+* Speed up `--no-simplification-of-shared-nodes` by checking each vertex
+  against the global list of shared nodes only once, before tiling begins,
+  instead of again in every tile at every zoom level. Each vertex now carries
+  whether it is a shared node, in the upper bits of its serialized operation
+  byte and in a new field of `draw`, through clipping and into the geometry
+  for the next zoom level. Vertices that are already being kept, because they
+  begin a ring or are on the tile boundary, are not looked up at all.
+* Points that clipping creates along a feature's edges, and the vertices
+  of tiny polygon placeholders, are no longer considered to be shared nodes,
+  since they are not vertices of the original geometry. This could only
+  change the output where a vertex of some other feature happens to fall
+  exactly on one of these new points, and means that only
+  vertices that come back from a prefilter, or that are created by polygon
+  cleaning, still need to be looked up in the list of shared nodes during tiling.
+* Make the remaining lookups of shared nodes faster: sort the list of nodes
+  by quadkey, as its comment always said, so that nearby vertices are near
+  each other in the list; search it with `std::lower_bound` instead of `bsearch`;
+  and size the Bloom filter in front of it by the number of nodes, with three
+  bits for each node within one 64-bit word, so that it usually fits in the cache.
+* Spread the marking of shared nodes across all the CPUs even when all
+  the features were read by one reader, by dividing the geometry into
+  ranges at feature boundaries instead of giving each reader's geometry
+  to its own thread.
+* Speed up `encode_quadkey` with a branch-free bit interleave.
+
 # 2.82.0
 
 * Fix corruption of a JSON array when a non-final element was removed from it.

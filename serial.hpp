@@ -321,6 +321,7 @@ struct node {
 };
 
 int nodecmp(const void *void1, const void *void2);
+void mark_shared_nodes(char *feature, size_t len, unsigned *initial_x, unsigned *initial_y, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);
 
 int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::string const &layername);
 void coerce_value(std::string const &key, int &vt, std::string &val, std::unordered_map<std::string, int> const *attribute_types);

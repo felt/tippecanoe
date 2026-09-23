@@ -1233,6 +1233,140 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
+// A range of one reader's geometry, beginning and ending at feature boundaries
+struct mark_shared_nodes_range {
+	int geomfd;
+	long long start;
+	long long end;
+};
+
+struct mark_shared_nodes_arg {
+	std::vector<mark_shared_nodes_range> const *ranges;
+	std::atomic<size_t> *next_range;
+	unsigned *initial_x;
+	unsigned *initial_y;
+	node const *shared_nodes_map;
+	size_t nodepos;
+	std::string const *shared_nodes_bloom;
+};
+
+// Go through a range of the geometry that a reader serialized, marking each vertex
+// with whether it is one of the shared nodes. The features are read in
+// chunks and written back in place, since marking doesn't change their size.
+static void mark_shared_nodes_in_range(mark_shared_nodes_arg *a, mark_shared_nodes_range const &r, std::string &buf) {
+	long long pos = r.start;
+
+	while (pos < r.end) {
+		long long want = std::min((long long) buf.size(), r.end - pos);
+		if (pread(r.geomfd, &buf[0], want, pos) != want) {
+			fprintf(stderr, "pread(geom): %s\n", strerror(errno));
+			exit(EXIT_READ);
+		}
+
+		// Mark each feature that is entirely within this chunk
+		long long used = 0;
+		while (used < want) {
+			// a feature length is at most 10 bytes of varint
+			if (want - used < 10 && pos + want < r.end) {
+				break;
+			}
+
+			const char *cp = buf.c_str() + used;
+			long long len;
+			deserialize_long_long(&cp, &len);
+			long long flen = (cp - buf.c_str()) - used;
+
+			if (used + flen + len > want) {
+				break;
+			}
+
+			mark_shared_nodes(&buf[0] + used + flen, len, a->initial_x, a->initial_y, a->shared_nodes_map, a->nodepos, *a->shared_nodes_bloom);
+			used += flen + len;
+		}
+
+		if (used == 0) {
+			// a single feature is bigger than the buffer
+			buf.resize(buf.size() * 2);
+			continue;
+		}
+
+		if (pwrite(r.geomfd, buf.c_str(), used, pos) != used) {
+			fprintf(stderr, "pwrite(geom): %s\n", strerror(errno));
+			exit(EXIT_WRITE);
+		}
+
+		pos += used;
+	}
+}
+
+// Each thread takes the next range that hasn't been marked yet, until there are none left
+static void *run_mark_shared_nodes(void *v) {
+	mark_shared_nodes_arg *a = (mark_shared_nodes_arg *) v;
+
+	std::string buf;
+	buf.resize(4 * 1024 * 1024);
+
+	while (true) {
+		size_t which = (*a->next_range)++;
+		if (which >= a->ranges->size()) {
+			break;
+		}
+
+		mark_shared_nodes_in_range(a, (*a->ranges)[which], buf);
+	}
+
+	return NULL;
+}
+
+// Divide the geometry of all the readers into ranges of about the same size,
+// at feature boundaries, which are found from the readers' indexes, so that
+// the marking can be spread across all the CPUs even if all the features
+// were read by one reader.
+static std::vector<mark_shared_nodes_range> mark_shared_nodes_ranges(std::vector<struct reader> &readers) {
+	long long total = 0;
+	for (auto &r : readers) {
+		total += r.geompos;
+	}
+
+	long long target = std::max(total / (long long) (CPUS * 8), 1024LL * 1024);
+	std::vector<mark_shared_nodes_range> ranges;
+
+	for (auto &r : readers) {
+		long long indexsize = r.indexpos;
+		if (indexsize == 0) {
+			continue;
+		}
+
+		struct index *indexmap = (struct index *) mmap(NULL, indexsize, PROT_READ, MAP_PRIVATE, r.indexfd, 0);
+		if (indexmap == MAP_FAILED) {
+			perror("mmap index for marking nodes");
+			exit(EXIT_MEMORY);
+		}
+		madvise(indexmap, indexsize, MADV_SEQUENTIAL);
+
+		size_t n = indexsize / sizeof(struct index);
+		long long start = indexmap[0].start;
+		for (size_t i = 0; i < n; i++) {
+			if (i + 1 == n || indexmap[i].end - start >= target) {
+				ranges.push_back(mark_shared_nodes_range{r.geomfd, start, indexmap[i].end});
+				start = indexmap[i].end;
+			}
+		}
+
+		if (indexmap[0].start != 0 || indexmap[n - 1].end != r.geompos) {
+			fprintf(stderr, "Internal error: index covers geometry %lld to %lld, not 0 to %lld\n", indexmap[0].start, indexmap[n - 1].end, (long long) r.geompos);
+			exit(EXIT_IMPOSSIBLE);
+		}
+
+		if (munmap(indexmap, indexsize) != 0) {
+			perror("munmap index for marking nodes");
+			exit(EXIT_MEMORY);
+		}
+	}
+
+	return ranges;
+}
+
 double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
 }
@@ -2057,7 +2191,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 #endif
 
 				struct node n;
-				n.index = encode_vertex((unsigned) x, (unsigned) y);
+				n.index = encode_quadkey((unsigned) x, (unsigned) y);
 
 				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
 			}
@@ -2071,8 +2205,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fprintf(stderr, "Merging nodes                 \r");
 	}
 
+	// This is sized once the number of nodes is known, below
 	std::string shared_nodes_bloom;
-	shared_nodes_bloom.resize(34567891);  // circa 34MB, size nowhere near a power of 2
 
 	// Sort nodes that can't be simplified away; scan the list to remove duplicates
 
@@ -2139,11 +2273,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
 				written = here;
 
-				size_t bloom_ix = here.index % (shared_nodes_bloom.size() * 8);
-				unsigned char bloom_mask = 1 << (bloom_ix & 7);
-				bloom_ix >>= 3;
-				shared_nodes_bloom[bloom_ix] |= bloom_mask;
-
 #if 0
 				unsigned wx, wy;
 				decode_quadkey(here.index, &wx, &wy);
@@ -2162,9 +2291,59 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				perror("mmap nodes");
 				exit(EXIT_MEMORY);
 			}
+
+			// Size the Bloom filter at about 16 bits per node, so that for a moderate
+			// number of nodes it can stay in the cache while it is being checked,
+			// but no more than 32MB.
+			size_t nnodes = nodepos / sizeof(node);
+			size_t bloom_size = std::min(nnodes * 2, (size_t) 32 * 1024 * 1024);
+			bloom_size = std::max((bloom_size + 7) / 8 * 8, (size_t) 64);
+			shared_nodes_bloom.resize(bloom_size);
+
+			for (size_t i = 0; i < nnodes; i++) {
+				add_shared_node_to_bloom(shared_nodes_bloom, shared_nodes_map[i].index);
+			}
 		}
 
 		fclose(node_out);
+	}
+
+	// Mark the vertices of each feature with whether they are shared nodes,
+	// so that tiling doesn't need to look them up again for every tile.
+
+	if (nodepos > 0) {
+		if (!quiet) {
+			fprintf(stderr, "Marking nodes                 \r");
+		}
+
+		std::vector<mark_shared_nodes_range> ranges = mark_shared_nodes_ranges(readers);
+		std::atomic<size_t> next_range(0);
+
+		std::vector<pthread_t> pthreads(CPUS);
+		std::vector<mark_shared_nodes_arg> args(CPUS);
+
+		for (size_t i = 0; i < CPUS; i++) {
+			args[i].ranges = &ranges;
+			args[i].next_range = &next_range;
+			args[i].initial_x = initial_x.data();
+			args[i].initial_y = initial_y.data();
+			args[i].shared_nodes_map = shared_nodes_map;
+			args[i].nodepos = nodepos;
+			args[i].shared_nodes_bloom = &shared_nodes_bloom;
+
+			if (thread_create(&pthreads[i], NULL, run_mark_shared_nodes, &args[i]) != 0) {
+				perror("pthread_create");
+				exit(EXIT_PTHREAD);
+			}
+		}
+
+		for (size_t i = 0; i < CPUS; i++) {
+			void *retval;
+
+			if (pthread_join(pthreads[i], &retval) != 0) {
+				perror("pthread_join mark nodes");
+			}
+		}
 	}
 
 	if (!quiet) {

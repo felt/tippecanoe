@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include <cmath>
+#include <cstring>
 #include <limits.h>
 #include <sqlite3.h>
 #include <mapbox/geometry/point.hpp>
@@ -36,6 +37,9 @@ drawvec decode_geometry(const char **meta, int z, unsigned tx, unsigned ty, long
 		if (d.op == VT_END) {
 			break;
 		}
+
+		d.node = (d.op >> NODE_SHIFT) & NODE_MASK;
+		d.op &= OP_MASK;
 
 		if (d.op == VT_MOVETO || d.op == VT_LINETO) {
 			long long dx, dy;
@@ -216,6 +220,81 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 	return out;
 }
 
+// Where a shared node goes in the Bloom filter: three bits, all within the same
+// 64-bit word, so that checking for a node only touches one cache line.
+static void shared_node_bloom_bits(unsigned long long index, size_t bloom_size, size_t *word, unsigned long long *mask) {
+	// splitmix64 finalizer, to spread out the index, whose low bits are
+	// mostly zero because of the geometry scale
+	unsigned long long h = index;
+	h ^= h >> 30;
+	h *= 0xBF58476D1CE4E5B9ULL;
+	h ^= h >> 27;
+	h *= 0x94D049BB133111EBULL;
+	h ^= h >> 31;
+
+	*word = ((h >> 32) * (unsigned long long) (bloom_size / sizeof(unsigned long long))) >> 32;
+	*mask = (1ULL << (h & 63)) | (1ULL << ((h >> 6) & 63)) | (1ULL << ((h >> 12) & 63));
+}
+
+void add_shared_node_to_bloom(std::string &shared_nodes_bloom, unsigned long long index) {
+	size_t word;
+	unsigned long long mask, bits;
+	shared_node_bloom_bits(index, shared_nodes_bloom.size(), &word, &mask);
+
+	memcpy(&bits, shared_nodes_bloom.data() + word * sizeof(bits), sizeof(bits));
+	bits |= mask;
+	memcpy(&shared_nodes_bloom[0] + word * sizeof(bits), &bits, sizeof(bits));
+}
+
+// Is the vertex at world coordinates wx, wy one of the nodes in the global list of shared nodes?
+bool is_shared_node(long long wx, long long wy, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
+	struct node n;
+	n.index = encode_quadkey((unsigned) wx, (unsigned) wy);
+
+	size_t word;
+	unsigned long long mask, bits;
+	shared_node_bloom_bits(n.index, shared_nodes_bloom.size(), &word, &mask);
+	memcpy(&bits, shared_nodes_bloom.data() + word * sizeof(bits), sizeof(bits));
+
+	if ((bits & mask) == mask) {
+		struct node const *end = shared_nodes_map + nodepos / sizeof(node);
+		struct node const *found = std::lower_bound(shared_nodes_map, end, n.index, [](struct node const &a, unsigned long long b) {
+			return a.index < b;
+		});
+		if (found != end && found->index == n.index) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// Operations like polygon cleaning that construct new geometries don't know about
+// the node states of the vertices. But since the node state is a function only
+// of the vertex's coordinates, any vertex in the output that has the same coordinates
+// as a vertex in the input must have the same node state as that vertex did.
+void restore_node_states(drawvec const &from, drawvec &to) {
+	drawvec known;
+	for (auto const &d : from) {
+		if ((d.op == VT_MOVETO || d.op == VT_LINETO) && d.node != NODE_UNKNOWN) {
+			known.push_back(d);
+		}
+	}
+	if (known.size() == 0) {
+		return;
+	}
+	std::sort(known.begin(), known.end());
+
+	for (auto &d : to) {
+		if ((d.op == VT_MOVETO || d.op == VT_LINETO) && d.node == NODE_UNKNOWN) {
+			auto pt = std::lower_bound(known.begin(), known.end(), d);
+			if (pt != known.end() && *pt == d) {
+				d.node = pt->node;
+			}
+		}
+	}
+}
+
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	int res = 1 << (32 - detail - z);
 	long long area = 1LL << (32 - z);
@@ -236,33 +315,40 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 			// * the drawvec, which is nodes that were introduced during clipping to the tile edge,
 			//   and which are in local tile coordinates
 			// * the shared_nodes_map, which was made globally before tiling began, and which
-			//   is in global quadkey coordinates.
-			// To look through the latter, we need to offset and encode the coordinates
-			// of the feature we are simplifying.
+			//   is in global coordinates.
+			//
+			// The vertices from the original geometry were already checked against the
+			// shared_nodes_map before tiling began, and carry the result of that check
+			// in their node state, so it is only vertices that have been created since then,
+			// by clipping or polygon cleaning, that need to be looked up in it here.
+			// To look through it, we need to offset the coordinates to global.
+			//
+			// If the shared_nodes_map is NULL, the caller doesn't want the global
+			// shared nodes to be preserved, so the node states are ignored too.
 
 			auto pt = std::lower_bound(shared_nodes.begin(), shared_nodes.end(), geom[i]);
 			if (pt != shared_nodes.end() && *pt == geom[i]) {
 				geom[i].necessary = true;
 			}
 
-			if (nodepos > 0) {
-				// offset to global
-				draw d = geom[i];
-				if (z != 0) {
-					d.x += tx * (1LL << (32 - z));
-					d.y += ty * (1LL << (32 - z));
+			// A vertex that is already necessary, because it is the start of a ring
+			// or on the tile boundary, doesn't need to be looked up, since the answer
+			// could only make it necessary again.
+			if (shared_nodes_map != NULL && nodepos > 0 && !geom[i].necessary) {
+				if (geom[i].node == NODE_UNKNOWN) {
+					// offset to global
+					long long wx = geom[i].x;
+					long long wy = geom[i].y;
+					if (z != 0) {
+						wx += tx * (1LL << (32 - z));
+						wy += ty * (1LL << (32 - z));
+					}
+
+					geom[i].node = is_shared_node(wx, wy, shared_nodes_map, nodepos, shared_nodes_bloom) ? NODE_SHARED : NODE_NOT_SHARED;
 				}
 
-				struct node n;
-				n.index = encode_vertex((unsigned) d.x, (unsigned) d.y);
-				size_t bloom_ix = n.index % (shared_nodes_bloom.size() * 8);
-				unsigned char bloom_mask = 1 << (bloom_ix & 7);
-				bloom_ix >>= 3;
-
-				if (shared_nodes_bloom[bloom_ix] & bloom_mask) {
-					if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
-						geom[i].necessary = true;
-					}
+				if (geom[i].node == NODE_SHARED) {
+					geom[i].necessary = true;
 				}
 			}
 		}
