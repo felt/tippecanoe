@@ -298,7 +298,10 @@ drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool ma
 				geom[i].necessary = true;
 			}
 
-			if (shared_nodes_map != NULL && nodepos > 0) {
+			// A vertex that is already necessary, because it is the start of a ring
+			// or on the tile boundary, doesn't need to be looked up, since the answer
+			// could only make it necessary again.
+			if (shared_nodes_map != NULL && nodepos > 0 && !geom[i].necessary) {
 				if (geom[i].node == NODE_UNKNOWN) {
 					// offset to global
 					long long wx = geom[i].x;
