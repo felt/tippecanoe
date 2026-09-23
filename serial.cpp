@@ -345,6 +345,9 @@ void mark_shared_nodes(char *feature, size_t len, unsigned *initial_x, unsigned 
 			return;
 		}
 
+		// the vertex may already have a node state, from clipping to --clip-bounding-box
+		op &= OP_MASK;
+
 		if (op == VT_MOVETO || op == VT_LINETO) {
 			long long dx, dy;
 
@@ -356,6 +359,9 @@ void mark_shared_nodes(char *feature, size_t len, unsigned *initial_x, unsigned 
 
 			signed char node = is_shared_node(wx, wy, shared_nodes_map, nodepos, shared_nodes_bloom) ? NODE_SHARED : NODE_NOT_SHARED;
 			*opp = op | (node << NODE_SHIFT);
+		} else if (op != VT_CLOSEPATH) {
+			fprintf(stderr, "Internal error: unexpected geometry operation %d marking shared nodes\n", op);
+			exit(EXIT_IMPOSSIBLE);
 		}
 	}
 
