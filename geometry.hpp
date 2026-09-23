@@ -20,6 +20,22 @@
 #define VT_LINETO 2
 #define VT_CLOSEPATH 7
 
+// Whether a vertex is one of the shared nodes that --no-simplification-of-shared-nodes
+// must not simplify away. This is a function only of the vertex's world coordinates,
+// so it is found once, before tiling, from the global list of shared nodes, and then
+// carried along with the vertex, instead of being looked up again for each tile.
+// Vertices that are created during tiling, by clipping or polygon cleaning,
+// start out NODE_UNKNOWN and are looked up in the global list if they are simplified.
+#define NODE_UNKNOWN 0
+#define NODE_NOT_SHARED 1
+#define NODE_SHARED 2
+
+// In serialized geometry, the node state is stored in the upper bits
+// of the byte that holds each vertex's operation.
+#define NODE_SHIFT 4
+#define NODE_MASK 3
+#define OP_MASK 0x0F
+
 // The bitfield is to make sizeof(draw) be 16 instead of 24
 // at the cost, apparently, of a 0.7% increase in running time
 // for packing and unpacking.
@@ -28,19 +44,30 @@ struct draw {
 	signed char op;
 	long long y : 40;
 	signed char necessary;
+	signed char node;
 
 	draw(int nop, long long nx, long long ny)
 	    : x(nx),
 	      op(nop),
 	      y(ny),
-	      necessary(0) {
+	      necessary(0),
+	      node(NODE_UNKNOWN) {
+	}
+
+	draw(int nop, long long nx, long long ny, signed char nnode)
+	    : x(nx),
+	      op(nop),
+	      y(ny),
+	      necessary(0),
+	      node(nnode) {
 	}
 
 	draw()
 	    : x(0),
 	      op(0),
 	      y(0),
-	      necessary(0) {
+	      necessary(0),
+	      node(NODE_UNKNOWN) {
 	}
 
 	bool operator<(draw const &s) const {
@@ -64,6 +91,8 @@ struct draw {
 	}
 };
 
+static_assert(sizeof(draw) == 16, "draw should still fit in 16 bytes");
+
 typedef std::vector<draw> drawvec;
 struct serial_feature;
 
@@ -81,6 +110,8 @@ drawvec stairstep(drawvec &geom, int z, int detail);
 bool point_within_tile(long long x, long long y, int z);
 int quick_check(const long long *bbox, int z, long long buffer);
 void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, bool prevent_simplify_shared_nodes);
+bool is_shared_node(long long wx, long long wy, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);
+void restore_node_states(drawvec const &from, drawvec &to);
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);
 drawvec reorder_lines(const drawvec &geom);
 drawvec fix_polygon(const drawvec &geom, bool use_winding, bool reverse_winding);

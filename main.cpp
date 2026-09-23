@@ -1233,6 +1233,71 @@ int vertexcmp(const void *void1, const void *void2) {
 	return 0;
 }
 
+struct mark_shared_nodes_arg {
+	int geomfd;
+	long long geomsize;
+	unsigned *initial_x;
+	unsigned *initial_y;
+	node const *shared_nodes_map;
+	size_t nodepos;
+	std::string const *shared_nodes_bloom;
+};
+
+// Go through the geometry that one reader serialized, marking each vertex
+// with whether it is one of the shared nodes. The features are read in
+// chunks and written back in place, since marking doesn't change their size.
+static void *run_mark_shared_nodes(void *v) {
+	mark_shared_nodes_arg *a = (mark_shared_nodes_arg *) v;
+
+	std::string buf;
+	buf.resize(16 * 1024 * 1024);
+	long long pos = 0;
+
+	while (pos < a->geomsize) {
+		long long want = std::min((long long) buf.size(), a->geomsize - pos);
+		if (pread(a->geomfd, &buf[0], want, pos) != want) {
+			fprintf(stderr, "pread(geom): %s\n", strerror(errno));
+			exit(EXIT_READ);
+		}
+
+		// Mark each feature that is entirely within this chunk
+		long long used = 0;
+		while (used < want) {
+			// a feature length is at most 10 bytes of varint
+			if (want - used < 10 && pos + want < a->geomsize) {
+				break;
+			}
+
+			const char *cp = buf.c_str() + used;
+			long long len;
+			deserialize_long_long(&cp, &len);
+			long long flen = (cp - buf.c_str()) - used;
+
+			if (used + flen + len > want) {
+				break;
+			}
+
+			mark_shared_nodes(&buf[0] + used + flen, len, a->initial_x, a->initial_y, a->shared_nodes_map, a->nodepos, *a->shared_nodes_bloom);
+			used += flen + len;
+		}
+
+		if (used == 0) {
+			// a single feature is bigger than the buffer
+			buf.resize(buf.size() * 2);
+			continue;
+		}
+
+		if (pwrite(a->geomfd, buf.c_str(), used, pos) != used) {
+			fprintf(stderr, "pwrite(geom): %s\n", strerror(errno));
+			exit(EXIT_WRITE);
+		}
+
+		pos += used;
+	}
+
+	return NULL;
+}
+
 double round_droprate(double r) {
 	return std::round(r * 100000.0) / 100000.0;
 }
@@ -2165,6 +2230,41 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		}
 
 		fclose(node_out);
+	}
+
+	// Mark the vertices of each feature with whether they are shared nodes,
+	// so that tiling doesn't need to look them up again for every tile.
+
+	if (nodepos > 0) {
+		if (!quiet) {
+			fprintf(stderr, "Marking nodes                 \r");
+		}
+
+		std::vector<pthread_t> pthreads(CPUS);
+		std::vector<mark_shared_nodes_arg> args(CPUS);
+
+		for (size_t i = 0; i < CPUS; i++) {
+			args[i].geomfd = readers[i].geomfd;
+			args[i].geomsize = readers[i].geompos;
+			args[i].initial_x = initial_x.data();
+			args[i].initial_y = initial_y.data();
+			args[i].shared_nodes_map = shared_nodes_map;
+			args[i].nodepos = nodepos;
+			args[i].shared_nodes_bloom = &shared_nodes_bloom;
+
+			if (thread_create(&pthreads[i], NULL, run_mark_shared_nodes, &args[i]) != 0) {
+				perror("pthread_create");
+				exit(EXIT_PTHREAD);
+			}
+		}
+
+		for (size_t i = 0; i < CPUS; i++) {
+			void *retval;
+
+			if (pthread_join(pthreads[i], &retval) != 0) {
+				perror("pthread_join mark nodes");
+			}
+		}
 	}
 
 	if (!quiet) {

@@ -1,3 +1,14 @@
+# 2.83.0
+
+* Speed up `--no-simplification-of-shared-nodes` by checking each vertex
+  against the global list of shared nodes only once, before tiling begins,
+  instead of again in every tile at every zoom level. Each vertex now carries
+  whether it is a shared node, in the upper bits of its serialized operation
+  byte and in a new field of `draw`, through clipping and into the geometry
+  for the next zoom level. Only vertices that are created during tiling,
+  by clipping or by polygon cleaning, or that come back from a prefilter,
+  still need to be looked up. Output is unchanged.
+
 # 2.82.0
 
 * Fix corruption of a JSON array when a non-final element was removed from it.

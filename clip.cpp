@@ -16,10 +16,30 @@
 #include "projection.hpp"
 #include "read_json.hpp"
 
-static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
-							 long long minx, long long miny, long long maxx, long long maxy,
-							 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes,
-							 bool prevent_simplify_shared_nodes);
+// A vertex being clipped, which remembers whether it is a shared node.
+// Vertices created at the intersections with the clipping edges don't know.
+struct clip_point_d {
+	double first;
+	double second;
+	signed char node = NODE_UNKNOWN;
+
+	clip_point_d()
+	    : first(0), second(0) {
+	}
+
+	clip_point_d(double x, double y)
+	    : first(x), second(y) {
+	}
+
+	clip_point_d(double x, double y, signed char n)
+	    : first(x), second(y), node(n) {
+	}
+};
+
+static std::vector<clip_point_d> clip_poly1(std::vector<clip_point_d> &geom,
+					    long long minx, long long miny, long long maxx, long long maxy,
+					    long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes,
+					    bool prevent_simplify_shared_nodes);
 
 drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long long maxx, long long maxy,
 			 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes, bool prevent_simplify_shared_nodes) {
@@ -37,11 +57,11 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 				}
 			}
 
-			std::vector<std::pair<double, double>> tmp;
+			std::vector<clip_point_d> tmp;
 			for (size_t k = i; k < j; k++) {
 				double x = geom[k].x;
 				double y = geom[k].y;
-				tmp.emplace_back(x, y);
+				tmp.emplace_back(x, y, geom[k].node);
 			}
 			tmp = clip_poly1(tmp, minx, miny, maxx, maxy, ax, ay, bx, by, edge_nodes, prevent_simplify_shared_nodes);
 			if (tmp.size() > 0) {
@@ -52,9 +72,9 @@ drawvec simple_clip_poly(drawvec &geom, long long minx, long long miny, long lon
 			}
 			for (size_t k = 0; k < tmp.size(); k++) {
 				if (k == 0) {
-					out.push_back(draw(VT_MOVETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+					out.push_back(draw(VT_MOVETO, std::round(tmp[k].first), std::round(tmp[k].second), tmp[k].node));
 				} else {
-					out.push_back(draw(VT_LINETO, std::round(tmp[k].first), std::round(tmp[k].second)));
+					out.push_back(draw(VT_LINETO, std::round(tmp[k].first), std::round(tmp[k].second), tmp[k].node));
 				}
 			}
 
@@ -126,13 +146,14 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
 
 			if (c > 1) {  // clipped
-				out.push_back(draw(VT_MOVETO, x1, y1));
-				out.push_back(draw(VT_LINETO, x2, y2));
-				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
+				// endpoints that weren't moved by clipping keep their node state
+				out.push_back(draw(VT_MOVETO, x1, y1, (x1 == geom[i - 1].x && y1 == geom[i - 1].y) ? geom[i - 1].node : NODE_UNKNOWN));
+				out.push_back(draw(VT_LINETO, x2, y2, (x2 == geom[i].x && y2 == geom[i].y) ? geom[i].node : NODE_UNKNOWN));
+				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y, geom[i].node));
 			} else if (c == 1) {  // unchanged
 				out.push_back(geom[i]);
 			} else {  // clipped away entirely
-				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y));
+				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y, geom[i].node));
 			}
 		} else {
 			out.push_back(geom[i]);
@@ -739,7 +760,7 @@ drawvec close_poly(drawvec &geom) {
 	return out;
 }
 
-static bool inside(std::pair<double, double> d, int edge, long long minx, long long miny, long long maxx, long long maxy) {
+static bool inside(clip_point_d const &d, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
 	case 0:	 // top
 		return d.second > miny;
@@ -758,41 +779,56 @@ static bool inside(std::pair<double, double> d, int edge, long long minx, long l
 	exit(EXIT_FAILURE);
 }
 
-static std::pair<double, double> intersect(std::pair<double, double> a, std::pair<double, double> b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
+static clip_point_d intersect1(clip_point_d const &a, clip_point_d const &b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	switch (edge) {
 	case 0:	 // top
-		return std::pair<double, double>((a.first + (double) (b.first - a.first) * (miny - a.second) / (b.second - a.second)), miny);
+		return clip_point_d((a.first + (double) (b.first - a.first) * (miny - a.second) / (b.second - a.second)), miny);
 
 	case 1:	 // right
-		return std::pair<double, double>(maxx, (a.second + (double) (b.second - a.second) * (maxx - a.first) / (b.first - a.first)));
+		return clip_point_d(maxx, (a.second + (double) (b.second - a.second) * (maxx - a.first) / (b.first - a.first)));
 
 	case 2:	 // bottom
-		return std::pair<double, double>((a.first + (double) (b.first - a.first) * (maxy - a.second) / (b.second - a.second)), maxy);
+		return clip_point_d((a.first + (double) (b.first - a.first) * (maxy - a.second) / (b.second - a.second)), maxy);
 
 	case 3:	 // left
-		return std::pair<double, double>(minx, (a.second + (double) (b.second - a.second) * (minx - a.first) / (b.first - a.first)));
+		return clip_point_d(minx, (a.second + (double) (b.second - a.second) * (minx - a.first) / (b.first - a.first)));
 	}
 
 	fprintf(stderr, "internal error intersecting\n");
 	exit(EXIT_FAILURE);
 }
 
+// If the intersection is at one of the endpoints of the segment,
+// it is the same vertex, and has the same node state.
+static clip_point_d intersect(clip_point_d const &a, clip_point_d const &b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
+	clip_point_d p = intersect1(a, b, edge, minx, miny, maxx, maxy);
+	double x = std::round(p.first), y = std::round(p.second);
+
+	if (x == a.first && y == a.second) {
+		p.node = a.node;
+	} else if (x == b.first && y == b.second) {
+		p.node = b.node;
+	}
+
+	return p;
+}
+
 // http://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
-static std::vector<std::pair<double, double>> clip_poly1(std::vector<std::pair<double, double>> &geom,
-							 long long minx, long long miny, long long maxx, long long maxy,
-							 long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes,
-							 bool prevent_simplify_shared_nodes) {
-	std::vector<std::pair<double, double>> out = geom;
+static std::vector<clip_point_d> clip_poly1(std::vector<clip_point_d> &geom,
+					    long long minx, long long miny, long long maxx, long long maxy,
+					    long long ax, long long ay, long long bx, long long by, drawvec &edge_nodes,
+					    bool prevent_simplify_shared_nodes) {
+	std::vector<clip_point_d> out = geom;
 
 	for (int edge = 0; edge < 4; edge++) {
 		if (out.size() > 0) {
-			std::vector<std::pair<double, double>> in = out;
+			std::vector<clip_point_d> in = out;
 			out.resize(0);
 
-			std::pair<double, double> S = in[in.size() - 1];
+			clip_point_d S = in[in.size() - 1];
 
 			for (size_t e = 0; e < in.size(); e++) {
-				std::pair<double, double> E = in[e];
+				clip_point_d E = in[e];
 
 				if (!inside(S, edge, minx, miny, maxx, maxy)) {
 					// was outside the buffer
