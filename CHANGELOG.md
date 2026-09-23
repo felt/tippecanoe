@@ -19,6 +19,11 @@
   each other in the list; search it with `std::lower_bound` instead of `bsearch`;
   and size the Bloom filter in front of it by the number of nodes, with three
   bits for each node within one 64-bit word, so that it usually fits in the cache.
+* Spread the marking of shared nodes across all the CPUs even when all
+  the features were read by one reader, by dividing the geometry into
+  ranges at feature boundaries instead of giving each reader's geometry
+  to its own thread.
+* Speed up `encode_quadkey` with a branch-free bit interleave.
 
 # 2.82.0
 
