@@ -17,7 +17,6 @@
 #include "read_json.hpp"
 
 // A vertex being clipped, which remembers whether it is a shared node.
-// Vertices created at the intersections with the clipping edges don't know.
 struct clip_point_d {
 	double first;
 	double second;
@@ -146,9 +145,10 @@ drawvec clip_lines(drawvec &geom, long long minx, long long miny, long long maxx
 			int c = clip(&x1, &y1, &x2, &y2, minx, miny, maxx, maxy);
 
 			if (c > 1) {  // clipped
-				// endpoints that weren't moved by clipping keep their node state
-				out.push_back(draw(VT_MOVETO, x1, y1, (x1 == geom[i - 1].x && y1 == geom[i - 1].y) ? geom[i - 1].node : NODE_UNKNOWN));
-				out.push_back(draw(VT_LINETO, x2, y2, (x2 == geom[i].x && y2 == geom[i].y) ? geom[i].node : NODE_UNKNOWN));
+				// endpoints that weren't moved by clipping keep their node state;
+				// new endpoints along the segment aren't original vertices, so aren't shared nodes
+				out.push_back(draw(VT_MOVETO, x1, y1, (x1 == geom[i - 1].x && y1 == geom[i - 1].y) ? geom[i - 1].node : NODE_NOT_SHARED));
+				out.push_back(draw(VT_LINETO, x2, y2, (x2 == geom[i].x && y2 == geom[i].y) ? geom[i].node : NODE_NOT_SHARED));
 				out.push_back(draw(VT_MOVETO, geom[i].x, geom[i].y, geom[i].node));
 			} else if (c == 1) {  // unchanged
 				out.push_back(geom[i]);
@@ -800,6 +800,12 @@ static clip_point_d intersect1(clip_point_d const &a, clip_point_d const &b, int
 
 // If the intersection is at one of the endpoints of the segment,
 // it is the same vertex, and has the same node state.
+//
+// Otherwise it is a new point along the segment, which is not a vertex
+// of the original geometry, so it is treated as not being a shared node.
+// (It could only be one if some other feature had a vertex exactly where
+// this feature's edge crosses the clipping line, without this feature
+// having a vertex there too.)
 static clip_point_d intersect(clip_point_d const &a, clip_point_d const &b, int edge, long long minx, long long miny, long long maxx, long long maxy) {
 	clip_point_d p = intersect1(a, b, edge, minx, miny, maxx, maxy);
 	double x = std::round(p.first), y = std::round(p.second);
@@ -808,6 +814,8 @@ static clip_point_d intersect(clip_point_d const &a, clip_point_d const &b, int 
 		p.node = a.node;
 	} else if (x == b.first && y == b.second) {
 		p.node = b.node;
+	} else {
+		p.node = NODE_NOT_SHARED;
 	}
 
 	return p;
@@ -1123,11 +1131,14 @@ drawvec reduce_tiny_poly(drawvec const &geom, int z, int detail, bool *still_nee
 					if (area > 0 && *accum_area > pixel * pixel) {
 						// XXX use centroid;
 
-						out.emplace_back(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel);
-						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2);
+						// This placeholder is synthetic, so none of its vertices
+						// can be shared nodes from the original geometry.
+
+						out.emplace_back(VT_MOVETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2, NODE_NOT_SHARED);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2, NODE_NOT_SHARED);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2 + pixel, geom[i].y - pixel / 2 + pixel, NODE_NOT_SHARED);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2 + pixel, NODE_NOT_SHARED);
+						out.emplace_back(VT_LINETO, geom[i].x - pixel / 2, geom[i].y - pixel / 2, NODE_NOT_SHARED);
 
 						*accum_area -= pixel * pixel;
 					}

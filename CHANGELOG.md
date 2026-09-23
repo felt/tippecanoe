@@ -5,9 +5,15 @@
   instead of again in every tile at every zoom level. Each vertex now carries
   whether it is a shared node, in the upper bits of its serialized operation
   byte and in a new field of `draw`, through clipping and into the geometry
-  for the next zoom level. Only vertices that are created during tiling,
-  by clipping or by polygon cleaning, or that come back from a prefilter,
-  still need to be looked up. Output is unchanged.
+  for the next zoom level. Vertices that are already being kept, because they
+  begin a ring or are on the tile boundary, are not looked up at all.
+* Points that clipping creates along a feature's edges, and the vertices
+  of tiny polygon placeholders, are no longer considered to be shared nodes,
+  since they are not vertices of the original geometry. This could only
+  change the output where a vertex of some other feature happens to fall
+  exactly on one of these new points, and means that only
+  vertices that come back from a prefilter, or that are created by polygon
+  cleaning, still need to be looked up in the list of shared nodes during tiling.
 
 # 2.82.0
 
