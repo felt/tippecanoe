@@ -110,6 +110,7 @@ drawvec stairstep(drawvec &geom, int z, int detail);
 bool point_within_tile(long long x, long long y, int z);
 int quick_check(const long long *bbox, int z, long long buffer);
 void douglas_peucker(drawvec &geom, int start, int n, double e, size_t kept, size_t retain, bool prevent_simplify_shared_nodes);
+void add_shared_node_to_bloom(std::string &shared_nodes_bloom, unsigned long long index);
 bool is_shared_node(long long wx, long long wy, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);
 void restore_node_states(drawvec const &from, drawvec &to);
 drawvec simplify_lines(drawvec &geom, int z, int tx, int ty, int detail, bool mark_tile_bounds, double simplification, size_t retain, drawvec const &shared_nodes, struct node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom);

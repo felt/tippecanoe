@@ -2136,8 +2136,8 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 		fprintf(stderr, "Merging nodes                 \r");
 	}
 
+	// This is sized once the number of nodes is known, below
 	std::string shared_nodes_bloom;
-	shared_nodes_bloom.resize(34567891);  // circa 34MB, size nowhere near a power of 2
 
 	// Sort nodes that can't be simplified away; scan the list to remove duplicates
 
@@ -2204,11 +2204,6 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				fwrite_check((void *) &here, sizeof(here), 1, shared_nodes, &nodepos, "shared nodes");
 				written = here;
 
-				size_t bloom_ix = here.index % (shared_nodes_bloom.size() * 8);
-				unsigned char bloom_mask = 1 << (bloom_ix & 7);
-				bloom_ix >>= 3;
-				shared_nodes_bloom[bloom_ix] |= bloom_mask;
-
 #if 0
 				unsigned wx, wy;
 				decode_quadkey(here.index, &wx, &wy);
@@ -2226,6 +2221,18 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 			if (shared_nodes_map == (node *) MAP_FAILED) {
 				perror("mmap nodes");
 				exit(EXIT_MEMORY);
+			}
+
+			// Size the Bloom filter at about 16 bits per node, so that for a moderate
+			// number of nodes it can stay in the cache while it is being checked,
+			// but no more than 32MB.
+			size_t nnodes = nodepos / sizeof(node);
+			size_t bloom_size = std::min(nnodes * 2, (size_t) 32 * 1024 * 1024);
+			bloom_size = std::max((bloom_size + 7) / 8 * 8, (size_t) 64);
+			shared_nodes_bloom.resize(bloom_size);
+
+			for (size_t i = 0; i < nnodes; i++) {
+				add_shared_node_to_bloom(shared_nodes_bloom, shared_nodes_map[i].index);
 			}
 		}
 

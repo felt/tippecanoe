@@ -129,6 +129,23 @@ TEST_CASE("Bit reversal", "bit reversal") {
 	REQUIRE(bit_reverse(0xF3D912481E6A2C48) == 0x1234567812489BCF);
 }
 
+TEST_CASE("Vertex encoding matches quadkey encoding", "[projection]") {
+	unsigned int values[] = {0, 1, 2, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF, 0x12345678, 0xDEADBEEF};
+	for (unsigned int x : values) {
+		for (unsigned int y : values) {
+			REQUIRE(encode_vertex(x, y) == encode_quadkey(x, y));
+		}
+	}
+
+	unsigned long long seed = 1;
+	for (size_t i = 0; i < 10000; i++) {
+		seed = seed * 6364136223846793005ULL + 1442695040888963407ULL;
+		unsigned int x = seed >> 32;
+		unsigned int y = seed;
+		REQUIRE(encode_vertex(x, y) == encode_quadkey(x, y));
+	}
+}
+
 TEST_CASE("line_is_too_small") {
 	drawvec dv;
 	dv.emplace_back(VT_MOVETO, 4243099709, 2683872952);

@@ -218,6 +218,19 @@ void set_projection_or_exit(const char *optarg) {
 	}
 }
 
+// Spread the 32 bits of v out into the even bits of a 64-bit value
+static inline unsigned long long spread_bits(unsigned int v) {
+	unsigned long long x = v;
+	x = (x | (x << 16)) & 0x0000FFFF0000FFFFULL;
+	x = (x | (x << 8)) & 0x00FF00FF00FF00FFULL;
+	x = (x | (x << 4)) & 0x0F0F0F0F0F0F0F0FULL;
+	x = (x | (x << 2)) & 0x3333333333333333ULL;
+	x = (x | (x << 1)) & 0x5555555555555555ULL;
+	return x;
+}
+
+// The same as encode_quadkey(), but faster, for the vertices of the list of shared nodes,
+// so that nodes that are near each other are also near each other in the sorted list.
 unsigned long long encode_vertex(unsigned int wx, unsigned int wy) {
-	return (((unsigned long long) wx) << 32) | wy;
+	return (spread_bits(wx) << 1) | spread_bits(wy);
 }

@@ -14,6 +14,11 @@
   exactly on one of these new points, and means that only
   vertices that come back from a prefilter, or that are created by polygon
   cleaning, still need to be looked up in the list of shared nodes during tiling.
+* Make the remaining lookups of shared nodes faster: sort the list of nodes
+  by quadkey, as its comment always said, so that nearby vertices are near
+  each other in the list; search it with `std::lower_bound` instead of `bsearch`;
+  and size the Bloom filter in front of it by the number of nodes, with three
+  bits for each node within one 64-bit word, so that it usually fits in the cache.
 
 # 2.82.0
 

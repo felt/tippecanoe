@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include <cmath>
+#include <cstring>
 #include <limits.h>
 #include <sqlite3.h>
 #include <mapbox/geometry/point.hpp>
@@ -219,16 +220,48 @@ drawvec impose_tile_boundaries(const drawvec &geom, long long extent) {
 	return out;
 }
 
+// Where a shared node goes in the Bloom filter: three bits, all within the same
+// 64-bit word, so that checking for a node only touches one cache line.
+static void shared_node_bloom_bits(unsigned long long index, size_t bloom_size, size_t *word, unsigned long long *mask) {
+	// splitmix64 finalizer, to spread out the index, whose low bits are
+	// mostly zero because of the geometry scale
+	unsigned long long h = index;
+	h ^= h >> 30;
+	h *= 0xBF58476D1CE4E5B9ULL;
+	h ^= h >> 27;
+	h *= 0x94D049BB133111EBULL;
+	h ^= h >> 31;
+
+	*word = ((h >> 32) * (unsigned long long) (bloom_size / sizeof(unsigned long long))) >> 32;
+	*mask = (1ULL << (h & 63)) | (1ULL << ((h >> 6) & 63)) | (1ULL << ((h >> 12) & 63));
+}
+
+void add_shared_node_to_bloom(std::string &shared_nodes_bloom, unsigned long long index) {
+	size_t word;
+	unsigned long long mask, bits;
+	shared_node_bloom_bits(index, shared_nodes_bloom.size(), &word, &mask);
+
+	memcpy(&bits, shared_nodes_bloom.data() + word * sizeof(bits), sizeof(bits));
+	bits |= mask;
+	memcpy(&shared_nodes_bloom[0] + word * sizeof(bits), &bits, sizeof(bits));
+}
+
 // Is the vertex at world coordinates wx, wy one of the nodes in the global list of shared nodes?
 bool is_shared_node(long long wx, long long wy, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	struct node n;
 	n.index = encode_vertex((unsigned) wx, (unsigned) wy);
-	size_t bloom_ix = n.index % (shared_nodes_bloom.size() * 8);
-	unsigned char bloom_mask = 1 << (bloom_ix & 7);
-	bloom_ix >>= 3;
 
-	if (shared_nodes_bloom[bloom_ix] & bloom_mask) {
-		if (bsearch(&n, shared_nodes_map, nodepos / sizeof(node), sizeof(node), nodecmp) != NULL) {
+	size_t word;
+	unsigned long long mask, bits;
+	shared_node_bloom_bits(n.index, shared_nodes_bloom.size(), &word, &mask);
+	memcpy(&bits, shared_nodes_bloom.data() + word * sizeof(bits), sizeof(bits));
+
+	if ((bits & mask) == mask) {
+		struct node const *end = shared_nodes_map + nodepos / sizeof(node);
+		struct node const *found = std::lower_bound(shared_nodes_map, end, n.index, [](struct node const &a, unsigned long long b) {
+			return a.index < b;
+		});
+		if (found != end && found->index == n.index) {
 			return true;
 		}
 	}
