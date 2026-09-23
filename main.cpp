@@ -2122,7 +2122,7 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 #endif
 
 				struct node n;
-				n.index = encode_vertex((unsigned) x, (unsigned) y);
+				n.index = encode_quadkey((unsigned) x, (unsigned) y);
 
 				fwrite_check((char *) &n, sizeof(struct node), 1, readers[0].nodefile, &readers[0].nodepos, "vertices");
 			}

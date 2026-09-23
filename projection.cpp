@@ -156,19 +156,20 @@ void decode_hilbert(unsigned long long index, unsigned *wx, unsigned *wy) {
 	hilbert_d2xy(1LL << 32, index, wx, wy);
 }
 
+// Spread the 32 bits of v out into the even bits of a 64-bit value
+static inline unsigned long long spread_bits(unsigned int v) {
+	unsigned long long x = v;
+	x = (x | (x << 16)) & 0x0000FFFF0000FFFFULL;
+	x = (x | (x << 8)) & 0x00FF00FF00FF00FFULL;
+	x = (x | (x << 4)) & 0x0F0F0F0F0F0F0F0FULL;
+	x = (x | (x << 2)) & 0x3333333333333333ULL;
+	x = (x | (x << 1)) & 0x5555555555555555ULL;
+	return x;
+}
+
+// Interleave the bits of wx and wy, with each bit of wx above the same bit of wy
 unsigned long long encode_quadkey(unsigned int wx, unsigned int wy) {
-	unsigned long long out = 0;
-
-	int i;
-	for (i = 0; i < 32; i++) {
-		unsigned long long v = ((wx >> (32 - (i + 1))) & 1) << 1;
-		v |= (wy >> (32 - (i + 1))) & 1;
-		v = v << (64 - 2 * (i + 1));
-
-		out |= v;
-	}
-
-	return out;
+	return (spread_bits(wx) << 1) | spread_bits(wy);
 }
 
 static std::atomic<unsigned char> decodex[256];
@@ -216,21 +217,4 @@ void set_projection_or_exit(const char *optarg) {
 		fprintf(stderr, "Unknown projection (-s): %s\n", optarg);
 		exit(EXIT_ARGS);
 	}
-}
-
-// Spread the 32 bits of v out into the even bits of a 64-bit value
-static inline unsigned long long spread_bits(unsigned int v) {
-	unsigned long long x = v;
-	x = (x | (x << 16)) & 0x0000FFFF0000FFFFULL;
-	x = (x | (x << 8)) & 0x00FF00FF00FF00FFULL;
-	x = (x | (x << 4)) & 0x0F0F0F0F0F0F0F0FULL;
-	x = (x | (x << 2)) & 0x3333333333333333ULL;
-	x = (x | (x << 1)) & 0x5555555555555555ULL;
-	return x;
-}
-
-// The same as encode_quadkey(), but faster, for the vertices of the list of shared nodes,
-// so that nodes that are near each other are also near each other in the sorted list.
-unsigned long long encode_vertex(unsigned int wx, unsigned int wy) {
-	return (spread_bits(wx) << 1) | spread_bits(wy);
 }

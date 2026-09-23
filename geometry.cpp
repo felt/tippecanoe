@@ -249,7 +249,7 @@ void add_shared_node_to_bloom(std::string &shared_nodes_bloom, unsigned long lon
 // Is the vertex at world coordinates wx, wy one of the nodes in the global list of shared nodes?
 bool is_shared_node(long long wx, long long wy, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
 	struct node n;
-	n.index = encode_vertex((unsigned) wx, (unsigned) wy);
+	n.index = encode_quadkey((unsigned) wx, (unsigned) wy);
 
 	size_t word;
 	unsigned long long mask, bits;
