@@ -1,3 +1,10 @@
+# 2.82.1
+
+* Fix `--use-attribute-for-id` rejecting an attribute value of 0 as a
+  "too-large" feature ID. The leading-zero stripping used to check that the ID
+  round-tripped stripped "0" down to an empty string, so the feature was left
+  with no ID and kept the attribute instead.
+
 # 2.82.0
 
 * Fix corruption of a JSON array when a non-final element was removed from it.

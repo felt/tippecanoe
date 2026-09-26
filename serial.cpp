@@ -382,7 +382,8 @@ static std::string strip_zeroes(std::string s) {
 	// Doesn't do anything special with '-' followed by leading zeros
 	// since integer IDs must be positive
 
-	while (s.size() > 0 && s[0] == '0') {
+	// Keep the final digit so that an ID of 0 compares equal to "0"
+	while (s.size() > 1 && s[0] == '0') {
 		s.erase(s.begin());
 	}
 
