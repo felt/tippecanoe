@@ -1,3 +1,8 @@
+# 2.82.1
+
+* Fix a data race in the disk-space check, which read the string pool sizes
+  of other reader threads while they were being written.
+
 # 2.82.0
 
 * Fix corruption of a JSON array when a non-final element was removed from it.

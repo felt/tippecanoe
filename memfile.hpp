@@ -10,7 +10,8 @@ struct memfile {
 	std::string map;
 	unsigned long tree = 0;
 	FILE *fp = NULL;
-	size_t off = 0;
+	// Read by checkdisk() from other threads while the owning reader thread appends
+	std::atomic<size_t> off{0};
 };
 
 struct memfile *memfile_open(int fd);
