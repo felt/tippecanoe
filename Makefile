@@ -133,7 +133,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test drop-thresholds-test
 	./unit
 
 suffixes = json json.gz
@@ -243,6 +243,24 @@ parallel-test: $(eval SHELL:=$(ADVSHELL))
 	cmp tests/parallel/linear-file.json tests/parallel/implicit-pipe.json
 	cmp tests/parallel/linear-file.json tests/parallel/parallel-pipes.json
 	rm tests/parallel/*.mbtiles tests/parallel/*.json
+
+drop-thresholds-test: tippecanoe
+	# Rebuilding a tileset one --subtree at a time from a full run's --drop-thresholds-out
+	# matches the full run, including zooms that --extend-zooms-if-still-dropping finished
+	# as the maximum zoom before adding the next one (--force-feature-limit, where -D10
+	# makes the maximum zoom tile differently).
+	for opts in "--drop-densest-as-needed -M 2000" "--force-feature-limit -M 5000 -D10"; do \
+		rm -rf tests/drop-thresholds && mkdir -p tests/drop-thresholds && \
+		./tippecanoe -q -f -e tests/drop-thresholds/full -z1 $$opts --extend-zooms-if-still-dropping --no-tile-compression --drop-thresholds-out=tests/drop-thresholds/full.json tests/coalesce-id/in.json && \
+		mz=$$(sed -n 's/.*"maxzoom": "\([0-9]*\)".*/\1/p' tests/drop-thresholds/full/metadata.json) && \
+		./tippecanoe -q -f -e tests/drop-thresholds/pieces -z$$mz $$opts --extend-zooms-if-still-dropping --no-tile-compression --stop-after-zoom=0 tests/coalesce-id/in.json && \
+		for xy in 0/0 0/1 1/0 1/1; do \
+			./tippecanoe -q -f -e tests/drop-thresholds/subtree -z$$mz $$opts --extend-zooms-if-still-dropping --no-tile-compression --subtree=1/$$xy --single-pass --drop-thresholds-in=tests/drop-thresholds/full.json tests/coalesce-id/in.json && \
+			cp -R tests/drop-thresholds/subtree/. tests/drop-thresholds/pieces/ || exit 1; \
+		done && \
+		diff -r -x metadata.json tests/drop-thresholds/full tests/drop-thresholds/pieces || exit 1; \
+	done
+	rm -rf tests/drop-thresholds
 
 raw-tiles-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -e tests/raw-tiles/raw-tiles -r1 -pC tests/raw-tiles/hackspots.geojson

@@ -88,6 +88,12 @@ int cluster_distance = 0;
 int tiny_polygon_size = 2;
 int cluster_maxzoom = MAX_ZOOM;
 long justx = -1, justy = -1;
+std::vector<drop_thresholds> seed_drop_thresholds;
+std::vector<drop_thresholds> final_drop_thresholds;
+bool single_pass = false;
+int stop_after_zoom = -1;
+int subtree_z = -1;
+unsigned subtree_x = 0, subtree_y = 0;
 std::string attribute_for_id = "";
 size_t limit_tile_feature_count = 0;
 size_t limit_tile_feature_count_at_maxzoom = 0;
@@ -2931,6 +2937,83 @@ void set_attribute_value(const char *arg) {
 	set_attributes.insert(std::pair<std::string, serial_val>(name, val));
 }
 
+static unsigned long long json_unsigned(json_object *o, const char *fname, const char *key) {
+	if (o == nullptr) {
+		return 0;
+	}
+	if (o->type != JSON_NUMBER) {
+		fprintf(stderr, "%s: %s: \"%s\" must be a number\n", *av, fname, key);
+		exit(EXIT_JSON);
+	}
+	if (o->large_unsigned() != 0) {
+		return o->large_unsigned();
+	}
+	if (o->number() < 0) {
+		fprintf(stderr, "%s: %s: \"%s\" must not be negative\n", *av, fname, key);
+		exit(EXIT_JSON);
+	}
+	return (unsigned long long) o->number();
+}
+
+std::vector<drop_thresholds> read_drop_thresholds(const char *fname) {
+	FILE *f = fopen(fname, "r");
+	if (f == NULL) {
+		perror(fname);
+		exit(EXIT_OPEN);
+	}
+	json_pull_ptr jp = json_begin_file(f);
+	json_object_ptr o = json_read_tree(jp);
+	if (o == nullptr) {
+		fprintf(stderr, "%s: %s: %s\n", *av, fname, jp->error);
+		exit(EXIT_JSON);
+	}
+	json_object *zooms = o->type == JSON_HASH ? json_hash_get(o, "zooms") : nullptr;
+	if (zooms == nullptr || zooms->type != JSON_ARRAY) {
+		fprintf(stderr, "%s: %s: expected {\"zooms\": [...]}\n", *av, fname);
+		exit(EXIT_JSON);
+	}
+
+	std::vector<drop_thresholds> out;
+	for (auto const &entry : zooms->array()) {
+		json_object *zoom = entry->type == JSON_HASH ? json_hash_get(entry.get(), "zoom") : nullptr;
+		unsigned long long z = json_unsigned(zoom, fname, "zoom");
+		if (zoom == nullptr || z > MAX_ZOOM) {
+			fprintf(stderr, "%s: %s: each entry needs a \"zoom\" from 0 to %d\n", *av, fname, MAX_ZOOM);
+			exit(EXIT_JSON);
+		}
+		if (z >= out.size()) {
+			out.resize(z + 1);
+		}
+		out[z].gap = json_unsigned(json_hash_get(entry.get(), "gap"), fname, "gap");
+		out[z].extent = json_unsigned(json_hash_get(entry.get(), "extent"), fname, "extent");
+		out[z].drop_sequence = json_unsigned(json_hash_get(entry.get(), "drop_sequence"), fname, "drop_sequence");
+		json_object *maxzoom = json_hash_get(entry.get(), "maxzoom");
+		out[z].maxzoom = maxzoom != nullptr && maxzoom->type == JSON_TRUE;
+	}
+
+	fclose(f);
+	return out;
+}
+
+void write_drop_thresholds(const char *fname, std::vector<drop_thresholds> const &thresholds) {
+	FILE *f = fopen(fname, "w");
+	if (f == NULL) {
+		perror(fname);
+		exit(EXIT_OPEN);
+	}
+	fprintf(f, "{\"zooms\":[");
+	for (size_t z = 0; z < thresholds.size(); z++) {
+		fprintf(f, "%s\n{\"zoom\":%zu,\"gap\":%llu,\"extent\":%lld,\"drop_sequence\":%llu,\"maxzoom\":%s,\"still_dropping\":%s}", z == 0 ? "" : ",", z,
+			thresholds[z].gap, thresholds[z].extent, thresholds[z].drop_sequence,
+			thresholds[z].maxzoom ? "true" : "false", thresholds[z].still_dropping ? "true" : "false");
+	}
+	fprintf(f, "\n]}\n");
+	if (fclose(f) != 0) {
+		perror(fname);
+		exit(EXIT_CLOSE);
+	}
+}
+
 void parse_json_source(const char *arg, struct source &src) {
 	json_pull_ptr jp = json_begin_string(arg);
 	json_object_ptr o = json_read_tree(jp);
@@ -2999,6 +3082,8 @@ static const struct option long_options_orig[] = {
 	{"extend-zooms-if-still-dropping-maximum", required_argument, 0, '~'},
 	{"generate-variable-depth-tile-pyramid", no_argument, &additional[A_VARIABLE_DEPTH_PYRAMID], 1},
 	{"one-tile", required_argument, 0, 'R'},
+	{"subtree", required_argument, 0, '~'},
+	{"stop-after-zoom", required_argument, 0, '~'},
 
 	{"Tile resolution", 0, 0, 0},
 	{"full-detail", required_argument, 0, 'd'},
@@ -3051,6 +3136,9 @@ static const struct option long_options_orig[] = {
 	{"force-feature-limit", no_argument, &prevent[P_DYNAMIC_DROP], 1},
 	{"cluster-densest-as-needed", no_argument, &additional[A_CLUSTER_DENSEST_AS_NEEDED], 1},
 	{"keep-point-cluster-position", no_argument, &additional[A_KEEP_POINT_CLUSTER_POSITION], 1},
+	{"drop-thresholds-in", required_argument, 0, '~'},
+	{"drop-thresholds-out", required_argument, 0, '~'},
+	{"single-pass", no_argument, 0, '~'},
 
 	{"Dropping tightly overlapping features", 0, 0, 0},
 	{"gamma", required_argument, 0, 'g'},
@@ -3196,6 +3284,7 @@ int main(int argc, char **argv) {
 	std::vector<source> sources;
 	const char *prefilter = NULL;
 	const char *postfilter = NULL;
+	const char *drop_thresholds_out = NULL;
 	bool guess_maxzoom = false;
 	int minimum_maxzoom = 0;
 	bool guess_cluster_maxzoom = false;
@@ -3331,6 +3420,19 @@ int main(int argc, char **argv) {
 				preserve_point_density_threshold = atoll_require(optarg, "Preserve point density threshold");
 			} else if (strcmp(opt, "preserve-multiplier-density-threshold") == 0) {
 				preserve_multiplier_density_threshold = atoll_require(optarg, "Preserve multiplier density threshold");
+			} else if (strcmp(opt, "subtree") == 0) {
+				if (sscanf(optarg, "%d/%u/%u", &subtree_z, &subtree_x, &subtree_y) != 3 || subtree_z < 0 || subtree_z > MAX_ZOOM) {
+					fprintf(stderr, "%s: --subtree argument must be z/x/y\n", argv[0]);
+					exit(EXIT_ARGS);
+				}
+			} else if (strcmp(opt, "stop-after-zoom") == 0) {
+				stop_after_zoom = atoi_require(optarg, "Zoom to stop after");
+			} else if (strcmp(opt, "drop-thresholds-in") == 0) {
+				seed_drop_thresholds = read_drop_thresholds(optarg);
+			} else if (strcmp(opt, "drop-thresholds-out") == 0) {
+				drop_thresholds_out = optarg;
+			} else if (strcmp(opt, "single-pass") == 0) {
+				single_pass = true;
 			} else if (strcmp(opt, "extend-zooms-if-still-dropping-maximum") == 0) {
 				extend_zooms_max = atoll_require(optarg, "Maximum number by which to extend zooms");
 			} else if (strcmp(opt, "retain-points-multiplier") == 0) {
@@ -3733,6 +3835,9 @@ int main(int argc, char **argv) {
 			fprintf(stderr, "Highest supported low detail with maxzoom %d is %d\n", maxzoom, low_detail);
 		}
 	}
+	if (subtree_z >= 0) {
+		minzoom = std::max(minzoom, subtree_z);
+	}
 	if (minzoom > maxzoom) {
 		fprintf(stderr, "%s: Minimum zoom -Z%d cannot be greater than maxzoom -z%d\n", argv[0], minzoom, maxzoom);
 		exit(EXIT_ARGS);
@@ -3836,6 +3941,10 @@ int main(int argc, char **argv) {
 				    maxzoom, minzoom, basezoom, basezoom_marker_width, outdb, out_dir, &exclude, &include, exclude_all, filter.get(), droprate, buffer, tmpdir, gamma, read_parallel, forcetable, attribution, gamma != 0, file_bbox, file_bbox1, file_bbox2, prefilter, postfilter, description, guess_maxzoom, guess_cluster_maxzoom, &attribute_types, argv[0], &attribute_accum, attribute_descriptions, commandline, minimum_maxzoom);
 
 	ret = std::get<0>(input_ret);
+
+	if (drop_thresholds_out != NULL) {
+		write_drop_thresholds(drop_thresholds_out, final_drop_thresholds);
+	}
 
 	if (outdb != NULL) {
 		mbtiles_close(outdb, argv[0]);

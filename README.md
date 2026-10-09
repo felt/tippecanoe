@@ -360,6 +360,10 @@ Parallel processing will also be automatic if the input file is in FlatGeobuf fo
  * `-at` or `--generate-variable-depth-tile-pyramid`: Don't produce child tiles for any tile that should be sufficient to be overzoomed to any higher zoom level. Such tiles will be produced with maximum detail, retaining every vertex that is not collinear with its neighbors, but their polygons are still cleaned so that overlapping areas are merged rather than left stacked. Tiles with point features below the basezoom, or which contain too many features or bytes with full detail, will be written out with normal detail and split into child tiles. If any features have to be dropped dynamically at a zoom level, no tile in that zoom level is truncated, so that the whole zoom level is reduced consistently; any tile that was already being skipped because an ancestor had been truncated is written out after all. Tilesets generated with this option are suitable for use only with tile servers that will find the appropriate tile to overzoom from and will simplify the geometries appropriately before serving the tile.
  * `-R` _zoom_`/`_x_`/`_y_ or `--one-tile=`_zoom_`/`_x_`/`_y_: Set the minzoom and maxzoom to _zoom_ and produce only
    the single specified tile at that zoom level.
+ * `--subtree=`_zoom_`/`_x_`/`_y_: Produce only the specified tile and the tiles beneath it at higher zoom levels.
+   This implies `-Z`_zoom_. See [Building a tileset in pieces](#building-a-tileset-in-pieces).
+ * `--stop-after-zoom=`_zoom_: Stop after producing the specified zoom level, but otherwise tile as though the
+   maxzoom were the one that `-z` set.
 
 If you know the precision to which you want your data to be represented,
 or the map scale of a corresponding printed map,
@@ -496,6 +500,33 @@ the same layer, enclose them in an `all` expression so they will all be evaluate
  * `-pd` or `--force-feature-limit`: Dynamically drop some fraction of features from large tiles to keep them under the 500K size limit. It will probably look ugly at the tile boundaries. (This is like `-ad` but applies to each tile individually, not to the entire zoom level.) You probably don't want to use this.
  * `-aC` or `--cluster-densest-as-needed`: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a `"clustered": true` attribute to indicate that it represents a cluster, a `"point_count"` attribute to indicate the number of features that were clustered into it, a `"point_count_abbreviated"` attribute containing that count abbreviated for display (for example `1.2k` or `15k`), and a `"sqrt_point_count"` attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations (unless you use `--keep-point-cluster-position`); otherwise, one of the original features will be left as the representative.
  * `-aa` or `--keep-point-cluster-position`: When clustering points, leave the representative feature at the location of the first point of the cluster instead of moving it to the average of the clustered points' locations.
+ * `--drop-thresholds-out=`_file_: Write to _file_, as JSON, the spacing (`gap`), size (`extent`), and `drop_sequence` thresholds
+   that the options above reached at each zoom level, whether each zoom was tiled as the maximum zoom, and whether its features
+   were still being dropped.
+ * `--drop-thresholds-in=`_file_: Start each zoom level from the thresholds in _file_, in the format that `--drop-thresholds-out` writes,
+   instead of from zero, and tile any zoom marked `"maxzoom": true` as the maximum zoom.
+ * `--single-pass`: Tile each zoom level once, even if some tile needed higher thresholds to fit, and do not extend the maxzoom.
+   With `--drop-thresholds-out`, this reports the thresholds that each zoom needs.
+
+### Building a tileset in pieces
+
+The thresholds that the options above discover apply to an entire zoom level: each one is the largest that any tile
+at that zoom needed. Separate runs that each build part of a tileset therefore match a single run only if they share
+those thresholds. To build a tileset as pieces that can run on separate machines:
+
+1. Choose a zoom level _k_. Each piece is a tile at that zoom and everything beneath it. Its input is the features
+   within the tile and its buffer.
+2. Run each piece with `--subtree=`_k_`/`_x_`/`_y_, `--single-pass`, `--drop-thresholds-in` (starting from zero), and
+   `--drop-thresholds-out`. For each zoom, take the largest threshold that any piece reports, and run the pieces again
+   with those, until no threshold rises. The tiles from the last round are the result.
+3. With `--extend-zooms-if-still-dropping`, start from the `-zg` maxzoom. In each round, if any piece reports that the
+   top zoom is still dropping features, add a zoom. Keep the top zoom marked `"maxzoom": true` only if its thresholds
+   did not rise in that round, and mark the new top zoom.
+4. Build the zooms below _k_ from all the input in one run with `--stop-after-zoom=`_k_-1, and combine its tiles
+   with the pieces'.
+
+Use `--use-attribute-for-id` with IDs assigned beforehand, not `--generate-ids`, since each piece would number
+its features from 1.
 
 ### Dropping tightly overlapping features
 

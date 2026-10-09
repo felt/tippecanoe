@@ -1,3 +1,12 @@
+# 2.83.0
+
+* Add `--drop-thresholds-out` and `--drop-thresholds-in` to write and seed the per-zoom
+  thresholds that the `-as-needed` options discover, `--single-pass` to report the thresholds
+  each zoom needs without retiling it, `--subtree` to tile one tile and everything beneath it,
+  and `--stop-after-zoom` to stop early without changing the maxzoom. Together they let a
+  tileset be built as separate pieces that match a single run. See "Building a tileset in
+  pieces" in the README.
+
 # 2.82.0
 
 * Fix corruption of a JSON array when a non-final element was removed from it.

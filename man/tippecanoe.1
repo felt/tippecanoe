@@ -361,6 +361,13 @@ by up to \fIcount\fP zoom levels.
 .IP \(bu 2
 \fB-R\fR \fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP or \fB--one-tile=\fR\fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP: Set the minzoom and maxzoom to \fIzoom\fP and produce only
 the single specified tile at that zoom level.
+.IP \(bu 2
+\fB--subtree=\fR\fIzoom\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP: Produce only the specified tile and the tiles beneath it at higher zoom levels.
+This implies \fB-Z\fR\fIzoom\fP\&. See Building a tileset in pieces
+\[la]#building\-a\-tileset\-in\-pieces\[ra]\&.
+.IP \(bu 2
+\fB--stop-after-zoom=\fR\fIzoom\fP: Stop after producing the specified zoom level, but otherwise tile as though the
+maxzoom were the one that \fB-z\fR set.
 .PP
 If you know the precision to which you want your data to be represented,
 or the map scale of a corresponding printed map,
@@ -526,6 +533,37 @@ preference to retaining points in sparse areas and dropping points in dense area
 \fB-aC\fR or \fB--cluster-densest-as-needed\fR: If a tile is too large, try to reduce its size by increasing the minimum spacing between features, and leaving one placeholder feature from each group.  The remaining feature will be given a \fB"clustered": true\fR attribute to indicate that it represents a cluster, a \fB"point_count"\fR attribute to indicate the number of features that were clustered into it, a \fB"point_count_abbreviated"\fR attribute containing that count abbreviated for display (for example \fB1.2k\fR or \fB15k\fR), and a \fB"sqrt_point_count"\fR attribute to indicate the relative width of a feature to represent the cluster. If the features being clustered are points, the representative feature will be located at the average of the original points' locations (unless you use \fB--keep-point-cluster-position\fR); otherwise, one of the original features will be left as the representative.
 .IP \(bu 2
 \fB-aa\fR or \fB--keep-point-cluster-position\fR: When clustering points, leave the representative feature at the location of the first point of the cluster instead of moving it to the average of the clustered points' locations.
+.IP \(bu 2
+\fB--drop-thresholds-out=\fR\fIfile\fP: Write to \fIfile\fP, as JSON, the spacing (\fBgap\fR), size (\fBextent\fR), and \fBdrop_sequence\fR thresholds
+that the options above reached at each zoom level, whether each zoom was tiled as the maximum zoom, and whether its features
+were still being dropped.
+.IP \(bu 2
+\fB--drop-thresholds-in=\fR\fIfile\fP: Start each zoom level from the thresholds in \fIfile\fP, in the format that \fB--drop-thresholds-out\fR writes,
+instead of from zero, and tile any zoom marked \fB"maxzoom": true\fR as the maximum zoom.
+.IP \(bu 2
+\fB--single-pass\fR: Tile each zoom level once, even if some tile needed higher thresholds to fit, and do not extend the maxzoom.
+With \fB--drop-thresholds-out\fR, this reports the thresholds that each zoom needs.
+.SS Building a tileset in pieces
+The thresholds that the options above discover apply to an entire zoom level: each one is the largest that any tile
+at that zoom needed. Separate runs that each build part of a tileset therefore match a single run only if they share
+those thresholds. To build a tileset as pieces that can run on separate machines:
+.IP "  1." 5
+Choose a zoom level \fIk\fP\&. Each piece is a tile at that zoom and everything beneath it. Its input is the features
+within the tile and its buffer.
+.IP "  2." 5
+Run each piece with \fB--subtree=\fR\fIk\fP\fB/\fR\fIx\fP\fB/\fR\fIy\fP, \fB--single-pass\fR, \fB--drop-thresholds-in\fR (starting from zero), and
+\fB--drop-thresholds-out\fR\&. For each zoom, take the largest threshold that any piece reports, and run the pieces again
+with those, until no threshold rises. The tiles from the last round are the result.
+.IP "  3." 5
+With \fB--extend-zooms-if-still-dropping\fR, start from the \fB-zg\fR maxzoom. In each round, if any piece reports that the
+top zoom is still dropping features, add a zoom. Keep the top zoom marked \fB"maxzoom": true\fR only if its thresholds
+did not rise in that round, and mark the new top zoom.
+.IP "  4." 5
+Build the zooms below \fIk\fP from all the input in one run with \fB--stop-after-zoom=\fR\fIk\fP-1, and combine its tiles
+with the pieces'.
+.PP
+Use \fB--use-attribute-for-id\fR with IDs assigned beforehand, not \fB--generate-ids\fR, since each piece would number
+its features from 1.
 .SS Dropping tightly overlapping features
 .IP \(bu 2
 \fB-g\fR \fIgamma\fP or \fB--gamma=\fR\fIgamma\fP: Rate at which especially dense dots are dropped (default 0, for no effect). A gamma of 2 reduces the number of dots less than a pixel apart to the square root of their original number.

@@ -3167,13 +3167,25 @@ exit(EXIT_IMPOSSIBLE);
 			struct zxy parent(z - 1, x / 2, y / 2);
 			bool skip = false;
 
+			// With --drop-thresholds-in, each tile starts from its own zoom's seed. This is looked
+			// up by the tile's zoom rather than the pass's, because when zooms below -Z are skipped
+			// a pass can tile a deeper zoom than the one it is counted as.
+			unsigned long long mingap = arg->mingap;
+			long long minextent = arg->minextent;
+			unsigned long long mindrop_sequence = arg->mindrop_sequence;
+			if ((size_t) z < seed_drop_thresholds.size()) {
+				mingap = std::max(mingap, seed_drop_thresholds[z].gap);
+				minextent = std::max(minextent, seed_drop_thresholds[z].extent);
+				mindrop_sequence = std::max(mindrop_sequence, seed_drop_thresholds[z].drop_sequence);
+			}
+
 			// Normally a tile writes the geometry for its children on pass 0, and the
 			// later passes of the same zoom, which are only retries with new thresholds,
 			// must not write it again.
 			bool write_children = (arg->pass == 0);
 
 			if (arg->skip_children->count(parent) > 0) {
-				if (dropping_features(arg->mingap, arg->minextent, arg->mindrop_sequence, arg->minattribute, arg->drop_by_attribute_descending)) {
+				if (dropping_features(mingap, minextent, mindrop_sequence, arg->minattribute, arg->drop_by_attribute_descending)) {
 					// The parent truncated its pyramid here, but the zoom has since had to
 					// start dropping features, so the truncation no longer holds and this
 					// tile has to be written after all. Its geometry is still in the stream.
@@ -3194,12 +3206,22 @@ exit(EXIT_IMPOSSIBLE);
 				skip = false;
 			}
 
+			if (subtree_z >= 0) {
+				// Outside the --subtree tile and its ancestors and descendants: nothing to write
+				// here or below.
+				if (z >= subtree_z) {
+					skip = skip || (x >> (z - subtree_z)) != subtree_x || (y >> (z - subtree_z)) != subtree_y;
+				} else {
+					skip = skip || (subtree_x >> (subtree_z - z)) != x || (subtree_y >> (subtree_z - z)) != y;
+				}
+			}
+
 			if (skip) {
 				skip_tile(&dc, &geompos, arg->compressed);
 				len = 1;
 			} else {
 				arg->wrote_zoom = z;
-				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, z == arg->maxzoom ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, arg->mingap, arg->minextent, arg->mindrop_sequence, arg->minattribute, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, write_children, arg->skip_children_out);
+				len = write_tile(&dc, &geompos, arg->global_stringpool, z, x, y, tiled_as_maxzoom(z, arg->maxzoom) ? arg->full_detail : arg->low_detail, arg->min_detail, arg->outdb, arg->outdir, arg->buffer, arg->fname, arg->geomfile, arg->geompos, arg->minzoom, tiled_as_maxzoom(z, arg->maxzoom) ? z : arg->maxzoom, arg->todo, arg->along, geompos, arg->gamma, arg->child_shards, arg->pool_off, arg->initial_x, arg->initial_y, arg->running, arg->simplification, arg->layermaps, arg->layer_unmaps, arg->tiling_seg, arg->pass, mingap, minextent, mindrop_sequence, arg->minattribute, arg->prefilter, arg->postfilter, arg->filter, arg, arg->strategy, arg->compressed, arg->shared_nodes_map, arg->nodepos, *(arg->shared_nodes_bloom), (*arg->unidecode_data), estimated_complexity, write_children, arg->skip_children_out);
 			}
 
 			if (pthread_mutex_lock(&var_lock) != 0) {
@@ -3265,6 +3287,10 @@ exit(EXIT_IMPOSSIBLE);
 	return err_or_null;
 }
 
+bool tiled_as_maxzoom(int z, int maxzoom) {
+	return z == maxzoom || ((size_t) z < seed_drop_thresholds.size() && seed_drop_thresholds[z].maxzoom);
+}
+
 int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::atomic<unsigned> *midx, std::atomic<unsigned> *midy, int &maxzoom, int minzoom, sqlite3 *outdb, const char *outdir, int buffer, const char *fname, const char *tmpdir, double gamma, int full_detail, int low_detail, int min_detail, long long *pool_off, unsigned *initial_x, unsigned *initial_y, double simplification, double maxzoom_simplification, std::vector<std::map<std::string, layermap_entry>> &layermaps, const char *prefilter, const char *postfilter, std::unordered_map<std::string, attribute_op> const *attribute_accum, json_object *filter, std::vector<strategy> &strategies, int iz, node *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom, int basezoom, double droprate, std::vector<std::string> const &unidecode_data, std::string const *drop_by_attribute_as_needed_attribute, bool drop_by_attribute_descending) {
 	last_progress = 0;
 
@@ -3295,6 +3321,10 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 	int largest_written = -1;
 
 	for (z = iz; z <= maxzoom; z++) {
+		if (stop_after_zoom >= 0 && z > stop_after_zoom) {
+			break;
+		}
+
 		std::atomic<long long> most(0);
 
 		std::vector<compressor> compressors(TEMP_FILES);
@@ -3384,6 +3414,8 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 		size_t zoom_feature_count = 0;
 		std::set<zxy> skip_children_out;
 		bool was_dropping = false;
+		bool zoom_still_dropping = false;
+		bool zoom_tiled_as_maxzoom = false;
 
 		for (size_t pass = 0;; pass++) {
 			// Tiles that were skipped because an ancestor truncated its pyramid are
@@ -3432,7 +3464,7 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				args[thread].feature_count_out = 0;
 				args[thread].child_shards = TEMP_FILES / threads;
 
-				if (z == maxzoom && maxzoom_simplification > 0) {
+				if (tiled_as_maxzoom(z, maxzoom) && maxzoom_simplification > 0) {
 					args[thread].simplification = maxzoom_simplification;
 				} else {
 					args[thread].simplification = simplification;
@@ -3542,7 +3574,11 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				}
 			}
 
-			if (extend_zooms && (additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) && z == maxzoom && maxzoom < MAX_ZOOM) {
+			bool pass_tiled_as_maxzoom = tiled_as_maxzoom(z, maxzoom);
+			zoom_still_dropping = extend_zooms;
+
+			// --single-pass leaves adding zooms to the caller, which sees still_dropping.
+			if (extend_zooms && !single_pass && (additional[A_EXTEND_ZOOMS] || extend_zooms_max > 0) && z == maxzoom && maxzoom < MAX_ZOOM) {
 				maxzoom++;
 				if (extend_zooms_max > 0) {
 					extend_zooms_max--;
@@ -3556,6 +3592,13 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 			struct strategy s(strategy, zoom_tile_size, zoom_feature_count);
 			strategies[z] = s;
 
+			// --single-pass reports the thresholds this zoom needs instead of retiling it with them.
+			if (single_pass) {
+				again = false;
+			}
+
+			zoom_tiled_as_maxzoom = pass_tiled_as_maxzoom;
+
 			if (again) {
 				if (outdb != NULL) {
 					mbtiles_erase_zoom(outdb, z);
@@ -3566,6 +3609,20 @@ int traverse_zooms(int *geomfd, off_t *geom_size, char *global_stringpool, std::
 				break;
 			}
 		}
+
+		if ((size_t) z >= final_drop_thresholds.size()) {
+			final_drop_thresholds.resize(z + 1);
+		}
+		drop_thresholds reached;
+		reached.gap = zoom_mingap;
+		reached.extent = zoom_minextent;
+		reached.drop_sequence = zoom_mindrop_sequence;
+		if ((size_t) z < seed_drop_thresholds.size()) {
+			reached.raise_to(seed_drop_thresholds[z]);
+		}
+		reached.maxzoom = zoom_tiled_as_maxzoom;
+		reached.still_dropping = zoom_still_dropping;
+		final_drop_thresholds[z] = reached;
 
 		skip_children = std::move(skip_children_out);
 		skip_children_out.clear();

@@ -6,6 +6,7 @@
 #include <vector>
 #include <atomic>
 #include <map>
+#include <algorithm>
 #include "mbtiles.hpp"
 #include "serial.hpp"
 #include "attribute.hpp"
@@ -59,6 +60,36 @@ struct strategy {
 
 	strategy() = default;
 };
+
+// The per-zoom thresholds that the -as-needed options raise until every tile fits.
+// A zoom's thresholds are the maximum over all of its tiles, so separate runs that each
+// build part of a tileset reproduce a single run only if they share these values.
+struct drop_thresholds {
+	unsigned long long gap = 0;
+	long long extent = 0;
+	unsigned long long drop_sequence = 0;
+
+	// Tile this zoom as the maximum zoom: --extend-zooms-if-still-dropping can finish a zoom
+	// while it is the maximum and only then add the next one.
+	bool maxzoom = false;
+	// Reported only: some tile at this zoom was still dropping features in its final pass.
+	bool still_dropping = false;
+
+	void raise_to(drop_thresholds const &o) {
+		gap = std::max(gap, o.gap);
+		extent = std::max(extent, o.extent);
+		drop_sequence = std::max(drop_sequence, o.drop_sequence);
+	}
+};
+
+bool tiled_as_maxzoom(int z, int maxzoom);
+
+extern std::vector<drop_thresholds> seed_drop_thresholds;   // by zoom, from --drop-thresholds-in
+extern std::vector<drop_thresholds> final_drop_thresholds;  // by zoom, for --drop-thresholds-out
+extern bool single_pass;
+extern int stop_after_zoom;
+extern int subtree_z;
+extern unsigned subtree_x, subtree_y;
 
 // long long write_tile(char **geom, char *stringpool, unsigned *file_bbox, int z, unsigned x, unsigned y, int detail, int min_detail, int basezoom, sqlite3 *outdb, const char *outdir, double droprate, int buffer, const char *fname, FILE **geomfile, int file_minzoom, int file_maxzoom, double todo, char *geomstart, long long along, double gamma, int nlayers, std::atomic<strategy> *strategy);
 
