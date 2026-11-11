@@ -1,9 +1,16 @@
 # 2.82.1
 
 * Fix `--use-attribute-for-id` rejecting an attribute value of 0 as a
-  "too-large" feature ID. The leading-zero stripping used to check that the ID
-  round-tripped stripped "0" down to an empty string, so the feature was left
-  with no ID and kept the attribute instead.
+  "too-large" feature ID. The check that an ID round-trips through `strtoull`
+  stripped all leading zeroes, turning "0" into an empty string, so the
+  feature was left with no ID and kept the attribute instead. (#421)
+* Fix `--use-attribute-for-id` turning a negative attribute value into a huge
+  feature ID (-1 became 18446744073709551615). Negative values now warn and
+  stay attributes, as negative top-level IDs already did. (#421)
+* Fix `--use-attribute-for-id` rejecting 18446744073709551615, the largest
+  feature ID that can be represented, as "too-large". (#421)
+* Fix `--use-attribute-for-id` with `-aI` warning that an empty string was a
+  "too-large" feature ID; it is now reported as not a number. (#421)
 
 # 2.82.0
 

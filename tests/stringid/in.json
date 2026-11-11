@@ -12,3 +12,7 @@
 { "type": "Feature", "properties": { "yes": "no", "special": "01005", "something": false }, "geometry": { "type": "Point", "coordinates": [ 12, 1 ] } }
 { "type": "Feature", "properties": { "yes": "no", "special": 0, "something": false }, "geometry": { "type": "Point", "coordinates": [ 13, 1 ] } }
 { "type": "Feature", "properties": { "yes": "no", "special": "0", "something": false }, "geometry": { "type": "Point", "coordinates": [ 14, 1 ] } }
+{ "type": "Feature", "properties": { "yes": "no", "special": -1, "something": false }, "geometry": { "type": "Point", "coordinates": [ 15, 1 ] } }
+{ "type": "Feature", "properties": { "yes": "no", "special": "-1", "something": false }, "geometry": { "type": "Point", "coordinates": [ 16, 1 ] } }
+{ "type": "Feature", "properties": { "yes": "no", "special": "", "something": false }, "geometry": { "type": "Point", "coordinates": [ 17, 1 ] } }
+{ "type": "Feature", "properties": { "yes": "no", "special": 18446744073709551615, "something": false }, "geometry": { "type": "Point", "coordinates": [ 18, 1 ] } }
