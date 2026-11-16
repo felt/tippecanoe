@@ -12,6 +12,7 @@
 #include <errno.h>
 #include "geojson-loop.hpp"
 #include "jsonpull/jsonpull.h"
+#include "text.hpp"
 
 // XXX duplicated
 #define GEOM_TYPES 6
@@ -29,7 +30,7 @@ static void json_context(json_object *j) {
 	std::string s = json_stringify(j);
 
 	if (s.size() >= 500) {
-		s.resize(497);
+		s = truncate_string(s, 497);
 		s.append("...");
 	}
 
