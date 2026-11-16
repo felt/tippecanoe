@@ -46,7 +46,7 @@ void json_context(json_object *j) {
 	std::string s = json_stringify(j);
 
 	if (s.size() >= 500) {
-		s.resize(497);
+		s = truncate_string(s, 497);
 		s.append("...");
 	}
 
