@@ -1,3 +1,9 @@
+// Grisu2, from https://github.com/miloyip/dtoa-benchmark.
+//
+// Tippecanoe no longer formats numbers with this; fpfmt::dtoa() (fpfmt/) has
+// replaced it. The header is kept only as the baseline for fpfmt/bench.cpp,
+// so the correctness and speed comparison between the two stays reproducible.
+
 #pragma once
 #include <assert.h>
 #include <math.h>

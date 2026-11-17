@@ -5,8 +5,7 @@
 #include <ctype.h>
 #include <vector>
 #include "text.hpp"
-#include "milo/dtoa_milo.h"
-#include "milo/milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 
 /**
@@ -174,17 +173,6 @@ std::string format_commandline(int argc, char **argv) {
 	}
 
 	return out;
-}
-
-// for jsonpull to call from C
-char *dtoa_milo(double val) {
-	std::string s = milo::dtoa_milo(val);
-	char *dup = strdup(s.c_str());
-	if (dup == NULL) {
-		perror("strdup");
-		exit(EXIT_MEMORY);
-	}
-	return dup;
 }
 
 // to work with data from https://github.com/kmike/text-unidecode

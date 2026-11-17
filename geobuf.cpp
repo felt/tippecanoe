@@ -11,7 +11,7 @@
 #include "protozero/varint.hpp"
 #include "protozero/pbf_reader.hpp"
 #include "protozero/pbf_writer.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "jsonpull/jsonpull.h"
 #include "text.hpp"
 #include "errors.hpp"
@@ -57,7 +57,7 @@ serial_val readValue(protozero::pbf_reader &pbf) {
 
 		case 2:
 			sv.type = mvt_double;
-			sv.s = milo::dtoa_milo(pbf.get_double());
+			sv.s = fpfmt::dtoa(pbf.get_double());
 			break;
 
 		case 3:
@@ -400,12 +400,12 @@ void readFeature(protozero::pbf_reader &pbf, size_t dim, double e, std::vector<s
 			if (o != nullptr) {
 				json_object *min = json_hash_get(o, "minzoom");
 				if (min != nullptr && (min->type == JSON_NUMBER)) {
-					sf.tippecanoe_minzoom = integer_zoom(sst->fname, milo::dtoa_milo(min->number()));
+					sf.tippecanoe_minzoom = integer_zoom(sst->fname, fpfmt::dtoa(min->number()));
 				}
 
 				json_object *max = json_hash_get(o, "maxzoom");
 				if (max != nullptr && (max->type == JSON_NUMBER)) {
-					sf.tippecanoe_maxzoom = integer_zoom(sst->fname, milo::dtoa_milo(max->number()));
+					sf.tippecanoe_maxzoom = integer_zoom(sst->fname, fpfmt::dtoa(max->number()));
 				}
 
 				json_object *tlayer = json_hash_get(o, "layer");

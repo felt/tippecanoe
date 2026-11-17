@@ -4,7 +4,7 @@
 #include "errors.hpp"
 #include "serial.hpp"
 #include "jsonpull/jsonpull.h"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 
 std::map<std::string, attribute_op> numeric_operations = {
 	{"sum", op_sum},

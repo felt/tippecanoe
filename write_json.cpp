@@ -13,7 +13,7 @@
 #include "geometry.hpp"
 #include "mvt.hpp"
 #include "write_json.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "errors.hpp"
 #include "serial.hpp"
 
@@ -158,7 +158,7 @@ void json_writer::json_write_json(std::string const &str) {
 void json_writer::json_write_number(double d) {
 	json_adjust();
 
-	adds(milo::dtoa_milo(d).c_str());
+	adds(fpfmt::dtoa(d).c_str());
 }
 
 // Just to avoid json_writer:: changing expected output format

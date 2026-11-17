@@ -5,7 +5,7 @@
 "description": "tests/ne_110m_populated_places_nulls/out/-z1_--accumulate-attribute_POP2000%3amean_-yNAME_-yPOP2000.json.check.mbtiles",
 "format": "pbf",
 "generator_options": "./tippecanoe -q -a@ -f -o tests/ne_110m_populated_places_nulls/out/-z1_--accumulate-attribute_POP2000%3amean_-yNAME_-yPOP2000.json.check.mbtiles -z1 --accumulate-attribute POP2000:mean -yNAME -yPOP2000 tests/ne_110m_populated_places_nulls/in.json",
-"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":1,\"fields\":{\"NAME\":\"String\",\"POP2000\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":243,\"geometry\":\"Point\",\"attributeCount\":2,\"attributes\":[{\"attribute\":\"NAME\",\"count\":243,\"type\":\"string\",\"values\":[\"Abidjan\",\"Abu Dhabi\",\"Abuja\",\"Accra\",\"Addis Ababa\",\"Algiers\",\"Amman\",\"Amsterdam\",\"Andorra\",\"Ankara\",\"Antananarivo\",\"Apia\",\"Ashgabat\",\"Asmara\",\"Astana\",\"Asuncion\",\"Athens\",\"Atlanta\",\"Auckland\",\"Baghdad\",\"Baguio City\",\"Baku\",\"Bamako\",\"Bandar Seri Begawan\",\"Bangalore\",\"Bangkok\",\"Bangui\",\"Banjul\",\"Basseterre\",\"Beijing\",\"Beirut\",\"Belgrade\",\"Belmopan\",\"Berlin\",\"Bern\",\"Bir Lehlou\",\"Bishkek\",\"Bissau\",\"Bloemfontein\",\"Bogota\",\"Brasilia\",\"Bratislava\",\"Brazzaville\",\"Bridgetown\",\"Brussels\",\"Bucharest\",\"Budapest\",\"Buenos Aires\",\"Bujumbura\",\"Cairo\",\"Canberra\",\"Cape Town\",\"Caracas\",\"Casablanca\",\"Castries\",\"Chengdu\",\"Chicago\",\"Chisinau\",\"Colombo\",\"Conakry\",\"Cotonou\",\"Dakar\",\"Damascus\",\"Dar es Salaam\",\"Denver\",\"Dhaka\",\"Dili\",\"Djibouti\",\"Dodoma\",\"Doha\",\"Dubai\",\"Dublin\",\"Dushanbe\",\"Freetown\",\"Funafuti\",\"Gaborone\",\"Geneva\",\"Georgetown\",\"Guatemala\",\"Hanoi\",\"Harare\",\"Hargeysa\",\"Havana\",\"Helsinki\",\"Hong Kong\",\"Honiara\",\"Houston\",\"Islamabad\",\"Istanbul\",\"Jakarta\",\"Jerusalem\",\"Johannesburg\",\"Juba\",\"Kabul\",\"Kampala\",\"Kathmandu\",\"Khartoum\",\"Kiev\",\"Kigali\",\"Kingston\"]},{\"attribute\":\"POP2000\",\"count\":185,\"type\":\"number\",\"values\":[10016,1005,1007,10151,1019,1023,10285,1032,1050.6666666666668,10534,1063,1072,1073,1077,1079,10803,1084,10897.5,1096,1097,1100,1110,1111,11165,1127,1128,1160,1172,11814,11847,1192,1201,1206,1219,1233,1278.5,13058,1306,13243,1357,1361,1365,1369,1379,1390,1452.5,14572,1487,1499,1507,1561,1606,16086,1653,1666,1674,1700,17099,1730,1733,1765.5,17846,1787,18022,1806,1854,1877,1894.3333333333333,1912,1949,1959,1963,1998,2029,2044,2116,2135,2158,2187,2233,2278,2456,2478,2489.3333333333337,2493,2533,2591,2597.5,2606,2640,2672,2715,2732,2746,2752,2754,2864,3032,3043,3076],\"min\":497,\"max\":34450}]}]}}",
+"json": "{\"vector_layers\":[{\"id\":\"in\",\"description\":\"\",\"minzoom\":0,\"maxzoom\":1,\"fields\":{\"NAME\":\"String\",\"POP2000\":\"Number\"}}],\"tilestats\":{\"layerCount\":1,\"layers\":[{\"layer\":\"in\",\"count\":243,\"geometry\":\"Point\",\"attributeCount\":2,\"attributes\":[{\"attribute\":\"NAME\",\"count\":243,\"type\":\"string\",\"values\":[\"Abidjan\",\"Abu Dhabi\",\"Abuja\",\"Accra\",\"Addis Ababa\",\"Algiers\",\"Amman\",\"Amsterdam\",\"Andorra\",\"Ankara\",\"Antananarivo\",\"Apia\",\"Ashgabat\",\"Asmara\",\"Astana\",\"Asuncion\",\"Athens\",\"Atlanta\",\"Auckland\",\"Baghdad\",\"Baguio City\",\"Baku\",\"Bamako\",\"Bandar Seri Begawan\",\"Bangalore\",\"Bangkok\",\"Bangui\",\"Banjul\",\"Basseterre\",\"Beijing\",\"Beirut\",\"Belgrade\",\"Belmopan\",\"Berlin\",\"Bern\",\"Bir Lehlou\",\"Bishkek\",\"Bissau\",\"Bloemfontein\",\"Bogota\",\"Brasilia\",\"Bratislava\",\"Brazzaville\",\"Bridgetown\",\"Brussels\",\"Bucharest\",\"Budapest\",\"Buenos Aires\",\"Bujumbura\",\"Cairo\",\"Canberra\",\"Cape Town\",\"Caracas\",\"Casablanca\",\"Castries\",\"Chengdu\",\"Chicago\",\"Chisinau\",\"Colombo\",\"Conakry\",\"Cotonou\",\"Dakar\",\"Damascus\",\"Dar es Salaam\",\"Denver\",\"Dhaka\",\"Dili\",\"Djibouti\",\"Dodoma\",\"Doha\",\"Dubai\",\"Dublin\",\"Dushanbe\",\"Freetown\",\"Funafuti\",\"Gaborone\",\"Geneva\",\"Georgetown\",\"Guatemala\",\"Hanoi\",\"Harare\",\"Hargeysa\",\"Havana\",\"Helsinki\",\"Hong Kong\",\"Honiara\",\"Houston\",\"Islamabad\",\"Istanbul\",\"Jakarta\",\"Jerusalem\",\"Johannesburg\",\"Juba\",\"Kabul\",\"Kampala\",\"Kathmandu\",\"Khartoum\",\"Kiev\",\"Kigali\",\"Kingston\"]},{\"attribute\":\"POP2000\",\"count\":185,\"type\":\"number\",\"values\":[10016,1005,1007,10151,1019,1023,10285,1032,1050.6666666666667,10534,1063,1072,1073,1077,1079,10803,1084,10897.5,1096,1097,1100,1110,1111,11165,1127,1128,1160,1172,11814,11847,1192,1201,1206,1219,1233,1278.5,13058,1306,13243,1357,1361,1365,1369,1379,1390,1452.5,14572,1487,1499,1507,1561,1606,16086,1653,1666,1674,1700,17099,1730,1733,1765.5,17846,1787,18022,1806,1854,1877,1894.3333333333333,1912,1949,1959,1963,1998,2029,2044,2116,2135,2158,2187,2233,2278,2456,2478,2489.3333333333335,2493,2533,2591,2597.5,2606,2640,2672,2715,2732,2746,2752,2754,2864,3032,3043,3076],\"min\":497,\"max\":34450}]}]}}",
 "maxzoom": "1",
 "minzoom": "0",
 "name": "tests/ne_110m_populated_places_nulls/out/-z1_--accumulate-attribute_POP2000%3amean_-yNAME_-yPOP2000.json.check.mbtiles",
@@ -31,11 +31,11 @@
 ,
 { "type": "Feature", "properties": { "NAME": "Belmopan", "POP2000": 793 }, "geometry": { "type": "Point", "coordinates": [ -88.769531, 17.224758 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "San Salvador", "POP2000": 1050.6666666666668 }, "geometry": { "type": "Point", "coordinates": [ -89.208984, 13.667338 ] } }
+{ "type": "Feature", "properties": { "NAME": "San Salvador", "POP2000": 1050.6666666666667 }, "geometry": { "type": "Point", "coordinates": [ -89.208984, 13.667338 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Panama City", "POP2000": 1072 }, "geometry": { "type": "Point", "coordinates": [ -79.541016, 8.928487 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Port-au-Prince", "POP2000": 3287.6666666666667 }, "geometry": { "type": "Point", "coordinates": [ -72.333984, 18.562947 ] } }
+{ "type": "Feature", "properties": { "NAME": "Port-au-Prince", "POP2000": 3287.6666666666665 }, "geometry": { "type": "Point", "coordinates": [ -72.333984, 18.562947 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Basseterre" }, "geometry": { "type": "Point", "coordinates": [ -62.666016, 17.308688 ] } }
 ,
@@ -51,7 +51,7 @@
 ,
 { "type": "Feature", "properties": { "NAME": "Laayoune", "POP2000": 2672 }, "geometry": { "type": "Point", "coordinates": [ -13.183594, 27.137368 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Casablanca", "POP2000": 3198.3333333333337 }, "geometry": { "type": "Point", "coordinates": [ -7.558594, 33.578015 ] } }
+{ "type": "Feature", "properties": { "NAME": "Casablanca", "POP2000": 3198.3333333333335 }, "geometry": { "type": "Point", "coordinates": [ -7.558594, 33.578015 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Bir Lehlou", "POP2000": 2029 }, "geometry": { "type": "Point", "coordinates": [ -9.667969, 26.115986 ] } }
 ,
@@ -67,7 +67,7 @@
 ,
 { "type": "Feature", "properties": { "NAME": "Quito", "POP2000": 4236.5 }, "geometry": { "type": "Point", "coordinates": [ -78.486328, -0.263671 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "La Paz", "POP2000": 2489.3333333333337 }, "geometry": { "type": "Point", "coordinates": [ -68.115234, -16.551962 ] } }
+{ "type": "Feature", "properties": { "NAME": "La Paz", "POP2000": 2489.3333333333335 }, "geometry": { "type": "Point", "coordinates": [ -68.115234, -16.551962 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Sucre", "POP2000": 2746 }, "geometry": { "type": "Point", "coordinates": [ -65.214844, -19.062118 ] } }
 ,
@@ -139,7 +139,7 @@
 ,
 { "type": "Feature", "properties": { "NAME": "Tashkent", "POP2000": 1452.5 }, "geometry": { "type": "Point", "coordinates": [ 69.345703, 41.310824 ] } }
 ,
-{ "type": "Feature", "properties": { "NAME": "Urumqi", "POP2000": 3554.6666666666667 }, "geometry": { "type": "Point", "coordinates": [ 87.626953, 43.771094 ] } }
+{ "type": "Feature", "properties": { "NAME": "Urumqi", "POP2000": 3554.6666666666665 }, "geometry": { "type": "Point", "coordinates": [ 87.626953, 43.771094 ] } }
 ,
 { "type": "Feature", "properties": { "NAME": "Kuwait", "POP2000": 2533 }, "geometry": { "type": "Point", "coordinates": [ 47.988281, 29.382175 ] } }
 ,

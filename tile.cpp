@@ -40,7 +40,7 @@
 #include "options.hpp"
 #include "main.hpp"
 #include "write_json.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
 #include "compression.hpp"

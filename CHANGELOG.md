@@ -1,3 +1,18 @@
+# 2.83.0
+
+* Replace the Grisu2 (`dtoa_milo`) float formatter with a C++ port of Russ
+  Cox's `fpfmt` (https://github.com/rsc/fpfmt), in `fpfmt/`. Grisu2 is fast but
+  neither always shortest nor always correctly rounded; `fpfmt` is both, and is
+  1.2x to 2.3x faster end to end (4.3x for digit generation alone) on this
+  hardware. Some numbers in tile output and tilestats therefore now print with
+  fewer digits (`-26.170044999999999` becomes `-26.170045`) or with a corrected
+  final digit (`9.823748927348929e+55` becomes `9.823748927348928e+55`). Every
+  such value still parses back to exactly the same double, so this changes only
+  the spelling, never the number. `make fpfmt-bench` rebuilds the head-to-head
+  comparison against the old implementation. `jsonpull`, now that it is C++,
+  calls `fpfmt::dtoa()` directly rather than through the `strdup`ing C shim
+  that `milo/milo.h` used to declare.
+
 # 2.82.0
 
 * Fix corruption of a JSON array when a non-final element was removed from it.

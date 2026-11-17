@@ -55,7 +55,7 @@ struct serial_val {
 
 	serial_val(double val) {
 		type = mvt_double;
-		s = milo::dtoa_milo(val);
+		s = fpfmt::dtoa(val);
 	}
 
 	double to_double() const {
@@ -82,7 +82,7 @@ struct serial_val {
 
 	void set_double_count(double v, size_t c) {
 		type = mvt_double;
-		s = milo::dtoa_milo(v) + '\0' + std::to_string(c);
+		s = fpfmt::dtoa(v) + '\0' + std::to_string(c);
 	}
 };
 

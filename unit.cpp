@@ -7,7 +7,12 @@
 #include "projection.hpp"
 #include "geometry.hpp"
 #include "jsonpull/jsonpull.h"
+#include "fpfmt/fpfmt.hpp"
 #include <unistd.h>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <random>
 #include <limits.h>
 
 TEST_CASE("UTF-8 enforcement", "[utf8]") {
@@ -494,6 +499,74 @@ TEST_CASE("jsonpull encodes U+FFFF as three bytes", "[jsonpull][utf8]") {
 	json_object_ptr o3 = json_read_tree(jp3);
 	REQUIRE(o3 != nullptr);
 	REQUIRE(o3->string() == "\xF0\x9F\x90\x80");
+}
+
+TEST_CASE("fpfmt formats the special cases", "[fpfmt]") {
+	REQUIRE(fpfmt::dtoa(0.0) == std::string("0"));
+	REQUIRE(fpfmt::dtoa(-0.0) == std::string("0"));
+	REQUIRE(fpfmt::dtoa(INFINITY) == std::string("inf"));
+	REQUIRE(fpfmt::dtoa(-INFINITY) == std::string("-inf"));
+	REQUIRE(fpfmt::dtoa(NAN) == std::string("nan"));
+}
+
+TEST_CASE("fpfmt chooses plain or exponential notation", "[fpfmt]") {
+	REQUIRE(fpfmt::dtoa(1) == std::string("1"));
+	REQUIRE(fpfmt::dtoa(-1) == std::string("-1"));
+	REQUIRE(fpfmt::dtoa(0.1) == std::string("0.1"));
+	REQUIRE(fpfmt::dtoa(12.34) == std::string("12.34"));
+	REQUIRE(fpfmt::dtoa(-12.34) == std::string("-12.34"));
+	REQUIRE(fpfmt::dtoa(123456789) == std::string("123456789"));
+
+	// Plain notation runs out to 21 integer digits, and down to 1e-6.
+	REQUIRE(fpfmt::dtoa(1e-6) == std::string("0.000001"));
+	REQUIRE(fpfmt::dtoa(1e-7) == std::string("1e-7"));  // no zero padding, as milo did
+	REQUIRE(fpfmt::dtoa(1e20) == std::string("100000000000000000000"));
+	REQUIRE(fpfmt::dtoa(1e21) == std::string("1e+21"));
+	REQUIRE(fpfmt::dtoa(1.5e300) == std::string("1.5e+300"));
+	REQUIRE(fpfmt::dtoa(-1.5e-300) == std::string("-1.5e-300"));
+
+	// Subnormals, and the extremes of the range.
+	REQUIRE(fpfmt::dtoa(5e-324) == std::string("5e-324"));
+	REQUIRE(fpfmt::dtoa(2.2250738585072014e-308) == std::string("2.2250738585072014e-308"));
+	REQUIRE(fpfmt::dtoa(1.7976931348623157e308) == std::string("1.7976931348623157e+308"));
+}
+
+TEST_CASE("fpfmt uses the shortest digit string", "[fpfmt]") {
+	// Cases where Grisu2 emitted a digit or more than it had to.
+	REQUIRE(fpfmt::dtoa(-26.170045) == std::string("-26.170045"));
+	REQUIRE(fpfmt::dtoa(77.272945) == std::string("77.272945"));
+
+	// Cases where Grisu2 picked a neighbor of the correctly rounded digits.
+	REQUIRE(fpfmt::dtoa(1.0 / 6.0) == std::string("0.16666666666666666"));
+	REQUIRE(fpfmt::dtoa(18446744073709551616.0) == std::string("18446744073709552000"));
+}
+
+TEST_CASE("fpfmt round trips", "[fpfmt]") {
+	auto round_trips = [](double d) {
+		std::string s = fpfmt::dtoa(d);
+		return strtod(s.c_str(), NULL) == d;
+	};
+
+	for (int i = -300; i <= 300; i++) {
+		double d = pow(10.0, i);
+		REQUIRE(round_trips(d));
+		REQUIRE(round_trips(-d));
+	}
+	for (int i = 1; i < 10000; i++) {
+		REQUIRE(round_trips((double) i));
+		REQUIRE(round_trips(1.0 / i));
+		REQUIRE(round_trips(-1.0 / i));
+	}
+
+	std::mt19937_64 rng(20250101);
+	for (int i = 0; i < 200000; i++) {
+		uint64_t bits = rng();
+		double d;
+		memcpy(&d, &bits, sizeof(d));
+		if (std::isfinite(d) && d != 0) {
+			REQUIRE(round_trips(d));
+		}
+	}
 }
 
 TEST_CASE("Polygon cleaning drops a hole that no ring can parent", "[wagyu]") {

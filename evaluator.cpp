@@ -6,7 +6,7 @@
 #include "mvt.hpp"
 #include "evaluator.hpp"
 #include "errors.hpp"
-#include "milo/dtoa_milo.h"
+#include "fpfmt/fpfmt.hpp"
 #include "text.hpp"
 
 int compare(mvt_value const &one, json_object *two, bool &fail) {
