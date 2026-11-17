@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <string>
 #include <vector>
@@ -379,10 +380,11 @@ static long long scale_geometry(struct serialization_state *sst, long long *bbox
 }
 
 static std::string strip_zeroes(std::string s) {
-	// Doesn't do anything special with '-' followed by leading zeros
-	// since integer IDs must be positive
-
-	while (s.size() > 0 && s[0] == '0') {
+	// Doesn't do anything special with '-' followed by leading zeros,
+	// since the caller has already rejected negative IDs.
+	//
+	// Keeps the final digit, so that an ID of 0 compares equal to "0".
+	while (s.size() > 1 && s[0] == '0') {
 		s.erase(s.begin());
 	}
 
@@ -811,16 +813,30 @@ int serialize_feature(struct serialization_state *sst, serial_feature &sf, std::
 		}
 
 		if (*sf.full_keys[i] == attribute_for_id) {
-			if (sf.full_values[i].type != mvt_double && !additional[A_CONVERT_NUMERIC_IDS]) {
+			std::string const &id_string = sf.full_values[i].s;
+			bool negative = id_string.size() > 0 && id_string[0] == '-';
+
+			// strtoull() would accept an empty string, skip leading whitespace or a '+',
+			// and wrap a negative number around to a huge positive one, so require that
+			// the value start with a digit (or a '-', to give a better warning below).
+			if ((sf.full_values[i].type != mvt_double && !additional[A_CONVERT_NUMERIC_IDS]) ||
+			    (!negative && (id_string.size() == 0 || !isdigit((unsigned char) id_string[0])))) {
 				static bool warned = false;
 
 				if (!warned) {
 					fprintf(stderr, "Warning: Attribute \"%s\"=\"%s\" as feature ID is not a number\n", sf.full_keys[i]->c_str(), sf.full_values[i].s.c_str());
 					warned = true;
 				}
+			} else if (negative) {
+				static bool warned_neg = false;
+
+				if (!warned_neg) {
+					fprintf(stderr, "Warning: Can't represent negative feature ID %s\n", id_string.c_str());
+					warned_neg = true;
+				}
 			} else {
 				char *err;
-				long long id_value = strtoull(sf.full_values[i].s.c_str(), &err, 10);
+				unsigned long long id_value = strtoull(id_string.c_str(), &err, 10);
 
 				if (err != NULL && *err != '\0') {
 					static bool warned_frac = false;
