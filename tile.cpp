@@ -476,7 +476,7 @@ static void rewrite(serial_feature const &osf, int z, int nextzoom, int maxzoom,
 
 		drawvec geom2;
 		for (auto const &g : osf.geometry) {
-			geom2.emplace_back(g.op, SHIFT_RIGHT(g.x + sx), SHIFT_RIGHT(g.y + sy));
+			geom2.emplace_back(g.op, SHIFT_RIGHT(g.x + sx), SHIFT_RIGHT(g.y + sy), g.node);
 		}
 
 		for (xo = bbox2[0]; xo <= bbox2[2]; xo++) {
@@ -631,7 +631,9 @@ static double simplify_feature(serial_feature *p, drawvec const &shared_nodes, n
 					// unioned exactly
 					//
 					// don't try to scale up because these are still world coordinates
+					drawvec before = geom;
 					coalesce_polygon(geom, false);
+					restore_node_states(before, geom);
 				}
 
 				// continues to simplify to line_detail even if we have extra detail
@@ -979,13 +981,13 @@ static bool clip_to_tile(serial_feature &sf, int z, long long buffer) {
 
 			if (sf.bbox[0] <= (1LL << 32) * buffer / 256) {
 				for (size_t i = 0; i < n; i++) {
-					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x + (1LL << 32), sf.geometry[i].y));
+					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x + (1LL << 32), sf.geometry[i].y, sf.geometry[i].node));
 				}
 			}
 
 			if (sf.bbox[2] >= (1LL << 32) - ((1LL << 32) * buffer / 256)) {
 				for (size_t i = 0; i < n; i++) {
-					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x - (1LL << 32), sf.geometry[i].y));
+					sf.geometry.push_back(draw(sf.geometry[i].op, sf.geometry[i].x - (1LL << 32), sf.geometry[i].y, sf.geometry[i].node));
 				}
 			}
 
@@ -2295,6 +2297,7 @@ long long write_tile(decompressor *geoms, std::atomic<long long> *geompos_in, ch
 
 								// don't scale up because this is still world coordinates
 								coalesce_polygon(to_clean, false);
+								restore_node_states(features[simplified_geometry_through]->geometry, to_clean);
 								features[simplified_geometry_through]->geometry = std::move(to_clean);
 							}
 						}

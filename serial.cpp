@@ -157,7 +157,7 @@ void deserialize_byte(const char **f, signed char *n) {
 static void write_geometry(drawvec const &dv, std::string &out, long long wx, long long wy) {
 	for (size_t i = 0; i < dv.size(); i++) {
 		if (dv[i].op == VT_MOVETO || dv[i].op == VT_LINETO) {
-			serialize_byte(out, dv[i].op);
+			serialize_byte(out, dv[i].op | (dv[i].node << NODE_SHIFT));
 			serialize_long_long(out, dv[i].x - wx);
 			serialize_long_long(out, dv[i].y - wy);
 			wx = dv[i].x;
@@ -301,6 +301,74 @@ serial_feature deserialize_feature(std::string const &geoms, unsigned z, unsigne
 	return sf;
 }
 
+// Before tiling, mark each vertex of a serialized feature with whether
+// it is one of the global shared nodes. This is done in place, by setting
+// the node state in the upper bits of the byte that holds each vertex's operation,
+// so the feature's length and position don't change.
+void mark_shared_nodes(char *feature, size_t len, unsigned *initial_x, unsigned *initial_y, struct node const *shared_nodes_map, size_t nodepos, std::string const &shared_nodes_bloom) {
+	const char *cp = feature;
+
+	signed char t;
+	deserialize_byte(&cp, &t);
+	if (t != VT_LINE && t != VT_POLYGON) {
+		return;
+	}
+
+	long long layer, seq;
+	deserialize_long_long(&cp, &layer);
+	deserialize_long_long(&cp, &seq);
+
+	if (layer & (1 << FLAG_MINZOOM)) {
+		int minzoom;
+		deserialize_int(&cp, &minzoom);
+	}
+	if (layer & (1 << FLAG_MAXZOOM)) {
+		int maxzoom;
+		deserialize_int(&cp, &maxzoom);
+	}
+	if (layer & (1 << FLAG_ID)) {
+		unsigned long long id;
+		deserialize_ulong_long(&cp, &id);
+	}
+
+	int segment;
+	deserialize_int(&cp, &segment);
+
+	// the same accumulation as in decode_geometry()
+	long long wx = initial_x[segment], wy = initial_y[segment];
+
+	while (cp < feature + len) {
+		char *opp = feature + (cp - feature);
+		signed char op;
+		deserialize_byte(&cp, &op);
+		if (op == VT_END) {
+			return;
+		}
+
+		// the vertex may already have a node state, from clipping to --clip-bounding-box
+		op &= OP_MASK;
+
+		if (op == VT_MOVETO || op == VT_LINETO) {
+			long long dx, dy;
+
+			deserialize_long_long(&cp, &dx);
+			deserialize_long_long(&cp, &dy);
+
+			wx += dx * (1 << geometry_scale);
+			wy += dy * (1 << geometry_scale);
+
+			signed char node = is_shared_node(wx, wy, shared_nodes_map, nodepos, shared_nodes_bloom) ? NODE_SHARED : NODE_NOT_SHARED;
+			*opp = op | (node << NODE_SHIFT);
+		} else if (op != VT_CLOSEPATH) {
+			fprintf(stderr, "Internal error: unexpected geometry operation %d marking shared nodes\n", op);
+			exit(EXIT_IMPOSSIBLE);
+		}
+	}
+
+	fprintf(stderr, "Internal error: no end of geometry marking shared nodes\n");
+	exit(EXIT_IMPOSSIBLE);
+}
+
 static long long scale_geometry(struct serialization_state *sst, long long *bbox, drawvec &geom) {
 	long long offset = 0;
 	long long prev = 0;
@@ -407,7 +475,7 @@ static void add_scaled_node(struct reader *r, serialization_state *sst, draw g) 
 	long long y = SHIFT_LEFT(g.y);
 
 	struct node n;
-	n.index = encode_vertex((unsigned) x, (unsigned) y);
+	n.index = encode_quadkey((unsigned) x, (unsigned) y);
 
 	fwrite_check((char *) &n, sizeof(struct node), 1, r->nodefile, &r->nodepos, sst->fname);
 }
