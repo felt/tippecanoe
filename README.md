@@ -4,7 +4,7 @@ tippecanoe
 Builds [vector tilesets](https://github.com/mapbox/vector-tile-spec/) from large (or small) collections of [GeoJSON](http://geojson.org/), [FlatGeobuf](https://github.com/flatgeobuf/flatgeobuf), or [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) features,
 [like these](MADE_WITH.md).
 
-This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com). 
+This is the official home of Tippecanoe, developed and actively maintained by [Erica Fischer](https://github.com/e-n-f) at [Felt](https://felt.com).
 
 For a self-hosted, API driven version of Tippecanoe, contact a technical sales engineer at sales@felt.com. Felt produces highly performant, automatically projected versions of your data, and utilizes a rendering engine, built on top of [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js), to style vector and raster data.
 
@@ -39,6 +39,15 @@ The easiest way to install tippecanoe on OSX is with [Homebrew](http://brew.sh/)
 
 ```sh
 $ brew install tippecanoe
+```
+
+There is also a docker image that you can pull and run:
+
+```sh
+$ docker run -it --rm \
+  -v /tiledata:/data \
+  ghcr.io/felt/tippecanoe:latest \
+  tippecanoe --output=/data/output.mbtiles /data/example.geojson
 ```
 
 On Ubuntu it will usually be easiest to build from the source repository:
