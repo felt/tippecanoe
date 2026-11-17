@@ -820,6 +820,68 @@ serial_val mvt_value_to_serial_val(mvt_value const &v) {
 	return sv;
 }
 
+static std::string strip_zeroes(std::string s) {
+	// Doesn't do anything special with '-' followed by leading zeros
+	// since integer IDs must be positive.
+	//
+	// The last digit is kept even if it is a zero, so that a value of "0"
+	// is the ID 0 instead of comparing unequal to it and being rejected.
+
+	while (s.size() > 1 && s[0] == '0') {
+		s.erase(s.begin());
+	}
+
+	return s;
+}
+
+// --use-attribute-for-id: convert the value of the attribute that was named as the
+// source of the feature ID into an ID. Returns false, after warning once about each
+// of the ways the conversion can fail, if the value can't be represented as an ID,
+// in which case the caller should treat it as an ordinary attribute instead.
+//
+// Values that aren't numbers are only converted if the caller says to, since in
+// tippecanoe that requires -aI. tile-join, which has no such option, always does.
+bool attribute_to_feature_id(std::string const &key, serial_val const &val, bool convert_numeric, unsigned long long *id) {
+	if (val.s.size() == 0 || (val.type != mvt_double && !convert_numeric)) {
+		static bool warned = false;
+
+		if (!warned) {
+			fprintf(stderr, "Warning: Attribute \"%s\"=\"%s\" as feature ID is not a number\n", key.c_str(), val.s.c_str());
+			warned = true;
+		}
+
+		return false;
+	}
+
+	char *err;
+	long long id_value = strtoull(val.s.c_str(), &err, 10);
+
+	if (err != NULL && *err != '\0') {
+		static bool warned_frac = false;
+
+		if (!warned_frac) {
+			fprintf(stderr, "Warning: Can't represent non-integer feature ID %s\n", val.s.c_str());
+			warned_frac = true;
+		}
+
+		return false;
+	}
+
+	if (std::to_string(id_value) != strip_zeroes(val.s)) {
+		static bool warned = false;
+
+		if (!warned) {
+			fprintf(stderr, "Warning: Can't represent too-large feature ID %s\n", val.s.c_str());
+			warned = true;
+		}
+
+		return false;
+	}
+
+	*id = id_value;
+	return true;
+}
+
 // This extracts an integer value from an mvt_value
 long long mvt_value_to_long_long(mvt_value const &v) {
 	switch (v.type) {

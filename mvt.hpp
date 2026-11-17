@@ -250,6 +250,7 @@ bool is_unsigned_integer(const char *s, unsigned long long *v);
 
 struct serial_val;
 serial_val mvt_value_to_serial_val(mvt_value const &v);
+bool attribute_to_feature_id(std::string const &key, serial_val const &val, bool convert_numeric, unsigned long long *id);
 
 void get_bbox(std::vector<mvt_geometry> const &geom,
 	      long long *xmin, long long *ymin, long long *xmax, long long *ymax,
