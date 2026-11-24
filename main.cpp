@@ -1715,9 +1715,9 @@ std::pair<int, metadata> read_input(std::vector<source> &sources, char *fname, i
 				exit(EXIT_CLOSE);
 			}
 		} else {
-			STREAM *fp = streamfdopen(fd, "r", sources[layer].file);
+			STREAM *fp = streamfdopen(fd, "r", sources[source].file);
 			if (fp == NULL) {
-				perror(sources[layer].file.c_str());
+				perror(sources[source].file.c_str());
 				if (close(fd) != 0) {
 					perror("close source file");
 					exit(EXIT_CLOSE);
