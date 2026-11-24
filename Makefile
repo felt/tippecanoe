@@ -133,7 +133,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test shared-layer-gzip-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
 	./unit
 
 suffixes = json json.gz
@@ -243,6 +243,19 @@ parallel-test: $(eval SHELL:=$(ADVSHELL))
 	cmp tests/parallel/linear-file.json tests/parallel/implicit-pipe.json
 	cmp tests/parallel/linear-file.json tests/parallel/parallel-pipes.json
 	rm tests/parallel/*.mbtiles tests/parallel/*.json
+
+shared-layer-gzip-test: tippecanoe tippecanoe-decode
+	set -eu; \
+	dir=$$(mktemp -d); \
+	trap 'rm -rf "$$dir"' EXIT; \
+	printf '%s\n' '{"type":"Feature","properties":{"name":"first"},"geometry":{"type":"Point","coordinates":[1,2]}}' > "$$dir/first.json"; \
+	printf '%s\n' '{"type":"Feature","properties":{"name":"second"},"geometry":{"type":"Point","coordinates":[3,4]}}' > "$$dir/second.json"; \
+	gzip -c "$$dir/second.json" > "$$dir/second.json.gz"; \
+	./tippecanoe -q -z0 -r1 -l shared -o "$$dir/plain.mbtiles" "$$dir/first.json" "$$dir/second.json"; \
+	./tippecanoe -q -z0 -r1 -l shared -o "$$dir/mixed.mbtiles" "$$dir/first.json" "$$dir/second.json.gz"; \
+	./tippecanoe-decode "$$dir/plain.mbtiles" 0 0 0 > "$$dir/plain.json"; \
+	./tippecanoe-decode "$$dir/mixed.mbtiles" 0 0 0 > "$$dir/mixed.json"; \
+	diff -u "$$dir/plain.json" "$$dir/mixed.json"
 
 raw-tiles-test: tippecanoe tippecanoe-decode tile-join
 	./tippecanoe -q -f -e tests/raw-tiles/raw-tiles -r1 -pC tests/raw-tiles/hackspots.geojson
