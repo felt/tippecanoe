@@ -748,6 +748,10 @@ int manage_gap(unsigned long long index, unsigned long long *previndex, double s
 // This function is called to choose the new gap threshold for --drop-densest-as-needed
 // and --coalesce-densest-as-needed.
 static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, double f, unsigned long long existing_gap) {
+	if (gaps.size() == 0) {
+		return existing_gap;
+	}
+
 	std::stable_sort(gaps.begin(), gaps.end());
 
 	size_t ix = (gaps.size() - 1) * (1 - f);
@@ -788,6 +792,10 @@ static unsigned long long choose_mingap(std::vector<unsigned long long> &gaps, d
 // If there are no higher extents available, the tile has already been reduced as much as possible
 // and tippecanoe will exit with an error.
 static long long choose_minextent(std::vector<long long> &extents, double f, long long existing_extent) {
+	if (extents.size() == 0) {
+		return existing_extent;
+	}
+
 	std::stable_sort(extents.begin(), extents.end());
 
 	size_t ix = (extents.size() - 1) * (1 - f);
