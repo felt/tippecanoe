@@ -133,7 +133,7 @@ indent:
 TESTS = $(wildcard tests/*/out/*.json)
 SPACE = $(NULL) $(NULL)
 
-test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
+test: tippecanoe tippecanoe-decode $(addsuffix .check,$(TESTS)) raw-tiles-test parallel-test radix-sort-test pbf-test join-test enumerate-test decode-test join-filter-test unit json-tool-test allow-existing-test empty-samples-test csv-test layer-json-test pmtiles-test decode-pmtiles-test overzoom-test flatgeobuf-test
 	./unit
 
 suffixes = json json.gz
@@ -636,6 +636,15 @@ allow-existing-test: tippecanoe
 	# Allow-existing is not supported for pmtiles
 	if ./tippecanoe -q -Z10 -z11 -F -o tests/allow-existing/both.pmtiles tests/coalesce-tract/tl_2010_06001_tract10.json; then exit 1; else exit 0; fi
 	rm -r tests/allow-existing/both.pmtiles tests/allow-existing/both.dir.json.check tests/allow-existing/both.dir tests/allow-existing/both.mbtiles.json.check tests/allow-existing/both.mbtiles
+
+# A tile that is still too big, when no features were sampled to choose a new threshold
+# from, should stop with an error instead of crashing (#424)
+empty-samples-test: tippecanoe
+	# --cluster-densest-as-needed at a zoom above --cluster-maxzoom
+	./tippecanoe -q -f -z1 --cluster-maxzoom=0 -aC --maximum-tile-features=50 -o tests/ne_110m_populated_places/empty-samples.mbtiles tests/ne_110m_populated_places/in.json; test $$? -eq 100
+	# --drop-smallest-as-needed when --cluster-distance has already looked at every feature
+	./tippecanoe -q -f -z0 -r1 --cluster-distance=1 --drop-smallest-as-needed --maximum-tile-features=50 -o tests/ne_110m_populated_places/empty-samples.mbtiles tests/ne_110m_populated_places/in.json; test $$? -eq 100
+	rm -f tests/ne_110m_populated_places/empty-samples.mbtiles tests/ne_110m_populated_places/empty-samples.mbtiles-journal
 
 csv-test: tippecanoe tippecanoe-decode
 	# Reading from named CSV
